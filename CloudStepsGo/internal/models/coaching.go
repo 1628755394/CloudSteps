@@ -190,3 +190,68 @@ func CoachingActualMinutesFloor(startedAt, endedAt time.Time) int {
 	}
 	return int(endedAt.Sub(startedAt) / time.Minute)
 }
+
+// CoachingAppointmentSlotBounds 排课计划起止时刻（本地时区）与计划分钟数
+func CoachingAppointmentSlotBounds(ap *CoachingAppointment, loc *time.Location) (slotStart, slotEnd time.Time, plannedMinutes int, err error) {
+	if ap == nil {
+		return time.Time{}, time.Time{}, 0, ErrInvalidCoachingTime
+	}
+	if loc == nil {
+		loc = time.Local
+	}
+	startMin, err := ParseCoachingHM(ap.StartTime)
+	if err != nil {
+		return time.Time{}, time.Time{}, 0, err
+	}
+	endMin, err := ParseCoachingHM(ap.EndTime)
+	if err != nil {
+		return time.Time{}, time.Time{}, 0, err
+	}
+	y, m, d := ap.ScheduledDate.In(loc).Date()
+	slotStart = time.Date(y, m, d, startMin/60, startMin%60, 0, 0, loc)
+	slotEnd = time.Date(y, m, d, endMin/60, endMin%60, 0, 0, loc)
+	return slotStart, slotEnd, endMin - startMin, nil
+}
+
+// CoachingCanStartAt 是否处于可点击「开始上课」的排课时段 [start, end)
+func CoachingCanStartAt(ap *CoachingAppointment, now time.Time, loc *time.Location) error {
+	slotStart, slotEnd, _, err := CoachingAppointmentSlotBounds(ap, loc)
+	if err != nil {
+		return err
+	}
+	now = now.In(loc)
+	if now.Before(slotStart) {
+		return errors.New("未到上课时间，请在排课时段内开始")
+	}
+	if !now.Before(slotEnd) {
+		return errors.New("已过排课结束时间，无法开始上课")
+	}
+	return nil
+}
+
+// CoachingEffectiveEndTime 完课时刻不超过排课结束时间
+func CoachingEffectiveEndTime(ap *CoachingAppointment, endedAt time.Time, loc *time.Location) time.Time {
+	_, slotEnd, _, err := CoachingAppointmentSlotBounds(ap, loc)
+	if err != nil {
+		return endedAt
+	}
+	endedAt = endedAt.In(loc)
+	if endedAt.After(slotEnd) {
+		return slotEnd
+	}
+	return endedAt
+}
+
+// CoachingBillingActualMinutes 计费实际分钟：按有效结束时刻计，且不超过计划时长
+func CoachingBillingActualMinutes(ap *CoachingAppointment, startedAt, endedAt time.Time, loc *time.Location) int {
+	effectiveEnd := CoachingEffectiveEndTime(ap, endedAt, loc)
+	actual := CoachingActualMinutesFloor(startedAt, effectiveEnd)
+	_, _, planned, err := CoachingAppointmentSlotBounds(ap, loc)
+	if err != nil || planned <= 0 {
+		return actual
+	}
+	if actual > planned {
+		return planned
+	}
+	return actual
+}

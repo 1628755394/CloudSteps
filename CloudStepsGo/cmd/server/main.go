@@ -225,6 +225,7 @@ func main() {
 	// 15. Start Timed task
 	// Start Email Cleaner Task
 	task.StartEmailCleaner(db)
+	task.StartCoachingAutoEnd(db)
 	// Start Backup Data
 	if config.GlobalConfig.Features.BackupEnabled {
 		backup.StartBackupScheduler()

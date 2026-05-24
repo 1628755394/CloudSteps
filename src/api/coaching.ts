@@ -14,6 +14,8 @@ export type CoachingWeekSchedule = {
     status?: string
     startedAt?: string
     endedAt?: string
+    scheduledEndAt?: string
+    plannedMinutes?: number
     actualMinutes?: number
     billedMinutes?: number
     teacherCreditedMinutes?: number

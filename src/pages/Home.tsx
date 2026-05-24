@@ -12,6 +12,7 @@ import {
   type CoachingTimeStats,
   type CoachingWeekSchedule,
 } from "@/api/coaching";
+import { isWithinCoachingStartWindow, minutesUntilCoachingEnd } from "@/utils/coachingSchedule";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const fmtYMD = (d: Date) =>
@@ -119,9 +120,11 @@ export default function Home() {
   }, [loadWeek, weekAnchor]);
 
   useEffect(() => {
-    const t = window.setInterval(() => setNowTs(Date.now()), 60_000);
+    const hasLive = schedules.some((s) => s.status === "in_progress");
+    const ms = hasLive ? 15_000 : 60_000;
+    const t = window.setInterval(() => setNowTs(Date.now()), ms);
     return () => window.clearInterval(t);
-  }, []);
+  }, [schedules]);
 
   const onStart = async (id: number) => {
     setPendingActionById((prev) => ({ ...prev, [id]: "start" }));
@@ -287,8 +290,15 @@ export default function Home() {
             ) : (
               schedules.map((s) => {
                 const st = s.status;
-                const canStart = isCoach && st === "scheduled";
+                const inStartWindow =
+                  st === "scheduled" &&
+                  isWithinCoachingStartWindow(s.scheduledDate, s.startTime, s.endTime, nowTs);
+                const canStart = isCoach && st === "scheduled" && inStartWindow;
                 const canEnd = isCoach && st === "in_progress";
+                const minsLeft =
+                  st === "in_progress"
+                    ? minutesUntilCoachingEnd(s.scheduledDate, s.endTime, nowTs)
+                    : null;
                 const canEnter = st === "in_progress"; // 仅已开始课程可进入
                 const pendingAction = pendingActionById[s.id] ?? null;
                 return (
@@ -324,6 +334,16 @@ export default function Home() {
                           </span>
                         )}
                       </div>
+                      {st === "scheduled" && isCoach && !inStartWindow && (
+                        <div className="text-xs text-amber-600 mt-2">
+                          仅可在排课时段 {s.startTime}–{s.endTime} 内开始上课
+                        </div>
+                      )}
+                      {st === "in_progress" && minsLeft != null && (
+                        <div className="text-xs text-[#4ECDC4] mt-2">
+                          上课中 · 距排课结束约 {Math.max(0, minsLeft)} 分钟（到点将自动下课，最长不超过计划时长）
+                        </div>
+                      )}
                       {s.session?.billedMinutes != null && s.session.billedMinutes >= 0 && st === "completed" && (
                         <div className="text-xs text-[#718096] mt-2">
                           实际 {s.session.actualMinutes ?? "-"} 分钟 · 学员扣减 {s.session.billedMinutes} 分钟

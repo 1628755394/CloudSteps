@@ -11,7 +11,6 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
@@ -684,9 +683,13 @@ func coachingToWeekDTO(list []models.CoachingAppointment) []coachingWeekSchedule
 				"teacherCreditedMinutes":  a.Session.TeacherCreditedMinutes,
 			}
 		} else if a.Status == models.CoachingStatusInProgress && a.ActualStartedAt != nil {
+			loc := time.Local
+			_, slotEnd, planned, _ := models.CoachingAppointmentSlotBounds(&a, loc)
 			sess = gin.H{
-				"status":    "in_progress",
-				"startedAt": *a.ActualStartedAt,
+				"status":          "in_progress",
+				"startedAt":       *a.ActualStartedAt,
+				"scheduledEndAt":  slotEnd,
+				"plannedMinutes":  planned,
 			}
 		}
 		out = append(out, coachingWeekScheduleDTO{
@@ -746,6 +749,10 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 		return
 	}
 	now := time.Now()
+	if err := models.CoachingCanStartAt(&ap, now, time.Local); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		return
+	}
 	if err := coachingTeacherCapAllowsStart(db, ap.TeacherID, now); err != nil {
 		if errors.Is(err, errCoachingTeacherCapFull) {
 			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
@@ -774,12 +781,6 @@ func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 	user := models.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 
-	var existing models.CoachingSessionRecord
-	if err := db.Where("appointment_id = ?", id).First(&existing).Error; err == nil {
-		response.Success(c, "ok", gin.H{"session": existing, "idempotent": true})
-		return
-	}
-
 	var ap models.CoachingAppointment
 	if err := db.Where("id = ? AND is_deleted = 0", id).First(&ap).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "排课不存在"})
@@ -789,87 +790,13 @@ func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "无权操作此排课"})
 		return
 	}
-	if ap.Status != models.CoachingStatusInProgress {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "只有上课中的排课可以下课"})
-		return
-	}
-	if ap.ActualStartedAt == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "缺少实际上课开始时间"})
-		return
-	}
-	endedAt := time.Now()
-	actual := models.CoachingActualMinutesFloor(*ap.ActualStartedAt, endedAt)
 
-	var rec models.CoachingSessionRecord
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var q models.StudentTeacherCoachingQuota
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("teacher_id = ? AND student_id = ? AND is_deleted = 0", ap.TeacherID, ap.StudentID).
-			First(&q).Error; err != nil {
-			return err
-		}
-		billedStudent := actual
-		if q.RemainingMinutes < billedStudent {
-			billedStudent = q.RemainingMinutes
-		}
-		res := tx.Model(&models.StudentTeacherCoachingQuota{}).
-			Where("id = ? AND version = ?", q.ID, q.Version).
-			Updates(map[string]any{
-				"remaining_minutes": q.RemainingMinutes - billedStudent,
-				"version":           q.Version + 1,
-			})
-		if res.Error != nil {
-			return res.Error
-		}
-		if res.RowsAffected == 0 {
-			return errors.New("额度更新冲突，请重试")
-		}
-		period, err := coachingGetOrCreateUsagePeriod(tx, ap.TeacherID, endedAt)
-		if err != nil {
-			return err
-		}
-		var lockedPeriod models.TeacherCoachingUsagePeriod
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", period.ID).First(&lockedPeriod).Error; err != nil {
-			return err
-		}
-		teacherCred := billedStudent
-		if lockedPeriod.CapMinutes > 0 {
-			room := lockedPeriod.CapMinutes - lockedPeriod.UsedMinutes
-			if room < 0 {
-				room = 0
-			}
-			if teacherCred > room {
-				teacherCred = room
-			}
-		}
-		if err := tx.Model(&lockedPeriod).Update("used_minutes", lockedPeriod.UsedMinutes+teacherCred).Error; err != nil {
-			return err
-		}
-		rec = models.CoachingSessionRecord{
-			AppointmentID: uint(id), TeacherID: ap.TeacherID, StudentID: ap.StudentID,
-			StartedAt: *ap.ActualStartedAt, EndedAt: endedAt,
-			ActualMinutes: actual, BilledMinutes: billedStudent, TeacherCreditedMinutes: teacherCred,
-			Status: models.CoachingSessionStatusCompleted,
-		}
-		if err := tx.Create(&rec).Error; err != nil {
-			return err
-		}
-		return tx.Model(&ap).Updates(map[string]any{
-			"status": models.CoachingStatusCompleted,
-		}).Error
-	})
+	rec, apCompleted, err := coachingCompleteAppointment(db, uint(id), time.Now(), c, false)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
 		return
 	}
-	_ = db.First(&rec, rec.ID).Error
-	_ = db.First(&ap, ap.ID).Error
-	coachingWriteCoachingAudit(db, c, coachingAuditSessionEnd, "session", rec.ID, uint(id), "下课完课", map[string]any{
-		"teacherId": rec.TeacherID, "studentId": rec.StudentID,
-		"actualMinutes": rec.ActualMinutes, "billedMinutes": rec.BilledMinutes,
-		"teacherCreditedMinutes": rec.TeacherCreditedMinutes,
-	})
-	response.Success(c, "ok", gin.H{"session": rec, "appointment": ap})
+	response.Success(c, "ok", gin.H{"session": rec, "appointment": apCompleted})
 }
 
 // coachingTimeStats 获取用户陪练时长统计

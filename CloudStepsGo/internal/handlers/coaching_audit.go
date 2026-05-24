@@ -23,6 +23,7 @@ const (
 	coachingAuditUsagePeriodPut    = "usage_period_put"
 	coachingAuditSessionStart      = "session_start"
 	coachingAuditSessionEnd        = "session_end"
+	coachingAuditSessionAutoEnd    = "session_auto_end"
 )
 
 func coachingTeacherCapAllowsStart(db *gorm.DB, teacherID uint, ref time.Time) error {
@@ -66,6 +67,27 @@ func coachingWriteCoachingAudit(db *gorm.DB, c *gin.Context, action, targetType 
 		Summary:         summary,
 		DetailJSON:      detailJSON,
 		IP:              c.ClientIP(),
+	}
+	_ = db.Create(&row).Error
+}
+
+func coachingWriteCoachingAuditSystem(db *gorm.DB, action, targetType string, targetID, appointmentID uint, summary string, detail map[string]any) {
+	var detailJSON string
+	if len(detail) > 0 {
+		if b, err := json.Marshal(detail); err == nil {
+			detailJSON = string(b)
+		}
+	}
+	row := models.CoachingAuditLog{
+		ActorID:         0,
+		ActorUsername:   "system",
+		ActorRole:       "system",
+		Action:          action,
+		TargetType:      targetType,
+		TargetID:        targetID,
+		AppointmentID:   appointmentID,
+		Summary:         summary,
+		DetailJSON:      detailJSON,
 	}
 	_ = db.Create(&row).Error
 }
