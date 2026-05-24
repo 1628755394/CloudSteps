@@ -234,10 +234,18 @@ export default function PreTrainingCheck() {
       }
       if (Array.isArray(sessionWords)) {
         sessionStorage.setItem("lb_study_words", JSON.stringify(sessionWords));
+        const wordCount = sessionWords.length;
+        const totalBatches = Math.max(1, Math.ceil(wordCount / 5));
+        sessionStorage.setItem("lb_study_total_batches", String(totalBatches));
+      } else {
+        sessionStorage.removeItem("lb_study_total_batches");
       }
       sessionStorage.setItem("lb_mode", "study");
       sessionStorage.setItem("lb_study_batch_idx", "0");
       sessionStorage.removeItem("lb_study_batch_results");
+      sessionStorage.removeItem("lb_review_session_id");
+      sessionStorage.removeItem("lb_review_words");
+      sessionStorage.removeItem("lb_review_batch_idx");
       navigate("/word-practice");
     } catch {
       // ignore

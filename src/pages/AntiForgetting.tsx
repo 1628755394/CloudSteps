@@ -111,6 +111,7 @@ export default function AntiForgetting() {
   };
 
   const handleOpenTask = (task: ReviewTask) => {
+    sessionStorage.setItem("lb_mode", "review");
     sessionStorage.setItem("lb_review_wordbook_id", String(task.wordBookId));
     sessionStorage.setItem("lb_review_wordbook_name", task.vocabularyPack);
     navigate(`/review-word-list?wordBookId=${task.wordBookId}`);

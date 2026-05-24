@@ -1,4 +1,4 @@
-import { ArrowLeft, Pause, Volume2, Scissors, Check, X } from "lucide-react";
+import { ArrowLeft, Pause, Volume2, Scissors } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
@@ -13,6 +13,17 @@ export default function FlashReview() {
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
+
+  useEffect(() => {
+    if (mode !== "review") return;
+    const wordBookId = sessionStorage.getItem("lb_review_wordbook_id");
+    if (wordBookId) {
+      navigate(`/review-word-list?wordBookId=${wordBookId}`, { replace: true });
+    } else {
+      navigate("/anti-forgetting", { replace: true });
+    }
+  }, [mode, navigate]);
+
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
     return Number(sessionStorage.getItem(key) || 0);
@@ -20,7 +31,7 @@ export default function FlashReview() {
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate("/word-review");
+    else navigate(mode === "review" ? "/anti-forgetting" : "/word-practice");
   };
 
   useEffect(() => {
@@ -76,6 +87,25 @@ export default function FlashReview() {
     abortRef.current = abort;
   };
 
+  const toggleTranslation = (word: FlashWord) => {
+    const id = word.id;
+    const isShowing = !word.showTranslation;
+    if (isShowing && word.audioUrl) {
+      abortRef.current?.();
+      setPlayingId(word.id);
+      const abort = playFirstWordAudio(word.audioUrl, () => setPlayingId(null));
+      abortRef.current = abort;
+    }
+    setWords((prev) =>
+      prev.map((w) => {
+        if (isShowing) {
+          return w.id === id ? { ...w, showTranslation: true } : { ...w, showTranslation: false };
+        }
+        return w.id === id ? { ...w, showTranslation: false } : w;
+      })
+    );
+  };
+
   const allCut = words.length > 0 && words.every((word) => word.scissorCount >= 2);
 
   const handleComplete = () => {
@@ -126,23 +156,38 @@ export default function FlashReview() {
               key={word.id}
               className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all"
             >
-              <div className="flex items-center gap-3 flex-1">
+              <div
+                className="flex items-center gap-3 flex-1 cursor-pointer pr-3"
+                onClick={() => toggleTranslation(word)}
+              >
                 <div>
-                  <div className="text-base font-medium text-[#2D3748] mb-1">{word.word}</div>
-                  {word.showTranslation && (
-                    <div className="text-sm text-[#718096]">{word.translation}</div>
+                  <div className="text-base font-medium text-[#2D3748] mb-1 hover:text-[#4ECDC4] transition-colors">
+                    {word.word}
+                  </div>
+                  {word.showTranslation && word.translation && (
+                    <div className="text-sm text-[#718096] animate-in fade-in slide-in-from-top-1">
+                      {word.translation}
+                    </div>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => handlePlayAudio(word)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePlayAudio(word);
+                  }}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
                   <Volume2 size={20} className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"} />
                 </button>
                 <button
-                  onClick={() => handleScissorClick(word)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleScissorClick(word);
+                  }}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
                   <Scissors

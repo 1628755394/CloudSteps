@@ -31,6 +31,20 @@ export default function WordReview() {
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
 
+  useEffect(() => {
+    if (mode === "review") {
+      const wordBookId = sessionStorage.getItem("lb_review_wordbook_id");
+      if (wordBookId) {
+        navigate(`/review-word-list?wordBookId=${wordBookId}`, { replace: true });
+      } else {
+        navigate("/anti-forgetting", { replace: true });
+      }
+      return;
+    }
+    // 普通训练不再使用「单词复习」页，回到练习或听音辨义
+    navigate("/word-practice", { replace: true });
+  }, [mode, navigate]);
+
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
     return Number(sessionStorage.getItem(key) || 0);

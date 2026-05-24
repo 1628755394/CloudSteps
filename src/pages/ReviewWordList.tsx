@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router";
-import { ChevronLeft, Volume2, Check } from "lucide-react";
+import { ChevronLeft, Volume2, Check, X } from "lucide-react";
+import { completeReviewSession } from "@/api/review";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getReviewToday, startReviewSession } from "@/api/review";
 import { playFirstWordAudio, playWordAudio } from "@/utils/audioPlayer";
@@ -9,7 +10,7 @@ type ReviewWordItem = {
   word: string; 
   translation?: string;
   audioUrl?: string;
-  status: null | "selected";
+  status: null | "correct" | "wrong";
   showTranslation?: boolean;
 };
 
@@ -28,7 +29,6 @@ export default function ReviewWordList() {
     return Number(sessionStorage.getItem("lb_review_wordbook_id") || 0);
   }, []);
 
-  const [sessionId, setSessionId] = useState<number>(0);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -39,6 +39,10 @@ export default function ReviewWordList() {
     const abort = playWordAudio(item.audioUrl, 300, () => setPlayingId(null));
     abortRef.current = abort;
   };
+
+  useEffect(() => {
+    sessionStorage.setItem("lb_mode", "review");
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -55,11 +59,9 @@ export default function ReviewWordList() {
           showTranslation: false
         }));
         if (!mounted) return;
-        setSessionId(0);
         setWords(mapped);
       } catch {
         if (!mounted) return;
-        setSessionId(0);
         setWords([]);
       }
     })();
@@ -73,9 +75,12 @@ export default function ReviewWordList() {
     else navigate("/anti-forgetting");
   };
 
-  const handleStatusClick = (id: number) => {
+  const handleStatusClick = (id: number, newStatus: "correct" | "wrong") => {
     setWords((prev) =>
-      prev.map((word) => (word.id === id ? { ...word, status: word.status ? null : "selected" } : word))
+      prev.map((word) => {
+        if (word.id !== id) return word;
+        return { ...word, status: word.status === newStatus ? null : newStatus };
+      })
     );
   };
 
@@ -92,38 +97,42 @@ export default function ReviewWordList() {
     );
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleSubmit = () => {
+    const marked = words.filter((w) => w.status !== null);
+    if (marked.length === 0) return;
+
     (async () => {
+      setSubmitting(true);
       try {
-        const selectedIds = words.filter((w) => w.status === "selected").map((w) => w.id);
-        if (selectedIds.length === 0) {
-          handleBack();
-          return;
-        }
-
-        const res = await startReviewSession({ wordBookId, wordIds: selectedIds });
+        const wordIds = marked.map((w) => w.id);
+        const res = await startReviewSession({ wordBookId, wordIds });
         const sid = Number(res.data?.sessionId || 0);
-        const ws = Array.isArray(res.data?.words) ? (res.data.words as any[]) : [];
-        if (!sid || ws.length === 0) {
+        if (!sid) {
           handleBack();
           return;
         }
 
-        sessionStorage.setItem("lb_mode", "review");
-        sessionStorage.setItem("lb_review_session_id", String(sid));
-        sessionStorage.setItem("lb_review_words", JSON.stringify(ws));
-        sessionStorage.setItem("lb_review_batch_idx", "0");
-        sessionStorage.setItem("lb_review_wordbook_id", String(wordBookId));
+        const results = marked.map((w) => ({
+          wordId: w.id,
+          remembered: w.status === "correct",
+        }));
+        await completeReviewSession(sid, results);
 
-        navigate("/word-practice");
+        sessionStorage.removeItem("lb_review_batch_idx");
+        sessionStorage.removeItem("lb_review_results");
+        navigate("/anti-forgetting");
+      } catch {
+        // ignore
       } finally {
-        // no-op
+        setSubmitting(false);
       }
     })();
   };
 
-  const masteredCount = words.filter((word) => word.status === "selected").length;
-  const forgottenCount = words.length - masteredCount;
+  const correctCount = words.filter((word) => word.status === "correct").length;
+  const wrongCount = words.filter((word) => word.status === "wrong").length;
 
   return (
     <div className="min-h-screen bg-[#F7F9FC] pb-32">
@@ -133,7 +142,7 @@ export default function ReviewWordList() {
           <button onClick={handleBack} className="mr-4">
             <ChevronLeft size={24} className="text-[#2D3748]" />
           </button>
-          <h1 className="text-lg font-semibold text-[#2D3748]">抗遗忘复习</h1>
+          <h1 className="text-lg font-semibold text-[#2D3748]">开始复习</h1>
         </div>
       </div>
 
@@ -158,7 +167,11 @@ export default function ReviewWordList() {
             <div
               key={item.id}
               className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
-                item.status === "selected" ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/5" : ""
+                item.status === "correct"
+                  ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
+                  : item.status === "wrong"
+                  ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5"
+                  : ""
               }`}
             >
               <div className="flex items-center justify-between">
@@ -185,14 +198,26 @@ export default function ReviewWordList() {
                     <Volume2 size={24} className={playingId === item.id ? "animate-pulse" : ""} />
                   </button>
                   <button
-                    onClick={() => handleStatusClick(item.id)}
+                    type="button"
+                    onClick={() => handleStatusClick(item.id, "correct")}
                     className={`p-2 rounded-full transition-colors ${
-                      item.status === "selected"
-                        ? "bg-[#4ECDC4] text-white"
+                      item.status === "correct"
+                        ? "bg-[#66BB6A] text-white"
                         : "hover:bg-gray-100 text-[#718096]"
                     }`}
                   >
                     <Check size={20} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusClick(item.id, "wrong")}
+                    className={`p-2 rounded-full transition-colors ${
+                      item.status === "wrong"
+                        ? "bg-[#FF6B6B] text-white"
+                        : "hover:bg-gray-100 text-[#718096]"
+                    }`}
+                  >
+                    <X size={20} />
                   </button>
                 </div>
               </div>
@@ -234,16 +259,17 @@ export default function ReviewWordList() {
 
           {/* 统计信息 */}
           <div className="text-sm text-[#718096]">
-            已选 <span className="text-[#4ECDC4] font-semibold">{masteredCount}</span> 个，
-            共 <span className="text-[#2D3748] font-semibold">{words.length}</span> 个
+            正确 <span className="text-[#66BB6A] font-semibold">{correctCount}</span> ·
+            错误 <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
           </div>
 
-          {/* 右下角提交按钮 */}
           <button
+            type="button"
             onClick={handleSubmit}
-            className="px-6 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#45b8b0] transition-colors"
+            disabled={correctCount + wrongCount === 0 || submitting}
+            className="px-6 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#45b8b0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            提交
+            {submitting ? "提交中…" : "完成复习"}
           </button>
         </div>
       </div>

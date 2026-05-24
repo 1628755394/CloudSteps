@@ -125,24 +125,6 @@ export default function CreateAntiForgetting() {
             </div>
           </div>
         </div>
-
-        {/* 复习单词列表预览 */}
-        <div className="bg-white rounded-xl p-6 shadow-sm">
-          <h3 className="text-base font-semibold text-[#2D3748] mb-3">
-            本次学习单词 (5个)
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {["abandon", "ability", "abroad", "absolute", "abstract"].map((word) => (
-              <div
-                key={word}
-                className="px-3 py-1.5 bg-[#4ECDC4]/10 text-[#4ECDC4] rounded-full text-sm"
-              >
-                {word}
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* 确定按钮 */}
         <button
           onClick={handleConfirm}

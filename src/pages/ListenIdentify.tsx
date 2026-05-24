@@ -18,6 +18,17 @@ export default function ListenIdentify() {
   const [showPauseMenu, setShowPauseMenu] = useState(false);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
+
+  useEffect(() => {
+    if (mode !== "review") return;
+    const wordBookId = sessionStorage.getItem("lb_review_wordbook_id");
+    if (wordBookId) {
+      navigate(`/review-word-list?wordBookId=${wordBookId}`, { replace: true });
+    } else {
+      navigate("/anti-forgetting", { replace: true });
+    }
+  }, [mode, navigate]);
+
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
     return Number(sessionStorage.getItem(key) || 0);
@@ -28,7 +39,7 @@ export default function ListenIdentify() {
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate("/word-review");
+    else navigate(mode === "review" ? "/anti-forgetting" : "/word-practice");
   };
 
   useEffect(() => {

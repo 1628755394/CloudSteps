@@ -5,19 +5,36 @@ import { completeStudySession } from "@/api/study";
 import { completeReviewSession } from "@/api/review";
 import { playFirstWordAudio, playWordAudio } from "@/utils/audioPlayer";
 
-type CheckWord = { 
-  id: number; 
-  word: string; 
+type CheckWord = {
+  id: number;
+  word: string;
   translation?: string;
   audioUrl?: string;
   status: null | "correct" | "wrong";
   showTranslation?: boolean;
 };
 
+function getStudyBatchMeta(batchIdx: number) {
+  const stored = Number(sessionStorage.getItem("lb_study_total_batches") || 0);
+  let totalBatches = stored;
+  if (!totalBatches) {
+    try {
+      const raw = sessionStorage.getItem("lb_study_words") || "[]";
+      const arr = JSON.parse(raw);
+      const total = Array.isArray(arr) ? arr.length : 0;
+      totalBatches = Math.max(1, Math.ceil(total / 5));
+    } catch {
+      totalBatches = 1;
+    }
+  }
+  const currentBatch = batchIdx + 1;
+  const hasMoreBatches = currentBatch < totalBatches;
+  return { totalBatches, currentBatch, hasMoreBatches, isLastBatch: !hasMoreBatches };
+}
+
 export default function PostTrainingCheck() {
   const navigate = useNavigate();
   const [words, setWords] = useState<CheckWord[]>([]);
-  const [showResultDialog, setShowResultDialog] = useState(false);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
 
@@ -25,14 +42,22 @@ export default function PostTrainingCheck() {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
     return Number(sessionStorage.getItem(key) || 0);
   }, [mode]);
+
   const sessionId = useMemo(() => {
     const key = mode === "review" ? "lb_review_session_id" : "lb_study_session_id";
     return Number(sessionStorage.getItem(key) || 0);
   }, [mode]);
+
   const [submitting, setSubmitting] = useState(false);
-  const [submitDone, setSubmitDone] = useState(false);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
+
+  const batchInfo = useMemo(() => {
+    if (mode === "review") {
+      return { totalBatches: 1, hasMoreBatches: false, isLastBatch: true, currentBatch: 1 };
+    }
+    return getStudyBatchMeta(batchIdx);
+  }, [batchIdx, mode]);
 
   const handlePlayAudio = (word: CheckWord) => {
     if (!word.audioUrl) return;
@@ -43,6 +68,15 @@ export default function PostTrainingCheck() {
   };
 
   const handleBack = () => {
+    if (mode === "review") {
+      const wordBookId = sessionStorage.getItem("lb_review_wordbook_id");
+      if (wordBookId) {
+        navigate(`/review-word-list?wordBookId=${wordBookId}`);
+        return;
+      }
+      navigate("/anti-forgetting");
+      return;
+    }
     if (window.history.length > 1) navigate(-1);
     else navigate("/flash-review");
   };
@@ -53,18 +87,17 @@ export default function PostTrainingCheck() {
       const raw = sessionStorage.getItem(wordsKey) || "[]";
       const arr = JSON.parse(raw);
       const all: any[] = Array.isArray(arr) ? arr : [];
-      const start = batchIdx * 5;
-      const slice = all.slice(start, start + 5);
-      const mapped: CheckWord[] = slice.map((w: any) => ({ 
-        id: Number(w.id), 
-        word: String(w.word || ""), 
+      const slice =
+        mode === "review" ? all : all.slice(batchIdx * 5, batchIdx * 5 + 5);
+      const mapped: CheckWord[] = slice.map((w: any) => ({
+        id: Number(w.id),
+        word: String(w.word || ""),
         translation: w.translation ? String(w.translation) : undefined,
         audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
         status: null,
-        showTranslation: false
+        showTranslation: false,
       }));
       setWords(mapped);
-      setSubmitDone(false);
     } catch {
       // ignore
     }
@@ -100,39 +133,76 @@ export default function PostTrainingCheck() {
     );
   };
 
+  const appendBatchResults = (results: { wordId: number; remembered: boolean }[]) => {
+    try {
+      const raw = sessionStorage.getItem("lb_study_batch_results") || "[]";
+      const prev = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+      sessionStorage.setItem("lb_study_batch_results", JSON.stringify([...prev, ...results]));
+    } catch {
+      sessionStorage.setItem("lb_study_batch_results", JSON.stringify(results));
+    }
+  };
+
+  const goNextBatch = () => {
+    sessionStorage.setItem("lb_study_batch_idx", String(batchIdx + 1));
+    navigate("/word-practice", { replace: true });
+  };
+
+  const finishTrainingAndCreateReview = () => {
+    sessionStorage.removeItem("lb_study_batch_idx");
+    sessionStorage.removeItem("lb_study_batch_results");
+    sessionStorage.removeItem("lb_study_total_batches");
+    navigate("/create-anti-forgetting", { replace: true });
+  };
+
   const handleSubmit = () => {
     const hasSelection = words.some((word) => word.status !== null);
     if (!hasSelection) return;
+
+    const results = words
+      .filter((w) => w.status !== null)
+      .map((w) => ({ wordId: w.id, remembered: w.status === "correct" }));
+
     (async () => {
       setSubmitting(true);
       try {
-        const results = words
-          .filter((w) => w.status !== null)
-          .map((w) => ({ wordId: w.id, remembered: w.status === "correct" }));
-
         if (mode === "review") {
-          // 抗遗忘模式：直接提交所有结果，不分批
           const res = await completeReviewSession(sessionId, results);
           if (res.code !== 200) {
             throw new Error(res.msg || "提交失败");
           }
-          setSubmitDone(true);
-          setShowResultDialog(true);
+          sessionStorage.removeItem("lb_review_batch_idx");
+          sessionStorage.removeItem("lb_review_results");
+          navigate("/anti-forgetting", { replace: true });
           return;
         }
 
-        // 学习模式：保持原有逻辑
-        if (!sessionId) {
-          setSubmitDone(true);
-          setShowResultDialog(true);
+        // 还有下一组：暂存结果并直接进入单词练习，不弹任何窗
+        if (batchInfo.hasMoreBatches) {
+          appendBatchResults(results);
+          goNextBatch();
           return;
         }
 
-        await completeStudySession(sessionId, results);
-        setSubmitDone(true);
-        setShowResultDialog(true);
+        // 全部组完成：提交后直接进入创建抗遗忘
+        let allResults = results;
+        try {
+          const raw = sessionStorage.getItem("lb_study_batch_results") || "[]";
+          const prev = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+          allResults = [...prev, ...results];
+        } catch {
+          // use current batch only
+        }
+
+        if (sessionId) {
+          await completeStudySession(sessionId, allResults);
+        }
+        finishTrainingAndCreateReview();
       } catch {
-        setSubmitDone(true);
+        // 提交失败时仍尝试进入创建页，避免卡在训后检测
+        if (batchInfo.isLastBatch) {
+          finishTrainingAndCreateReview();
+        }
       } finally {
         setSubmitting(false);
       }
@@ -144,23 +214,22 @@ export default function PostTrainingCheck() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      {/* 顶部栏 */}
       <div className="bg-white sticky top-0 z-10 shadow-sm">
         <div className="flex items-center px-4 py-4">
           <button
+            type="button"
             onClick={handleBack}
             className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <ArrowLeft size={24} className="text-[#2D3748]" />
           </button>
           <h1 className="flex-1 text-center text-lg font-semibold text-[#2D3748] -ml-10">
-            训后检测
+            {mode === "review" ? "开始复习" : "训后检测"}
           </h1>
         </div>
       </div>
 
       <div className="px-4 mt-6">
-        {/* 单词列表 */}
         <div className="space-y-3 mb-6">
           {words.map((word) => (
             <div
@@ -173,9 +242,14 @@ export default function PostTrainingCheck() {
                   : ""
               }`}
             >
-              <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => handleWordClick(word)}>
+              <div
+                className="flex items-center gap-3 flex-1 cursor-pointer"
+                onClick={() => handleWordClick(word)}
+              >
                 <div>
-                  <span className="text-base font-medium text-[#2D3748] hover:text-[#4ECDC4] transition-colors">{word.word}</span>
+                  <span className="text-base font-medium text-[#2D3748] hover:text-[#4ECDC4] transition-colors">
+                    {word.word}
+                  </span>
                   {word.showTranslation && word.translation && (
                     <p className="text-[#718096] text-sm mt-1 animate-in fade-in slide-in-from-top-1">
                       {word.translation}
@@ -185,12 +259,17 @@ export default function PostTrainingCheck() {
               </div>
               <div className="flex items-center gap-3">
                 <button
+                  type="button"
                   onClick={() => handlePlayAudio(word)}
                   className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
-                  <Volume2 size={20} className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"} />
+                  <Volume2
+                    size={20}
+                    className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+                  />
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleStatusClick(word.id, "correct")}
                   className={`p-2 rounded-full transition-colors ${
                     word.status === "correct"
@@ -201,6 +280,7 @@ export default function PostTrainingCheck() {
                   <Check size={20} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleStatusClick(word.id, "wrong")}
                   className={`p-2 rounded-full transition-colors ${
                     word.status === "wrong"
@@ -216,87 +296,24 @@ export default function PostTrainingCheck() {
         </div>
       </div>
 
-      {/* 底部栏 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="text-center text-sm text-[#718096] mb-3">
-          正确 <span className="text-[#66BB6A] font-semibold">{correctCount}</span> ·
-          错误 <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
+          正确 <span className="text-[#66BB6A] font-semibold">{correctCount}</span> · 错误{" "}
+          <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
         </div>
         <button
+          type="button"
           onClick={handleSubmit}
-          disabled={correctCount + wrongCount === 0}
+          disabled={correctCount + wrongCount === 0 || submitting}
           className="w-full py-3 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          提交
+          {submitting
+            ? "提交中…"
+            : batchInfo.hasMoreBatches
+            ? "提交并继续下一组"
+            : "提交并完成训练"}
         </button>
       </div>
-
-      {/* 结果弹窗 */}
-      {showResultDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-auto">
-            <h3 className="text-2xl font-bold text-center mb-2">
-              再接再厉
-            </h3>
-            <div className="space-y-3 mb-6">
-              <div className="flex items-center justify-between py-2 border-b border-[#E2E8F0]">
-                <span className="text-[#718096]">正确数</span>
-                <span className="text-xl font-bold text-[#66BB6A]">{correctCount}</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-[#E2E8F0]">
-                <span className="text-[#718096]">错误数</span>
-                <span className="text-xl font-bold text-[#FF6B6B]">{wrongCount}</span>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  setShowResultDialog(false);
-                  if (!submitDone) return;
-                  try {
-                    const wordsKey = mode === "review" ? "lb_review_words" : "lb_study_words";
-                    const raw = sessionStorage.getItem(wordsKey) || "[]";
-                    const arr = JSON.parse(raw);
-                    const total = Array.isArray(arr) ? arr.length : 0;
-                    const totalBatches = Math.ceil(total / 5);
-                    const next = batchIdx + 1;
-                    if (next < totalBatches) {
-                      if (mode === "review") {
-                        sessionStorage.setItem("lb_review_batch_idx", String(next));
-                      } else {
-                        sessionStorage.setItem("lb_study_batch_idx", String(next));
-                      }
-                      navigate("/word-practice", { replace: true });
-                    } else {
-                      if (mode === "review") {
-                        sessionStorage.removeItem("lb_review_results");
-                        navigate("/anti-forgetting");
-                      } else {
-                        navigate("/pre-training-check");
-                      }
-                    }
-                  } catch {
-                    if (mode === "review") navigate("/anti-forgetting");
-                    else navigate("/pre-training-check");
-                  }
-                }}
-                className="w-full py-3 text-[#718096] rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                {mode === "review" ? "继续复习" : "继续练习"}
-              </button>
-              <button
-                onClick={() => {
-                  if (mode === "review") navigate("/anti-forgetting");
-                  else navigate("/create-anti-forgetting");
-                }}
-                className="w-full py-3 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#45b8b0] transition-colors"
-              >
-                {mode === "review" ? "结束本次复习" : "结束本次训练，并创建单词抗遗忘"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -39,6 +39,17 @@ export default function WordPractice() {
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
 
+  useEffect(() => {
+    if (mode === "review") {
+      const wordBookId = sessionStorage.getItem("lb_review_wordbook_id");
+      if (wordBookId) {
+        navigate(`/review-word-list?wordBookId=${wordBookId}`, { replace: true });
+      } else {
+        navigate("/anti-forgetting", { replace: true });
+      }
+    }
+  }, [mode, navigate]);
+
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
     else navigate(mode === "review" ? "/anti-forgetting" : "/pre-training-check");
@@ -143,10 +154,15 @@ export default function WordPractice() {
   };
 
   const handleNext = () => {
-    navigate("/word-review");
+    // 普通训练：练习后进入听音辨义，不再经过「单词复习」页
+    navigate("/listen-identify");
   };
 
   const allCompleted = finished;
+
+  if (mode === "review") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -160,7 +176,7 @@ export default function WordPractice() {
             <ArrowLeft size={24} className="text-[#2D3748]" />
           </button>
           <h1 className="flex-1 text-center text-lg font-semibold text-[#2D3748]">
-            单词练习
+            {mode === "review" ? "开始复习" : "单词练习"}
           </h1>
           <button
             onClick={() => setShowPauseMenu(!showPauseMenu)}

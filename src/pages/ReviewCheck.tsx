@@ -15,7 +15,6 @@ type StartReviewData = {
 export default function ReviewCheck() {
   const navigate = useNavigate();
   const [words, setWords] = useState<ReviewWord[]>([]);
-  const [showResultDialog, setShowResultDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   /** 无词可复习时后端返回 finished + msg */
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
@@ -23,11 +22,15 @@ export default function ReviewCheck() {
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate("/word-training");
+    else navigate("/anti-forgetting");
   };
 
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
   const [sessionId, setSessionId] = useState<number>(0);
+
+  useEffect(() => {
+    sessionStorage.setItem("lb_mode", "review");
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -92,25 +95,23 @@ export default function ReviewCheck() {
   };
 
   const handleSubmit = () => {
-    const hasSelection = words.some((word) => word.status !== null);
-    if (!hasSelection) return;
-    setShowResultDialog(true);
-  };
-
-  const handleConfirmSubmit = async () => {
-    try {
-      if (sessionId) {
-        await completeReviewSession(
-          sessionId,
-          words.filter((w) => w.status !== null).map((w) => ({ wordId: w.id, remembered: w.status === "correct" }))
-        );
+    const marked = words.filter((word) => word.status !== null);
+    if (marked.length === 0) return;
+    (async () => {
+      try {
+        if (sessionId) {
+          await completeReviewSession(
+            sessionId,
+            marked.map((w) => ({ wordId: w.id, remembered: w.status === "correct" }))
+          );
+        }
+        sessionStorage.removeItem("lb_review_batch_idx");
+        sessionStorage.removeItem("lb_review_results");
+        navigate("/anti-forgetting", { replace: true });
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
-    } finally {
-      setShowResultDialog(false);
-      navigate("/word-training");
-    }
+    })();
   };
 
   const correctCount = words.filter((word) => word.status === "correct").length;
@@ -132,7 +133,7 @@ export default function ReviewCheck() {
             <ArrowLeft size={24} className="text-[#2D3748]" />
           </button>
           <h1 className="text-center text-lg font-semibold text-[#2D3748] truncate">
-            复习检测
+            开始复习
           </h1>
           <span className="w-10" aria-hidden />
         </div>
@@ -163,10 +164,10 @@ export default function ReviewCheck() {
             <p className="text-sm text-[#718096]">当前词库没有到期的复习任务，可先进行单词训练或改日再来。</p>
             <button
               type="button"
-              onClick={() => navigate("/word-training")}
+              onClick={() => navigate("/anti-forgetting")}
               className="w-full max-w-xs mx-auto py-3 rounded-full bg-[#4ECDC4] text-white font-medium"
             >
-              返回单词训练
+              返回抗遗忘
             </button>
           </div>
         )}
@@ -255,38 +256,9 @@ export default function ReviewCheck() {
           disabled={correctCount + wrongCount === 0}
           className="w-full py-3 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          提交
+          完成复习
         </button>
       </div>
-      )}
-
-      {/* 结果弹窗 */}
-      {showResultDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-auto">
-            <h3 className="text-2xl font-bold text-center text-[#4ECDC4] mb-6">
-              训练结果
-            </h3>
-            <div className="space-y-4 mb-6">
-              <div className="flex items-center justify-between py-3 border-b border-[#E2E8F0]">
-                <span className="text-[#718096]">正确数</span>
-                <span className="text-2xl font-bold text-[#66BB6A]">{correctCount}</span>
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-[#E2E8F0]">
-                <span className="text-[#718096]">错误数</span>
-                <span className="text-2xl font-bold text-[#FF6B6B]">{wrongCount}</span>
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                void handleConfirmSubmit();
-              }}
-              className="w-full py-3 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors"
-            >
-              确定
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );
