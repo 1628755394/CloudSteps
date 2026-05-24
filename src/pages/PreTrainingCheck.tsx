@@ -243,6 +243,7 @@ export default function PreTrainingCheck() {
       sessionStorage.setItem("lb_mode", "study");
       sessionStorage.setItem("lb_study_batch_idx", "0");
       sessionStorage.removeItem("lb_study_batch_results");
+      sessionStorage.removeItem("lb_study_check_phase");
       sessionStorage.removeItem("lb_review_session_id");
       sessionStorage.removeItem("lb_review_words");
       sessionStorage.removeItem("lb_review_batch_idx");

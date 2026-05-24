@@ -4,6 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { completeStudySession } from "@/api/study";
 import { completeReviewSession } from "@/api/review";
 import { playFirstWordAudio, playWordAudio } from "@/utils/audioPlayer";
+import {
+  getCheckPhaseLabel,
+  getMilestoneCheckBatchRange,
+  getTotalBatches,
+  needsFinalCheckAfterMilestone,
+  sliceWordsByBatches,
+  type StudyCheckPhase,
+} from "@/utils/studyBatchFlow";
 
 type CheckWord = {
   id: number;
@@ -14,6 +22,8 @@ type CheckWord = {
   showTranslation?: boolean;
 };
 
+const CHECK_PHASE_KEY = "lb_study_check_phase";
+
 function getStudyBatchMeta(batchIdx: number) {
   const stored = Number(sessionStorage.getItem("lb_study_total_batches") || 0);
   let totalBatches = stored;
@@ -22,7 +32,7 @@ function getStudyBatchMeta(batchIdx: number) {
       const raw = sessionStorage.getItem("lb_study_words") || "[]";
       const arr = JSON.parse(raw);
       const total = Array.isArray(arr) ? arr.length : 0;
-      totalBatches = Math.max(1, Math.ceil(total / 5));
+      totalBatches = getTotalBatches(total);
     } catch {
       totalBatches = 1;
     }
@@ -43,6 +53,12 @@ export default function PostTrainingCheck() {
     return Number(sessionStorage.getItem(key) || 0);
   }, [mode]);
 
+  const checkPhase = useMemo((): StudyCheckPhase => {
+    if (mode === "review") return "milestone";
+    const p = sessionStorage.getItem(CHECK_PHASE_KEY);
+    return p === "final" ? "final" : "milestone";
+  }, [mode, batchIdx]);
+
   const sessionId = useMemo(() => {
     const key = mode === "review" ? "lb_review_session_id" : "lb_study_session_id";
     return Number(sessionStorage.getItem(key) || 0);
@@ -58,6 +74,11 @@ export default function PostTrainingCheck() {
     }
     return getStudyBatchMeta(batchIdx);
   }, [batchIdx, mode]);
+
+  const phaseLabels = useMemo(
+    () => getCheckPhaseLabel(checkPhase, batchIdx, batchInfo.totalBatches),
+    [checkPhase, batchIdx, batchInfo.totalBatches]
+  );
 
   const handlePlayAudio = (word: CheckWord) => {
     if (!word.audioUrl) return;
@@ -85,10 +106,17 @@ export default function PostTrainingCheck() {
     try {
       const wordsKey = mode === "review" ? "lb_review_words" : "lb_study_words";
       const raw = sessionStorage.getItem(wordsKey) || "[]";
-      const arr = JSON.parse(raw);
-      const all: any[] = Array.isArray(arr) ? arr : [];
-      const slice =
-        mode === "review" ? all : all.slice(batchIdx * 5, batchIdx * 5 + 5);
+      const parsed = JSON.parse(raw);
+      const all: any[] = Array.isArray(parsed) ? parsed : [];
+      let slice: any[];
+      if (mode === "review") {
+        slice = all;
+      } else if (checkPhase === "final") {
+        slice = all;
+      } else {
+        const { startBatch, endBatch } = getMilestoneCheckBatchRange(batchIdx);
+        slice = sliceWordsByBatches(all, startBatch, endBatch);
+      }
       const mapped: CheckWord[] = slice.map((w: any) => ({
         id: Number(w.id),
         word: String(w.word || ""),
@@ -101,7 +129,7 @@ export default function PostTrainingCheck() {
     } catch {
       // ignore
     }
-  }, [batchIdx, mode]);
+  }, [batchIdx, mode, checkPhase]);
 
   const handleStatusClick = (id: number, newStatus: "correct" | "wrong") => {
     setWords((prev) =>
@@ -133,11 +161,14 @@ export default function PostTrainingCheck() {
     );
   };
 
-  const appendBatchResults = (results: { wordId: number; remembered: boolean }[]) => {
+  const appendMilestoneResults = (results: { wordId: number; remembered: boolean }[]) => {
     try {
       const raw = sessionStorage.getItem("lb_study_batch_results") || "[]";
       const prev = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
-      sessionStorage.setItem("lb_study_batch_results", JSON.stringify([...prev, ...results]));
+      const byId = new Map<number, { wordId: number; remembered: boolean }>();
+      for (const r of prev) byId.set(r.wordId, r);
+      for (const r of results) byId.set(r.wordId, r);
+      sessionStorage.setItem("lb_study_batch_results", JSON.stringify([...byId.values()]));
     } catch {
       sessionStorage.setItem("lb_study_batch_results", JSON.stringify(results));
     }
@@ -152,8 +183,18 @@ export default function PostTrainingCheck() {
     sessionStorage.removeItem("lb_study_batch_idx");
     sessionStorage.removeItem("lb_study_batch_results");
     sessionStorage.removeItem("lb_study_total_batches");
+    sessionStorage.removeItem(CHECK_PHASE_KEY);
     navigate("/create-anti-forgetting", { replace: true });
   };
+
+  const submitLabel = useMemo(() => {
+    if (mode === "review") return "完成复习";
+    if (checkPhase === "final") return "提交并完成训练";
+    if (needsFinalCheckAfterMilestone(batchIdx, batchInfo.totalBatches)) {
+      return "提交并进入总检测";
+    }
+    return "提交并继续下一组";
+  }, [mode, checkPhase, batchIdx, batchInfo.totalBatches]);
 
   const handleSubmit = () => {
     const hasSelection = words.some((word) => word.status !== null);
@@ -177,30 +218,24 @@ export default function PostTrainingCheck() {
           return;
         }
 
-        // 还有下一组：暂存结果并直接进入单词练习，不弹任何窗
-        if (batchInfo.hasMoreBatches) {
-          appendBatchResults(results);
+        if (checkPhase === "milestone") {
+          appendMilestoneResults(results);
+          if (needsFinalCheckAfterMilestone(batchIdx, batchInfo.totalBatches)) {
+            sessionStorage.setItem(CHECK_PHASE_KEY, "final");
+            navigate("/post-training-check", { replace: true });
+            return;
+          }
           goNextBatch();
           return;
         }
 
-        // 全部组完成：提交后直接进入创建抗遗忘
-        let allResults = results;
-        try {
-          const raw = sessionStorage.getItem("lb_study_batch_results") || "[]";
-          const prev = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
-          allResults = [...prev, ...results];
-        } catch {
-          // use current batch only
-        }
-
+        // 总检测：以本次全部勾选为准提交
         if (sessionId) {
-          await completeStudySession(sessionId, allResults);
+          await completeStudySession(sessionId, results);
         }
         finishTrainingAndCreateReview();
       } catch {
-        // 提交失败时仍尝试进入创建页，避免卡在训后检测
-        if (batchInfo.isLastBatch) {
+        if (checkPhase === "final") {
           finishTrainingAndCreateReview();
         }
       } finally {
@@ -224,12 +259,15 @@ export default function PostTrainingCheck() {
             <ArrowLeft size={24} className="text-[#2D3748]" />
           </button>
           <h1 className="flex-1 text-center text-lg font-semibold text-[#2D3748] -ml-10">
-            {mode === "review" ? "开始复习" : "训后检测"}
+            {mode === "review" ? "开始复习" : phaseLabels.title}
           </h1>
         </div>
       </div>
 
       <div className="px-4 mt-6">
+        {mode === "study" && (
+          <p className="text-center text-sm text-[#718096] mb-4">{phaseLabels.hint}</p>
+        )}
         <div className="space-y-3 mb-6">
           {words.map((word) => (
             <div
@@ -300,6 +338,11 @@ export default function PostTrainingCheck() {
         <div className="text-center text-sm text-[#718096] mb-3">
           正确 <span className="text-[#66BB6A] font-semibold">{correctCount}</span> · 错误{" "}
           <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
+          {mode === "study" && checkPhase === "milestone" && (
+            <span className="block text-xs text-[#A0AEC0] mt-1">
+              当前为第 {batchInfo.currentBatch} 小批 · 每 3 小批为一大组
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -307,11 +350,7 @@ export default function PostTrainingCheck() {
           disabled={correctCount + wrongCount === 0 || submitting}
           className="w-full py-3 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting
-            ? "提交中…"
-            : batchInfo.hasMoreBatches
-            ? "提交并继续下一组"
-            : "提交并完成训练"}
+          {submitting ? "提交中…" : submitLabel}
         </button>
       </div>
     </div>

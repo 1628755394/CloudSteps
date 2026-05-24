@@ -3,6 +3,13 @@ import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
 import { playFirstWordAudio, playWordAudio } from "@/utils/audioPlayer";
+import {
+  getTotalBatches,
+  resolveCheckPhase,
+  shouldEnterPostTrainingCheck,
+} from "@/utils/studyBatchFlow";
+
+const CHECK_PHASE_KEY = "lb_study_check_phase";
 
 type FlashWord = { id: number; word: string; translation: string; audioUrl?: string; scissorCount: number; status: any; showTranslation: boolean };
 
@@ -108,6 +115,30 @@ export default function FlashReview() {
 
   const allCut = words.length > 0 && words.every((word) => word.scissorCount >= 2);
 
+  const proceedAfterFlash = () => {
+    if (mode === "review") {
+      navigate("/post-training-check");
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem("lb_study_words") || "[]";
+      const all = JSON.parse(raw);
+      const total = Array.isArray(all) ? all.length : 0;
+      const totalBatches =
+        Number(sessionStorage.getItem("lb_study_total_batches") || 0) || getTotalBatches(total);
+
+      if (!shouldEnterPostTrainingCheck(batchIdx, totalBatches)) {
+        sessionStorage.setItem("lb_study_batch_idx", String(batchIdx + 1));
+        navigate("/word-practice", { replace: true });
+        return;
+      }
+      sessionStorage.setItem(CHECK_PHASE_KEY, resolveCheckPhase(batchIdx, totalBatches));
+      navigate("/post-training-check");
+    } catch {
+      navigate("/post-training-check");
+    }
+  };
+
   const handleComplete = () => {
     confetti({
       particleCount: 100,
@@ -135,7 +166,7 @@ export default function FlashReview() {
             <ArrowLeft size={24} className="text-[#2D3748]" />
           </button>
           <h1 className="flex-1 text-center text-lg font-semibold text-[#2D3748]">
-            第 1 组快闪
+            第 {batchIdx + 1} 组快闪
           </h1>
           <button className="p-2 -mr-2 hover:bg-gray-100 rounded-full transition-colors">
             <Pause size={24} className="text-[#2D3748]" />
@@ -217,10 +248,16 @@ export default function FlashReview() {
                 返回练习
               </button>
               <button
-                onClick={() => navigate("/post-training-check")}
+                type="button"
+                onClick={proceedAfterFlash}
                 className="flex-1 py-3 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors"
               >
-                进入检测
+                {mode === "study" && !shouldEnterPostTrainingCheck(
+                  batchIdx,
+                  Number(sessionStorage.getItem("lb_study_total_batches") || 1)
+                )
+                  ? "继续下一组"
+                  : "进入检测"}
               </button>
             </div>
           </div>
