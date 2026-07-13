@@ -18,6 +18,16 @@ export default defineConfig({
     port: 3000,
     host: true,
     strictPort: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:7080',
+        changeOrigin: true,
+      },
+      '/uploads': {
+        target: 'http://localhost:7080',
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {

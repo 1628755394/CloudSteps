@@ -24,3 +24,4 @@ lerna-debug.log*
 .tmp
 dist/
 node_modules/
+example/
