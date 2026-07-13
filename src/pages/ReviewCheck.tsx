@@ -1,6 +1,9 @@
 import { ArrowLeft, Volume2, Check, X, Shuffle, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
+import { CloudButton } from "@/components/cloudsteps";
+import { FlowPageShell } from "@/components/PageTransition";
+import { FlowPageTitle } from "@/components/PageTitle";
 
 import { completeReviewSession, startReviewSession } from "@/api/review";
 
@@ -120,21 +123,20 @@ export default function ReviewCheck() {
   const showList = !loading && !loadError && !emptyMessage && words.length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      {/* 顶部栏：三列网格，避免标题负边距盖住返回键 */}
+    <FlowPageShell>
       <div className="bg-white sticky top-0 z-30 shadow-sm">
-        <div className="grid grid-cols-[3rem_1fr_3rem] items-center px-2 py-3">
-          <button
+        <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center px-3 py-3">
+          <CloudButton
             type="button"
+            variant="ghost"
+            size="iconRound"
             onClick={handleBack}
-            className="p-2 justify-self-start hover:bg-gray-100 rounded-full transition-colors"
+            className="justify-self-start"
             aria-label="返回"
           >
-            <ArrowLeft size={24} className="text-[#2D3748]" />
-          </button>
-          <h1 className="text-center text-lg font-semibold text-[#2D3748] truncate">
-            开始复习
-          </h1>
+            <ArrowLeft size={20} className="text-[#2D3748]" />
+          </CloudButton>
+          <FlowPageTitle>开始复习</FlowPageTitle>
           <span className="w-10" aria-hidden />
         </div>
       </div>
@@ -147,13 +149,9 @@ export default function ReviewCheck() {
         {loadError && (
           <div className="rounded-xl bg-white border border-[#E2E8F0] p-6 text-center space-y-4">
             <p className="text-[#FF6B6B]">{loadError}</p>
-            <button
-              type="button"
-              onClick={handleBack}
-              className="px-6 py-2 rounded-full bg-[#4ECDC4] text-white font-medium"
-            >
+            <CloudButton type="button" variant="brand" size="pill" onClick={handleBack}>
               返回
-            </button>
+            </CloudButton>
           </div>
         )}
 
@@ -162,13 +160,15 @@ export default function ReviewCheck() {
             <BookOpen className="mx-auto text-[#4ECDC4]" size={40} />
             <p className="text-[#2D3748] font-medium">{emptyMessage}</p>
             <p className="text-sm text-[#718096]">当前词库没有到期的复习任务，可先进行单词训练或改日再来。</p>
-            <button
+            <CloudButton
               type="button"
+              variant="brand"
+              size="pill"
+              className="w-full max-w-xs mx-auto"
               onClick={() => navigate("/anti-forgetting")}
-              className="w-full max-w-xs mx-auto py-3 rounded-full bg-[#4ECDC4] text-white font-medium"
             >
               返回抗遗忘
-            </button>
+            </CloudButton>
           </div>
         )}
 
@@ -196,29 +196,26 @@ export default function ReviewCheck() {
                 <span className="text-base font-medium text-[#2D3748]">{word.word}</span>
               </div>
               <div className="flex items-center gap-3">
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <CloudButton type="button" variant="ghost" size="iconRound">
                   <Volume2 size={20} className="text-[#4ECDC4]" />
-                </button>
-                <button
+                </CloudButton>
+                <CloudButton
+                  type="button"
+                  variant={word.status === "correct" ? "brand" : "ghost"}
+                  size="iconRound"
                   onClick={() => handleStatusClick(word.id, "correct")}
-                  className={`p-2 rounded-full transition-colors ${
-                    word.status === "correct"
-                      ? "bg-[#66BB6A] text-white"
-                      : "hover:bg-gray-100 text-[#718096]"
-                  }`}
+                  className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
                 >
                   <Check size={20} />
-                </button>
-                <button
+                </CloudButton>
+                <CloudButton
+                  type="button"
+                  variant={word.status === "wrong" ? "destructive" : "ghost"}
+                  size="iconRound"
                   onClick={() => handleStatusClick(word.id, "wrong")}
-                  className={`p-2 rounded-full transition-colors ${
-                    word.status === "wrong"
-                      ? "bg-[#FF6B6B] text-white"
-                      : "hover:bg-gray-100 text-[#718096]"
-                  }`}
                 >
                   <X size={20} />
-                </button>
+                </CloudButton>
               </div>
             </div>
           ))}
@@ -236,30 +233,26 @@ export default function ReviewCheck() {
             错误 <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={handleShuffle}
-              className="px-4 py-2 border border-[#E2E8F0] rounded-full text-sm text-[#718096] hover:bg-gray-50 transition-colors flex items-center gap-1"
-            >
+            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
               乱序
-            </button>
-            <button
-              onClick={handleSelectAll}
-              className="px-4 py-2 border border-[#E2E8F0] rounded-full text-sm text-[#718096] hover:bg-gray-50 transition-colors"
-            >
+            </CloudButton>
+            <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
               全选
-            </button>
+            </CloudButton>
           </div>
         </div>
-        <button
+        <CloudButton
+          variant="brand"
+          size="pill"
+          className="w-full"
           onClick={handleSubmit}
           disabled={correctCount + wrongCount === 0}
-          className="w-full py-3 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           完成复习
-        </button>
+        </CloudButton>
       </div>
       )}
-    </div>
+    </FlowPageShell>
   );
 }

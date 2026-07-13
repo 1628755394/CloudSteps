@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import type { LucideIcon } from "lucide-react";
+import { motion } from "motion/react";
 
 export type NavItem = {
   path: string;
@@ -15,7 +16,7 @@ type NavMenuProps = {
 
 export function NavMenu({ items, activePath, onNavigate }: NavMenuProps) {
   return (
-    <nav className="space-y-2">
+    <nav className="relative flex flex-col gap-1">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive =
@@ -28,22 +29,24 @@ export function NavMenu({ items, activePath, onNavigate }: NavMenuProps) {
             key={item.path}
             to={item.path}
             onClick={onNavigate}
-            className={
-              "relative flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ease-out " +
-              (isActive
-                ? "text-white"
-                : "text-[#718096] hover:bg-[#F7F9FC]")
-            }
+            className="relative flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-sm font-medium transition-colors"
           >
-            <span
-              className={
-                "absolute inset-0 rounded-lg bg-[#4ECDC4] transition-opacity duration-200 ease-out " +
-                (isActive ? "opacity-100" : "opacity-0")
-              }
+            {isActive ? (
+              <motion.span
+                layoutId="desktop-nav-pill"
+                className="absolute inset-0 rounded-[10px] bg-white shadow-[0_1px_4px_rgb(0_0_0_/_0.08)] dark:bg-background dark:shadow-[0_1px_4px_rgb(0_0_0_/_0.18)]"
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+              />
+            ) : null}
+            <Icon
+              size={18}
+              strokeWidth={2}
+              className={`relative z-10 shrink-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`}
             />
-            <span className="relative flex items-center gap-3">
-              <Icon size={20} />
-              <span>{item.label}</span>
+            <span
+              className={`relative z-10 ${isActive ? "text-foreground font-medium" : "text-muted-foreground"}`}
+            >
+              {item.label}
             </span>
           </Link>
         );

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CloudButton } from "@/components/cloudsteps";
+import { PageTitle } from "@/components/PageTitle";
 import { Calendar, Clock, Eye, BookOpen, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { listReviewBooksByDate } from "@/api/review";
@@ -119,32 +121,27 @@ export default function AntiForgetting() {
 
   return (
     <div className="space-y-6">
-      {/* 页面标题 */}
-      <div>
-        <h1 className="text-[24px] md:text-[28px] font-semibold text-[#2D3748]">
-          抗遗忘复习
-        </h1>
-        <p className="text-[#718096] mt-1 text-sm md:text-base">
-          定期复习，巩固记忆，防止遗忘
-        </p>
-      </div>
+      <PageTitle description="定期复习，巩固记忆，防止遗忘">抗遗忘复习</PageTitle>
 
       {/* 日期筛选器：移动端用大字 + 系统日历，避免原生 date 输入条难点 */}
       <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm">
         <div className="flex items-stretch justify-between gap-2 sm:gap-4">
-          <button
+          <CloudButton
             type="button"
+            variant="ghost"
+            size="iconRound"
             onClick={() => shiftDate(-1)}
-            className="shrink-0 self-center p-3 rounded-xl hover:bg-[#F7F9FC] active:scale-[0.98] transition-all"
+            className="shrink-0 self-center p-3 rounded-xl"
             aria-label="上一天"
           >
             <ChevronLeft size={22} className="text-[#718096]" />
-          </button>
+          </CloudButton>
 
-          <button
+          <CloudButton
             type="button"
+            variant="ghost"
             onClick={openNativeDatePicker}
-            className="flex-1 min-w-0 flex flex-col items-center justify-center rounded-xl px-2 py-3 hover:bg-[#F7F9FC]/80 active:bg-[#F7F9FC] transition-colors"
+            className="flex-1 min-w-0 flex-col h-auto rounded-xl px-2 py-3"
           >
             <div className="flex items-center gap-1.5 text-[#4ECDC4] mb-1">
               <Calendar size={18} />
@@ -154,7 +151,7 @@ export default function AntiForgetting() {
               {formatDateZhLong(selectedDate)}
             </div>
             <span className="text-[11px] text-[#A0AEC0] mt-1.5">点按打开系统日历</span>
-          </button>
+          </CloudButton>
 
           <input
             ref={dateInputRef}
@@ -166,14 +163,16 @@ export default function AntiForgetting() {
             aria-label="选择日期"
           />
 
-          <button
+          <CloudButton
             type="button"
+            variant="ghost"
+            size="iconRound"
             onClick={() => shiftDate(1)}
-            className="shrink-0 self-center p-3 rounded-xl hover:bg-[#F7F9FC] active:scale-[0.98] transition-all"
+            className="shrink-0 self-center p-3 rounded-xl"
             aria-label="下一天"
           >
             <ChevronRight size={22} className="text-[#718096]" />
-          </button>
+          </CloudButton>
         </div>
       </div>
 
@@ -227,13 +226,10 @@ export default function AntiForgetting() {
                         已完成
                       </span>
                     )}
-                    <button
-                      onClick={() => handleOpenTask(task)}
-                      className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#3DBCB4] transition-colors flex items-center gap-2"
-                    >
+                    <CloudButton variant="brand" size="sm" onClick={() => handleOpenTask(task)}>
                       <Eye size={16} />
                       <span>{task.status === "completed" ? "查看" : "复习"}</span>
-                    </button>
+                    </CloudButton>
                   </div>
                 </div>
               ))}
@@ -275,13 +271,10 @@ export default function AntiForgetting() {
                 <span>训练时长：{task.trainingTime}</span>
               </div>
             </div>
-            <button
-              onClick={() => handleOpenTask(task)}
-              className="w-full mt-4 px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#3DBCB4] transition-colors flex items-center justify-center gap-2"
-            >
+            <CloudButton variant="brand" className="w-full mt-4" onClick={() => handleOpenTask(task)}>
               <Eye size={16} />
               <span>{task.status === "completed" ? "查看" : "复习"}</span>
-            </button>
+            </CloudButton>
           </div>
         ))}
       </div>

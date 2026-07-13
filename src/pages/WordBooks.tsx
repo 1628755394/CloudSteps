@@ -87,7 +87,7 @@ export default function WordBooks() {
               <BookOpen className="text-white" size={32} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">词库</h1>
+              <h1 className="text-xl font-semibold sm:text-2xl">词库</h1>
               <p className="text-white/80 text-sm mt-1">选择词库查看单词、音标、释义并播放发音</p>
             </div>
           </div>

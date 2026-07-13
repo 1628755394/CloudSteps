@@ -1,24 +1,6 @@
 import { useState } from 'react'
 import { Volume2, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
-
-const LINGECHO_URL = 'https://soulmy.top/api/open/tts'
-const API_KEY = import.meta.env.VITE_LINGECHO_API_KEY as string
-const API_SECRET = import.meta.env.VITE_LINGECHO_API_SECRET as string
-
-async function fetchTTS(text: string): Promise<string> {
-  const res = await fetch(LINGECHO_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': API_KEY,
-      'x-api-secret': API_SECRET,
-    },
-    body: JSON.stringify({ text }),
-  })
-  const data = await res.json()
-  if (data.code !== 200 || !data.data?.url) throw new Error(data.msg || 'TTS 请求失败')
-  return data.data.url as string
-}
+import { generateWordAudioUrls } from '@/utils/lingechoTts'
 
 interface Props {
   word: string
@@ -39,32 +21,8 @@ export default function LingechoTTS({ word, translation, onGenerated }: Props) {
     setStatus('loading')
     setError('')
     try {
-      const w = word.trim()
-      // 从 translation 里提取第一个中文词义（去掉词性标注如 "n. 苹果" → "苹果"）
-      let zh = w
-      if (translation) {
-        try {
-          const arr = JSON.parse(translation)
-          const first: string = Array.isArray(arr) ? arr[0] : translation
-          zh = first.replace(/^[a-z]+\.\s*/i, '').trim() || w
-        } catch {
-          zh = translation.replace(/^[a-z]+\.\s*/i, '').trim() || w
-        }
-      }
-
-      const texts = [
-        w,                          // 第1条：纯单词
-        `${w} ${w} ${w}`,           // 第2条：重复三次
-        `${w} ${w} ${zh}`,          // 第3条：两次英文 + 一次中文
-      ]
-
-      const urls: string[] = []
-      for (const text of texts) {
-        urls.push(await fetchTTS(text))
-        if (urls.length < texts.length) await new Promise(r => setTimeout(r, 100))
-      }
-
-      onGenerated(urls.join(';'))
+      const audioUrl = await generateWordAudioUrls(word.trim(), translation)
+      onGenerated(audioUrl)
       setStatus('success')
     } catch (e: any) {
       setError(e?.message || '生成失败')

@@ -1,6 +1,8 @@
 import { ChevronDown, Lightbulb, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
+import { CloudButton } from "@/components/cloudsteps";
+import { FlowPageShell } from "@/components/PageTransition";
 
 import { listWordBooks } from "@/api/wordbooks";
 import { getStudyLighthouse } from "@/api/study";
@@ -83,24 +85,29 @@ export default function WordTraining() {
   }, [selectedWordBookId]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <FlowPageShell>
       <TopBar title="单词训练" onBack={handleBack} />
 
       <div className="px-4 mt-6 space-y-6">
         {/* 词库选择器 */}
         <div className="relative">
-          <button
+          <CloudButton
+            variant="ghost"
+            className="w-full bg-white rounded-xl p-4 h-auto justify-between shadow-sm hover:shadow-sm"
             onClick={() => setShowVocabularyDropdown(!showVocabularyDropdown)}
-            className="w-full bg-white rounded-xl p-4 flex items-center justify-between shadow-sm"
           >
             <span className="text-[#2D3748] font-medium">{selectedVocabulary}</span>
             <ChevronDown size={20} className="text-[#718096]" />
-          </button>
+          </CloudButton>
           {showVocabularyDropdown && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg overflow-hidden z-20">
               {vocabularies.map((vocab) => (
-                <button
+                <CloudButton
                   key={vocab}
+                  variant="ghost"
+                  className={`w-full justify-start rounded-none px-4 py-3 h-auto ${
+                    selectedVocabulary === vocab ? "bg-[#4ECDC4]/10 text-[#4ECDC4]" : "text-[#2D3748]"
+                  }`}
                   onClick={() => {
                     setSelectedVocabulary(vocab);
                     setShowVocabularyDropdown(false);
@@ -111,12 +118,9 @@ export default function WordTraining() {
                       sessionStorage.setItem("lb_wordbook_name", wb.name);
                     }
                   }}
-                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${
-                    selectedVocabulary === vocab ? "bg-[#4ECDC4]/10 text-[#4ECDC4]" : "text-[#2D3748]"
-                  }`}
                 >
                   {vocab}
-                </button>
+                </CloudButton>
               ))}
             </div>
           )}
@@ -242,30 +246,36 @@ export default function WordTraining() {
 
         {/* 操作按钮 */}
         <div className="flex gap-3 pb-6">
-          <button
+          <CloudButton
+            variant="brandOutline"
+            size="pillLg"
+            className="flex-1"
             onClick={() => navigate("/review-check")}
-            className="flex-1 py-4 border-2 border-[#4ECDC4] text-[#4ECDC4] rounded-full font-medium hover:bg-[#4ECDC4]/5 transition-colors"
           >
             开始复习
-          </button>
-          <button
+          </CloudButton>
+          <CloudButton
+            variant="brand"
+            size="pillLg"
+            className="flex-1"
             onClick={() => navigate("/pre-training-check")}
-            className="flex-1 py-4 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors"
           >
             继续练习
-          </button>
+          </CloudButton>
         </div>
       </div>
 
       {/* 右下角箭头按钮 - 直接进入训前检测界面 */}
       <div className="fixed bottom-6 right-6">
-        <button
+        <CloudButton
+          variant="brand"
+          size="iconRound"
+          className="size-14 shadow-lg"
           onClick={() => navigate("/pre-training-check")}
-          className="p-4 bg-[#4ECDC4] text-white rounded-full shadow-lg hover:bg-[#45b8b0] transition-colors"
         >
           <ArrowRight size={24} />
-        </button>
+        </CloudButton>
       </div>
-    </div>
+    </FlowPageShell>
   );
 }

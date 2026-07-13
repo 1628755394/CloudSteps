@@ -1,3 +1,4 @@
+import { CloudButton } from "@/components/cloudsteps";
 import { useMemo, useState } from "react";
 import { Mail, Phone, MapPin, Shield, Award, BookOpen, Clock } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -45,18 +46,12 @@ export default function Profile() {
           </div>
 
           <div className="flex gap-3">
-            <button
-              type="button"
-              className="px-4 py-2 rounded-lg border border-[#E2E8F0] text-[#2D3748] text-sm font-medium hover:bg-[#F7F9FC] transition-colors"
-            >
+            <CloudButton type="button" variant="outline">
               编辑资料
-            </button>
-            <button
-              type="button"
-              className="px-4 py-2 rounded-lg bg-[#4ECDC4] text-white text-sm font-medium hover:bg-[#45b8b0] transition-colors"
-            >
+            </CloudButton>
+            <CloudButton type="button" variant="brand">
               保存
-            </button>
+            </CloudButton>
           </div>
         </div>
       </div>

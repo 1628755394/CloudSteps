@@ -1,10 +1,16 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import '@arco-design/web-react/dist/css/arco.css'
 import App from '@/App.tsx'
 import './index.css'
+import './styles/arco-dark.css'
+import './styles/arco-popup.css'
+import { ArcoAppProvider } from '@/providers/ArcoAppProvider'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-        <App />
+        <ArcoAppProvider>
+            <App />
+        </ArcoAppProvider>
     </React.StrictMode>,
 )

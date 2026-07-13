@@ -75,6 +75,35 @@ export interface UpdateUserRequest {
 }
 
 // User Management API
+function normalizeUser(raw: Record<string, unknown>): User {
+  const username = String(raw.username ?? raw.email ?? '')
+  const isDeleted = raw.isDeleted
+  const enabled =
+    typeof raw.enabled === 'boolean'
+      ? raw.enabled
+      : isDeleted === undefined || isDeleted === 0 || isDeleted === false
+
+  return {
+    id: Number(raw.id),
+    email: String(raw.email ?? username),
+    displayName: raw.displayName as string | undefined,
+    firstName: raw.firstName as string | undefined,
+    lastName: raw.lastName as string | undefined,
+    role: raw.role as string | undefined,
+    isStaff: Boolean(raw.isStaff ?? raw.role === 'admin'),
+    enabled,
+    activated: raw.activated !== false,
+    phone: raw.phone as string | undefined,
+    locale: raw.locale as string | undefined,
+    timezone: raw.timezone as string | undefined,
+    lastLogin: raw.lastLogin as string | undefined,
+    loginCount: raw.loginCount as number | undefined,
+    permissions: raw.permissions as User['permissions'],
+    createdAt: String(raw.createdAt ?? ''),
+    updatedAt: raw.updatedAt as string | undefined,
+  }
+}
+
 export const listUsers = async (params?: ListUsersParams): Promise<UserListResponse> => {
   const queryParams: any = {}
   if (params?.page) queryParams.page = params.page
@@ -85,12 +114,16 @@ export const listUsers = async (params?: ListUsersParams): Promise<UserListRespo
   if (params?.isStaff) queryParams.isStaff = params.isStaff
   
   const res = await get<UserListResponse>(`${BACKEND_BASE}/users`, { params: queryParams })
-  return res.data
+  const data = res.data
+  return {
+    ...data,
+    users: (data.users || []).map((u) => normalizeUser(u as unknown as Record<string, unknown>)),
+  }
 }
 
 export const getUser = async (id: number): Promise<User> => {
   const res = await get<User>(`${BACKEND_BASE}/users/${id}`)
-  return res.data
+  return normalizeUser(res.data as unknown as Record<string, unknown>)
 }
 
 export const createUser = async (data: CreateUserRequest): Promise<User> => {

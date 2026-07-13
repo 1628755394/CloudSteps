@@ -2,7 +2,9 @@ import { Volume2, Loader2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getLighthouseWords, type StudyWordItem } from "@/api/study";
+import { CloudButton } from "@/components/cloudsteps";
 import { TopBar } from "@/components/TopBar";
+import { FlowPageShell } from "@/components/PageTransition";
 import { playFirstWordAudio } from "@/utils/audioPlayer";
 
 const STEP_LABELS: Record<string, string> = {
@@ -106,7 +108,7 @@ export default function LighthouseWords() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+    <FlowPageShell className="min-h-screen bg-gray-50 pb-8">
       <TopBar title={label} onBack={handleBack} />
 
       <div className="px-4 mt-6">
@@ -158,9 +160,11 @@ export default function LighthouseWords() {
                     </div>
                   </div>
                   {word.audioUrl && (
-                    <button
+                    <CloudButton
+                      type="button"
+                      variant="ghost"
+                      size="iconRound"
                       onClick={() => handlePlayAudio(word)}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                     >
                       <Volume2
                         size={20}
@@ -170,7 +174,7 @@ export default function LighthouseWords() {
                             : "text-[#4ECDC4]"
                         }
                       />
-                    </button>
+                    </CloudButton>
                   )}
                 </div>
               ))
@@ -178,6 +182,6 @@ export default function LighthouseWords() {
           </div>
         )}
       </div>
-    </div>
+    </FlowPageShell>
   );
 }

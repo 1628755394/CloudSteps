@@ -3,7 +3,9 @@ import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import { getStudyWords, startStudySession } from "@/api/study";
+import { CloudButton } from "@/components/cloudsteps";
 import { TopBar } from "@/components/TopBar";
+import { FlowPageShell } from "@/components/PageTransition";
 import { playFirstWordAudio, playWordAudio } from "@/utils/audioPlayer";
 
 type WordItem = { 
@@ -244,6 +246,10 @@ export default function PreTrainingCheck() {
       sessionStorage.setItem("lb_study_batch_idx", "0");
       sessionStorage.removeItem("lb_study_batch_results");
       sessionStorage.removeItem("lb_study_check_phase");
+      sessionStorage.removeItem("lb_study_retry_words");
+      sessionStorage.removeItem("lb_study_pending_action");
+      sessionStorage.removeItem("lb_study_recheck_words");
+      sessionStorage.removeItem("lb_study_recheck_from");
       sessionStorage.removeItem("lb_review_session_id");
       sessionStorage.removeItem("lb_review_words");
       sessionStorage.removeItem("lb_review_batch_idx");
@@ -281,32 +287,31 @@ export default function PreTrainingCheck() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="iconRound"
             onClick={() => handlePlayAudio(word)}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <Volume2 size={20} className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"} />
-          </button>
-          <button
+          </CloudButton>
+          <CloudButton
+            type="button"
+            variant={word.status === "correct" ? "brand" : "ghost"}
+            size="iconRound"
             onClick={() => handleStatusClick(word.id, "correct")}
-            className={`p-2 rounded-full transition-colors ${
-              word.status === "correct"
-                ? "bg-[#66BB6A] text-white"
-                : "hover:bg-gray-100 text-[#718096]"
-            }`}
+            className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
           >
             <Check size={20} />
-          </button>
-          <button
+          </CloudButton>
+          <CloudButton
+            type="button"
+            variant={word.status === "wrong" ? "destructive" : "ghost"}
+            size="iconRound"
             onClick={() => handleStatusClick(word.id, "wrong")}
-            className={`p-2 rounded-full transition-colors ${
-              word.status === "wrong"
-                ? "bg-[#FF6B6B] text-white"
-                : "hover:bg-gray-100 text-[#718096]"
-            }`}
           >
             <X size={20} />
-          </button>
+          </CloudButton>
         </div>
       </div>
     );
@@ -314,7 +319,7 @@ export default function PreTrainingCheck() {
   }, [handleStatusClick, handleWordClick]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <FlowPageShell>
       <TopBar title="训前检测" onBack={handleBack} />
 
       <div className="px-4 mt-6">
@@ -387,37 +392,30 @@ export default function PreTrainingCheck() {
             错误 <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={handleShuffle}
-              className="px-4 py-2 border border-[#E2E8F0] rounded-full text-sm text-[#718096] hover:bg-gray-50 transition-colors flex items-center gap-1"
-            >
+            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
               乱序
-            </button>
-            <button
-              onClick={handleSelectAll}
-              className="px-4 py-2 border border-[#E2E8F0] rounded-full text-sm text-[#718096] hover:bg-gray-50 transition-colors"
-            >
+            </CloudButton>
+            <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
               全选
-            </button>
+            </CloudButton>
           </div>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={handleSelect5}
-            className="flex-1 py-3 border-2 border-[#4ECDC4] text-[#4ECDC4] rounded-full font-medium hover:bg-[#4ECDC4]/5 transition-colors"
-          >
+          <CloudButton variant="brandOutline" size="pill" className="flex-1" onClick={handleSelect5}>
             选择5个
-          </button>
-          <button
+          </CloudButton>
+          <CloudButton
+            variant="brand"
+            size="pill"
+            className="flex-1"
             onClick={handleStartLearning}
             disabled={selectedCount === 0}
-            className="flex-1 py-3 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             开始识记
-          </button>
+          </CloudButton>
         </div>
       </div>
-    </div>
+    </FlowPageShell>
   );
 }

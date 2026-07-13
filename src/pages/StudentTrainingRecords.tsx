@@ -342,11 +342,12 @@ export default function StudentTrainingRecords() {
             const Icon = badge.Icon;
             const timeText = formatDateTime(item.time);
             return (
-              <button
+              <CloudButton
                 type="button"
                 key={`${item.kind}-${item.id}`}
+                variant="ghost"
+                className="w-full h-auto text-left bg-white rounded-xl p-6 hover:shadow-md border border-[#E2E8F0]"
                 onClick={() => void openDetail(item)}
-                className="w-full text-left bg-white rounded-xl p-6 hover:shadow-md transition-shadow border border-[#E2E8F0]"
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
@@ -364,7 +365,7 @@ export default function StudentTrainingRecords() {
                     <p className="text-xs text-[#A0AEC0] mt-2">{timeText}</p>
                   </div>
                 </div>
-              </button>
+              </CloudButton>
             );
           })
         )}
@@ -399,8 +400,9 @@ export default function StudentTrainingRecords() {
           <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-[#E2E8F0] overflow-hidden max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] shrink-0">
               <div className="text-[#2D3748] font-semibold">记录详情</div>
-              <button
+              <CloudButton
                 type="button"
+                variant="ghost"
                 onClick={() => {
                   setDetailOpen(false);
                   setDetailKind(null);
@@ -408,10 +410,9 @@ export default function StudentTrainingRecords() {
                   setDetailCoaching(null);
                   setDetailStudy(null);
                 }}
-                className="text-[#718096] hover:text-[#2D3748]"
               >
                 关闭
-              </button>
+              </CloudButton>
             </div>
 
             <div className="p-6 overflow-y-auto flex-1">

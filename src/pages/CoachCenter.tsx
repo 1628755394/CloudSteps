@@ -79,7 +79,7 @@ export default function CoachCenter() {
           {/* 用户信息 */}
           <div className="flex-1 text-center md:text-left">
             <div className="text-white/80 text-xs md:text-sm mb-1">{greetingText}</div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">
+            <h1 className="text-xl font-semibold mb-2 sm:text-2xl">
               Hi, {name || "-"}
             </h1>
             <p className="text-white/80 text-sm md:text-base mb-4">

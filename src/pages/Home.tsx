@@ -1,4 +1,4 @@
-import { Calendar, Clock, FileText, User, Users, Timer } from "lucide-react";
+import { Calendar, Clock, FileText, User, Users, Timer, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CloudButton } from "@/components/cloudsteps";
@@ -206,48 +206,54 @@ export default function Home() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <button
+        <CloudButton
           type="button"
+          variant="card"
           onClick={() => navigate("/vocabulary-test")}
-          className="bg-white rounded-xl p-6 text-left hover:shadow-lg transition-shadow border border-slate-100"
+          className="min-h-[112px] !flex-row !items-center gap-5 !p-6"
         >
-          <div className="w-12 h-12 mb-4">
-            <div className="w-12 h-12 bg-[#4ECDC4]/10 rounded-lg flex items-center justify-center">
-              <FileText className="text-[#4ECDC4]" size={24} />
-            </div>
+          <div className="w-14 h-14 shrink-0 bg-[#4ECDC4]/10 rounded-2xl flex items-center justify-center">
+            <FileText className="text-[#4ECDC4]" size={24} />
           </div>
-          <div className="text-[#2D3748] text-sm md:text-base font-medium">词汇测试</div>
-          <p className="text-xs text-[#718096] mt-2">进入测评流程</p>
-        </button>
+          <div className="min-w-0 flex-1">
+            <div className="text-[#2D3748] text-base md:text-lg font-semibold">词汇测试</div>
+            <p className="text-sm text-[#718096] mt-1.5 truncate">进入测评流程</p>
+          </div>
+          <ChevronRight className="text-slate-300 shrink-0" size={20} />
+        </CloudButton>
 
         {isCoach ? (
-          <button
+          <CloudButton
             type="button"
+            variant="card"
             onClick={() => navigate("/my-students")}
-            className="bg-white rounded-xl p-6 text-left hover:shadow-lg transition-shadow border border-slate-100"
+            className="min-h-[112px] !flex-row !items-center gap-5 !p-6"
           >
-            <div className="w-12 h-12 mb-4">
-              <div className="w-12 h-12 bg-[#55A3FF]/10 rounded-lg flex items-center justify-center">
-                <Users className="text-[#55A3FF]" size={24} />
-              </div>
+            <div className="w-14 h-14 shrink-0 bg-[#55A3FF]/10 rounded-2xl flex items-center justify-center">
+              <Users className="text-[#55A3FF]" size={24} />
             </div>
-            <div className="text-[#2D3748] text-sm md:text-base font-medium">学员管理</div>
-            <p className="text-xs text-[#718096] mt-2">查看名下学员与陪练剩余时长</p>
-          </button>
+            <div className="min-w-0 flex-1">
+              <div className="text-[#2D3748] text-base md:text-lg font-semibold">学员管理</div>
+              <p className="text-sm text-[#718096] mt-1.5 truncate">查看名下学员与陪练剩余时长</p>
+            </div>
+            <ChevronRight className="text-slate-300 shrink-0" size={20} />
+          </CloudButton>
         ) : (
-          <button
+          <CloudButton
             type="button"
+            variant="card"
             onClick={() => navigate("/material-selection")}
-            className="bg-white rounded-xl p-6 text-left hover:shadow-lg transition-shadow border border-slate-100"
+            className="min-h-[112px] !flex-row !items-center gap-5 !p-6"
           >
-            <div className="w-12 h-12 mb-4">
-              <div className="w-12 h-12 bg-[#55A3FF]/10 rounded-lg flex items-center justify-center">
-                <FileText className="text-[#55A3FF]" size={24} />
-              </div>
+            <div className="w-14 h-14 shrink-0 bg-[#55A3FF]/10 rounded-2xl flex items-center justify-center">
+              <FileText className="text-[#55A3FF]" size={24} />
             </div>
-            <div className="text-[#2D3748] text-sm md:text-base font-medium">单词训练</div>
-            <p className="text-xs text-[#718096] mt-2">选择词库开始练习</p>
-          </button>
+            <div className="min-w-0 flex-1">
+              <div className="text-[#2D3748] text-base md:text-lg font-semibold">单词训练</div>
+              <p className="text-sm text-[#718096] mt-1.5 truncate">选择词库开始练习</p>
+            </div>
+            <ChevronRight className="text-slate-300 shrink-0" size={20} />
+          </CloudButton>
         )}
       </div>
 

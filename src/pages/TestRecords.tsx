@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { CloudButton } from "@/components/cloudsteps";
 import { useNavigate } from "react-router";
 import { ChevronLeft, Search, Calendar, TrendingUp, CheckCircle2 } from "lucide-react";
 
@@ -130,9 +131,9 @@ export default function TestRecords() {
       {/* 顶部导航 */}
       <div className="bg-white border-b border-[#E2E8F0] mb-6">
         <div className="flex items-center h-14 px-4">
-          <button onClick={() => navigate(-1)} className="mr-4">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="mr-4">
             <ChevronLeft size={24} className="text-[#2D3748]" />
-          </button>
+          </CloudButton>
           <h1 className="text-lg font-semibold text-[#2D3748]">词汇测试记录</h1>
         </div>
       </div>
@@ -224,9 +225,11 @@ export default function TestRecords() {
               const rate = totalQ > 0 ? Math.round((correctQ / totalQ) * 100) : 0;
               const timeText = formatDateTime(item.completedAt || item.createdAt);
               return (
-            <button
+            <CloudButton
               type="button"
               key={item.id}
+              variant="ghost"
+              className="w-full h-auto text-left bg-white rounded-xl p-6 hover:shadow-md border-0 shadow-sm"
               onClick={async () => {
                 try {
                   setDetailOpen(true);
@@ -239,7 +242,6 @@ export default function TestRecords() {
                   setDetailLoading(false);
                 }
               }}
-              className="w-full text-left bg-white rounded-xl p-6 hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -276,7 +278,7 @@ export default function TestRecords() {
                   <span className="text-[#2D3748] font-medium">{item.estimatedVocab || 0}</span>
                 </div>
               </div>
-            </button>
+            </CloudButton>
               );
             })
           )}
@@ -288,7 +290,9 @@ export default function TestRecords() {
             第 {page}/{totalPages} 页，共 {total} 条
           </div>
           <div className="flex gap-2">
-            <button
+            <CloudButton
+              type="button"
+              variant="outline"
               onClick={async () => {
                 const nextPage = Math.max(1, page - 1);
                 if (nextPage === page) return;
@@ -302,11 +306,12 @@ export default function TestRecords() {
                 }
               }}
               disabled={loading || page <= 1}
-              className="px-4 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#2D3748] disabled:opacity-50"
             >
               上一页
-            </button>
-            <button
+            </CloudButton>
+            <CloudButton
+              type="button"
+              variant="outline"
               onClick={async () => {
                 const nextPage = Math.min(totalPages, page + 1);
                 if (nextPage === page) return;
@@ -320,10 +325,9 @@ export default function TestRecords() {
                 }
               }}
               disabled={loading || page >= totalPages}
-              className="px-4 py-2 rounded-lg border border-[#E2E8F0] bg-white text-[#2D3748] disabled:opacity-50"
             >
               下一页
-            </button>
+            </CloudButton>
           </div>
         </div>
       </div>
@@ -334,15 +338,16 @@ export default function TestRecords() {
           <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-[#E2E8F0] overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]">
               <div className="text-[#2D3748] font-semibold">记录详情</div>
-              <button
+              <CloudButton
+                type="button"
+                variant="ghost"
                 onClick={() => {
                   setDetailOpen(false);
                   setDetail(null);
                 }}
-                className="text-[#718096] hover:text-[#2D3748]"
               >
                 关闭
-              </button>
+              </CloudButton>
             </div>
 
             <div className="p-6 max-h-[70vh] overflow-auto">

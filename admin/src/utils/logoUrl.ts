@@ -15,12 +15,16 @@ export function buildLogoUrl(logoUrl: string): string {
     return logoUrl
   }
 
-  // 如果是相对路径，构建完整的后端 URL
+  // 仅将后端静态资源路径拼接到 API 主机；前端 public 资源（如 /favicon.png）保持原样
   if (logoUrl.startsWith('/')) {
-    // 从 BACKEND_BASE 中提取基础 URL（去掉 /api 前缀）
-    const backendBase = getApiBaseURL()
-    const baseUrl = backendBase.replace(/\/api$/, '')
-    return `${baseUrl}${logoUrl}`
+    const backendAssetPrefixes = ['/uploads/', '/static/', '/media/']
+    const isBackendAsset = backendAssetPrefixes.some((prefix) => logoUrl.startsWith(prefix))
+    if (isBackendAsset) {
+      const backendBase = getApiBaseURL()
+      const baseUrl = backendBase.replace(/\/api$/, '')
+      return `${baseUrl}${logoUrl}`
+    }
+    return logoUrl
   }
 
   // 其他情况，直接返回

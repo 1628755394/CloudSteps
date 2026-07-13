@@ -1,4 +1,5 @@
 import React from "react";
+import { CloudButton } from "@/components/cloudsteps";
 
 type ErrorBoundaryProps = {
   children: React.ReactNode;
@@ -68,21 +69,13 @@ export class ErrorBoundary extends React.Component<
             你可以复制错误信息并发给开发人员协助排查。
           </div>
 
-          <div className="flex gap-3 mb-4">
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 rounded-lg bg-[#4ECDC4] text-white text-sm font-medium hover:bg-[#45b8b0] transition-colors"
-            >
+          <div className="flex flex-wrap gap-3 mb-4">
+            <CloudButton type="button" variant="brand" size="sm" onClick={() => window.location.reload()}>
               刷新页面
-            </button>
-            <button
-              type="button"
-              onClick={this.copyError}
-              className="px-4 py-2 rounded-lg border border-[#E2E8F0] text-[#2D3748] text-sm font-medium hover:bg-[#F7F9FC] transition-colors"
-            >
+            </CloudButton>
+            <CloudButton type="button" variant="outline" size="sm" onClick={this.copyError}>
               {copied ? "已复制" : "复制错误信息"}
-            </button>
+            </CloudButton>
           </div>
 
           <pre className="text-xs leading-relaxed bg-[#0B1220] text-[#E2E8F0] rounded-xl p-4 overflow-auto max-h-[260px]">

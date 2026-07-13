@@ -8,21 +8,7 @@ import { showAlert } from '@/utils/notification'
 import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, ArrowLeft, Upload, Download, AlertTriangle, Wand2 } from 'lucide-react'
 import LingechoTTS from '@/components/UI/LingechoTTS'
 import VoicePlayer from '@/components/VoicePlayer'
-
-const LINGECHO_URL = 'https://soulmy.top/api/open/tts'
-const API_KEY = import.meta.env.VITE_LINGECHO_API_KEY as string
-const API_SECRET = import.meta.env.VITE_LINGECHO_API_SECRET as string
-
-async function fetchTTS(text: string): Promise<string> {
-  const res = await fetch(LINGECHO_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'x-api-secret': API_SECRET },
-    body: JSON.stringify({ text }),
-  })
-  const data = await res.json()
-  if (data.code !== 200 || !data.data?.url) throw new Error(data.msg || 'TTS 失败')
-  return data.data.url as string
-}
+import { generateWordAudioUrls, sleep, TTS_WORD_GAP_MS } from '@/utils/lingechoTts'
 
 interface Word {
   id: number
@@ -234,30 +220,14 @@ export default function WordBookWords() {
     for (const w of targets) {
       if (batchStopRef.current) break
       try {
-        // 解析中文释义
-        let zh = w.word
-        if (w.translation) {
-          try {
-            const arr = JSON.parse(w.translation)
-            const first: string = Array.isArray(arr) ? arr[0] : w.translation
-            zh = first.replace(/^[a-z]+\.\s*/i, '').trim() || w.word
-          } catch {
-            zh = w.translation.replace(/^[a-z]+\.\s*/i, '').trim() || w.word
-          }
-        }
-        const texts = [w.word, `${w.word} ${w.word} ${w.word}`, `${w.word} ${w.word} ${zh}`]
-        const urls: string[] = []
-        for (const text of texts) {
-          urls.push(await fetchTTS(text))
-          if (urls.length < texts.length) await new Promise(r => setTimeout(r, 100))
-        }
-        await put(`${getApiBaseURL()}/wordbooks/${id}/words/${w.id}`, { audioUrl: urls.join(';') })
+        const audioUrl = await generateWordAudioUrls(w.word, w.translation)
+        await put(`${getApiBaseURL()}/wordbooks/${id}/words/${w.id}`, { audioUrl })
       } catch {
         // 单个失败跳过，继续下一个
       }
       done++
       setBatchProgress({ done, total: targets.length })
-      await new Promise(r => setTimeout(r, 200))
+      await sleep(TTS_WORD_GAP_MS)
     }
 
     setBatchRunning(false)

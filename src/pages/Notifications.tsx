@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { CloudButton } from "@/components/cloudsteps";
+
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from "@/api/notifications";
 
 type NotificationItem = {
@@ -107,14 +109,14 @@ export default function Notifications() {
           </p>
         </div>
 
-        <button
+        <CloudButton
           type="button"
+          variant="outline"
           onClick={markAllRead}
           disabled={loading || items.length === 0 || unreadCount === 0}
-          className="px-4 py-2 rounded-lg border border-[#E2E8F0] text-[#2D3748] text-sm font-medium hover:bg-[#F7F9FC] transition-colors"
         >
           全部标为已读
-        </button>
+        </CloudButton>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
@@ -126,13 +128,14 @@ export default function Notifications() {
           <div className="px-5 py-6 text-sm text-[#718096]">暂无通知</div>
         ) : (
           items.map((n) => (
-            <button
+            <CloudButton
               key={n.id}
               type="button"
+              variant="ghost"
+              className="w-full h-auto justify-start rounded-none px-5 py-4 border-b border-[#E2E8F0] last:border-b-0"
               onClick={() => {
                 if (!n.read) markOneRead(n.id);
               }}
-              className="w-full text-left px-5 py-4 border-b border-[#E2E8F0] last:border-b-0 hover:bg-[#F7F9FC] transition-colors"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -152,7 +155,7 @@ export default function Notifications() {
                   {n.time}
                 </div>
               </div>
-            </button>
+            </CloudButton>
           ))
         )}
       </div>

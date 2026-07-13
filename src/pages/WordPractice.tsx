@@ -1,6 +1,9 @@
 import { ArrowLeft, Pause, Shuffle, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CloudButton } from "@/components/cloudsteps";
+import { FlowPageShell } from "@/components/PageTransition";
+import { FlowPageTitle } from "@/components/PageTitle";
 import { playFirstWordAudio, playWordAudio, parseAudioUrls } from "@/utils/audioPlayer";
 
 type PracticeWord = {
@@ -165,25 +168,30 @@ export default function WordPractice() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      {/* 顶部栏 */}
+    <FlowPageShell>
       <div className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center justify-between px-4 py-4">
-          <button
+        <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center px-3 py-3">
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="iconRound"
             onClick={handleBack}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="-ml-1 justify-self-start"
           >
-            <ArrowLeft size={24} className="text-[#2D3748]" />
-          </button>
-          <h1 className="flex-1 text-center text-lg font-semibold text-[#2D3748]">
+            <ArrowLeft size={20} className="text-[#2D3748]" />
+          </CloudButton>
+          <FlowPageTitle>
             {mode === "review" ? "开始复习" : "单词练习"}
-          </h1>
-          <button
+          </FlowPageTitle>
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="iconRound"
             onClick={() => setShowPauseMenu(!showPauseMenu)}
-            className="p-2 -mr-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="-mr-1 justify-self-end"
           >
-            <Pause size={24} className="text-[#2D3748]" />
-          </button>
+            <Pause size={20} className="text-[#2D3748]" />
+          </CloudButton>
         </div>
       </div>
 
@@ -212,27 +220,23 @@ export default function WordPractice() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {parseAudioUrls(word.audioUrl).length > 0 && (
-                    <button
+                    <CloudButton
+                      variant={playingId === word.id ? "brand" : "brandOutline"}
+                      size="iconRound"
+                      className="size-10 text-sm font-bold"
                       onClick={() => handlePlayNextAudio(word)}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                        playingId === word.id
-                          ? "bg-[#4ECDC4] text-white hover:bg-[#45b8b0]"
-                          : "bg-[#4ECDC4]/10 text-[#4ECDC4] hover:bg-[#4ECDC4]/20"
-                      }`}
                     >
                       {(audioIndexMap.get(word.id) ?? 0) + 1}
-                    </button>
+                    </CloudButton>
                   )}
-                  <button
+                  <CloudButton
+                    variant={index === activeIndex ? "brand" : "ghost"}
+                    size="iconRound"
+                    className={`size-12 text-lg font-bold ${index !== activeIndex ? "text-[#A0AEC0]" : ""}`}
                     onClick={() => handleCountClick(word.id)}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold transition-colors ${
-                      index === activeIndex
-                        ? "bg-[#4ECDC4] text-white hover:bg-[#45b8b0]"
-                        : "bg-gray-100 text-[#A0AEC0] cursor-not-allowed"
-                    }`}
                   >
                     ✓
-                  </button>
+                  </CloudButton>
                 </div>
               </div>
             </div>
@@ -244,29 +248,24 @@ export default function WordPractice() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex gap-2">
-            <button
-              onClick={handleShuffle}
-              className="px-4 py-2 border border-[#E2E8F0] rounded-full text-sm text-[#718096] hover:bg-gray-50 transition-colors flex items-center gap-1"
-            >
+            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
               乱序
-            </button>
-            <button className="px-4 py-2 border border-[#E2E8F0] rounded-full text-sm text-[#718096] hover:bg-gray-50 transition-colors">
+            </CloudButton>
+            <CloudButton variant="outline" size="pill">
               人工带读
-            </button>
-            <button
+            </CloudButton>
+            <CloudButton
+              variant="outline"
+              size="pill"
               onClick={() => setSpeed(speed === "1.0x" ? "1.5x" : "1.0x")}
-              className="px-4 py-2 border border-[#E2E8F0] rounded-full text-sm text-[#718096] hover:bg-gray-50 transition-colors"
             >
               {speed}倍速
-            </button>
+            </CloudButton>
           </div>
-          <button
-            onClick={handleNext}
-            className="p-3 rounded-full transition-colors bg-[#4ECDC4] text-white hover:bg-[#45b8b0]"
-          >
+          <CloudButton variant="brand" size="iconRound" className="size-12" onClick={handleNext}>
             <ArrowRight size={24} />
-          </button>
+          </CloudButton>
         </div>
       </div>
 
@@ -277,26 +276,28 @@ export default function WordPractice() {
           onClick={() => setShowPauseMenu(false)}
         >
           <div className="absolute top-20 right-4 bg-white rounded-xl shadow-lg overflow-hidden">
-            <button
+            <CloudButton
+              variant="ghost"
+              className="w-full justify-start rounded-none px-6 py-3 h-auto"
               onClick={() => {
                 setShowPauseMenu(false);
                 navigate("/word-training");
               }}
-              className="w-full px-6 py-3 text-left hover:bg-gray-50 transition-colors text-[#2D3748]"
             >
               返回主页
-            </button>
-            <button
+            </CloudButton>
+            <CloudButton
+              variant="ghost"
+              className="w-full justify-start rounded-none px-6 py-3 h-auto"
               onClick={() => setShowPauseMenu(false)}
-              className="w-full px-6 py-3 text-left hover:bg-gray-50 transition-colors text-[#2D3748]"
             >
               继续练习
-            </button>
+            </CloudButton>
           </div>
         </div>
       )}
 
       {/* 右下角箭头按钮（仅在完成后显示） */}
-    </div>
+    </FlowPageShell>
   );
 }

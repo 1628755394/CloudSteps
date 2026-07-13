@@ -80,7 +80,9 @@ function updateThemeClasses(_mode: ThemeMode, color: ThemeColor, isDark: boolean
   // 添加模式类
   if (isDark) {
     root.classList.add('dark')
+    document.body.setAttribute('arco-theme', 'dark')
   } else {
     root.classList.add('light')
+    document.body.removeAttribute('arco-theme')
   }
 }

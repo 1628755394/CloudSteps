@@ -6,21 +6,7 @@ import { getApiBaseURL } from '@/config/apiConfig'
 import { showAlert } from '@/utils/notification'
 import { Plus, Pencil, Trash2, Search, X, Upload, Download, AlertTriangle, Wand2, Volume2 } from 'lucide-react'
 import LingechoTTS from '@/components/UI/LingechoTTS'
-
-const LINGECHO_URL = 'https://soulmy.top/api/open/tts'
-const API_KEY = import.meta.env.VITE_LINGECHO_API_KEY as string
-const API_SECRET = import.meta.env.VITE_LINGECHO_API_SECRET as string
-
-async function fetchTTS(text: string): Promise<string> {
-  const res = await fetch(LINGECHO_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY, 'x-api-secret': API_SECRET },
-    body: JSON.stringify({ text }),
-  })
-  const data = await res.json()
-  if (data.code !== 200 || !data.data?.url) throw new Error(data.msg || 'TTS 失败')
-  return data.data.url as string
-}
+import { fetchTTS, sleep, TTS_WORD_GAP_MS } from '@/utils/lingechoTts'
 
 interface VocabQuestion {
   id: number
@@ -112,6 +98,7 @@ export default function VocabQuestions() {
         } catch (e) {
           console.error(`Failed to generate audio for ${q.word}:`, e)
         }
+        await sleep(TTS_WORD_GAP_MS)
       }
       showAlert(`成功生成 ${successCount}/${selectedForBatch.size} 个音频`, 'success')
       setShowBatchAudioModal(false)

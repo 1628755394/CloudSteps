@@ -1,3 +1,4 @@
+import { CloudButton } from "@/components/cloudsteps";
 import { ArrowLeft, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState } from "react";
@@ -17,12 +18,9 @@ export default function CreateAntiForgetting() {
       {/* 顶部栏 */}
       <div className="bg-white sticky top-0 z-10 shadow-sm">
         <div className="flex items-center px-4 py-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="-ml-2">
             <ArrowLeft size={24} className="text-[#2D3748]" />
-          </button>
+          </CloudButton>
           <h1 className="flex-1 text-center text-lg font-semibold text-[#2D3748] -ml-10">
             创建抗遗忘
           </h1>
@@ -78,60 +76,61 @@ export default function CreateAntiForgetting() {
           <div>
             <label className="block text-sm text-[#718096] mb-2">快捷选择</label>
             <div className="grid grid-cols-2 gap-3">
-              <button
+              <CloudButton
+                variant="outline"
+                className="py-2 px-4 rounded-lg text-sm"
                 onClick={() => {
                   const tomorrow = new Date();
                   tomorrow.setDate(tomorrow.getDate() + 1);
                   setSelectedDate(tomorrow.toISOString().split("T")[0]);
                   setSelectedTime("09:00");
                 }}
-                className="py-2 px-4 border border-[#E2E8F0] rounded-lg text-sm text-[#2D3748] hover:bg-gray-50 transition-colors"
               >
                 明天 09:00
-              </button>
-              <button
+              </CloudButton>
+              <CloudButton
+                variant="outline"
+                className="py-2 px-4 rounded-lg text-sm"
                 onClick={() => {
                   const threeDays = new Date();
                   threeDays.setDate(threeDays.getDate() + 3);
                   setSelectedDate(threeDays.toISOString().split("T")[0]);
                   setSelectedTime("09:00");
                 }}
-                className="py-2 px-4 border border-[#E2E8F0] rounded-lg text-sm text-[#2D3748] hover:bg-gray-50 transition-colors"
               >
                 3天后 09:00
-              </button>
-              <button
+              </CloudButton>
+              <CloudButton
+                variant="outline"
+                className="py-2 px-4 rounded-lg text-sm"
                 onClick={() => {
                   const oneWeek = new Date();
                   oneWeek.setDate(oneWeek.getDate() + 7);
                   setSelectedDate(oneWeek.toISOString().split("T")[0]);
                   setSelectedTime("09:00");
                 }}
-                className="py-2 px-4 border border-[#E2E8F0] rounded-lg text-sm text-[#2D3748] hover:bg-gray-50 transition-colors"
               >
                 1周后 09:00
-              </button>
-              <button
+              </CloudButton>
+              <CloudButton
+                variant="outline"
+                className="py-2 px-4 rounded-lg text-sm"
                 onClick={() => {
                   const twoWeeks = new Date();
                   twoWeeks.setDate(twoWeeks.getDate() + 14);
                   setSelectedDate(twoWeeks.toISOString().split("T")[0]);
                   setSelectedTime("09:00");
                 }}
-                className="py-2 px-4 border border-[#E2E8F0] rounded-lg text-sm text-[#2D3748] hover:bg-gray-50 transition-colors"
               >
                 2周后 09:00
-              </button>
+              </CloudButton>
             </div>
           </div>
         </div>
         {/* 确定按钮 */}
-        <button
-          onClick={handleConfirm}
-          className="w-full py-4 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors shadow-lg"
-        >
+        <CloudButton variant="brand" size="pillLg" className="w-full shadow-lg" onClick={handleConfirm}>
           确定
-        </button>
+        </CloudButton>
       </div>
     </div>
   );

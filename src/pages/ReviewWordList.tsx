@@ -4,6 +4,9 @@ import { completeReviewSession } from "@/api/review";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getReviewToday, startReviewSession } from "@/api/review";
 import { playFirstWordAudio, playWordAudio } from "@/utils/audioPlayer";
+import { CloudButton } from "@/components/cloudsteps";
+import { FlowPageShell } from "@/components/PageTransition";
+import { FlowPageTitle } from "@/components/PageTitle";
 
 type ReviewWordItem = { 
   id: number; 
@@ -135,14 +138,13 @@ export default function ReviewWordList() {
   const wrongCount = words.filter((word) => word.status === "wrong").length;
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] pb-32">
-      {/* 顶部导航 */}
+    <FlowPageShell className="min-h-screen bg-[#F7F9FC] pb-32">
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-14 px-4">
-          <button onClick={handleBack} className="mr-4">
-            <ChevronLeft size={24} className="text-[#2D3748]" />
-          </button>
-          <h1 className="text-lg font-semibold text-[#2D3748]">开始复习</h1>
+        <div className="grid grid-cols-[2.5rem_1fr] items-center h-14 px-3">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={handleBack} className="justify-self-start">
+            <ChevronLeft size={20} className="text-[#2D3748]" />
+          </CloudButton>
+          <FlowPageTitle className="text-left">开始复习</FlowPageTitle>
         </div>
       </div>
 
@@ -191,34 +193,32 @@ export default function ReviewWordList() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <CloudButton
+                    type="button"
+                    variant="ghost"
+                    size="iconRound"
                     onClick={() => handlePlayAudio(item)}
-                    className={`p-2 transition-colors ${playingId === item.id ? "text-[#4ECDC4]" : "text-[#55A3FF] hover:text-[#4ECDC4]"}`}
+                    className={playingId === item.id ? "text-[#4ECDC4]" : "text-[#55A3FF]"}
                   >
                     <Volume2 size={24} className={playingId === item.id ? "animate-pulse" : ""} />
-                  </button>
-                  <button
+                  </CloudButton>
+                  <CloudButton
                     type="button"
+                    variant={item.status === "correct" ? "brand" : "ghost"}
+                    size="iconRound"
                     onClick={() => handleStatusClick(item.id, "correct")}
-                    className={`p-2 rounded-full transition-colors ${
-                      item.status === "correct"
-                        ? "bg-[#66BB6A] text-white"
-                        : "hover:bg-gray-100 text-[#718096]"
-                    }`}
+                    className={item.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
                   >
                     <Check size={20} />
-                  </button>
-                  <button
+                  </CloudButton>
+                  <CloudButton
                     type="button"
+                    variant={item.status === "wrong" ? "destructive" : "ghost"}
+                    size="iconRound"
                     onClick={() => handleStatusClick(item.id, "wrong")}
-                    className={`p-2 rounded-full transition-colors ${
-                      item.status === "wrong"
-                        ? "bg-[#FF6B6B] text-white"
-                        : "hover:bg-gray-100 text-[#718096]"
-                    }`}
                   >
                     <X size={20} />
-                  </button>
+                  </CloudButton>
                 </div>
               </div>
             </div>
@@ -231,27 +231,29 @@ export default function ReviewWordList() {
         <div className="flex items-center justify-between mb-3">
           {/* 左下角选择复习组按钮 */}
           <div className="relative">
-            <button
+            <CloudButton
+              variant="brand"
+              size="sm"
               onClick={() => setShowGroupMenu(!showGroupMenu)}
-              className="px-4 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#45b8b0] transition-colors text-sm"
             >
               {selectedGroup}
-            </button>
+            </CloudButton>
             {showGroupMenu && (
               <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg overflow-hidden">
                 {reviewGroups.map((group) => (
-                  <button
+                  <CloudButton
                     key={group}
+                    variant="ghost"
+                    className={`w-full justify-start rounded-none px-4 py-3 h-auto ${
+                      selectedGroup === group ? "bg-[#4ECDC4]/10 text-[#4ECDC4]" : "text-[#2D3748]"
+                    }`}
                     onClick={() => {
                       setSelectedGroup(group);
                       setShowGroupMenu(false);
                     }}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${
-                      selectedGroup === group ? "bg-[#4ECDC4]/10 text-[#4ECDC4]" : "text-[#2D3748]"
-                    }`}
                   >
                     {group}
-                  </button>
+                  </CloudButton>
                 ))}
               </div>
             )}
@@ -263,16 +265,19 @@ export default function ReviewWordList() {
             错误 <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
           </div>
 
-          <button
+          <CloudButton
             type="button"
+            variant="brand"
+            size="sm"
             onClick={handleSubmit}
             disabled={correctCount + wrongCount === 0 || submitting}
-            className="px-6 py-2 bg-[#4ECDC4] text-white rounded-lg hover:bg-[#45b8b0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            loading={submitting}
+            loadingText="提交中…"
           >
-            {submitting ? "提交中…" : "完成复习"}
-          </button>
+            完成复习
+          </CloudButton>
         </div>
       </div>
-    </div>
+    </FlowPageShell>
   );
 }

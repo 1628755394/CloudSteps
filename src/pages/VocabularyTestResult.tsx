@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { CloudButton } from "@/components/cloudsteps";
 import { useNavigate } from "react-router";
 import { ChevronLeft, RefreshCw, TrendingUp, BookOpen } from "lucide-react";
 
@@ -124,9 +125,9 @@ export default function VocabularyTestResult() {
       {/* 顶部导航 */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
         <div className="flex items-center h-14 px-4">
-          <button onClick={() => navigate(-1)} className="mr-4">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="mr-4">
             <ChevronLeft size={24} className="text-[#2D3748]" />
-          </button>
+          </CloudButton>
           <h1 className="text-lg font-semibold text-[#2D3748]">测试结果</h1>
         </div>
       </div>
@@ -140,12 +141,14 @@ export default function VocabularyTestResult() {
           <div className="max-w-md mx-auto bg-white rounded-2xl p-8 text-center shadow-sm border border-[#E2E8F0]">
             <div className="text-[#2D3748] font-semibold text-lg">暂无测试结果</div>
             <div className="text-[#718096] text-sm mt-2">去开始一次词汇量测试吧</div>
-            <button
+            <CloudButton
+              variant="brand"
+              size="pill"
+              className="mt-6 w-full"
               onClick={() => navigate("/vocabulary-test", { replace: true })}
-              className="mt-6 w-full py-3 bg-[#4ECDC4] text-white rounded-full font-medium"
             >
               开始测试
-            </button>
+            </CloudButton>
           </div>
         ) : (
           <div className="max-w-md mx-auto space-y-4">
@@ -271,29 +274,35 @@ export default function VocabularyTestResult() {
 
             {/* 操作 */}
             <div className="flex gap-3">
-              <button
+              <CloudButton
+                variant="brand"
+                size="pill"
+                className="flex-1"
                 onClick={() => {
                   sessionStorage.removeItem("vocabulary_test_result");
                   navigate("/vocabulary-test/testing?mode=adaptive", { replace: true });
                 }}
-                className="flex-1 py-3 rounded-full bg-[#4ECDC4] text-white font-medium shadow-sm"
               >
                 重新测试
-              </button>
-              <button
+              </CloudButton>
+              <CloudButton
+                variant="outline"
+                size="pill"
+                className="flex-1"
                 onClick={() => navigate("/", { replace: true })}
-                className="flex-1 py-3 rounded-full border border-[#E2E8F0] bg-white text-[#2D3748] font-medium"
               >
                 返回首页
-              </button>
+              </CloudButton>
             </div>
 
-            <button
+            <CloudButton
+              variant="outline"
+              size="pill"
+              className="w-full"
               onClick={() => window.location.reload()}
-              className="w-full py-3 rounded-full border border-[#E2E8F0] bg-white text-[#2D3748] font-medium flex items-center justify-center gap-2"
             >
               <RefreshCw className="w-4 h-4" /> 刷新结果
-            </button>
+            </CloudButton>
           </div>
         )}
       </div>

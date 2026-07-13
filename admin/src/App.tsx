@@ -39,7 +39,7 @@ function App() {
       <SiteConfigProvider>
         <SidebarProvider>
           <Router>
-          <div className="min-h-screen bg-[#F7F9FC] dark:bg-slate-950">
+          <div className="min-h-screen bg-background text-foreground">
           <Suspense fallback={<div className="p-8 text-center text-slate-500">页面加载中...</div>}>
           <Routes>
             {/* 登录页 */}

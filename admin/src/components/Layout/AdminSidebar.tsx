@@ -108,58 +108,41 @@ const AdminSidebar = () => {
   const SidebarContent = ({ showLogo = true }: { showLogo?: boolean }) => {
     const { config: sidebarConfig } = useSiteConfig()
     const currentSiteName = sidebarConfig?.SITE_NAME || '云阶管理后台'
-    const sidebarLogoUrl = buildLogoUrl(sidebarConfig?.SITE_LOGO_URL || faviconUrl)
+    const sidebarLogoUrl = sidebarConfig?.SITE_LOGO_URL
+      ? buildLogoUrl(sidebarConfig.SITE_LOGO_URL)
+      : faviconUrl
     
     return (
       <>
         {/* Logo区域 - 只在桌面端显示，移动端不显示（因为移动端侧边栏已经有logo了） */}
         {showLogo && (
-          <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-700">
+          <div className="h-16 flex items-center justify-between px-4 border-b border-border">
             {!isCollapsed && (
-              <Link to="/wordbooks" className="flex items-center gap-3 group">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#4ECDC4] to-[#45b8b0] rounded-lg blur-sm opacity-50 group-hover:opacity-75 transition-opacity" />
-                  <div className="relative w-10 h-10 rounded-lg bg-gradient-to-br from-[#4ECDC4] to-[#45b8b0] flex items-center justify-center shadow-lg">
-                    <img 
-                      src={sidebarLogoUrl} 
-                      alt={currentSiteName} 
-                      className="w-7 h-7 object-contain"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.style.display = 'none'
-                        const parent = target.parentElement
-                        if (parent) {
-                          parent.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>'
-                        }
-                      }}
-                    />
-                  </div>
+              <Link to="/wordbooks" className="flex items-center gap-3 group min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <img 
+                    src={sidebarLogoUrl} 
+                    alt={currentSiteName} 
+                    className="w-6 h-6 object-contain"
+                  />
                 </div>
-                <span className="font-bold text-lg bg-clip-text">
+                <span className="font-semibold text-[17px] text-foreground truncate">
                   {currentSiteName}
                 </span>
               </Link>
             )}
           {isCollapsed && (
-            <div className="relative w-8 h-10 rounded-lg flex items-center justify-center mx-auto">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center mx-auto bg-primary/10">
               <img 
                 src={sidebarLogoUrl} 
                 alt={currentSiteName} 
-                className="w-7 h-7 object-contain"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.style.display = 'none'
-                  const parent = target.parentElement
-                  if (parent) {
-                    parent.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>'
-                  }
-                }}
+                className="w-6 h-6 object-contain"
               />
             </div>
           )}
           <button
             onClick={toggleCollapse}
-            className="hidden lg:flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors"
+            className="hidden lg:flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent text-muted-foreground transition-colors"
             title={isCollapsed ? '展开' : '折叠'}
           >
             {isCollapsed ? (
@@ -172,7 +155,7 @@ const AdminSidebar = () => {
       )}
 
       {/* 导航菜单 */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 ling-sidebar-nav overflow-y-auto">
         {navigation.map((item) => {
           const Icon = item.icon
           const hasChildren = item.children && item.children.length > 0
@@ -185,11 +168,9 @@ const AdminSidebar = () => {
                 <button
                   onClick={() => !isCollapsed && toggleExpand(item.name)}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                    itemActive
-                      ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
-                    isCollapsed && 'justify-center'
+                    'ling-sidebar-nav-item',
+                    itemActive && 'ling-sidebar-nav-item--active',
+                    isCollapsed && 'ling-sidebar-nav-item--compact justify-center'
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -221,10 +202,8 @@ const AdminSidebar = () => {
                             key={child.name}
                             to={child.href}
                             className={cn(
-                              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-                              childActive
-                                ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300'
-                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                              'ling-sidebar-nav-item text-sm',
+                              childActive && 'ling-sidebar-nav-item--active'
                             )}
                           >
                             <ChildIcon className="w-4 h-4" />
@@ -244,11 +223,9 @@ const AdminSidebar = () => {
               key={item.name}
               to={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                itemActive
-                  ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
-                isCollapsed && 'justify-center'
+                'ling-sidebar-nav-item',
+                itemActive && 'ling-sidebar-nav-item--active',
+                isCollapsed && 'ling-sidebar-nav-item--compact justify-center'
               )}
               title={isCollapsed ? item.name : ''}
             >
@@ -387,7 +364,7 @@ const AdminSidebar = () => {
         initial={false}
         animate={{ width: isCollapsed ? 80 : 220 }}
         transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="hidden lg:flex flex-col bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-r border-slate-200/50 dark:border-slate-800/50 shadow-lg fixed left-0 top-0 bottom-0 z-30"
+        className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-30 bg-[#f5f5f5] dark:bg-card border-r border-border"
       >
         <SidebarContent showLogo={true} />
       </motion.aside>

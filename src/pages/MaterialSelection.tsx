@@ -1,3 +1,4 @@
+import { CloudButton } from "@/components/cloudsteps";
 import { ArrowLeft, CheckCircle, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 
@@ -30,12 +31,9 @@ export default function MaterialSelection() {
       {/* 顶部栏 */}
       <div className="bg-white sticky top-0 z-10 shadow-sm">
         <div className="flex items-center px-4 py-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="relative z-10 p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="relative z-10 -ml-2">
             <ArrowLeft size={24} className="text-[#2D3748]" />
-          </button>
+          </CloudButton>
           <h1 className="flex-1 text-center text-lg font-semibold text-[#2D3748] -ml-10 pointer-events-none">
             资料选择
           </h1>
@@ -79,12 +77,14 @@ export default function MaterialSelection() {
 
       {/* 右下角箭头按钮 - 直接进入单词训练主界面 */}
       <div className="fixed bottom-6 right-6">
-        <button
+        <CloudButton
+          variant="brand"
+          size="iconRound"
+          className="size-14 shadow-lg"
           onClick={() => navigate("/word-training")}
-          className="p-4 bg-[#4ECDC4] text-white rounded-full shadow-lg hover:bg-[#45b8b0] transition-colors"
         >
           <ArrowRight size={24} />
-        </button>
+        </CloudButton>
       </div>
     </div>
   );

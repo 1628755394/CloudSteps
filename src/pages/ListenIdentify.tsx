@@ -1,3 +1,4 @@
+import { CloudButton } from "@/components/cloudsteps";
 import { ArrowLeft, Pause, ArrowRight, Volume2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -99,21 +100,21 @@ export default function ListenIdentify() {
       {/* 顶部栏 */}
       <div className="bg-white sticky top-0 z-10 shadow-sm">
         <div className="flex items-center justify-between px-4 py-4">
-          <button
-            onClick={handleBack}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={handleBack} className="-ml-2">
             <ArrowLeft size={24} className="text-[#2D3748]" />
-          </button>
+          </CloudButton>
           <h1 className="flex-1 text-center text-lg font-semibold text-[#2D3748]">
             听音识词
           </h1>
-          <button
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="iconRound"
             onClick={() => setShowPauseMenu(!showPauseMenu)}
-            className="p-2 -mr-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="-mr-2"
           >
             <Pause size={24} className="text-[#2D3748]" />
-          </button>
+          </CloudButton>
         </div>
       </div>
 
@@ -168,14 +169,9 @@ export default function ListenIdentify() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="text-sm text-[#718096]">全部完成后进入快闪</div>
-          <button
-            onClick={() => {
-              navigate("/flash-review");
-            }}
-            className="p-3 rounded-full transition-colors bg-[#4ECDC4] text-white hover:bg-[#45b8b0]"
-          >
+          <CloudButton variant="brand" size="iconRound" className="size-12" onClick={() => navigate("/flash-review")}>
             <ArrowRight size={24} />
-          </button>
+          </CloudButton>
         </div>
       </div>
 
@@ -183,21 +179,23 @@ export default function ListenIdentify() {
       {showPauseMenu && (
         <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowPauseMenu(false)}>
           <div className="absolute top-20 right-4 bg-white rounded-xl shadow-lg overflow-hidden">
-            <button
+            <CloudButton
+              variant="ghost"
+              className="w-full justify-start rounded-none px-6 py-3 h-auto"
               onClick={() => {
                 setShowPauseMenu(false);
                 navigate("/word-training");
               }}
-              className="w-full px-6 py-3 text-left hover:bg-gray-50 transition-colors text-[#2D3748]"
             >
               返回主页
-            </button>
-            <button
+            </CloudButton>
+            <CloudButton
+              variant="ghost"
+              className="w-full justify-start rounded-none px-6 py-3 h-auto"
               onClick={() => setShowPauseMenu(false)}
-              className="w-full px-6 py-3 text-left hover:bg-gray-50 transition-colors text-[#2D3748]"
             >
               继续练习
-            </button>
+            </CloudButton>
           </div>
         </div>
       )}

@@ -1,15 +1,24 @@
 import { ArrowLeft, Volume2, Check, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CloudButton } from "@/components/cloudsteps";
+import { FlowPageShell } from "@/components/PageTransition";
+import { FlowPageTitle } from "@/components/PageTitle";
 import { completeStudySession } from "@/api/study";
 import { completeReviewSession } from "@/api/review";
 import { playFirstWordAudio, playWordAudio } from "@/utils/audioPlayer";
 import {
+  clearStudyRecheck,
   getCheckPhaseLabel,
   getMilestoneCheckBatchRange,
+  getStudyPendingAction,
+  getStudyRecheckFrom,
+  getStudyRecheckWords,
   getTotalBatches,
   needsFinalCheckAfterMilestone,
+  setStudyRetryWords,
   sliceWordsByBatches,
+  STUDY_RECHECK_WORDS_KEY,
   type StudyCheckPhase,
 } from "@/utils/studyBatchFlow";
 
@@ -75,10 +84,18 @@ export default function PostTrainingCheck() {
     return getStudyBatchMeta(batchIdx);
   }, [batchIdx, mode]);
 
-  const phaseLabels = useMemo(
-    () => getCheckPhaseLabel(checkPhase, batchIdx, batchInfo.totalBatches),
-    [checkPhase, batchIdx, batchInfo.totalBatches]
-  );
+  const isRecheckMode = useMemo(() => getStudyRecheckWords() !== null, []);
+
+  const phaseLabels = useMemo(() => {
+    if (isRecheckMode) {
+      const n = getStudyRecheckWords()?.length ?? 0;
+      return {
+        title: "错词复检",
+        hint: `共 ${n} 个词 · 请再次确认掌握情况`,
+      };
+    }
+    return getCheckPhaseLabel(checkPhase, batchIdx, batchInfo.totalBatches);
+  }, [checkPhase, batchIdx, batchInfo.totalBatches, isRecheckMode]);
 
   const handlePlayAudio = (word: CheckWord) => {
     if (!word.audioUrl) return;
@@ -104,18 +121,23 @@ export default function PostTrainingCheck() {
 
   useEffect(() => {
     try {
-      const wordsKey = mode === "review" ? "lb_review_words" : "lb_study_words";
-      const raw = sessionStorage.getItem(wordsKey) || "[]";
-      const parsed = JSON.parse(raw);
-      const all: any[] = Array.isArray(parsed) ? parsed : [];
+      const recheckList = mode === "study" ? getStudyRecheckWords() : null;
       let slice: any[];
-      if (mode === "review") {
-        slice = all;
-      } else if (checkPhase === "final") {
-        slice = all;
+      if (recheckList) {
+        slice = recheckList;
       } else {
-        const { startBatch, endBatch } = getMilestoneCheckBatchRange(batchIdx);
-        slice = sliceWordsByBatches(all, startBatch, endBatch);
+        const wordsKey = mode === "review" ? "lb_review_words" : "lb_study_words";
+        const raw = sessionStorage.getItem(wordsKey) || "[]";
+        const parsed = JSON.parse(raw);
+        const all: any[] = Array.isArray(parsed) ? parsed : [];
+        if (mode === "review") {
+          slice = all;
+        } else if (checkPhase === "final") {
+          slice = all;
+        } else {
+          const { startBatch, endBatch } = getMilestoneCheckBatchRange(batchIdx);
+          slice = sliceWordsByBatches(all, startBatch, endBatch);
+        }
       }
       const mapped: CheckWord[] = slice.map((w: any) => ({
         id: Number(w.id),
@@ -129,7 +151,7 @@ export default function PostTrainingCheck() {
     } catch {
       // ignore
     }
-  }, [batchIdx, mode, checkPhase]);
+  }, [batchIdx, mode, checkPhase, isRecheckMode]);
 
   const handleStatusClick = (id: number, newStatus: "correct" | "wrong") => {
     setWords((prev) =>
@@ -184,25 +206,75 @@ export default function PostTrainingCheck() {
     sessionStorage.removeItem("lb_study_batch_results");
     sessionStorage.removeItem("lb_study_total_batches");
     sessionStorage.removeItem(CHECK_PHASE_KEY);
+    clearStudyRecheck();
     navigate("/create-anti-forgetting", { replace: true });
   };
 
+  const wrongWords = useMemo(() => words.filter((w) => w.status === "wrong"), [words]);
+  const allMarked = useMemo(() => words.length > 0 && words.every((w) => w.status !== null), [words]);
+
   const submitLabel = useMemo(() => {
     if (mode === "review") return "完成复习";
+    if (wrongWords.length > 0) return `重练 ${wrongWords.length} 个错词`;
+    if (isRecheckMode) {
+      const pending = getStudyPendingAction();
+      if (pending === "final_check" && getStudyRecheckFrom() === "milestone") {
+        return "提交并进入训后检测";
+      }
+      if (pending === "next_batch") return "提交并继续下一组";
+      if (checkPhase === "final") return "提交并完成训练";
+      return "提交并继续";
+    }
     if (checkPhase === "final") return "提交并完成训练";
     if (needsFinalCheckAfterMilestone(batchIdx, batchInfo.totalBatches)) {
-      return "提交并进入总检测";
+      return "提交并进入训后检测";
     }
     return "提交并继续下一组";
-  }, [mode, checkPhase, batchIdx, batchInfo.totalBatches]);
+  }, [mode, checkPhase, batchIdx, batchInfo.totalBatches, wrongWords.length, isRecheckMode]);
+
+  const sendWrongWordsToFlashRetry = (pending: "next_batch" | "final_check") => {
+    try {
+      const raw = sessionStorage.getItem("lb_study_words") || "[]";
+      const all: unknown[] = JSON.parse(raw);
+      const list = Array.isArray(all) ? all : [];
+      const wrongIds = new Set(wrongWords.map((w) => w.id));
+      const retryPayload = list.filter((w: { id?: number }) => wrongIds.has(Number(w.id)));
+      const from = checkPhase === "final" || isRecheckMode && getStudyRecheckFrom() === "final"
+        ? "final"
+        : "milestone";
+      sessionStorage.removeItem(STUDY_RECHECK_WORDS_KEY);
+      setStudyRetryWords(retryPayload, pending, from);
+      navigate("/flash-review", { replace: true });
+    } catch {
+      navigate("/flash-review", { replace: true });
+    }
+  };
+
+  const finishRecheckAndContinue = () => {
+    const pending = getStudyPendingAction();
+    const from = getStudyRecheckFrom();
+    clearStudyRecheck();
+    if (pending === "next_batch") {
+      goNextBatch();
+      return;
+    }
+    if (pending === "final_check" && from === "milestone") {
+      sessionStorage.setItem(CHECK_PHASE_KEY, "final");
+      navigate("/post-training-check", { replace: true });
+      return;
+    }
+    if (pending === "final_check" && from === "final") {
+      finishTrainingAndCreateReview();
+    }
+  };
 
   const handleSubmit = () => {
-    const hasSelection = words.some((word) => word.status !== null);
-    if (!hasSelection) return;
+    if (!allMarked) return;
 
-    const results = words
-      .filter((w) => w.status !== null)
-      .map((w) => ({ wordId: w.id, remembered: w.status === "correct" }));
+    const results = words.map((w) => ({
+      wordId: w.id,
+      remembered: w.status === "correct",
+    }));
 
     (async () => {
       setSubmitting(true);
@@ -218,6 +290,42 @@ export default function PostTrainingCheck() {
           return;
         }
 
+        if (wrongWords.length > 0) {
+          appendMilestoneResults(results);
+          if (isRecheckMode) {
+            const pending = getStudyPendingAction() ?? "next_batch";
+            sendWrongWordsToFlashRetry(pending);
+            return;
+          }
+          if (checkPhase === "final") {
+            sendWrongWordsToFlashRetry("final_check");
+            return;
+          }
+          const pending = needsFinalCheckAfterMilestone(batchIdx, batchInfo.totalBatches)
+            ? "final_check"
+            : "next_batch";
+          sendWrongWordsToFlashRetry(pending);
+          return;
+        }
+
+        if (isRecheckMode) {
+          appendMilestoneResults(results);
+          if (sessionId && getStudyRecheckFrom() === "final") {
+            try {
+              const raw = sessionStorage.getItem("lb_study_batch_results") || "[]";
+              const allResults = JSON.parse(raw);
+              await completeStudySession(
+                sessionId,
+                Array.isArray(allResults) ? allResults : results
+              );
+            } catch {
+              await completeStudySession(sessionId, results);
+            }
+          }
+          finishRecheckAndContinue();
+          return;
+        }
+
         if (checkPhase === "milestone") {
           appendMilestoneResults(results);
           if (needsFinalCheckAfterMilestone(batchIdx, batchInfo.totalBatches)) {
@@ -229,13 +337,12 @@ export default function PostTrainingCheck() {
           return;
         }
 
-        // 总检测：以本次全部勾选为准提交
         if (sessionId) {
           await completeStudySession(sessionId, results);
         }
         finishTrainingAndCreateReview();
       } catch {
-        if (checkPhase === "final") {
+        if (checkPhase === "final" && wrongWords.length === 0) {
           finishTrainingAndCreateReview();
         }
       } finally {
@@ -248,19 +355,21 @@ export default function PostTrainingCheck() {
   const wrongCount = words.filter((word) => word.status === "wrong").length;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <FlowPageShell>
       <div className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center px-4 py-4">
-          <button
+        <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center px-3 py-3">
+          <CloudButton
             type="button"
+            variant="ghost"
+            size="iconRound"
             onClick={handleBack}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="-ml-1 justify-self-start"
           >
-            <ArrowLeft size={24} className="text-[#2D3748]" />
-          </button>
-          <h1 className="flex-1 text-center text-lg font-semibold text-[#2D3748] -ml-10">
+            <ArrowLeft size={20} className="text-[#2D3748]" />
+          </CloudButton>
+          <FlowPageTitle>
             {mode === "review" ? "开始复习" : phaseLabels.title}
-          </h1>
+          </FlowPageTitle>
         </div>
       </div>
 
@@ -296,38 +405,34 @@ export default function PostTrainingCheck() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <button
+                <CloudButton
                   type="button"
+                  variant="ghost"
+                  size="iconRound"
                   onClick={() => handlePlayAudio(word)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
                   <Volume2
                     size={20}
                     className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
                   />
-                </button>
-                <button
+                </CloudButton>
+                <CloudButton
                   type="button"
+                  variant={word.status === "correct" ? "brand" : "ghost"}
+                  size="iconRound"
                   onClick={() => handleStatusClick(word.id, "correct")}
-                  className={`p-2 rounded-full transition-colors ${
-                    word.status === "correct"
-                      ? "bg-[#66BB6A] text-white"
-                      : "hover:bg-gray-100 text-[#718096]"
-                  }`}
+                  className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
                 >
                   <Check size={20} />
-                </button>
-                <button
+                </CloudButton>
+                <CloudButton
                   type="button"
+                  variant={word.status === "wrong" ? "destructive" : "ghost"}
+                  size="iconRound"
                   onClick={() => handleStatusClick(word.id, "wrong")}
-                  className={`p-2 rounded-full transition-colors ${
-                    word.status === "wrong"
-                      ? "bg-[#FF6B6B] text-white"
-                      : "hover:bg-gray-100 text-[#718096]"
-                  }`}
                 >
                   <X size={20} />
-                </button>
+                </CloudButton>
               </div>
             </div>
           ))}
@@ -338,21 +443,33 @@ export default function PostTrainingCheck() {
         <div className="text-center text-sm text-[#718096] mb-3">
           正确 <span className="text-[#66BB6A] font-semibold">{correctCount}</span> · 错误{" "}
           <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
-          {mode === "study" && checkPhase === "milestone" && (
+          {mode === "study" && isRecheckMode && (
+            <span className="block text-xs text-[#A0AEC0] mt-1">错词复检 · 仅显示刚重练的单词</span>
+          )}
+          {mode === "study" && !isRecheckMode && checkPhase === "milestone" && (
             <span className="block text-xs text-[#A0AEC0] mt-1">
-              当前为第 {batchInfo.currentBatch} 小批 · 每 3 小批为一大组
+              组内复习 · 打 × 将回到快闪剪刀重练
+            </span>
+          )}
+          {mode === "study" && checkPhase === "final" && wrongWords.length > 0 && (
+            <span className="block text-xs text-[#A0AEC0] mt-1">
+              训后检测 · 错词需快闪重练后再提交
             </span>
           )}
         </div>
-        <button
+        <CloudButton
           type="button"
+          variant="brand"
+          size="pill"
+          className="w-full"
           onClick={handleSubmit}
-          disabled={correctCount + wrongCount === 0 || submitting}
-          className="w-full py-3 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!allMarked || submitting}
+          loading={submitting}
+          loadingText="提交中…"
         >
-          {submitting ? "提交中…" : submitLabel}
-        </button>
+          {submitLabel}
+        </CloudButton>
       </div>
-    </div>
+    </FlowPageShell>
   );
 }

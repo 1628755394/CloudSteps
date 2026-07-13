@@ -1,3 +1,4 @@
+import { CloudButton } from "@/components/cloudsteps";
 import { useNavigate } from "react-router";
 import { ChevronLeft, BookOpen } from "lucide-react";
 
@@ -9,9 +10,9 @@ export default function VocabularyTest() {
       {/* 顶部导航 */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
         <div className="flex items-center h-14 px-4">
-          <button onClick={() => navigate(-1)} className="mr-4">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="mr-4">
             <ChevronLeft size={24} className="text-[#2D3748]" />
-          </button>
+          </CloudButton>
           <h1 className="text-lg font-semibold text-[#2D3748]">词汇量测试</h1>
         </div>
       </div>
@@ -37,12 +38,14 @@ export default function VocabularyTest() {
           </div>
 
           {/* 开始测试按钮 */}
-          <button
+          <CloudButton
+            variant="brand"
+            size="pillLg"
+            className="w-full shadow-lg"
             onClick={() => navigate("/vocabulary-test/testing?mode=adaptive")}
-            className="w-full py-4 bg-[#4ECDC4] text-white rounded-full text-lg font-medium hover:bg-[#3DBCB4] transition-colors shadow-lg hover:shadow-xl"
           >
             开始测试
-          </button>
+          </CloudButton>
 
           {/* 提示文字 */}
           <p className="text-center text-[#A0AEC0] text-sm mt-6">

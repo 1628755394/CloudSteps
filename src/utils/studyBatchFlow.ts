@@ -61,15 +61,86 @@ export function getCheckPhaseLabel(
 ): { title: string; hint: string } {
   if (phase === "final") {
     return {
-      title: "训后总检测",
-      hint: `全部 ${totalBatches} 组单词 · 请勾选掌握情况`,
+      title: "训后检测",
+      hint: `训练已全部完成 · 共 ${totalBatches} 个小批 · 请勾选掌握情况`,
     };
   }
   const { startBatch, endBatch } = getMilestoneCheckBatchRange(batchIdx);
   const from = startBatch + 1;
   const to = endBatch;
   return {
-    title: "训后检测",
-    hint: `复习第 ${from}${to > from ? `–${to}` : ""} 组（共 ${endBatch - startBatch} 个小批）`,
+    title: "组内复习",
+    hint: `复习第 ${from}${to > from ? `–${to}` : ""} 组 · 打 × 的单词将回到快闪重练`,
   };
+}
+
+/** 错词快闪重练 */
+export const STUDY_RETRY_WORDS_KEY = "lb_study_retry_words";
+export const STUDY_PENDING_ACTION_KEY = "lb_study_pending_action";
+/** 快闪重练后回到检测页，仅展示这些词 */
+export const STUDY_RECHECK_WORDS_KEY = "lb_study_recheck_words";
+export const STUDY_RECHECK_FROM_KEY = "lb_study_recheck_from";
+
+export type StudyPendingAction = "next_batch" | "final_check";
+export type StudyRecheckFrom = "milestone" | "final";
+
+export function setStudyRetryWords(
+  words: unknown[],
+  action: StudyPendingAction,
+  from: StudyRecheckFrom
+) {
+  sessionStorage.setItem(STUDY_RETRY_WORDS_KEY, JSON.stringify(words));
+  sessionStorage.setItem(STUDY_PENDING_ACTION_KEY, action);
+  sessionStorage.setItem(STUDY_RECHECK_FROM_KEY, from);
+}
+
+export function clearStudyRetryFlash() {
+  sessionStorage.removeItem(STUDY_RETRY_WORDS_KEY);
+}
+
+export function clearStudyRecheck() {
+  sessionStorage.removeItem(STUDY_RECHECK_WORDS_KEY);
+  sessionStorage.removeItem(STUDY_PENDING_ACTION_KEY);
+  sessionStorage.removeItem(STUDY_RECHECK_FROM_KEY);
+}
+
+export function clearStudyRetry() {
+  clearStudyRetryFlash();
+  clearStudyRecheck();
+}
+
+export function getStudyRecheckWords(): unknown[] | null {
+  try {
+    const raw = sessionStorage.getItem(STUDY_RECHECK_WORDS_KEY);
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && arr.length > 0 ? arr : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getStudyRecheckFrom(): StudyRecheckFrom | null {
+  const v = sessionStorage.getItem(STUDY_RECHECK_FROM_KEY);
+  return v === "milestone" || v === "final" ? v : null;
+}
+
+export function setStudyRecheckWords(words: unknown[]) {
+  sessionStorage.setItem(STUDY_RECHECK_WORDS_KEY, JSON.stringify(words));
+}
+
+export function getStudyRetryWords(): unknown[] | null {
+  try {
+    const raw = sessionStorage.getItem(STUDY_RETRY_WORDS_KEY);
+    if (!raw) return null;
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) && arr.length > 0 ? arr : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getStudyPendingAction(): StudyPendingAction | null {
+  const v = sessionStorage.getItem(STUDY_PENDING_ACTION_KEY);
+  return v === "next_batch" || v === "final_check" ? v : null;
 }

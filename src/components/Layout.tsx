@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Outlet, Link, useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
+import { motion } from "motion/react";
 import {
   Home,
   RefreshCw,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/header";
 import { NavMenu } from "@/components/NavMenu";
+import { AnimatedOutlet } from "@/components/PageTransition";
 import { useAuthStore } from "@/stores/authStore";
 
 const navItems = [
@@ -81,7 +83,7 @@ export function Layout() {
   }, [userRole]);
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC]">
+    <div className="min-h-screen bg-background text-foreground">
       <Header
         mobileMenuOpen={mobileMenuOpen}
         onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -90,15 +92,14 @@ export function Layout() {
       {/* 与固定顶栏 h-16 对齐；移动端勿用过大的 pt，否则主内容会显得“沉在下方” */}
       <div className="pt-[calc(4rem+env(safe-area-inset-top,0px))] lg:pt-16 flex">
         {/* 左侧边栏（桌面端） */}
-        <aside className="hidden lg:block fixed left-0 top-16 bottom-0 w-60 bg-white border-r border-[#E2E8F0] overflow-y-auto">
+        <aside className="hidden lg:block fixed left-0 top-16 bottom-0 w-60 bg-[#f5f5f5] dark:bg-card border-r border-border overflow-y-auto">
           <div className="p-6">
-            {/* 问候区 */}
             <div className="mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#4ECDC4]/10 rounded-full mb-3">
-                <span className="text-xs text-[#4ECDC4] font-semibold">正式陪练</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full mb-3">
+                <span className="text-xs text-primary font-semibold">正式陪练</span>
               </div>
-              <div className="text-xs text-[#718096] mb-1">{greetingText}</div>
-              <p className="text-[#2D3748] font-medium">Hi, {userName || "-"}</p>
+              <div className="text-xs text-muted-foreground mb-1">{greetingText}</div>
+              <p className="text-foreground font-medium">Hi, {userName || "-"}</p>
             </div>
 
             {/* 导航菜单 */}
@@ -118,18 +119,18 @@ export function Layout() {
             />
             <aside
               className={
-                "absolute left-0 top-0 bottom-0 w-64 bg-white border-r border-[#E2E8F0] overflow-y-auto transform-gpu transition-transform duration-300 ease-out " +
+                "absolute left-0 top-0 bottom-0 w-64 bg-card border-r border-border overflow-y-auto transform-gpu transition-transform duration-300 ease-out " +
                 (mobileMenuRenderOpen ? "translate-x-0" : "-translate-x-full")
               }
             >
               <div className="p-6">
                 {/* 问候区 */}
                 <div className="mb-8">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#4ECDC4]/10 rounded-full mb-3">
-                    <span className="text-xs text-[#4ECDC4] font-semibold">正式陪练</span>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full mb-3">
+                    <span className="text-xs text-primary font-semibold">正式陪练</span>
                   </div>
-                  <div className="text-xs text-[#718096] mb-1">{greetingText}</div>
-                  <p className="text-[#2D3748] font-medium">Hi, {userName || "-"}</p>
+                  <div className="text-xs text-muted-foreground mb-1">{greetingText}</div>
+                  <p className="text-foreground font-medium">Hi, {userName || "-"}</p>
                 </div>
 
                 {/* 导航菜单 */}
@@ -144,16 +145,16 @@ export function Layout() {
         )}
 
         {/* 主内容区 */}
-        <main className="flex-1 lg:ml-60 pb-20 lg:pb-6">
+        <main className="flex-1 lg:ml-60 pb-20 lg:pb-6 overflow-x-hidden">
           <div className="max-w-[1200px] mx-auto px-4 py-6">
-            <Outlet />
+            <AnimatedOutlet />
           </div>
         </main>
       </div>
 
       {/* 底部导航栏（移动端） */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#E2E8F0]">
-        <div className="flex items-center justify-around px-4 py-2">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border">
+        <div className="relative flex items-center justify-around px-2 py-1.5">
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -164,12 +165,25 @@ export function Layout() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors ${
-                  isActive ? "text-[#4ECDC4]" : "text-[#718096]"
-                }`}
+                className="relative flex flex-1 flex-col items-center gap-0.5 px-2 py-2"
               >
-                <Icon size={22} />
-                <span className="text-xs">{item.label}</span>
+                {isActive ? (
+                  <motion.span
+                    layoutId="mobile-nav-pill"
+                    className="absolute inset-x-1 inset-y-0.5 rounded-xl bg-primary/10"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                ) : null}
+                <Icon
+                  size={20}
+                  strokeWidth={2}
+                  className={`relative z-10 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                />
+                <span
+                  className={`relative z-10 text-[11px] ${isActive ? "text-primary font-medium" : "text-muted-foreground"}`}
+                >
+                  {item.label}
+                </span>
               </Link>
             );
           })}

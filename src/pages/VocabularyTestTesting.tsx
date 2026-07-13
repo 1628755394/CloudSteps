@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import { CloudButton } from "@/components/cloudsteps";
 import { useNavigate } from "react-router";
 import { ChevronLeft, X, Volume2 } from "lucide-react";
 
@@ -201,9 +202,9 @@ export default function VocabularyTestTesting() {
       {/* 顶部导航 */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
         <div className="flex items-center h-14 px-4">
-          <button onClick={() => navigate(-1)} className="mr-4">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="mr-4">
             <ChevronLeft size={24} className="text-[#2D3748]" />
-          </button>
+          </CloudButton>
           <h1 className="text-lg font-semibold text-[#2D3748]">词汇量测试</h1>
         </div>
       </div>
@@ -220,9 +221,9 @@ export default function VocabularyTestTesting() {
           <div className="flex items-center gap-2 text-sm text-[#718096]">
             <span>停留时间超过 10 秒，建议选择不认识</span>
           </div>
-          <button onClick={() => navigate(-1)}>
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)}>
             <X size={24} className="text-[#718096]" />
-          </button>
+          </CloudButton>
         </div>
 
         {/* 单词卡片 */}
@@ -232,12 +233,9 @@ export default function VocabularyTestTesting() {
               {loading || !currentQuestion ? "加载中..." : currentQuestion.word}
             </h2>
             {currentQuestion?.audioUrl && (
-              <button
-                onClick={handlePlayAudio}
-                className="text-[#55A3FF] hover:text-[#4ECDC4] transition-colors"
-              >
-                <Volume2 size={28} />
-              </button>
+              <CloudButton type="button" variant="ghost" size="iconRound" onClick={handlePlayAudio}>
+                <Volume2 size={28} className="text-[#55A3FF]" />
+              </CloudButton>
             )}
           </div>
         </div>
@@ -245,22 +243,17 @@ export default function VocabularyTestTesting() {
         {/* 选项 */}
         <div className="space-y-3 max-w-lg mx-auto">
           {options.map((option, index) => (
-            <button
+            <CloudButton
               key={index}
+              variant={option.label === "不认识" ? "secondary" : "outline"}
+              className={`w-full justify-between px-6 py-4 h-auto rounded-xl text-left ${
+                selectedAnswer === option.value ? "ring-2 ring-[#4ECDC4] bg-[#4ECDC4]/10" : ""
+              } ${loading ? "opacity-60 pointer-events-none" : ""}`}
               onClick={() => handleAnswerSelect(option.value)}
               disabled={loading || !currentQuestion}
-              className={`w-full flex items-center justify-between px-6 py-4 rounded-xl text-left transition-all ${
-                option.label === "不认识"
-                  ? "bg-[#E2E8F0] text-[#718096] hover:bg-[#D1D5DB]"
-                  : "bg-white text-[#2D3748] hover:bg-[#F7F9FC] border border-[#E2E8F0] hover:border-[#4ECDC4]"
-              } ${
-                selectedAnswer === option.value
-                  ? "ring-2 ring-[#4ECDC4] bg-[#4ECDC4]/10"
-                  : ""
-              } ${loading ? "opacity-60 pointer-events-none" : ""}`}
             >
               <span className="text-base">{option.label}</span>
-            </button>
+            </CloudButton>
           ))}
         </div>
       </div>
