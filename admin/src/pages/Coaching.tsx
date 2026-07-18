@@ -1,14 +1,60 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Calendar, Plus, RefreshCw, Trash2, Save } from 'lucide-react'
+import {
+  DatePicker as ArcoDatePicker,
+  Input as ArcoInput,
+  InputNumber,
+  Select,
+  Tabs,
+  TimePicker as ArcoTimePicker,
+  Button as ArcoButton,
+} from '@arco-design/web-react'
+import { Calendar as CalendarIcon, Plus, RefreshCw, Trash2, Save, ChevronLeft, ChevronRight } from 'lucide-react'
 import AdminLayout from '@/components/Layout/AdminLayout'
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
-import Input from '@/components/UI/Input'
 import { showAlert } from '@/utils/notification'
 import { get, post, put, del } from '@/utils/request'
 import { getApiBaseURL } from '@/config/apiConfig'
 import { listUsers, type User } from '@/services/adminApi'
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <div className="text-xs text-slate-500 mb-1.5">{children}</div>
+}
+
+function UserSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { label: string; value: string }[]
+  placeholder: string
+}) {
+  return (
+    <Select
+      placeholder={placeholder}
+      value={value || undefined}
+      onChange={(v) => onChange(v ? String(v) : '')}
+      allowClear
+      showSearch
+      filterOption={(input, option) =>
+        String(option?.props?.children ?? '')
+          .toLowerCase()
+          .includes(input.toLowerCase())
+      }
+      style={{ width: '100%' }}
+    >
+      {options.map((o) => (
+        <Select.Option key={o.value} value={o.value}>
+          {o.label}
+        </Select.Option>
+      ))}
+    </Select>
+  )
+}
 
 const BASE = () => getApiBaseURL()
 
@@ -96,6 +142,7 @@ export default function Coaching() {
   const [students, setStudents] = useState<User[]>([])
 
   const [range, setRange] = useState(() => weekRange(new Date()))
+  const [weekAnchor, setWeekAnchor] = useState(() => new Date())
 
   const [qTeacher, setQTeacher] = useState('')
   const [qStudent, setQStudent] = useState('')
@@ -325,17 +372,34 @@ export default function Coaching() {
     }
   }
 
+  const shiftWeek = (delta: number) => {
+    const next = new Date(weekAnchor)
+    next.setDate(next.getDate() + delta * 7)
+    setWeekAnchor(next)
+    setRange(weekRange(next))
+  }
+
+  const setWeekFromDate = (date: Date | null) => {
+    if (!date) return
+    setWeekAnchor(date)
+    setRange(weekRange(date))
+  }
+
   const userLabel = (u?: { displayName?: string; email?: string; username?: string }, fallback = '') =>
     u?.displayName || u?.username || u?.email || fallback
 
-  const tabs = useMemo(
-    () => [
-      { id: 'quota' as const, label: '陪练额度' },
-      { id: 'appt' as const, label: '排课' },
-      { id: 'usage' as const, label: '老师计量' },
-      { id: 'audit' as const, label: '操作审计' },
-    ],
-    []
+  const teacherSelectOptions = useMemo(
+    () =>
+      teachers.map((u) => ({
+        label: `${userLabel(u)}${u.role ? ` (${u.role})` : ''}`,
+        value: String(u.id),
+      })),
+    [teachers]
+  )
+
+  const studentSelectOptions = useMemo(
+    () => students.map((u) => ({ label: userLabel(u), value: String(u.id) })),
+    [students]
   )
 
   const formatAuditDetail = (d?: Record<string, unknown>) => {
@@ -352,65 +416,42 @@ export default function Coaching() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Calendar className="w-7 h-7 text-teal-500" />
+            <CalendarIcon className="w-7 h-7 text-teal-500" />
             一对一陪练
           </h1>
           <p className="text-sm text-slate-500 mt-1">额度、排课、老师周期用量/封顶（下课时学员扣减与计入老师用量分别见说明）</p>
         </div>
 
-        <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                tab === t.id
-                  ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-200'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {tab === 'quota' && (
-          <Card className="p-6 space-y-6">
+        <Tabs activeTab={tab} onChange={(k) => setTab(k as typeof tab)} type="rounded">
+          <Tabs.TabPane key="quota" title="陪练额度">
+            <Card className="p-6 space-y-6 mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
               <div>
-                <label className="text-xs text-slate-500 block mb-1">老师</label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                <FieldLabel>老师</FieldLabel>
+                <UserSelect
                   value={qTeacher}
-                  onChange={(e) => setQTeacher(e.target.value)}
-                >
-                  <option value="">选择</option>
-                  {teachers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {userLabel(u)} ({u.role})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setQTeacher}
+                  options={teacherSelectOptions}
+                  placeholder="选择老师"
+                />
               </div>
               <div>
-                <label className="text-xs text-slate-500 block mb-1">学员</label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                <FieldLabel>学员</FieldLabel>
+                <UserSelect
                   value={qStudent}
-                  onChange={(e) => setQStudent(e.target.value)}
-                >
-                  <option value="">选择</option>
-                  {students.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {userLabel(u)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setQStudent}
+                  options={studentSelectOptions}
+                  placeholder="选择学员"
+                />
               </div>
               <div>
-                <label className="text-xs text-slate-500 block mb-1">剩余时间（小时）</label>
-                <Input value={qMin} onChange={(e) => setQMin(e.target.value)} type="number" min={0} />
+                <FieldLabel>剩余时间（小时）</FieldLabel>
+                <InputNumber
+                  min={0}
+                  value={Number(qMin) || 0}
+                  onChange={(v) => setQMin(String(v ?? 0))}
+                  style={{ width: '100%' }}
+                />
               </div>
               <Button leftIcon={<Save className="w-4 h-4" />} onClick={() => void saveQuota()}>
                 保存额度
@@ -457,26 +498,20 @@ export default function Coaching() {
                 </tbody>
               </table>
             </div>
-          </Card>
-        )}
+            </Card>
+          </Tabs.TabPane>
 
-        {tab === 'usage' && (
-          <Card className="p-6 space-y-6">
+          <Tabs.TabPane key="usage" title="老师计量">
+            <Card className="p-6 space-y-6 mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
               <div className="lg:col-span-2">
-                <label className="text-xs text-slate-500 block mb-1">老师</label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                <FieldLabel>老师</FieldLabel>
+                <UserSelect
                   value={usageTeacher}
-                  onChange={(e) => setUsageTeacher(e.target.value)}
-                >
-                  <option value="">选择后加载历史周期</option>
-                  {teachers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {userLabel(u)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setUsageTeacher}
+                  options={teacherSelectOptions}
+                  placeholder="选择后加载历史周期"
+                />
               </div>
               <Button variant="outline" leftIcon={<RefreshCw className="w-4 h-4" />} onClick={() => void loadUsage()}>
                 刷新列表
@@ -487,16 +522,31 @@ export default function Coaching() {
               <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">编辑某月封顶 / 已用（0 封顶表示不限制）</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
                 <div>
-                  <label className="text-xs text-slate-500 block mb-1">月份</label>
-                  <Input type="month" value={usageMonth} onChange={(e) => setUsageMonth(e.target.value)} />
+                  <FieldLabel>月份</FieldLabel>
+                  <ArcoDatePicker.MonthPicker
+                    value={usageMonth}
+                    onChange={(v) => setUsageMonth(v || currentMonthStr())}
+                    style={{ width: '100%' }}
+                    allowClear={false}
+                  />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 block mb-1">封顶 cap（小时）</label>
-                  <Input value={usageCap} onChange={(e) => setUsageCap(e.target.value)} type="number" min={0} />
+                  <FieldLabel>封顶 cap（小时）</FieldLabel>
+                  <InputNumber
+                    min={0}
+                    value={Number(usageCap) || 0}
+                    onChange={(v) => setUsageCap(String(v ?? 0))}
+                    style={{ width: '100%' }}
+                  />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 block mb-1">已用 used（小时）</label>
-                  <Input value={usageUsed} onChange={(e) => setUsageUsed(e.target.value)} type="number" min={0} />
+                  <FieldLabel>已用 used（小时）</FieldLabel>
+                  <InputNumber
+                    min={0}
+                    value={Number(usageUsed) || 0}
+                    onChange={(v) => setUsageUsed(String(v ?? 0))}
+                    style={{ width: '100%' }}
+                  />
                 </div>
                 <Button leftIcon={<Save className="w-4 h-4" />} onClick={() => void saveUsagePeriod()}>
                   保存该月
@@ -544,18 +594,19 @@ export default function Coaching() {
                 </tbody>
               </table>
             </div>
-          </Card>
-        )}
+            </Card>
+          </Tabs.TabPane>
 
-        {tab === 'audit' && (
-          <Card className="p-6 space-y-6">
+          <Tabs.TabPane key="audit" title="操作审计">
+            <Card className="p-6 space-y-6 mt-4">
             <div className="flex flex-wrap gap-4 items-end">
-              <div>
-                <label className="text-xs text-slate-500 block mb-1">action 筛选（可选）</label>
-                <Input
+              <div className="min-w-[240px]">
+                <FieldLabel>action 筛选（可选）</FieldLabel>
+                <ArcoInput
                   value={auditAction}
-                  onChange={(e) => setAuditAction(e.target.value)}
+                  onChange={setAuditAction}
                   placeholder="如 session_start、quota_upsert"
+                  allowClear
                 />
               </div>
               <Button
@@ -637,19 +688,27 @@ export default function Coaching() {
                 </Button>
               </div>
             </div>
-          </Card>
-        )}
+            </Card>
+          </Tabs.TabPane>
 
-        {tab === 'appt' && (
-          <Card className="p-6 space-y-6">
+          <Tabs.TabPane key="appt" title="排课">
+            <Card className="p-6 space-y-6 mt-4">
             <div className="flex flex-wrap gap-4 items-end">
-              <div>
-                <label className="text-xs text-slate-500 block mb-1">周范围 from</label>
-                <Input type="date" value={range.from} onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))} />
+              <div className="flex items-center gap-2">
+                <ArcoButton icon={<ChevronLeft className="w-4 h-4" />} onClick={() => shiftWeek(-1)} />
+                <ArcoButton icon={<ChevronRight className="w-4 h-4" />} onClick={() => shiftWeek(1)} />
               </div>
-              <div>
-                <label className="text-xs text-slate-500 block mb-1">to</label>
-                <Input type="date" value={range.to} onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} />
+              <div className="min-w-[220px]">
+                <FieldLabel>选择周（点选任意一天）</FieldLabel>
+                <ArcoDatePicker
+                  value={range.from}
+                  onChange={(_, date) => date && setWeekFromDate(date.toDate())}
+                  style={{ width: '100%' }}
+                  allowClear={false}
+                />
+              </div>
+              <div className="text-sm text-slate-600 dark:text-slate-400 pb-2">
+                当前周：<span className="font-medium">{range.from}</span> 至 <span className="font-medium">{range.to}</span>
               </div>
               <Button variant="outline" leftIcon={<RefreshCw className="w-4 h-4" />} onClick={() => void loadAppts()}>
                 刷新列表
@@ -658,50 +717,55 @@ export default function Coaching() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-100 dark:border-slate-800 pt-6">
               <div>
-                <label className="text-xs text-slate-500 block mb-1">老师</label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                <FieldLabel>老师</FieldLabel>
+                <UserSelect
                   value={aTeacher}
-                  onChange={(e) => setATeacher(e.target.value)}
-                >
-                  <option value="">选择</option>
-                  {teachers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {userLabel(u)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setATeacher}
+                  options={teacherSelectOptions}
+                  placeholder="选择老师"
+                />
               </div>
               <div>
-                <label className="text-xs text-slate-500 block mb-1">学员</label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                <FieldLabel>学员</FieldLabel>
+                <UserSelect
                   value={aStudent}
-                  onChange={(e) => setAStudent(e.target.value)}
-                >
-                  <option value="">选择</option>
-                  {students.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {userLabel(u)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setAStudent}
+                  options={studentSelectOptions}
+                  placeholder="选择学员"
+                />
               </div>
               <div>
-                <label className="text-xs text-slate-500 block mb-1">日期</label>
-                <Input type="date" value={aDate} onChange={(e) => setADate(e.target.value)} />
+                <FieldLabel>上课日期</FieldLabel>
+                <ArcoDatePicker
+                  value={aDate}
+                  onChange={(_, date) => date && setADate(fmtYMD(date.toDate()))}
+                  style={{ width: '100%' }}
+                  allowClear={false}
+                />
               </div>
               <div>
-                <label className="text-xs text-slate-500 block mb-1">开始</label>
-                <Input value={aStart} onChange={(e) => setAStart(e.target.value)} placeholder="09:00" />
+                <FieldLabel>开始时间</FieldLabel>
+                <ArcoTimePicker
+                  format="HH:mm"
+                  value={aStart}
+                  onChange={(v) => setAStart(v || '09:00')}
+                  step={{ minute: 5 }}
+                  style={{ width: '100%' }}
+                />
               </div>
               <div>
-                <label className="text-xs text-slate-500 block mb-1">结束</label>
-                <Input value={aEnd} onChange={(e) => setAEnd(e.target.value)} placeholder="10:00" />
+                <FieldLabel>结束时间</FieldLabel>
+                <ArcoTimePicker
+                  format="HH:mm"
+                  value={aEnd}
+                  onChange={(v) => setAEnd(v || '10:00')}
+                  step={{ minute: 5 }}
+                  style={{ width: '100%' }}
+                />
               </div>
               <div>
-                <label className="text-xs text-slate-500 block mb-1">标题（可选）</label>
-                <Input value={aTitle} onChange={(e) => setATitle(e.target.value)} />
+                <FieldLabel>标题（可选）</FieldLabel>
+                <ArcoInput value={aTitle} onChange={setATitle} allowClear placeholder="排课标题" />
               </div>
               <div className="flex items-end">
                 <Button leftIcon={<Plus className="w-4 h-4" />} onClick={() => void createAppt()}>
@@ -742,8 +806,9 @@ export default function Coaching() {
                 </tbody>
               </table>
             </div>
-          </Card>
-        )}
+            </Card>
+          </Tabs.TabPane>
+        </Tabs>
       </motion.div>
     </AdminLayout>
   )
