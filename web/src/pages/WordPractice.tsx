@@ -1,10 +1,14 @@
-import { ArrowLeft, Pause, Shuffle, ArrowRight } from "lucide-react";
+import { ArrowLeft, Pause, Shuffle, ArrowRight, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { FlowPageTitle } from "../components/PageTitle";
+import { WordDetailDialog } from "../components/WordDetailDialog";
 import { playFirstWordAudio, playWordAudio, parseAudioUrls } from "../utils/audioPlayer";
+import { formatTranslation } from "../utils/wordFormat";
+import { nextWordTapState } from "../utils/wordReveal";
 
 type PracticeWord = {
   id: number;
@@ -14,17 +18,21 @@ type PracticeWord = {
   count: number;
   completed: boolean;
   showTranslation: boolean;
+  heard: boolean;
 };
 
 export default function WordPractice() {
   const navigate = useNavigate();
   const [words, setWords] = useState<PracticeWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [speed, setSpeed] = useState("1.0x");
+  const [manualReadMode, setManualReadMode] = useState(false);
   const [showPauseMenu, setShowPauseMenu] = useState(false);
+  const [annotationOpen, setAnnotationOpen] = useState(false);
   const [frameIdx, setFrameIdx] = useState(0);
   const [finished, setFinished] = useState(false);
   const [playingId, setPlayingId] = useState<number | null>(null);
+  const [detailMode, setDetailMode] = useState(false);
+  const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
 
   const [audioIndexMap, setAudioIndexMap] = useState<Map<number, number>>(new Map());
@@ -36,8 +44,11 @@ export default function WordPractice() {
     const abort = playWordAudio(word.audioUrl, 300, () => setPlayingId(null));
     abortRef.current = abort;
     const urls = parseAudioUrls(word.audioUrl);
+    if (urls.length === 0) return;
     const prev = audioIndexMap.get(word.id) ?? 0;
-    setAudioIndexMap(new Map(audioIndexMap).set(word.id, (prev + 1) % urls.length));
+    // 默认显示 0；每次点击后在 1..n 间循环
+    const next = prev >= urls.length ? 1 : prev + 1;
+    setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
@@ -63,6 +74,20 @@ export default function WordPractice() {
     return Number(sessionStorage.getItem(key) || 0);
   }, [mode]);
 
+  const totalBatches = useMemo(() => {
+    if (mode === "review") return 1;
+    const stored = Number(sessionStorage.getItem("lb_study_total_batches") || 0);
+    if (stored > 0) return stored;
+    try {
+      const raw = sessionStorage.getItem("lb_study_words") || "[]";
+      const arr = JSON.parse(raw);
+      const total = Array.isArray(arr) ? arr.length : 0;
+      return Math.max(1, Math.ceil(total / 5));
+    } catch {
+      return 1;
+    }
+  }, [mode]);
+
   useEffect(() => {
     try {
       const wordsKey = mode === "review" ? "lb_review_words" : "lb_study_words";
@@ -82,11 +107,12 @@ export default function WordPractice() {
       const mapped: PracticeWord[] = shuffledSlice.map((w: any) => ({
         id: Number(w.id),
         word: String(w.word || ""),
-        translation: String(w.translation || ""),
+        translation: formatTranslation(w.translation),
         audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
         count: 0,
         completed: false,
         showTranslation: false,
+        heard: false,
       }));
       setWords(mapped);
       setCurrentIndex(0);
@@ -116,10 +142,17 @@ export default function WordPractice() {
     setCurrentIndex(activeIndex);
   }, [activeIndex, words.length]);
 
-  const toggleTranslation = (word: PracticeWord) => {
-    const id = word.id;
-    const isShowing = !word.showTranslation;
-    if (isShowing && word.audioUrl) {
+  /** 点单词（非 123）：第一次发音，第二次显示释义 */
+  const handleWordTap = (word: PracticeWord) => {
+    if (detailMode) {
+      setDetailWord({ id: word.id, word: word.word });
+      return;
+    }
+    const next = nextWordTapState({
+      showTranslation: word.showTranslation,
+      heard: word.heard,
+    });
+    if (next.shouldPlay && word.audioUrl) {
       abortRef.current?.();
       setPlayingId(word.id);
       const abort = playFirstWordAudio(word.audioUrl, () => setPlayingId(null));
@@ -127,10 +160,13 @@ export default function WordPractice() {
     }
     setWords((prev) =>
       prev.map((w) => {
-        if (isShowing) {
-          return w.id === id ? { ...w, showTranslation: true } : { ...w, showTranslation: false };
+        if (w.id === word.id) {
+          return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
-        return w.id === id ? { ...w, showTranslation: false } : w;
+        if (next.showTranslation) {
+          return { ...w, showTranslation: false };
+        }
+        return w;
       })
     );
   };
@@ -170,7 +206,7 @@ export default function WordPractice() {
   return (
     <FlowPageShell>
       <div className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center px-3 py-3">
+        <div className="grid grid-cols-[2.5rem_1fr_auto] items-center px-3 py-3 gap-1">
           <CloudButton
             type="button"
             variant="ghost"
@@ -183,21 +219,32 @@ export default function WordPractice() {
           <FlowPageTitle>
             {mode === "review" ? "开始复习" : "单词练习"}
           </FlowPageTitle>
-          <CloudButton
-            type="button"
-            variant="ghost"
-            size="iconRound"
-            onClick={() => setShowPauseMenu(!showPauseMenu)}
-            className="-mr-1 justify-self-end"
-          >
-            <Pause size={20} className="text-[#2D3748]" />
-          </CloudButton>
+          <div className="flex items-center justify-end gap-0.5 -mr-1">
+            <AnnotationToggleButton
+              active={annotationOpen}
+              onClick={() => setAnnotationOpen((v) => !v)}
+            />
+            <CloudButton
+              type="button"
+              variant="ghost"
+              size="iconRound"
+              onClick={() => setShowPauseMenu(!showPauseMenu)}
+            >
+              <Pause size={20} className="text-[#2D3748]" />
+            </CloudButton>
+          </div>
         </div>
       </div>
 
+      <AnnotationLayer
+        storageKey="word-practice"
+        open={annotationOpen}
+        onOpenChange={setAnnotationOpen}
+      />
+
       <div className="px-4 mt-6">
         {/* 组信息 */}
-        <div className="text-center text-sm text-[#718096] mb-6">1/1组</div>
+        <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {/* 单词列表 */}
         <div className="space-y-3 mb-6">
@@ -205,12 +252,12 @@ export default function WordPractice() {
             <div
               key={word.id}
               className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
-                index === currentIndex ? "bg-[#4ECDC4]/10 border-2 border-[#4ECDC4]" : ""
+                !manualReadMode && index === currentIndex ? "bg-[#4ECDC4]/10 border-2 border-[#4ECDC4]" : ""
               }`}
             >
               <div className="flex items-center justify-between">
                 <div
-                  onClick={() => toggleTranslation(word)}
+                  onClick={() => handleWordTap(word)}
                   className="flex-1 cursor-pointer pr-3"
                 >
                   <div className="text-base font-medium text-[#2D3748] mb-1">{word.word}</div>
@@ -218,26 +265,29 @@ export default function WordPractice() {
                     <div className="text-sm text-[#718096]">{word.translation}</div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {parseAudioUrls(word.audioUrl).length > 0 && (
+                {/* 人工带读模式：不显示任何按钮，只靠点单词来发音/看意思 */}
+                {!manualReadMode && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {parseAudioUrls(word.audioUrl).length > 0 && (
+                      <CloudButton
+                        variant={playingId === word.id ? "brand" : "brandOutline"}
+                        size="iconRound"
+                        className="size-10 text-sm font-bold"
+                        onClick={() => handlePlayNextAudio(word)}
+                      >
+                        {(audioIndexMap.get(word.id) ?? 0)}
+                      </CloudButton>
+                    )}
                     <CloudButton
-                      variant={playingId === word.id ? "brand" : "brandOutline"}
+                      variant={index === activeIndex ? "brand" : "ghost"}
                       size="iconRound"
-                      className="size-10 text-sm font-bold"
-                      onClick={() => handlePlayNextAudio(word)}
+                      className={`size-12 text-lg font-bold ${index !== activeIndex ? "text-[#A0AEC0]" : ""}`}
+                      onClick={() => handleCountClick(word.id)}
                     >
-                      {(audioIndexMap.get(word.id) ?? 0) + 1}
+                      ✓
                     </CloudButton>
-                  )}
-                  <CloudButton
-                    variant={index === activeIndex ? "brand" : "ghost"}
-                    size="iconRound"
-                    className={`size-12 text-lg font-bold ${index !== activeIndex ? "text-[#A0AEC0]" : ""}`}
-                    onClick={() => handleCountClick(word.id)}
-                  >
-                    ✓
-                  </CloudButton>
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -252,15 +302,25 @@ export default function WordPractice() {
               <Shuffle size={16} />
               乱序
             </CloudButton>
-            <CloudButton variant="outline" size="pill">
+            <CloudButton
+              variant={manualReadMode ? "brand" : "outline"}
+              size="pill"
+              onClick={() => {
+                setManualReadMode(!manualReadMode);
+                setWords((prev) =>
+                  prev.map((w) => ({ ...w, showTranslation: false, heard: false }))
+                );
+              }}
+            >
               人工带读
             </CloudButton>
             <CloudButton
-              variant="outline"
+              variant={detailMode ? "brand" : "outline"}
               size="pill"
-              onClick={() => setSpeed(speed === "1.0x" ? "1.5x" : "1.0x")}
+              onClick={() => setDetailMode((v) => !v)}
             >
-              {speed}倍速
+              <BookOpen size={16} />
+              拓展
             </CloudButton>
           </div>
           <CloudButton variant="brand" size="iconRound" className="size-12" onClick={handleNext}>
@@ -268,6 +328,13 @@ export default function WordPractice() {
           </CloudButton>
         </div>
       </div>
+
+      <WordDetailDialog
+        wordId={detailWord?.id ?? null}
+        wordText={detailWord?.word}
+        open={!!detailWord}
+        onOpenChange={(open) => { if (!open) setDetailWord(null); }}
+      />
 
       {/* 暂停菜单 */}
       {showPauseMenu && (
