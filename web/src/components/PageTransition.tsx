@@ -2,7 +2,7 @@ import { useLocation, useOutlet } from "react-router";
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
-const TAB_ORDER = ["/", "/word-books", "/anti-forgetting", "/coach-center"];
+const TAB_ORDER = ["/", "/lesson-prep", "/word-books", "/anti-forgetting", "/coach-center"];
 
 function getTabDirection(from: string, to: string) {
   const fromIdx = TAB_ORDER.findIndex(
@@ -33,7 +33,7 @@ export function AnimatedOutlet() {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: direction * -18 }}
         transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full motion-reduce:transform-none motion-reduce:transition-none"
+        className="w-full flex-1 flex flex-col min-h-0 motion-reduce:transform-none motion-reduce:transition-none"
       >
         {outlet}
       </motion.div>

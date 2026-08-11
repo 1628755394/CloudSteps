@@ -13,7 +13,7 @@ import {
 } from "./ui/dialog";
 import { CloudButton } from "./cloudsteps";
 
-const REMIND_EVERY_MS = 3 * 60 * 1000;
+const FINAL_REMIND_THRESHOLD_MIN = 5;
 const POLL_MS = 30_000;
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -31,7 +31,7 @@ type ReminderModal = {
 
 /**
  * 老师端全站陪练提醒（含 material-selection 等无 Layout 页面）
- * 上课中每 3 分钟弹出一次模态框，直至下课或到点自动结束
+ * 仅在最后 5 分钟提醒一次，到点自动下课
  */
 export function CoachingClassReminder() {
   const user = useAuthStore((s) => s.user);
@@ -49,6 +49,7 @@ export function CoachingClassReminder() {
   });
 
   const lastRemindAtRef = useRef<Record<number, number>>({});
+  const finalRemindShownRef = useRef<Set<number>>(new Set());
   const endedShownRef = useRef<Set<number>>(new Set());
   const modalOpenRef = useRef(false);
 
@@ -114,17 +115,18 @@ export function CoachingClassReminder() {
           return;
         }
 
-        const last = lastRemindAtRef.current[s.id] ?? 0;
-        if (Date.now() - last < REMIND_EVERY_MS) return;
-
-        const title = mins <= 5 ? "陪练即将结束" : "陪练下课提醒";
-        openReminder({
-          title,
-          student,
-          slot,
-          minutesLeft: mins,
-          appointmentId: s.id,
-        });
+        // 只在进入最后 5 分钟时提醒一次
+        if (mins <= FINAL_REMIND_THRESHOLD_MIN) {
+          if (finalRemindShownRef.current.has(s.id)) return;
+          finalRemindShownRef.current.add(s.id);
+          openReminder({
+            title: "陪练即将结束",
+            student,
+            slot,
+            minutesLeft: mins,
+            appointmentId: s.id,
+          });
+        }
       } catch {
         // ignore
       }
@@ -160,7 +162,7 @@ export function CoachingClassReminder() {
                   系统已按排课结束时间自动下课并结算（不超过计划时长）。
                 </p>
               )}
-              <p className="text-xs text-[#A0AEC0]">每 3 分钟提醒一次，关闭后仍会按时再次提醒。</p>
+              <p className="text-xs text-[#A0AEC0]">最后 5 分钟提醒一次，到点将自动下课。</p>
             </div>
           </DialogDescription>
         </DialogHeader>

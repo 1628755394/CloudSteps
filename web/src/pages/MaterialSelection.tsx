@@ -9,9 +9,7 @@ const materials = [
   { id: 3, name: "解析语法", enabled: true, path: "/grammar-analysis" },
   { id: 4, name: "阅读理解", enabled: true, path: "/reading-comprehension" },
   { id: 5, name: "完形填空", enabled: true, path: "/cloze-practice" },
-  { id: 6, name: "多维听力", enabled: false },
-  { id: 7, name: "流利口语", enabled: false },
-  { id: 8, name: "无忧写作", enabled: false },
+  { id: 6, name: "情景口语", enabled: true, path: "/scenario-dialogues" },
 ] as const;
 
 type Material = (typeof materials)[number];

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { ChevronLeft, X, Volume2 } from "lucide-react";
 
 import { submitVocabTest } from "../api/vocab";
+import { playFirstWordAudio } from "../utils/audioPlayer";
 import {
   clearVocabTestQuestionsCache,
   ensureVocabTestQuestions,
@@ -51,12 +52,24 @@ export default function VocabularyTestTesting() {
     return "text-sm";
   }, [currentQuestion?.word]);
 
+  const abortAudioRef = useRef<(() => void) | null>(null);
+
   const handlePlayAudio = () => {
-    if (currentQuestion?.audioUrl) {
-      const audio = new Audio(currentQuestion.audioUrl);
-      audio.play().catch((err) => console.error("Audio play error:", err));
-    }
+    if (!currentQuestion?.audioUrl || loading || submitting) return;
+    abortAudioRef.current?.();
+    abortAudioRef.current = playFirstWordAudio(currentQuestion.audioUrl);
   };
+
+  // 进入新题后自动播放发音（经 resolveMediaUrl，相对路径/代理域名可播）
+  useEffect(() => {
+    if (!currentQuestion?.audioUrl || loading || submitting) return;
+    abortAudioRef.current?.();
+    abortAudioRef.current = playFirstWordAudio(currentQuestion.audioUrl);
+    return () => {
+      abortAudioRef.current?.();
+      abortAudioRef.current = null;
+    };
+  }, [currentQuestion?.id, currentQuestion?.audioUrl, loading, submitting]);
 
   const options: OptionItem[] = useMemo(() => {
     if (!currentQuestion) return [];
@@ -159,7 +172,7 @@ export default function VocabularyTestTesting() {
     <div className="h-dvh flex flex-col bg-[#F7F9FC] overflow-hidden">
       <header className="shrink-0 bg-white border-b border-[#E2E8F0]">
         <div className="flex items-center h-11 px-3">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="mr-2">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })} className="mr-2">
             <ChevronLeft size={20} className="text-[#2D3748]" />
           </CloudButton>
           <h1 className="text-sm font-medium text-[#718096]">词汇量测试</h1>
@@ -179,7 +192,7 @@ export default function VocabularyTestTesting() {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)}>
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })}>
             <X size={20} className="text-[#718096]" />
           </CloudButton>
         </div>

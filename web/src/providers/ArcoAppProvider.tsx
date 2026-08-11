@@ -4,7 +4,7 @@ import zhCN from '@arco-design/web-react/es/locale/zh-CN'
 import { useThemeStore } from '../stores/themeStore'
 import { ARCO_POPUP_Z_INDEX, arcoGlobalComponentConfig, arcoPopupContainer } from '../utils/arcoPopup'
 
-const BRAND_PRIMARY = '#1671EF'
+const BRAND_PRIMARY = '#4ECDC4'
 
 export function ArcoAppProvider({ children }: { children: ReactNode }) {
   const isDark = useThemeStore((s) => s.isDark)

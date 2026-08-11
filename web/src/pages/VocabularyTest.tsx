@@ -22,7 +22,7 @@ export default function VocabularyTest() {
     <div className="relative h-dvh overflow-hidden bg-[#F7F9FC]">
       <header className="absolute top-0 left-0 right-0 z-10 bg-white border-b border-[#E2E8F0]">
         <div className="flex items-center h-11 px-3">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="mr-2">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })} className="mr-2">
             <ChevronLeft size={20} className="text-[#2D3748]" />
           </CloudButton>
           <h2 className="text-sm font-medium text-[#718096]">词汇量测试</h2>

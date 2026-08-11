@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 import { useAuthStore } from '../stores/authStore'
 import { getApiBaseURL } from '../config/apiConfig'
+import { toast } from 'sonner'
 
 const getApiBaseUrl = () => {
   return getApiBaseURL()
@@ -68,14 +69,23 @@ axiosInstance.interceptors.response.use(
       const status = error.response.status
 
       switch (status) {
-        case 401:
-            console.log('Unauthorized')
-            useAuthStore.getState().clearUser()
-            // window.location.href = '/'
-            console.log('Unauthorized: Please log in')
+        case 401: {
+          console.log('Unauthorized')
+          useAuthStore.getState().clearUser()
+          // 中文提示 + 跳转登录页
+          toast.error('登录已过期，请重新登录')
+          // 延迟跳转，让用户看到提示
+          const currentPath = window.location.pathname + window.location.search
+          if (!currentPath.startsWith('/login')) {
+            setTimeout(() => {
+              window.location.href = `/login?next=${encodeURIComponent(currentPath)}`
+            }, 1200)
+          }
           break
+        }
         case 403:
           console.error('Forbidden: Access denied')
+          toast.error('没有权限执行此操作')
           break
         case 404:
           console.error('Not Found: API endpoint not found')

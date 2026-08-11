@@ -51,6 +51,21 @@ const clampLevel = (lv: string): Level => {
   return (LEVELS.find((x) => x === up) as Level) || "A1";
 };
 
+/** 根据估算词汇量给出中文水平描述（面向学生/家长，不用 CEFR） */
+const vocabToChineseLevel = (vocab: number): string => {
+  if (vocab < 200) return "英语启蒙阶段";
+  if (vocab < 500) return "小学初级阶段";
+  if (vocab < 800) return "小学中级阶段";
+  if (vocab < 1200) return "小学高级阶段";
+  if (vocab < 1800) return "初中阶段";
+  if (vocab < 2500) return "初中高级阶段";
+  if (vocab < 3500) return "高中阶段";
+  if (vocab < 5000) return "高中高级 / 大学四级水平";
+  if (vocab < 7000) return "大学六级水平";
+  if (vocab < 10000) return "考研 / 雅思水平";
+  return "托福 / GRE 高级水平";
+};
+
 export default function VocabularyTestResult() {
   const navigate = useNavigate();
   const [result, setResult] = useState<ResultPayload | null>(null);
@@ -111,6 +126,7 @@ export default function VocabularyTestResult() {
     if (!result) return null;
     const lv = clampLevel(result.level);
     const approxByLevel = VOCAB_MAP[lv];
+    const chineseLevel = vocabToChineseLevel(result.estimatedVocab || approxByLevel);
     let bestLevel: string | null = null;
     let bestScore = -1;
     if (result.levelStats) {
@@ -125,6 +141,7 @@ export default function VocabularyTestResult() {
     return {
       level: lv,
       approxByLevel,
+      chineseLevel,
       bestLevel,
       bestScorePct: bestScore < 0 ? null : Math.round(bestScore * 100),
     };
@@ -135,7 +152,7 @@ export default function VocabularyTestResult() {
       {/* 顶部导航 */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
         <div className="flex items-center h-14 px-4">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="mr-4">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })} className="mr-4">
             <ChevronLeft size={24} className="text-[#2D3748]" />
           </CloudButton>
           <h1 className="text-lg font-semibold text-[#2D3748]">测试结果</h1>
@@ -155,9 +172,9 @@ export default function VocabularyTestResult() {
               variant="brand"
               size="pill"
               className="mt-6 w-full"
-              onClick={() => navigate("/vocabulary-test", { replace: true })}
+              onClick={() => navigate("/material-selection", { replace: true })}
             >
-              开始测试
+              返回资料选择
             </CloudButton>
           </div>
         ) : (
@@ -166,8 +183,10 @@ export default function VocabularyTestResult() {
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="text-sm text-[#718096]">测评等级</div>
-                  <div className="text-2xl font-bold text-[#2D3748] mt-1">{result.level}</div>
+                  <div className="text-sm text-[#718096]">词汇水平</div>
+                  <div className="text-2xl font-bold text-[#2D3748] mt-1">
+                    {summary?.chineseLevel || "—"}
+                  </div>
                 </div>
                 <div className="w-12 h-12 rounded-2xl bg-[#4ECDC4]/10 flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-[#4ECDC4]" />
@@ -222,11 +241,11 @@ export default function VocabularyTestResult() {
                 <div className="mt-4 rounded-xl bg-[#F7F9FC] p-4">
                   <div className="text-sm font-semibold text-[#2D3748]">本次自测总结</div>
                   <div className="text-sm text-[#718096] mt-2 leading-relaxed">
-                    你的当前等级为 <span className="text-[#2D3748] font-semibold">{summary.level}</span>，
-                    对应的常见词汇量区间大约在 <span className="text-[#2D3748] font-semibold">{summary.approxByLevel}+</span>。
+                    你的词汇量大约在 <span className="text-[#2D3748] font-semibold">{result.estimatedVocab}</span> 个，
+                    相当于 <span className="text-[#2D3748] font-semibold">{summary.chineseLevel}</span>。
                     {summary.bestLevel ? (
                       <>
-                        你在 <span className="text-[#2D3748] font-semibold">{summary.bestLevel}</span> 段表现最好（约
+                        {" "}你在 <span className="text-[#2D3748] font-semibold">{summary.bestLevel}</span> 段表现最好（约
                         <span className="text-[#2D3748] font-semibold"> {summary.bestScorePct}%</span>）。
                       </>
                     ) : null}
@@ -299,9 +318,9 @@ export default function VocabularyTestResult() {
                 variant="outline"
                 size="pill"
                 className="flex-1"
-                onClick={() => navigate("/", { replace: true })}
+                onClick={() => navigate("/material-selection", { replace: true })}
               >
-                返回首页
+                返回资料选择
               </CloudButton>
             </div>
 

@@ -10,16 +10,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import {
-  Button,
-  DatePicker,
-  Empty,
-  Input,
-  InputNumber,
-  Select,
-  Spin,
-  TimePicker,
-} from "@arco-design/web-react";
+import { InputNumber, Modal } from "@arco-design/web-react";
 import {
   addTeacherCoachingStudent,
   createTeacherCoachingAppointment,
@@ -33,7 +24,10 @@ import {
   type CoachingWeekSchedule,
   type TeacherCoachingQuotaRow,
 } from "../api/coaching";
-import { isWithinCoachingStartWindow, minutesUntilCoachingEnd } from "../utils/coachingSchedule";
+import { minutesUntilCoachingEnd, parseCoachingSlotEnd } from "../utils/coachingSchedule";
+import { showToast } from "../utils/toast";
+import { CloudCard, CloudSelect, CloudDatePicker, CloudTimePicker, CloudInput, CloudEmpty, CloudSpin } from "./cloudsteps/arco";
+import { CloudButton } from "./cloudsteps";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const fmtYMD = (d: Date) =>
@@ -105,14 +99,16 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
   );
 
   const nextClass = useMemo(() => {
-    const now = nowTs;
     const inProgress = activeSchedules.find((s) => s.status === "in_progress");
     if (inProgress) return inProgress;
-    return activeSchedules.find(
-      (s) =>
-        s.status === "scheduled" &&
-        isWithinCoachingStartWindow(s.scheduledDate, s.startTime, s.endTime, now)
-    );
+    // 下一节：优先未过结束时间的 scheduled，否则取最近一节
+    const upcoming = activeSchedules
+      .filter((s) => s.status === "scheduled")
+      .find((s) => {
+        const end = parseCoachingSlotEnd(s.scheduledDate, s.endTime);
+        return !end || end.getTime() >= nowTs;
+      });
+    return upcoming || activeSchedules.find((s) => s.status === "scheduled");
   }, [activeSchedules, nowTs]);
 
   const loadQuotas = useCallback(async () => {
@@ -124,8 +120,8 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
     }
   }, []);
 
-  const loadWeek = useCallback(async () => {
-    const ref = fmtYMD(weekAnchor);
+  const loadWeek = useCallback(async (refDate?: string) => {
+    const ref = refDate || fmtYMD(weekAnchor);
     setLoadingSchedules(true);
     try {
       const res = await getTeacherCoachingWeek(ref);
@@ -133,7 +129,7 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载课表失败";
-      alert(msg);
+      showToast.error(msg);
       setSchedules([]);
     } finally {
       setLoadingSchedules(false);
@@ -157,7 +153,7 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
   const onSearchStudents = async () => {
     const q = searchQ.trim();
     if (q.length < 2) {
-      alert("请输入至少 2 个字符搜索学员");
+      showToast.warning("请输入至少 2 个字符搜索学员");
       return;
     }
     setSearching(true);
@@ -167,7 +163,7 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "搜索失败";
-      alert(msg);
+      showToast.error(msg);
       setSearchResults([]);
     } finally {
       setSearching(false);
@@ -176,12 +172,12 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
 
   const onAddStudent = async () => {
     if (!pickedStudent) {
-      alert("请先选择学员");
+      showToast.warning("请先选择学员");
       return;
     }
     const mins = Number(quotaMinutes);
     if (Number.isNaN(mins) || mins < 0) {
-      alert("剩余分钟数无效");
+      showToast.warning("剩余分钟数无效");
       return;
     }
     setAddingStudent(true);
@@ -191,9 +187,10 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
         remainingMinutes: mins,
       });
       if (res.code !== 200) {
-        alert(res.msg || "添加失败");
+        showToast.error(res.msg || "添加失败");
         return;
       }
+      showToast.success("已添加学员");
       setPickedStudent(null);
       setSearchQ("");
       setSearchResults([]);
@@ -202,7 +199,7 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "添加失败";
-      alert(msg);
+      showToast.error(msg);
     } finally {
       setAddingStudent(false);
     }
@@ -211,7 +208,11 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
   const onCreateAppt = async () => {
     const sid = Number(aStudent);
     if (!sid) {
-      alert("请选择学员");
+      showToast.warning("请选择学员");
+      return;
+    }
+    if (!aDate || !aStart || !aEnd) {
+      showToast.warning("请选择日期与时间");
       return;
     }
     setCreatingAppt(true);
@@ -219,40 +220,59 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
       const res = await createTeacherCoachingAppointment({
         studentId: sid,
         scheduledDate: aDate,
-        startTime: aStart,
-        endTime: aEnd,
+        startTime: aStart.length === 5 ? aStart : aStart.slice(0, 5),
+        endTime: aEnd.length === 5 ? aEnd : aEnd.slice(0, 5),
         title: aTitle || undefined,
       });
       if (res.code !== 200) {
-        alert(res.msg || "创建失败");
+        showToast.error(res.msg || "创建失败");
         return;
       }
+      showToast.success("已创建排课");
       setShowScheduleForm(false);
       setATitle("");
-      void loadWeek();
+      // 跳到排课所在周并立刻重拉课表（不要等 weekAnchor 异步更新）
+      const createdDate = aDate;
+      const anchor = new Date(`${createdDate}T12:00:00`);
+      if (!Number.isNaN(anchor.getTime())) {
+        setWeekAnchor(anchor);
+      }
+      await loadWeek(createdDate);
+      void loadQuotas();
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "创建失败";
-      alert(msg);
+      showToast.error(msg);
     } finally {
       setCreatingAppt(false);
     }
   };
 
   const onDeleteAppt = async (id: number) => {
-    if (!confirm("确定删除该排课？")) return;
-    try {
-      const res = await deleteTeacherCoachingAppointment(id);
-      if (res.code !== 200) {
-        alert(res.msg || "删除失败");
-        return;
-      }
-      void loadWeek();
-    } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "删除失败";
-      alert(msg);
-    }
+    Modal.confirm({
+      title: "删除排课",
+      content: "确定删除该排课？删除后不可恢复。",
+      okText: "确定删除",
+      cancelText: "取消",
+      okButtonProps: { status: "danger" },
+      onOk: async () => {
+        try {
+          const res = await deleteTeacherCoachingAppointment(id);
+          if (res.code !== 200) {
+            showToast.error(res.msg || "删除失败");
+            return;
+          }
+          showToast.success("已删除排课");
+          void loadWeek();
+        } catch (e: unknown) {
+          const msg =
+            e && typeof e === "object" && "msg" in e
+              ? String((e as { msg: string }).msg)
+              : "删除失败";
+          showToast.error(msg);
+        }
+      },
+    });
   };
 
   const onStart = async (id: number) => {
@@ -260,15 +280,16 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
     try {
       const res = await startCoachingAppointment(id);
       if (res.code !== 200) {
-        alert(res.msg || "无法开始");
+        showToast.error(res.msg || "无法开始");
         return;
       }
+      showToast.success("已开始上课");
       void loadWeek();
       navigate("/material-selection");
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "开始失败";
-      alert(msg);
+      showToast.error(msg);
     } finally {
       setPendingActionById((prev) => ({ ...prev, [id]: null }));
     }
@@ -279,14 +300,15 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
     try {
       const res = await endCoachingAppointment(id);
       if (res.code !== 200) {
-        alert(res.msg || "无法下课");
+        showToast.error(res.msg || "无法下课");
         return;
       }
+      showToast.success("已下课");
       void loadWeek();
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "下课失败";
-      alert(msg);
+      showToast.error(msg);
     } finally {
       setPendingActionById((prev) => ({ ...prev, [id]: null }));
     }
@@ -296,25 +318,25 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-[18px] font-semibold text-[#2D3748]">陪练排课</h2>
-          <p className="text-xs text-[#718096] mt-1">周范围：{weekRangeLabel}</p>
+          <h2 className="text-lg font-semibold text-foreground">陪练排课</h2>
+          <p className="text-xs text-muted-foreground mt-1">周范围：{weekRangeLabel}</p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
-          <Button size="small" onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}>
+          <CloudButton variant="outline" size="sm" onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}>
             上一周
-          </Button>
-          <Button size="small" onClick={() => setWeekAnchor(new Date())}>
+          </CloudButton>
+          <CloudButton variant="outline" size="sm" onClick={() => setWeekAnchor(new Date())}>
             本周
-          </Button>
-          <Button size="small" onClick={() => setWeekAnchor(addDays(weekAnchor, 7))}>
+          </CloudButton>
+          <CloudButton variant="outline" size="sm" onClick={() => setWeekAnchor(addDays(weekAnchor, 7))}>
             下一周
-          </Button>
+          </CloudButton>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Button
-          type="primary"
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
           disabled={!nextClass}
           onClick={() => {
             if (nextClass?.status === "in_progress") {
@@ -323,15 +345,15 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
               void onStart(nextClass.id);
             }
           }}
-          className="!h-auto min-h-[96px] !flex !items-center !justify-start !p-5 !rounded-2xl !bg-gradient-to-br !from-[#4ECDC4] !to-[#55A3FF] !border-0 shadow-md hover:shadow-lg"
+          className="h-auto min-h-[96px] flex items-center justify-start p-4 sm:p-5 rounded-xl bg-primary text-primary-foreground border-0 hover:bg-primary-deep transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <div className="text-left w-full">
+          <div className="text-left w-full min-w-0">
             {nextClass ? (
               <>
-                <div className="font-semibold text-base truncate">
+                <div className="font-semibold text-sm sm:text-base truncate">
                   {nextClass.title || nextClass.students?.[0] || "当前课程"}
                 </div>
-                <div className="text-xs opacity-80 mt-1">
+                <div className="text-[11px] sm:text-xs opacity-80 mt-1 leading-snug">
                   {nextClass.scheduledDate?.slice(0, 10)} · {nextClass.startTime}–{nextClass.endTime}
                 </div>
               </>
@@ -339,103 +361,105 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
               <div className="text-sm opacity-80">暂无待上课程</div>
             )}
           </div>
-        </Button>
+        </button>
 
-        <div className="min-h-[96px] rounded-2xl bg-white border border-[#E2E8F0] p-5 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center gap-2 text-[#718096] text-sm">
-            <Clock size={16} className="text-[#55A3FF]" />
-            <span>待上 / 进行中</span>
+        <CloudCard tint="sky" className="min-h-[96px] p-4 sm:p-5 flex flex-col justify-between border-transparent">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm">
+            <Clock size={16} className="text-secondary-brand shrink-0" />
+            <span className="truncate">待上 / 进行中</span>
           </div>
-          <div className="text-3xl font-bold text-[#2D3748] tabular-nums">{activeSchedules.length}</div>
-        </div>
+          <div className="text-2xl sm:text-3xl font-semibold text-foreground tabular-nums">{activeSchedules.length}</div>
+        </CloudCard>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="primary" onClick={() => setShowScheduleForm((v) => !v)}>
+      <div className="grid grid-cols-2 gap-2">
+        <CloudButton
+          variant="brand"
+          className="w-full"
+          onClick={() => {
+            setShowStudentForm(false);
+            setShowScheduleForm((v) => !v);
+          }}
+        >
           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
             <Plus size={16} className="shrink-0" />
             新建排课
             {showScheduleForm ? <ChevronUp size={14} className="shrink-0" /> : <ChevronDown size={14} className="shrink-0" />}
           </span>
-        </Button>
-        <Button onClick={() => setShowStudentForm((v) => !v)}>
+        </CloudButton>
+        <CloudButton
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            setShowScheduleForm(false);
+            setShowStudentForm((v) => !v);
+          }}
+        >
           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
             <UserPlus size={16} className="shrink-0" />
             添加学员
             {showStudentForm ? <ChevronUp size={14} className="shrink-0" /> : <ChevronDown size={14} className="shrink-0" />}
           </span>
-        </Button>
+        </CloudButton>
       </div>
 
       {showScheduleForm && (
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm space-y-4">
+        <CloudCard className="p-5 space-y-4">
           <h3 className="text-sm font-semibold text-[#2D3748]">新建排课</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-[#718096] mb-1 block">学员</label>
-              <Select
-                value={aStudent || undefined}
-                onChange={(v) => setAStudent(v ?? "")}
-                options={studentOptions}
-                placeholder={studentOptions.length ? "选择学员" : "请先添加学员"}
-                disabled={!studentOptions.length}
-                allowClear={false}
-                showSearch
-                style={{ width: "100%" }}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-[#718096] mb-1 block">日期</label>
-              <DatePicker
-                value={aDate || undefined}
-                onChange={(dateString) => setADate(dateString || "")}
-                style={{ width: "100%" }}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-[#718096] mb-1 block">开始时间</label>
-              <TimePicker
-                format="HH:mm"
-                value={aStart || undefined}
-                onChange={(timeString) => setAStart(timeString || "")}
-                style={{ width: "100%" }}
-              />
-            </div>
-            <div>
-              <label className="text-xs text-[#718096] mb-1 block">结束时间</label>
-              <TimePicker
-                format="HH:mm"
-                value={aEnd || undefined}
-                onChange={(timeString) => setAEnd(timeString || "")}
-                style={{ width: "100%" }}
-              />
-            </div>
+            <CloudSelect
+              label="学员"
+              value={aStudent || undefined}
+              onChange={(v) => setAStudent(v ?? "")}
+              options={studentOptions}
+              placeholder={studentOptions.length ? "选择学员" : "请先添加学员"}
+              disabled={!studentOptions.length}
+              allowClear={false}
+              showSearch
+            />
+            <CloudDatePicker
+              label="日期"
+              value={aDate || undefined}
+              onChange={(dateString) => setADate(dateString || "")}
+            />
+            <CloudTimePicker
+              label="开始时间"
+              format="HH:mm"
+              value={aStart || undefined}
+              onChange={(timeString) => setAStart(timeString || "")}
+            />
+            <CloudTimePicker
+              label="结束时间"
+              format="HH:mm"
+              value={aEnd || undefined}
+              onChange={(timeString) => setAEnd(timeString || "")}
+            />
             <div className="sm:col-span-2">
-              <label className="text-xs text-[#718096] mb-1 block">标题（可选）</label>
-              <Input
+              <CloudInput
+                label="标题（可选）"
                 value={aTitle}
                 onChange={setATitle}
                 placeholder="如：四级词汇陪练"
               />
             </div>
           </div>
-          <Button type="primary" loading={creatingAppt} onClick={() => void onCreateAppt()}>
+          <CloudButton variant="brand" loading={creatingAppt} onClick={() => void onCreateAppt()}>
             确认排课
-          </Button>
-        </div>
+          </CloudButton>
+        </CloudCard>
       )}
 
       {showStudentForm && (
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 shadow-sm space-y-4">
+        <CloudCard className="p-5 space-y-4">
           <h3 className="text-sm font-semibold text-[#2D3748]">添加学员</h3>
-          <Input.Search
+          <CloudInput
             value={searchQ}
             onChange={setSearchQ}
             placeholder="搜索用户名、昵称或手机号"
-            searchButton="搜索"
-            loading={searching}
-            onSearch={() => void onSearchStudents()}
           />
+          <CloudButton variant="brand" loading={searching} onClick={() => void onSearchStudents()}>
+            搜索
+          </CloudButton>
           {searchResults.length > 0 && (
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {searchResults.map((u) => (
@@ -445,8 +469,8 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
                   onClick={() => setPickedStudent(u)}
                   className={`w-full text-left p-3 rounded-xl border transition-colors ${
                     pickedStudent?.id === u.id
-                      ? "border-[#4ECDC4] bg-[#4ECDC4]/5"
-                      : "border-[#E2E8F0] hover:border-[#4ECDC4]/50"
+                      ? "border-primary bg-primary-soft"
+                      : "border-border hover:border-primary/50"
                   }`}
                 >
                   <div className="text-sm font-medium text-[#2D3748]">
@@ -465,32 +489,31 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
               min={0}
               value={quotaMinutes}
               onChange={(v) => setQuotaMinutes(typeof v === "number" ? v : 0)}
-              style={{ width: "100%" }}
+              style={{ width: "100%", borderRadius: 12, borderColor: "#E2E8F0", height: 40 }}
             />
           </div>
-          <Button type="primary" loading={addingStudent} onClick={() => void onAddStudent()}>
+          <CloudButton variant="brand" loading={addingStudent} onClick={() => void onAddStudent()}>
             确认添加
-          </Button>
-        </div>
+          </CloudButton>
+        </CloudCard>
       )}
 
       <div className="space-y-3">
         {loadingSchedules ? (
-          <div className="bg-white rounded-2xl p-8 flex justify-center shadow-sm">
-            <Spin tip="加载中…" />
-          </div>
+          <CloudCard className="p-8">
+            <CloudSpin tip="加载中…" />
+          </CloudCard>
         ) : activeSchedules.length === 0 ? (
-          <div className="bg-white rounded-2xl p-6 shadow-sm">
-            <Empty description="本周暂无待上课程" />
-          </div>
+          <CloudCard className="p-6">
+            <CloudEmpty description="本周暂无待上课程" />
+          </CloudCard>
         ) : (
           activeSchedules.map((s) => {
             const st = s.status;
-            const inStartWindow =
-              st === "scheduled" &&
-              isWithinCoachingStartWindow(s.scheduledDate, s.startTime, s.endTime, nowTs);
-            const canStart = st === "scheduled" && inStartWindow;
+            const canStart = st === "scheduled"; // 允许提前开始，不再限制时段
             const canEnd = st === "in_progress";
+            const slotEnd = parseCoachingSlotEnd(s.scheduledDate, s.endTime);
+            const isPastSlot = st === "scheduled" && !!slotEnd && slotEnd.getTime() < nowTs;
             const minsLeft =
               st === "in_progress"
                 ? minutesUntilCoachingEnd(s.scheduledDate, s.endTime, nowTs)
@@ -498,15 +521,12 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
             const canEnter = st === "in_progress";
             const pendingAction = pendingActionById[s.id] ?? null;
             return (
-              <div
+              <CloudCard
                 key={s.id}
-                className={`bg-white rounded-2xl p-4 border border-[#E2E8F0] shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
-                  canEnter ? "cursor-pointer hover:border-[#4ECDC4] hover:shadow-md transition-all" : ""
-                }`}
-                onClick={() => {
-                  if (canEnter) navigate("/material-selection");
-                }}
+                interactive={canEnter}
+                onClick={canEnter ? () => navigate("/material-selection") : undefined}
               >
+                <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-[#2D3748]">{s.title || `排课 #${s.id}`}</div>
                   <div className="flex flex-wrap gap-3 mt-2 text-sm text-[#718096]">
@@ -522,9 +542,14 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
                       </span>
                     )}
                   </div>
-                  {st === "scheduled" && !inStartWindow && (
-                    <div className="text-xs text-amber-600 mt-2">
-                      仅可在排课时段 {s.startTime}–{s.endTime} 内开始上课
+                  {st === "scheduled" && !isPastSlot && (
+                    <div className="text-xs text-[#4ECDC4] mt-2">
+                      可提前开始上课
+                    </div>
+                  )}
+                  {isPastSlot && (
+                    <div className="text-xs text-muted-soft mt-2">
+                      计划时段已过，仍可开始或删除
                     </div>
                   )}
                   {st === "in_progress" && minsLeft != null && (
@@ -533,19 +558,26 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-2 shrink-0 items-center">
                   {st === "scheduled" && (
-                    <Button
-                      icon={<Trash2 size={14} />}
+                    <CloudButton
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-destructive/35 text-destructive hover:bg-destructive/5 hover:border-destructive/50"
+                      aria-label="删除排课"
                       onClick={(e) => {
                         e.stopPropagation();
                         void onDeleteAppt(s.id);
                       }}
-                    />
+                    >
+                      <Trash2 size={15} />
+                      删除
+                    </CloudButton>
                   )}
                   {canStart && (
-                    <Button
-                      type="primary"
+                    <CloudButton
+                      variant="brand"
                       loading={pendingAction === "start"}
                       disabled={pendingAction !== null}
                       onClick={(e) => {
@@ -554,12 +586,11 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
                       }}
                     >
                       开始上课
-                    </Button>
+                    </CloudButton>
                   )}
                   {canEnd && (
-                    <Button
-                      status="danger"
-                      type="primary"
+                    <CloudButton
+                      variant="destructive"
                       loading={pendingAction === "end"}
                       disabled={pendingAction !== null}
                       onClick={(e) => {
@@ -568,10 +599,11 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
                       }}
                     >
                       下课
-                    </Button>
+                    </CloudButton>
                   )}
                 </div>
-              </div>
+                </div>
+              </CloudCard>
             );
           })
         )}

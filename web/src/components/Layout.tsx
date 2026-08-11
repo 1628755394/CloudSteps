@@ -6,6 +6,7 @@ import {
   RefreshCw,
   Users,
   Library,
+  BookOpen,
   Menu,
   X,
 } from "lucide-react";
@@ -16,7 +17,8 @@ import { useAuthStore } from "../stores/authStore";
 
 const navItems = [
   { path: "/", label: "首页", icon: Home },
-  { path: "/word-books", label: "备课", icon: Library },
+  { path: "/lesson-prep", label: "备课", icon: BookOpen },
+  { path: "/word-books", label: "词库", icon: Library },
   { path: "/anti-forgetting", label: "抗遗忘", icon: RefreshCw },
   { path: "/coach-center", label: "陪练中心", icon: Users },
 ];
@@ -90,12 +92,12 @@ export function Layout() {
       />
 
       {/* 与固定顶栏 h-16 对齐；移动端勿用过大的 pt，否则主内容会显得“沉在下方” */}
-      <div className="pt-[calc(4rem+env(safe-area-inset-top,0px))] lg:pt-16 flex">
+      <div className="pt-[calc(4rem+env(safe-area-inset-top,0px))] lg:pt-16 flex min-h-dvh">
         {/* 左侧边栏（桌面端） */}
-        <aside className="hidden lg:block fixed left-0 top-16 bottom-0 w-60 bg-[#f5f5f5] dark:bg-card border-r border-border overflow-y-auto">
+        <aside className="hidden lg:block fixed left-0 top-16 bottom-0 w-60 bg-sidebar dark:bg-card border-r border-sidebar-border overflow-y-auto">
           <div className="p-6">
             <div className="mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary-soft rounded-lg mb-3">
                 <span className="text-xs text-primary font-semibold">正式陪练</span>
               </div>
               <div className="text-xs text-muted-foreground mb-1">{greetingText}</div>
@@ -126,7 +128,7 @@ export function Layout() {
               <div className="p-6">
                 {/* 问候区 */}
                 <div className="mb-8">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full mb-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary-soft rounded-lg mb-3">
                     <span className="text-xs text-primary font-semibold">正式陪练</span>
                   </div>
                   <div className="text-xs text-muted-foreground mb-1">{greetingText}</div>
@@ -145,8 +147,8 @@ export function Layout() {
         )}
 
         {/* 主内容区 */}
-        <main className="flex-1 lg:ml-60 pb-20 lg:pb-6 overflow-x-hidden">
-          <div className="max-w-[1200px] mx-auto px-4 py-6">
+        <main className="flex-1 lg:ml-60 pb-20 lg:pb-0 overflow-x-hidden flex flex-col min-h-[calc(100dvh-4rem-env(safe-area-inset-top,0px))]">
+          <div className="flex-1 flex flex-col max-w-[1200px] w-full mx-auto px-4 py-4 lg:py-5 min-h-0">
             <AnimatedOutlet />
           </div>
         </main>
@@ -180,7 +182,7 @@ export function Layout() {
                   className={`relative z-10 ${isActive ? "text-primary" : "text-muted-foreground"}`}
                 />
                 <span
-                  className={`relative z-10 text-[11px] ${isActive ? "text-primary font-medium" : "text-muted-foreground"}`}
+                  className={`relative z-10 text-[10px] leading-tight ${isActive ? "text-primary font-medium" : "text-muted-foreground"}`}
                 >
                   {item.label}
                 </span>

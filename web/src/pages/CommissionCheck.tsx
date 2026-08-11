@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
+import { CloudMonthPicker } from "../components/cloudsteps/arco";
 import { useNavigate } from "react-router";
-import { ChevronLeft, Search, Calendar, DollarSign } from "lucide-react";
+import { ChevronLeft, Search, DollarSign } from "lucide-react";
 
 const commissionData = [
   {
@@ -138,17 +139,11 @@ export default function CommissionCheck() {
         {/* 筛选栏 */}
         <div className="bg-white rounded-xl p-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* 月份选择 */}
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0AEC0]" size={20} />
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#F7F9FC] border border-[#E2E8F0] rounded-lg text-[#2D3748] focus:outline-none focus:border-[#4ECDC4]"
-              />
-            </div>
-            {/* 搜索框 */}
+            <CloudMonthPicker
+              value={selectedMonth || undefined}
+              allowClear={false}
+              onChange={(v) => v && setSelectedMonth(v)}
+            />
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0AEC0]" size={20} />
               <input

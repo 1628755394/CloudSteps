@@ -2,10 +2,12 @@ import { Volume2, Loader2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getLighthouseWords, type StudyWordItem } from "../api/study";
+import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { CloudButton } from "../components/cloudsteps";
 import { TopBar } from "../components/TopBar";
 import { FlowPageShell } from "../components/PageTransition";
 import { playFirstWordAudio } from "../utils/audioPlayer";
+import { nextWordTapState } from "../utils/wordReveal";
 
 const STEP_LABELS: Record<string, string> = {
   today: "今日训新",
@@ -45,6 +47,8 @@ export default function LighthouseWords() {
   const [showTranslationMap, setShowTranslationMap] = useState<
     Map<number, boolean>
   >(new Map());
+  const [heardIds, setHeardIds] = useState<Set<number>>(new Set());
+  const [annotationOpen, setAnnotationOpen] = useState(false);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -75,23 +79,30 @@ export default function LighthouseWords() {
   }, [wordBookId, step]);
 
   const handleWordClick = (word: StudyWordItem) => {
-    const isShowing = !showTranslationMap.get(word.id);
-    if (isShowing && word.audioUrl) {
+    const next = nextWordTapState({
+      showTranslation: !!showTranslationMap.get(word.id),
+      heard: heardIds.has(word.id),
+    });
+    if (next.shouldPlay && word.audioUrl) {
       abortRef.current?.();
       setPlayingId(word.id);
-      const abort = playFirstWordAudio(word.audioUrl, () =>
-        setPlayingId(null)
-      );
+      const abort = playFirstWordAudio(word.audioUrl, () => setPlayingId(null));
       abortRef.current = abort;
     }
+    setHeardIds((prev) => {
+      const s = new Set(prev);
+      if (next.heard) s.add(word.id);
+      else s.delete(word.id);
+      return s;
+    });
     setShowTranslationMap((prev) => {
-      const next = new Map(isShowing ? [] : prev);
-      if (isShowing) {
-        next.set(word.id, true);
+      const map = new Map(next.showTranslation ? [] : prev);
+      if (next.showTranslation) {
+        map.set(word.id, true);
       } else {
-        next.delete(word.id);
+        map.delete(word.id);
       }
-      return next;
+      return map;
     });
   };
 
@@ -109,7 +120,22 @@ export default function LighthouseWords() {
 
   return (
     <FlowPageShell className="min-h-screen bg-gray-50 pb-8">
-      <TopBar title={label} onBack={handleBack} />
+      <TopBar
+        title={label}
+        onBack={handleBack}
+        rightSlot={
+          <AnnotationToggleButton
+            active={annotationOpen}
+            onClick={() => setAnnotationOpen((v) => !v)}
+          />
+        }
+      />
+
+      <AnnotationLayer
+        storageKey={`lighthouse:${wordBookId}:${step}`}
+        open={annotationOpen}
+        onOpenChange={setAnnotationOpen}
+      />
 
       <div className="px-4 mt-6">
         {/* 统计信息 */}

@@ -3,324 +3,154 @@ import {
   ClipboardList,
   Settings2,
   ChevronRight,
-  Award,
-  Star,
-  Mail,
-  Phone,
-  MapPin,
-  Users,
-  Calendar,
-  Clock,
-  RefreshCw,
+  CalendarCheck,
+  Pencil,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { CloudButton, CloudImageWithFallback } from "../components/cloudsteps";
+import { CloudCard } from "../components/cloudsteps/arco";
 import { useAuthStore } from "../stores/authStore";
-import { getTeacherCoachingCompleted, type CoachingWeekSchedule } from "../api/coaching";
+import { resolveMediaUrl } from "../utils/mediaUrl";
 
 const features = (role: string) => [
   ...(role === "student"
     ? []
-    : [{ id: 1, icon: DollarSign, label: "佣金核对", color: "#4ECDC4", path: "/commission-check" }]),
-  { id: 2, icon: ClipboardList, label: "词汇测试记录", color: "#55A3FF", path: "/test-records" },
-  { id: 3, icon: Settings2, label: "设置", color: "#718096", path: "/settings" },
+    : [{ id: 1, icon: DollarSign, label: "佣金核对", tint: "mint" as const, path: "/commission-check" }]),
+  { id: 2, icon: ClipboardList, label: "词汇测试记录", tint: "sky" as const, path: "/test-records" },
+  { id: 3, icon: Settings2, label: "设置", tint: "cream" as const, path: "/settings" },
 ];
+
+const tintClass = {
+  mint: "bg-primary-soft text-primary",
+  sky: "bg-tint-sky text-secondary-brand",
+  cream: "bg-tint-cream text-warning",
+};
 
 export default function CoachCenter() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const refreshUserInfo = useAuthStore((s) => s.refreshUserInfo);
-	const role = (user as any)?.role || "user";
+  const role = (user as { role?: string } | null)?.role || "user";
   const isCoach = role === "teacher" || role === "user";
-
-  const [completedSchedules, setCompletedSchedules] = useState<CoachingWeekSchedule[]>([]);
-  const [completedTotal, setCompletedTotal] = useState(0);
-  const [completedPage, setCompletedPage] = useState(1);
-  const [loadingCompleted, setLoadingCompleted] = useState(false);
-  const completedPageSize = 10;
-
-  const loadCompleted = useCallback(async (page = 1) => {
-    if (!isCoach) return;
-    setLoadingCompleted(true);
-    try {
-      const res = await getTeacherCoachingCompleted({ page, pageSize: completedPageSize });
-      if (res.code !== 200) {
-        setCompletedSchedules([]);
-        setCompletedTotal(0);
-        return;
-      }
-      setCompletedSchedules(Array.isArray(res.data?.schedules) ? res.data!.schedules : []);
-      setCompletedTotal(res.data?.total ?? 0);
-      setCompletedPage(res.data?.page ?? page);
-    } catch {
-      setCompletedSchedules([]);
-      setCompletedTotal(0);
-    } finally {
-      setLoadingCompleted(false);
-    }
-  }, [isCoach]);
 
   useEffect(() => {
     void refreshUserInfo();
   }, [refreshUserInfo]);
 
-  useEffect(() => {
-    void loadCompleted(1);
-  }, [loadCompleted]);
-
   const name = user?.displayName || user?.email || "";
-  const roleLabel = useMemo(() => {
-    return "正式陪练";
-  }, []);
   const greetingText = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
     if (hour < 18) return "Good afternoon";
     return "Good evening";
   }, []);
-  const email = user?.email || "-";
-  const phone = user?.phone || "-";
-  const location = [user?.region, user?.city].filter(Boolean).join(" · ") || "-";
-
-	const featureList = useMemo(() => features(role), [role]);
+  const featureList = useMemo(() => features(role), [role]);
 
   return (
-    <div className="space-y-6">
-      {/* 个人信息面板 */}
-      <div className="bg-gradient-to-br from-[#4ECDC4] to-[#55A3FF] rounded-xl p-6 md:p-8 text-white">
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-          {/* 头像和徽章 */}
-          <div className="relative">
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/20 backdrop-blur-sm border-4 border-white/30 overflow-hidden flex items-center justify-center">
-              {user?.avatar ? (
-                <CloudImageWithFallback
-                  src={user.avatar}
-                  alt={name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-3xl md:text-4xl font-bold leading-none">
-                  {(name || "?").slice(0, 1).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-white text-[#4ECDC4] px-3 py-1 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1 whitespace-nowrap min-w-max">
-              <Award size={14} />
-              <span>{roleLabel || "-"}</span>
-            </div>
-          </div>
-
-          {/* 用户信息 */}
-          <div className="flex-1 text-center md:text-left">
-            <div className="text-white/80 text-xs md:text-sm mb-1">{greetingText}</div>
-            <h1 className="text-xl font-semibold mb-2 sm:text-2xl">
-              Hi, {name || "-"}
-            </h1>
-            <p className="text-white/80 text-sm md:text-base mb-4">
-              账号：{email}
-            </p>
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
-              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
-                <Users size={18} />
-                <span className="text-sm">ID：{user?.id ?? "-"}</span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
-                <Star size={18} />
-                <span className="text-sm">角色：{user?.role || "-"}</span>
-              </div>
-              <CloudButton
-                onClick={() => navigate("/profile/edit")}
-                className="h-9 px-4 rounded-lg bg-white/20 hover:bg-white/25 text-white border border-white/30 transition-all duration-200 hover:shadow-sm active:scale-[0.99]"
-              >
-                编辑资料
-              </CloudButton>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E2E8F0] p-6">
-          <h2 className="text-[#2D3748] font-semibold text-[18px] mb-4 mt-6">基本信息</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-[#F7F9FC] border border-[#E2E8F0]">
-              <Mail size={18} className="text-[#55A3FF]" />
-              <div className="min-w-0">
-                <div className="text-xs text-[#A0AEC0]">邮箱</div>
-                <div className="text-sm text-[#2D3748] truncate">{email}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-[#F7F9FC] border border-[#E2E8F0]">
-              <Phone size={18} className="text-[#4ECDC4]" />
-              <div className="min-w-0">
-                <div className="text-xs text-[#A0AEC0]">手机号</div>
-                <div className="text-sm text-[#2D3748] truncate">{phone}</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-[#F7F9FC] border border-[#E2E8F0] md:col-span-2">
-              <MapPin size={18} className="text-[#FF6B6B]" />
-              <div className="min-w-0">
-                <div className="text-xs text-[#A0AEC0]">地区</div>
-                <div className="text-sm text-[#2D3748] truncate">{location}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6">
-            <h3 className="text-[#2D3748] font-semibold mb-2">个人简介</h3>
-            <div className="text-sm text-[#718096] leading-relaxed">
-              擅长通过结构化训练帮助学员建立稳固的词汇体系，覆盖四级/六级/托福/雅思等主流考试。
-              关注学习节奏与抗遗忘策略，强调可持续的复习闭环。
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6">
-          <h2 className="text-[#2D3748] font-semibold text-[18px] mb-4">账号与安全</h2>
-
-          <div className="space-y-3">
-            <div className="p-4 rounded-xl border border-[#E2E8F0]">
-              <div className="text-sm font-medium text-[#2D3748]">登录状态</div>
-              <div className="text-xs text-[#718096] mt-1">
-                最近登录：{user?.lastLogin || "-"}
-              </div>
-            </div>
-            <div className="p-4 rounded-xl border border-[#E2E8F0]">
-              <div className="text-sm font-medium text-[#2D3748]">双重验证</div>
-              <div className="text-xs text-[#718096] mt-1">
-                {user?.twoFactorEnabled ? "已开启" : "未开启"}
-              </div>
-            </div>
-            <div className="p-4 rounded-xl border border-[#E2E8F0]">
-              <div className="text-sm font-medium text-[#2D3748]">权限</div>
-              <div className="text-xs text-[#718096] mt-1">
-                {roleLabel ? `${roleLabel} · 基础功能` : "-"}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {isCoach && (
-        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-[18px] font-semibold text-[#2D3748]">已上课程</h2>
-              <p className="text-xs text-[#718096] mt-1">近 90 天已完成的陪练记录</p>
-            </div>
-            <CloudButton
-              type="button"
-              onClick={() => void loadCompleted(completedPage)}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm border border-[#E2E8F0] text-[#4A5568] bg-white"
-            >
-              <RefreshCw size={14} />
-              刷新
-            </CloudButton>
-          </div>
-
-          {loadingCompleted ? (
-            <div className="py-8 text-center text-[#718096]">加载中…</div>
-          ) : completedSchedules.length === 0 ? (
-            <div className="py-8 text-center text-[#718096]">暂无已上课程</div>
-          ) : (
-            <div className="space-y-3">
-              {completedSchedules.map((s) => (
-                <div
-                  key={s.id}
-                  className="rounded-2xl border border-[#E2E8F0] bg-[#F7F9FC] p-4"
-                >
-                  <div className="font-medium text-[#2D3748]">{s.title || `排课 #${s.id}`}</div>
-                  <div className="flex flex-wrap gap-3 mt-2 text-sm text-[#718096]">
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar size={14} /> {s.scheduledDate?.slice?.(0, 10) || s.scheduledDate}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Clock size={14} /> {s.startTime}–{s.endTime}
-                    </span>
-                    {s.students && s.students.length > 0 && (
-                      <span className="inline-flex items-center gap-1">
-                        <Users size={14} /> {s.students.join("、")}
-                      </span>
-                    )}
-                  </div>
-                  {s.session?.billedMinutes != null && (
-                    <div className="text-xs text-[#718096] mt-2">
-                      实际 {s.session.actualMinutes ?? "-"} 分钟 · 学员扣减 {s.session.billedMinutes} 分钟
-                      {s.session.teacherCreditedMinutes != null && (
-                        <> · 计入老师 {s.session.teacherCreditedMinutes} 分钟</>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {completedTotal > completedPageSize && (
-            <div className="flex justify-center gap-2 mt-4">
-              <CloudButton
-                type="button"
-                disabled={completedPage <= 1 || loadingCompleted}
-                onClick={() => void loadCompleted(completedPage - 1)}
-                className="px-4 py-2 rounded-full text-sm border border-[#E2E8F0] bg-white text-[#4A5568]"
-              >
-                上一页
-              </CloudButton>
-              <span className="self-center text-sm text-[#718096]">
-                {completedPage} / {Math.ceil(completedTotal / completedPageSize)}
+    <div className="flex flex-col flex-1 min-h-0 h-full gap-3 overflow-hidden">
+      <CloudCard className="px-3.5 py-3 sm:px-4 sm:py-3.5 shrink-0">
+        <div className="flex items-center gap-3.5">
+          <div className="size-14 sm:size-16 rounded-full bg-primary-soft border border-border overflow-hidden flex items-center justify-center shrink-0">
+            {user?.avatar ? (
+              <CloudImageWithFallback
+                src={resolveMediaUrl(user.avatar) || user.avatar}
+                alt={name}
+                className="size-full object-cover rounded-full"
+              />
+            ) : (
+              <span className="text-base font-semibold text-primary">
+                {(name || "?").slice(0, 1).toUpperCase()}
               </span>
-              <CloudButton
-                type="button"
-                disabled={completedPage >= Math.ceil(completedTotal / completedPageSize) || loadingCompleted}
-                onClick={() => void loadCompleted(completedPage + 1)}
-                className="px-4 py-2 rounded-full text-sm border border-[#E2E8F0] bg-white text-[#4A5568]"
-              >
-                下一页
-              </CloudButton>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
 
-      {/* 功能菜单 */}
-      <div>
-        <h2 className="text-[20px] font-semibold text-[#2D3748] mb-4">
-          功能中心
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {featureList.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.id}
-                onClick={() => navigate(feature.path)}
-                className="bg-white rounded-xl p-4 md:p-5 hover:shadow-md transition-all cursor-pointer group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-12 h-12 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform"
-                      style={{ backgroundColor: `${feature.color}15` }}
-                    >
-                      <Icon size={24} style={{ color: feature.color }} />
-                    </div>
-                    <span className="text-[#2D3748] font-medium text-base md:text-lg">
-                      {feature.label}
-                    </span>
-                  </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-[13px] sm:text-sm font-medium text-foreground truncate leading-snug">
+                {name || "-"}
+              </h1>
+              <span className="text-[11px] text-muted-foreground shrink-0 leading-none">
+                {greetingText}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-soft truncate leading-snug mt-0.5">
+              正式陪练 · ID {user?.id ?? "-"}
+            </p>
+          </div>
+
+          <CloudButton
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/profile/edit")}
+            className="shrink-0 size-8 text-muted-foreground hover:text-primary"
+            aria-label="编辑资料"
+          >
+            <Pencil size={15} />
+          </CloudButton>
+        </div>
+      </CloudCard>
+
+      <div className="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden sm:grid sm:grid-cols-2 sm:items-stretch">
+        {isCoach && (
+          <button
+            type="button"
+            onClick={() => navigate("/coach-center/completed")}
+            className="w-full text-left rounded-xl border border-border bg-card p-5 hover:border-primary transition-colors group flex flex-col justify-center min-h-[7.5rem] sm:min-h-0 sm:h-full"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                <CalendarCheck size={22} />
+              </div>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-base font-semibold text-foreground">已上课程</div>
                   <ChevronRight
-                    size={20}
-                    className="text-[#A0AEC0] group-hover:text-[#4ECDC4] group-hover:translate-x-1 transition-all"
+                    size={18}
+                    className="text-muted-soft group-hover:text-primary shrink-0 transition-colors"
                   />
                 </div>
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
+                  查看近 90 天已完成的陪练记录与课时结算
+                </p>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          </button>
+        )}
+
+        <CloudCard
+          className={`p-3 flex-1 flex flex-col min-h-0 overflow-hidden ${
+            isCoach ? "" : "sm:col-span-2"
+          }`}
+        >
+          <h2 className="text-sm font-semibold text-foreground px-2 pt-1 pb-2 shrink-0">功能中心</h2>
+          <div className="flex-1 min-h-0 flex flex-col justify-evenly divide-y divide-border">
+            {featureList.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <button
+                  key={feature.id}
+                  type="button"
+                  onClick={() => navigate(feature.path)}
+                  className="w-full flex items-center gap-3.5 px-2 py-3.5 rounded-xl hover:bg-muted/60 transition-colors group text-left"
+                >
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tintClass[feature.tint]}`}
+                  >
+                    <Icon size={18} />
+                  </div>
+                  <span className="flex-1 text-sm sm:text-base font-medium text-foreground">
+                    {feature.label}
+                  </span>
+                  <ChevronRight
+                    size={16}
+                    className="text-muted-soft group-hover:text-primary transition-colors"
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </CloudCard>
       </div>
     </div>
   );

@@ -11,8 +11,8 @@
   padding: 10px 12px;
   font-size: 14px;
   font-weight: 400;
-  line-height: 1.25;
-  color: #4e4e4e;
+  line-height: 1.5;
+  color: var(--muted-foreground);
   background: transparent;
   cursor: pointer;
   text-align: left;
@@ -20,12 +20,12 @@
 }
 
 .dark .ling-sidebar-nav-item {
-  color: var(--foreground);
+  color: var(--muted-foreground);
 }
 
 .ling-sidebar-nav-item:hover {
-  color: #1a1a1a;
-  background: rgb(255 255 255 / 0.55);
+  color: var(--foreground);
+  background: var(--card);
 }
 
 .dark .ling-sidebar-nav-item:hover {
@@ -33,14 +33,50 @@
 }
 
 .ling-sidebar-nav-item--active {
-  color: #1a1a1a !important;
+  color: var(--primary) !important;
   font-weight: 500;
-  background: #ffffff !important;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+  background: var(--primary-soft) !important;
+  box-shadow: none;
 }
 
 .dark .ling-sidebar-nav-item--active {
-  color: var(--foreground) !important;
-  background: var(--background) !important;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  color: var(--primary) !important;
+  background: var(--primary-soft) !important;
+  box-shadow: none;
+}
+
+/* CloudSteps form controls — Warm Mint */
+.cloud-input,
+.cloud-select,
+.cloud-datepicker,
+.cloud-timepicker {
+  border-radius: 12px !important;
+  border-color: var(--input) !important;
+  background: var(--input-background) !important;
+}
+
+.cloud-input:focus,
+.cloud-input:focus-within,
+.arco-input-wrapper:focus-within.cloud-input,
+.arco-select-view.cloud-select:focus-within,
+.cloud-datepicker:focus-within,
+.cloud-timepicker:focus-within {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px var(--primary-soft) !important;
+}
+
+/* H5 原生 date/time/month：统一高度与字号，避免 iOS 默认样式突兀 */
+input[type="date"],
+input[type="time"],
+input[type="month"] {
+  color-scheme: light;
+  min-height: 40px;
+  font-size: 16px; /* 避免 iOS 聚焦放大 */
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
 }

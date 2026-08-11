@@ -1,12 +1,28 @@
-import { Users, RefreshCw, ChevronLeft, ClipboardList } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Clock,
+  Phone,
+  RefreshCw,
+  Search,
+  Users,
+} from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
+import { CloudCard, CloudEmpty, CloudInput, CloudSpin } from "../components/cloudsteps/arco";
+import { PageTitle } from "../components/PageTitle";
 import { getTeacherCoachingQuotas, type TeacherCoachingQuotaRow } from "../api/coaching";
+import { showToast } from "../utils/toast";
 
 function studentLabel(row: TeacherCoachingQuotaRow) {
   const s = row.student;
   return s?.displayName || s?.username || s?.email || `学员 #${row.studentId}`;
+}
+
+function studentInitial(row: TeacherCoachingQuotaRow) {
+  return (studentLabel(row) || "?").trim().slice(0, 1).toUpperCase() || "?";
 }
 
 function fmtShort(iso?: string | null) {
@@ -17,17 +33,27 @@ function fmtShort(iso?: string | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+function minsLabel(n: number) {
+  if (n >= 60) {
+    const h = Math.floor(n / 60);
+    const m = n % 60;
+    return m ? `${h}小时${m}分` : `${h}小时`;
+  }
+  return `${n}分钟`;
+}
+
 export default function MyStudents() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<TeacherCoachingQuotaRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [keyword, setKeyword] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getTeacherCoachingQuotas();
       if (res.code !== 200) {
-        alert(res.msg || "加载失败");
+        showToast.error(res.msg || "加载失败");
         setRows([]);
         return;
       }
@@ -35,7 +61,7 @@ export default function MyStudents() {
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载失败";
-      alert(msg);
+      showToast.error(msg);
       setRows([]);
     } finally {
       setLoading(false);
@@ -46,121 +72,234 @@ export default function MyStudents() {
     void load();
   }, [load]);
 
+  const filtered = useMemo(() => {
+    const q = keyword.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => {
+      const hay = [
+        studentLabel(r),
+        r.student?.username,
+        r.student?.email,
+        r.student?.phone,
+        String(r.studentId),
+        r.student?.city,
+        r.student?.region,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [rows, keyword]);
+
+  const summary = useMemo(() => {
+    const totalMins = rows.reduce((s, r) => s + (r.remainingMinutes || 0), 0);
+    const lowQuota = rows.filter((r) => (r.remainingMinutes || 0) < 30).length;
+    return { count: rows.length, totalMins, lowQuota };
+  }, [rows]);
+
+  const openActivity = (r: TeacherCoachingQuotaRow) => {
+    navigate(`/my-students/${r.studentId}/training`, {
+      state: { studentName: studentLabel(r) },
+    });
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+      <div className="flex items-start gap-2 shrink-0">
         <CloudButton
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm border border-[#E2E8F0] text-[#4A5568] bg-white"
+          aria-label="返回"
+          className="shrink-0 mt-0.5"
         >
-          <ChevronLeft size={18} />
-          返回
+          <ChevronLeft size={20} />
         </CloudButton>
+        <div className="min-w-0 flex-1">
+          <PageTitle description="查看额度、测评与训练活动">学员管理</PageTitle>
+        </div>
         <CloudButton
           type="button"
+          variant="outline"
+          size="icon"
           onClick={() => void load()}
-          className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm border border-[#E2E8F0] text-[#4A5568] bg-white"
+          aria-label="刷新"
+          className="shrink-0 mt-0.5"
+          disabled={loading}
         >
-          <RefreshCw size={16} />
-          刷新
+          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
         </CloudButton>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-5">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-[#55A3FF]/10 rounded-xl flex items-center justify-center">
-            <Users className="text-[#55A3FF]" size={24} />
+      <div className="grid grid-cols-3 gap-2 shrink-0">
+        <CloudCard tint="mint" className="px-3 py-2.5 border-transparent text-center">
+          <div className="text-[10px] text-muted-foreground">学员</div>
+          <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">
+            {summary.count}
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-[#2D3748]">学员管理</h1>
-            <p className="text-xs text-[#718096] mt-0.5">
-              名下学员档案与额度；点击「活动记录」查看陪练完课、词汇测评与单词训练时间线
-            </p>
+        </CloudCard>
+        <CloudCard tint="sky" className="px-3 py-2.5 border-transparent text-center">
+          <div className="text-[10px] text-muted-foreground">剩余额度</div>
+          <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">
+            {summary.totalMins}
+            <span className="text-[10px] font-medium text-muted-soft ml-0.5">分</span>
           </div>
-        </div>
+        </CloudCard>
+        <CloudCard tint="cream" className="px-3 py-2.5 border-transparent text-center">
+          <div className="text-[10px] text-muted-foreground">额度将尽</div>
+          <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">
+            {summary.lowQuota}
+          </div>
+        </CloudCard>
       </div>
 
-      <div className="bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="shrink-0">
+        <CloudInput
+          value={keyword}
+          onChange={setKeyword}
+          placeholder="搜索姓名 / 手机 / ID…"
+          prefix={<Search size={16} className="text-muted-foreground" />}
+          allowClear
+        />
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-2">
         {loading ? (
-          <div className="p-8 text-center text-[#718096]">加载中…</div>
-        ) : rows.length === 0 ? (
-          <div className="p-8 text-center text-[#718096]">暂无学员额度记录</div>
+          <CloudCard className="p-10">
+            <CloudSpin tip="加载中…" />
+          </CloudCard>
+        ) : filtered.length === 0 ? (
+          <CloudCard className="p-8">
+            <CloudEmpty
+              description={
+                keyword.trim()
+                  ? "没有匹配的学员"
+                  : "暂无学员。可在首页「陪练排课」里添加学员。"
+              }
+            />
+          </CloudCard>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[720px]">
-              <thead>
-                <tr className="border-b border-[#E2E8F0] text-left text-[#718096]">
-                  <th className="p-3 font-medium">学员</th>
-                  <th className="p-3 font-medium whitespace-nowrap">用户名 / ID</th>
-                  <th className="p-3 font-medium whitespace-nowrap">手机</th>
-                  <th className="p-3 font-medium whitespace-nowrap text-right">剩余分钟</th>
-                  <th className="p-3 font-medium whitespace-nowrap text-right">累计分配</th>
-                  <th className="p-3 font-medium whitespace-nowrap text-right min-w-[100px]">活动次数</th>
-                  <th className="p-3 font-medium min-w-[140px]">最近测评</th>
-                  <th className="p-3 font-medium w-28">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-[#F1F5F9] last:border-0 align-top">
-                    <td className="p-3">
-                      <div className="text-[#2D3748] font-medium">{studentLabel(r)}</div>
-                      {r.student?.city || r.student?.region ? (
-                        <div className="text-xs text-[#A0AEC0] mt-0.5">
-                          {[r.student?.region, r.student?.city].filter(Boolean).join(" · ")}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="p-3 text-[#4A5568]">
-                      <div className="font-mono text-xs">{r.student?.username || "—"}</div>
-                      <div className="text-xs text-[#A0AEC0] mt-0.5">#{r.studentId}</div>
-                    </td>
-                    <td className="p-3 text-[#4A5568] whitespace-nowrap">{r.student?.phone || "—"}</td>
-                    <td className="p-3 text-right tabular-nums font-medium text-[#2D3748]">
-                      {r.remainingMinutes}
-                    </td>
-                    <td className="p-3 text-right tabular-nums text-[#718096]">
-                      {r.totalAllocatedMinutes ?? "—"}
-                    </td>
-                    <td className="p-3 text-right text-[#718096] text-xs leading-relaxed">
-                      <div>测评 {r.vocabTestCount ?? 0}</div>
-                      <div>陪练 {r.coachingSessionCount ?? 0}</div>
-                      <div>训练 {r.studySessionCount ?? 0}</div>
-                    </td>
-                    <td className="p-3 text-[#718096] text-xs">
-                      {r.latestVocabTestAt || r.latestVocabLevel || r.latestEstimatedVocab ? (
-                        <>
-                          <div>{fmtShort(r.latestVocabTestAt)}</div>
-                          <div className="text-[#2D3748] mt-0.5">
-                            {r.latestVocabLevel || "—"} · 估 {r.latestEstimatedVocab ?? "—"}
-                          </div>
-                        </>
-                      ) : (
-                        "—"
+          filtered.map((r) => {
+            const low = (r.remainingMinutes || 0) < 30;
+            const region = [r.student?.region, r.student?.city].filter(Boolean).join(" · ");
+            return (
+              <CloudCard
+                key={r.id}
+                interactive
+                className="p-4"
+                onClick={() => openActivity(r)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="size-12 rounded-full bg-primary-soft border border-border overflow-hidden flex items-center justify-center shrink-0">
+                    <span className="text-sm font-semibold text-primary">
+                      {studentInitial(r)}
+                    </span>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h2 className="text-sm font-semibold text-foreground truncate">
+                          {studentLabel(r)}
+                        </h2>
+                        <p className="text-[11px] text-muted-soft mt-0.5 truncate">
+                          #{r.studentId}
+                          {r.student?.username ? ` · ${r.student.username}` : ""}
+                          {region ? ` · ${region}` : ""}
+                        </p>
+                      </div>
+                      <ChevronRight
+                        size={16}
+                        className="text-muted-soft shrink-0 mt-0.5"
+                        aria-hidden
+                      />
+                    </div>
+
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium tabular-nums ${
+                          low
+                            ? "bg-destructive/5 text-destructive"
+                            : "bg-primary-soft text-primary"
+                        }`}
+                      >
+                        <Clock size={12} />
+                        剩余 {minsLabel(r.remainingMinutes || 0)}
+                      </span>
+                      {typeof r.totalAllocatedMinutes === "number" && (
+                        <span className="inline-flex items-center rounded-lg bg-muted px-2 py-1 text-[11px] text-muted-foreground tabular-nums">
+                          累计 {r.totalAllocatedMinutes} 分
+                        </span>
                       )}
-                    </td>
-                    <td className="p-3">
+                      {r.student?.phone && (
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-[11px] text-muted-foreground">
+                          <Phone size={11} />
+                          {r.student.phone}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-lg bg-surface-soft px-1.5 py-1.5">
+                        <div className="text-sm font-semibold text-foreground tabular-nums">
+                          {r.vocabTestCount ?? 0}
+                        </div>
+                        <div className="text-[10px] text-muted-soft">测评</div>
+                      </div>
+                      <div className="rounded-lg bg-surface-soft px-1.5 py-1.5">
+                        <div className="text-sm font-semibold text-foreground tabular-nums">
+                          {r.coachingSessionCount ?? 0}
+                        </div>
+                        <div className="text-[10px] text-muted-soft">陪练</div>
+                      </div>
+                      <div className="rounded-lg bg-surface-soft px-1.5 py-1.5">
+                        <div className="text-sm font-semibold text-foreground tabular-nums">
+                          {r.studySessionCount ?? 0}
+                        </div>
+                        <div className="text-[10px] text-muted-soft">训练</div>
+                      </div>
+                    </div>
+
+                    {(r.latestVocabTestAt || r.latestVocabLevel || r.latestEstimatedVocab) && (
+                      <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
+                        最近测评 {fmtShort(r.latestVocabTestAt)}
+                        {r.latestVocabLevel ? ` · ${r.latestVocabLevel}` : ""}
+                        {r.latestEstimatedVocab != null ? ` · 估词 ${r.latestEstimatedVocab}` : ""}
+                      </p>
+                    )}
+
+                    <div className="mt-3">
                       <CloudButton
                         type="button"
-                        onClick={() =>
-                          navigate(`/my-students/${r.studentId}/training`, {
-                            state: { studentName: studentLabel(r) },
-                          })
-                        }
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs bg-[#55A3FF] text-white"
+                        variant="brandOutline"
+                        size="sm"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openActivity(r);
+                        }}
                       >
                         <ClipboardList size={14} />
                         活动记录
                       </CloudButton>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                </div>
+              </CloudCard>
+            );
+          })
         )}
       </div>
+
+      {!loading && rows.length > 0 && (
+        <p className="text-center text-[11px] text-muted-soft shrink-0 pb-1">
+          <Users size={12} className="inline mr-1 -mt-0.5" />
+          共 {filtered.length}
+          {keyword.trim() ? ` / ${rows.length}` : ""} 名学员
+        </p>
+      )}
     </div>
   );
 }

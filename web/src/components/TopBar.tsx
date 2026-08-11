@@ -14,7 +14,7 @@ type Props = {
 export function TopBar({ title, onBack, rightSlot }: Props) {
   return (
     <div className="bg-white sticky top-0 z-10 shadow-sm">
-      <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center h-11 px-3">
+      <div className="grid grid-cols-[2.5rem_1fr_auto] items-center h-11 px-3 gap-1">
         <CloudButton
           variant="ghost"
           size="iconRound"
@@ -25,7 +25,7 @@ export function TopBar({ title, onBack, rightSlot }: Props) {
           <ArrowLeft size={18} className="text-[#2D3748]" />
         </CloudButton>
         <FlowPageTitle className="!text-sm !font-medium !leading-none">{title}</FlowPageTitle>
-        <div className="flex items-center justify-end">{rightSlot}</div>
+        <div className="flex items-center justify-end min-w-[2.5rem]">{rightSlot}</div>
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
 import { ChevronLeft, ChevronRight, Lock, Smartphone, Bell, Shield, LogOut } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
-import { useEffect, useMemo, useState } from "react";
+import { CloudCard } from "../components/cloudsteps/arco";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../stores/authStore";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
@@ -16,36 +17,54 @@ import {
   type UserActivity,
 } from "../api/auth";
 
+const fieldClass =
+  "w-full px-4 py-3 rounded-xl bg-card border border-input text-charcoal placeholder:text-muted-soft transition-colors outline-none hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25";
+
 const settingOptions = [
   {
-    id: 1,
+    id: 1 as const,
     icon: Lock,
     label: "修改密码",
     description: "定期修改密码，保障账号安全",
-    color: "#4ECDC4",
+    panel: "password" as const,
+    tint: "mint" as const,
   },
   {
-    id: 2,
+    id: 2 as const,
     icon: Smartphone,
     label: "绑定手机号",
     description: "用于登录验证和找回密码",
-    color: "#55A3FF",
+    panel: "phone" as const,
+    tint: "sky" as const,
   },
   {
-    id: 3,
+    id: 3 as const,
     icon: Bell,
     label: "消息通知",
     description: "管理推送通知和提醒设置",
-    color: "#4ECDC4",
+    panel: "notifications" as const,
+    tint: "mint" as const,
   },
   {
-    id: 4,
+    id: 4 as const,
     icon: Shield,
     label: "账号安全",
     description: "查看登录记录和设备管理",
-    color: "#55A3FF",
+    panel: "security" as const,
+    tint: "sky" as const,
   },
 ];
+
+const otherLinks = [
+  { label: "关于我们", path: "/about" },
+  { label: "用户协议", path: "/terms" },
+  { label: "隐私政策", path: "/privacy" },
+];
+
+const tintIcon: Record<"mint" | "sky", string> = {
+  mint: "bg-primary-soft text-primary",
+  sky: "bg-tint-sky text-secondary-brand",
+};
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -56,29 +75,24 @@ export default function Settings() {
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   const [panel, setPanel] = useState<null | "password" | "phone" | "notifications" | "security">(null);
-
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  // 修改密码
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
 
-  // 绑定手机号
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
   const [sendingPhoneCode, setSendingPhoneCode] = useState(false);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
 
-  // 通知设置
   const [emailNotifications, setEmailNotifications] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(false);
   const [systemNotifications, setSystemNotifications] = useState(false);
   const [autoCleanUnreadEmails, setAutoCleanUnreadEmails] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
 
-  // 安全/活动
   const [activityLoading, setActivityLoading] = useState(false);
   const [activities, setActivities] = useState<UserActivity[]>([]);
 
@@ -121,93 +135,79 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] pb-6">
-      {/* 顶部导航 */}
-      <div className="bg-white border-b border-[#E2E8F0] mb-6">
-        <div className="flex items-center h-14 px-4">
-          <CloudButton onClick={() => navigate(-1)} className="mr-4">
-            <ChevronLeft size={24} className="text-[#2D3748]" />
+    <div className="h-dvh flex flex-col bg-background overflow-hidden">
+      <div className="shrink-0 bg-card border-b border-border">
+        <div className="flex items-center h-12 px-3 max-w-[800px] mx-auto">
+          <CloudButton variant="ghost" size="icon" onClick={() => navigate(-1)} className="mr-1" aria-label="返回">
+            <ChevronLeft size={22} className="text-charcoal" />
           </CloudButton>
-          <h1 className="text-lg font-semibold text-[#2D3748]">设置</h1>
+          <h1 className="text-base font-semibold text-foreground">设置</h1>
         </div>
       </div>
 
-      <div className="max-w-[800px] mx-auto px-4 space-y-6">
-        {/* 设置选项 */}
-        <div className="bg-white rounded-xl p-4">
-          <h2 className="text-[18px] font-semibold text-[#2D3748] mb-4 px-2">账号设置</h2>
-          <div className="space-y-2">
+      <div className="flex-1 min-h-0 max-w-[800px] w-full mx-auto px-3 py-3 flex flex-col gap-2.5 overflow-hidden">
+        <CloudCard className="p-1.5 shrink-0">
+          <h2 className="text-xs font-semibold text-muted-foreground px-2.5 pt-1.5 pb-0.5">账号设置</h2>
+          <div className="divide-y divide-border">
             {settingOptions.map((option) => {
               const Icon = option.icon;
               return (
-                <CloudButton
+                <button
                   key={option.id}
-                  onClick={() => {
-                    if (option.id === 1) openPanel("password");
-                    if (option.id === 2) openPanel("phone");
-                    if (option.id === 3) openPanel("notifications");
-                    if (option.id === 4) openPanel("security");
-                  }}
-                  className="w-full flex items-center justify-between p-4 hover:bg-[#F7F9FC] rounded-lg transition-colors group"
+                  type="button"
+                  onClick={() => openPanel(option.panel)}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2.5 text-left rounded-lg hover:bg-muted/60 transition-colors group"
                 >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${option.color}15` }}
-                    >
-                      <Icon size={20} style={{ color: option.color }} />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-[#2D3748] font-medium mb-1">{option.label}</div>
-                      <div className="text-sm text-[#718096]">{option.description}</div>
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${tintIcon[option.tint]}`}
+                  >
+                    <Icon size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-foreground leading-tight">{option.label}</div>
+                    <div className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+                      {option.description}
                     </div>
                   </div>
                   <ChevronRight
-                    size={20}
-                    className="text-[#A0AEC0] group-hover:text-[#4ECDC4] group-hover:translate-x-1 transition-all"
+                    size={16}
+                    className="text-muted-soft group-hover:text-primary shrink-0 transition-colors"
                   />
-                </CloudButton>
+                </button>
               );
             })}
           </div>
-        </div>
+        </CloudCard>
 
-        {/* 其他设置 */}
-        <div className="bg-white rounded-xl p-4">
-          <h2 className="text-[18px] font-semibold text-[#2D3748] mb-4 px-2">其他</h2>
-          <div className="space-y-2">
-            <CloudButton
-              onClick={() => navigate("/about")}
-              className="w-full flex items-center justify-between p-4 hover:bg-[#F7F9FC] rounded-lg transition-colors"
-            >
-              <span className="text-[#2D3748] font-medium">关于我们</span>
-              <ChevronRight size={20} className="text-[#A0AEC0]" />
-            </CloudButton>
-            <CloudButton
-              onClick={() => navigate("/terms")}
-              className="w-full flex items-center justify-between p-4 hover:bg-[#F7F9FC] rounded-lg transition-colors"
-            >
-              <span className="text-[#2D3748] font-medium">用户协议</span>
-              <ChevronRight size={20} className="text-[#A0AEC0]" />
-            </CloudButton>
-            <CloudButton
-              onClick={() => navigate("/privacy")}
-              className="w-full flex items-center justify-between p-4 hover:bg-[#F7F9FC] rounded-lg transition-colors"
-            >
-              <span className="text-[#2D3748] font-medium">隐私政策</span>
-              <ChevronRight size={20} className="text-[#A0AEC0]" />
-            </CloudButton>
+        <CloudCard className="p-1.5 shrink-0">
+          <h2 className="text-xs font-semibold text-muted-foreground px-2.5 pt-1.5 pb-0.5">其他</h2>
+          <div className="divide-y divide-border">
+            {otherLinks.map((item) => (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => navigate(item.path)}
+                className="w-full flex items-center justify-between px-2.5 py-2.5 text-left rounded-lg hover:bg-muted/60 transition-colors group"
+              >
+                <span className="text-sm font-medium text-foreground">{item.label}</span>
+                <ChevronRight
+                  size={16}
+                  className="text-muted-soft group-hover:text-primary transition-colors"
+                />
+              </button>
+            ))}
           </div>
-        </div>
+        </CloudCard>
 
-        {/* 退出登录 */}
-        <CloudButton
+        <button
+          type="button"
           onClick={() => setLogoutOpen(true)}
-          className="w-full bg-white rounded-xl p-4 text-[#FF6B6B] font-medium hover:bg-[#FF6B6B]/5 transition-colors flex items-center justify-center gap-2"
+          className="mt-auto w-full bg-card border border-border rounded-xl px-4 py-2.5 text-destructive text-sm font-medium hover:bg-destructive/5 transition-colors flex items-center justify-center gap-2 shrink-0"
         >
-          <LogOut size={20} />
+          <LogOut size={16} />
           <span>退出登录</span>
-        </CloudButton>
+        </button>
+      </div>
 
         <ConfirmDialog
           open={logoutOpen}
@@ -223,49 +223,48 @@ export default function Settings() {
           }}
         />
 
-        {/* Panels */}
         <Dialog open={panel !== null} onOpenChange={(v) => !v && setPanel(null)}>
-          <DialogContent className="sm:max-w-[520px] rounded-2xl border-slate-200 shadow-xl">
+          <DialogContent className="sm:max-w-[520px] rounded-xl border-border">
             {panel === "password" ? (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-slate-900">修改密码</DialogTitle>
+                  <DialogTitle className="text-foreground">修改密码</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4">
                   <div>
-                    <div className="text-sm text-slate-700 font-medium mb-2">当前密码</div>
+                    <label className="text-sm text-charcoal font-medium mb-1.5 block">当前密码</label>
                     <input
                       type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder="请输入当前密码"
-                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20"
+                      className={fieldClass}
                     />
                   </div>
                   <div>
-                    <div className="text-sm text-slate-700 font-medium mb-2">新密码</div>
+                    <label className="text-sm text-charcoal font-medium mb-1.5 block">新密码</label>
                     <input
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="至少 6 位"
-                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20"
+                      className={fieldClass}
                     />
                   </div>
                   <div>
-                    <div className="text-sm text-slate-700 font-medium mb-2">确认新密码</div>
+                    <label className="text-sm text-charcoal font-medium mb-1.5 block">确认新密码</label>
                     <input
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="再次输入新密码"
-                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20"
+                      className={fieldClass}
                     />
                   </div>
 
                   {errorText ? (
-                    <div className="text-sm text-[#FF6B6B] bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl px-4 py-3">
+                    <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
                       {errorText}
                     </div>
                   ) : null}
@@ -274,14 +273,17 @@ export default function Settings() {
                 <DialogFooter className="gap-2 sm:gap-2">
                   <CloudButton
                     type="button"
+                    variant="outline"
                     onClick={() => setPanel(null)}
                     disabled={savingPassword}
-                    className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 transition-all duration-200 hover:shadow-sm active:scale-[0.99]"
                   >
                     取消
                   </CloudButton>
                   <CloudButton
                     type="button"
+                    variant="brand"
+                    loading={savingPassword}
+                    loadingText="保存中..."
                     disabled={savingPassword}
                     onClick={async () => {
                       setErrorText(null);
@@ -326,16 +328,8 @@ export default function Settings() {
                         setSavingPassword(false);
                       }
                     }}
-                    className="h-10 px-4 rounded-xl font-medium bg-[#4ECDC4] text-white hover:bg-[#45b8b0] transition-all duration-200 hover:shadow-md active:scale-[0.99]"
                   >
-                    {savingPassword ? (
-                      <span className="inline-flex items-center justify-center gap-2">
-                        <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                        <span>保存</span>
-                      </span>
-                    ) : (
-                      "保存"
-                    )}
+                    保存
                   </CloudButton>
                 </DialogFooter>
               </>
@@ -344,27 +338,30 @@ export default function Settings() {
             {panel === "phone" ? (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-slate-900">绑定手机号</DialogTitle>
+                  <DialogTitle className="text-foreground">绑定手机号</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4">
                   <div>
-                    <div className="text-sm text-slate-700 font-medium mb-2">手机号</div>
+                    <label className="text-sm text-charcoal font-medium mb-1.5 block">手机号</label>
                     <input
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="请输入手机号"
-                      className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20"
+                      className={fieldClass}
                     />
-                    <div className="text-xs text-slate-500 mt-2">
+                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                       提示：验证码发送接口要求你已在资料中设置手机号。
-                    </div>
+                    </p>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <CloudButton
                       type="button"
+                      variant="brand"
                       disabled={sendingPhoneCode}
+                      loading={sendingPhoneCode}
+                      loadingText="发送中..."
                       onClick={async () => {
                         setErrorText(null);
                         try {
@@ -385,20 +382,19 @@ export default function Settings() {
                           setSendingPhoneCode(false);
                         }
                       }}
-                      className="h-10 px-4 rounded-xl font-medium bg-[#4ECDC4] text-white hover:bg-[#45b8b0] transition-all duration-200 hover:shadow-md active:scale-[0.99]"
                     >
-                      {sendingPhoneCode ? "发送中..." : "发送验证码"}
+                      发送验证码
                     </CloudButton>
                     <input
                       value={phoneCode}
                       onChange={(e) => setPhoneCode(e.target.value)}
                       placeholder="输入验证码"
-                      className="flex-1 px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20"
+                      className={`flex-1 ${fieldClass}`}
                     />
                   </div>
 
                   {errorText ? (
-                    <div className="text-sm text-[#FF6B6B] bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl px-4 py-3">
+                    <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
                       {errorText}
                     </div>
                   ) : null}
@@ -407,14 +403,17 @@ export default function Settings() {
                 <DialogFooter className="gap-2 sm:gap-2">
                   <CloudButton
                     type="button"
+                    variant="outline"
                     onClick={() => setPanel(null)}
                     disabled={verifyingPhone}
-                    className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 transition-all duration-200 hover:shadow-sm active:scale-[0.99]"
                   >
                     关闭
                   </CloudButton>
                   <CloudButton
                     type="button"
+                    variant="brand"
+                    loading={verifyingPhone}
+                    loadingText="验证中..."
                     disabled={verifyingPhone}
                     onClick={async () => {
                       setErrorText(null);
@@ -438,9 +437,8 @@ export default function Settings() {
                         setVerifyingPhone(false);
                       }
                     }}
-                    className="h-10 px-4 rounded-xl font-medium bg-[#4ECDC4] text-white hover:bg-[#45b8b0] transition-all duration-200 hover:shadow-md active:scale-[0.99]"
                   >
-                    {verifyingPhone ? "验证中..." : "确认绑定"}
+                    确认绑定
                   </CloudButton>
                 </DialogFooter>
               </>
@@ -449,41 +447,50 @@ export default function Settings() {
             {panel === "notifications" ? (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-slate-900">消息通知</DialogTitle>
+                  <DialogTitle className="text-foreground">消息通知</DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200">
-                    <div>
-                      <div className="text-slate-900 font-medium">邮件通知</div>
-                      <div className="text-slate-500 text-sm">重要活动与账号提醒</div>
+                <div className="space-y-3">
+                  {[
+                    {
+                      label: "邮件通知",
+                      desc: "重要活动与账号提醒",
+                      checked: emailNotifications,
+                      onChange: setEmailNotifications,
+                    },
+                    {
+                      label: "推送通知",
+                      desc: "学习提醒与系统推送",
+                      checked: pushNotifications,
+                      onChange: setPushNotifications,
+                    },
+                    {
+                      label: "系统通知",
+                      desc: "系统公告与安全提醒",
+                      checked: systemNotifications,
+                      onChange: setSystemNotifications,
+                    },
+                    {
+                      label: "自动清理未读邮件",
+                      desc: "自动清理 7 天未读",
+                      checked: autoCleanUnreadEmails,
+                      onChange: setAutoCleanUnreadEmails,
+                    },
+                  ].map((row) => (
+                    <div
+                      key={row.label}
+                      className="flex items-center justify-between p-4 rounded-xl border border-border"
+                    >
+                      <div>
+                        <div className="text-sm font-medium text-foreground">{row.label}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{row.desc}</div>
+                      </div>
+                      <Switch checked={row.checked} onCheckedChange={row.onChange} />
                     </div>
-                    <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200">
-                    <div>
-                      <div className="text-slate-900 font-medium">推送通知</div>
-                      <div className="text-slate-500 text-sm">学习提醒与系统推送</div>
-                    </div>
-                    <Switch checked={pushNotifications} onCheckedChange={setPushNotifications} />
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200">
-                    <div>
-                      <div className="text-slate-900 font-medium">系统通知</div>
-                      <div className="text-slate-500 text-sm">系统公告与安全提醒</div>
-                    </div>
-                    <Switch checked={systemNotifications} onCheckedChange={setSystemNotifications} />
-                  </div>
-                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200">
-                    <div>
-                      <div className="text-slate-900 font-medium">自动清理未读邮件</div>
-                      <div className="text-slate-500 text-sm">自动清理 7 天未读</div>
-                    </div>
-                    <Switch checked={autoCleanUnreadEmails} onCheckedChange={setAutoCleanUnreadEmails} />
-                  </div>
+                  ))}
 
                   {errorText ? (
-                    <div className="text-sm text-[#FF6B6B] bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl px-4 py-3">
+                    <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
                       {errorText}
                     </div>
                   ) : null}
@@ -492,14 +499,17 @@ export default function Settings() {
                 <DialogFooter className="gap-2 sm:gap-2">
                   <CloudButton
                     type="button"
+                    variant="outline"
                     onClick={() => setPanel(null)}
                     disabled={savingNotifications}
-                    className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 transition-all duration-200 hover:shadow-sm active:scale-[0.99]"
                   >
                     关闭
                   </CloudButton>
                   <CloudButton
                     type="button"
+                    variant="brand"
+                    loading={savingNotifications}
+                    loadingText="保存中..."
                     disabled={savingNotifications}
                     onClick={async () => {
                       setErrorText(null);
@@ -523,9 +533,8 @@ export default function Settings() {
                         setSavingNotifications(false);
                       }
                     }}
-                    className="h-10 px-4 rounded-xl font-medium bg-[#4ECDC4] text-white hover:bg-[#45b8b0] transition-all duration-200 hover:shadow-md active:scale-[0.99]"
                   >
-                    {savingNotifications ? "保存中..." : "保存"}
+                    保存
                   </CloudButton>
                 </DialogFooter>
               </>
@@ -534,34 +543,29 @@ export default function Settings() {
             {panel === "security" ? (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-slate-900">账号安全</DialogTitle>
+                  <DialogTitle className="text-foreground">账号安全</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-3">
-                  <div className="p-4 rounded-xl border border-slate-200">
-                    <div className="text-slate-900 font-medium">最近登录</div>
-                    <div className="text-slate-500 text-sm mt-1">{user?.lastLogin || "-"}</div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="text-sm font-medium text-foreground">最近登录</div>
+                    <div className="text-sm text-muted-foreground mt-1">{user?.lastLogin || "-"}</div>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-slate-200">
-                    <div className="text-slate-900 font-medium">活动记录</div>
-                    <div className="text-slate-500 text-sm mt-1">显示最近 20 条</div>
+                  <div className="p-4 rounded-xl border border-border">
+                    <div className="text-sm font-medium text-foreground">活动记录</div>
+                    <div className="text-xs text-muted-foreground mt-1">显示最近 20 条</div>
 
                     <div className="mt-3 space-y-2 max-h-[320px] overflow-auto pr-1">
                       {activityLoading ? (
-                        <div className="text-sm text-slate-500">加载中...</div>
+                        <div className="text-sm text-muted-foreground">加载中...</div>
                       ) : activities.length === 0 ? (
-                        <div className="text-sm text-slate-500">暂无记录</div>
+                        <div className="text-sm text-muted-foreground">暂无记录</div>
                       ) : (
                         activities.map((a) => (
-                          <div
-                            key={a.id}
-                            className="p-3 rounded-xl bg-slate-50 border border-slate-200"
-                          >
-                            <div className="text-slate-900 text-sm font-medium">
-                              {a.action || "-"}
-                            </div>
-                            <div className="text-slate-500 text-xs mt-1 break-words">
+                          <div key={a.id} className="p-3 rounded-xl bg-muted border border-border">
+                            <div className="text-sm font-medium text-foreground">{a.action || "-"}</div>
+                            <div className="text-xs text-muted-foreground mt-1 break-words">
                               {a.createdAt}
                             </div>
                           </div>
@@ -571,18 +575,14 @@ export default function Settings() {
                   </div>
 
                   {errorText ? (
-                    <div className="text-sm text-[#FF6B6B] bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl px-4 py-3">
+                    <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
                       {errorText}
                     </div>
                   ) : null}
                 </div>
 
-                <DialogFooter className="gap-2 sm:gap-2">
-                  <CloudButton
-                    type="button"
-                    onClick={() => setPanel(null)}
-                    className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 transition-all duration-200 hover:shadow-sm active:scale-[0.99]"
-                  >
+                <DialogFooter>
+                  <CloudButton type="button" variant="outline" onClick={() => setPanel(null)}>
                     关闭
                   </CloudButton>
                 </DialogFooter>
@@ -590,7 +590,6 @@ export default function Settings() {
             ) : null}
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   );
 }

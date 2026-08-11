@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { Calendar, ChevronLeft, CheckCircle2, Search, TrendingUp, BookOpen, GraduationCap, Dumbbell } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Search, TrendingUp, BookOpen, GraduationCap, Dumbbell } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
+import { CloudMonthPicker } from "../components/cloudsteps/arco";
 import {
   getStudentCoachingSessionAsTeacher,
   getStudentStudySessionAsTeacher,
@@ -303,18 +304,15 @@ export default function StudentTrainingRecords() {
 
       <div className="bg-white rounded-xl p-4 border border-[#E2E8F0] space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0AEC0]" size={20} />
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => {
-                setSelectedMonth(e.target.value);
-                setPage(1);
-              }}
-              className="w-full pl-10 pr-4 py-2 bg-[#F7F9FC] border border-[#E2E8F0] rounded-lg text-[#2D3748] focus:outline-none focus:border-[#4ECDC4]"
-            />
-          </div>
+          <CloudMonthPicker
+            value={selectedMonth || undefined}
+            allowClear
+            placeholder="选择月份"
+            onChange={(v) => {
+              setSelectedMonth(v || "");
+              setPage(1);
+            }}
+          />
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0AEC0]" size={20} />
             <input

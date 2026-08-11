@@ -27,21 +27,37 @@ function convertToWebSocketURL(httpUrl: string): string {
 }
 
 /**
+ * 开发态相对路径（如 VITE_API_BASE_URL=/api）时，走当前页面 host + Vite 代理。
+ */
+function sameOriginWsBase(): string {
+  if (typeof window !== 'undefined' && window.location?.host) {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${proto}//${window.location.host}`
+  }
+  return 'ws://localhost:3000'
+}
+
+/**
  * 获取API配置
  */
 function getApiConfig(): ApiConfig {
-  // 优先使用环境变量
-  let apiBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7080/api'
-  
-  // 如果环境变量中有WebSocket URL，使用它；否则从API URL转换
-  let wsBaseURL = import.meta.env.VITE_WS_BASE_URL
+  // 优先使用环境变量（本地开发常用相对路径 /api，由 Vite 代理到后端）
+  const apiBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7080/api'
+
+  let wsBaseURL = import.meta.env.VITE_WS_BASE_URL as string | undefined
   if (!wsBaseURL) {
-    // 从API URL提取host部分，转换为WebSocket URL
-    const apiHost = apiBaseURL.replace(/^https?:\/\//, '').replace(/\/api.*$/, '')
-    wsBaseURL = convertToWebSocketURL(apiBaseURL.split('/api')[0] || `http://${apiHost}`)
+    if (apiBaseURL.startsWith('/')) {
+      // 相对 API：不要拼成 ws:///api/...（会触发 ERR_NAME_NOT_RESOLVED）
+      wsBaseURL = sameOriginWsBase()
+    } else {
+      const origin = apiBaseURL.split('/api')[0] || apiBaseURL
+      wsBaseURL = convertToWebSocketURL(origin)
+    }
   }
-  
-  const uploadsBaseURL = import.meta.env.VITE_UPLOADS_BASE_URL || apiBaseURL.replace('/api', '/uploads')
+
+  const uploadsBaseURL =
+    import.meta.env.VITE_UPLOADS_BASE_URL ||
+    (apiBaseURL.startsWith('/') ? '/uploads' : apiBaseURL.replace('/api', '/uploads'))
 
   return {
     apiBaseURL,
@@ -82,17 +98,10 @@ export function getWebSocketBaseURL(): string {
  * @param path API路径，例如 '/api/voice/websocket' 或 '/api/chat/call'
  */
 export function buildWebSocketURL(path: string): string {
-  const wsBaseURL = getWebSocketBaseURL()
-  const apiBaseURL = getApiBaseURL()
-  
-  // 如果wsBaseURL已经包含完整路径，直接使用
-  if (wsBaseURL.includes('/api')) {
-    return wsBaseURL + path.replace(/^\/api/, '')
-  }
-  
-  // 否则从apiBaseURL提取路径部分
-  const apiPath = apiBaseURL.replace(/^https?:\/\/[^\/]+/, '')
-  return wsBaseURL + apiPath + path.replace(/^\/api/, '')
+  const wsBaseURL = getWebSocketBaseURL().replace(/\/$/, '')
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  // path 形如 /api/voice/... 时直接拼到同源 ws 基址（经 Vite ws 代理到后端）
+  return `${wsBaseURL}${normalized}`
 }
 
 /**

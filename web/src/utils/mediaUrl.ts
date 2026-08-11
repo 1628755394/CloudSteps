@@ -7,7 +7,10 @@ function rewriteStoreHostForDev(url: string): string {
     const parsed = new URL(url)
     if (!parsed.hostname.includes('store.lingecho.com')) return url
     const api = getApiBaseURL()
-    const origin = api.replace(/\/api\/?$/, '')
+    const origin = api.startsWith('/')
+      ? (typeof window !== 'undefined' ? window.location.origin : '')
+      : api.replace(/\/api\/?$/, '')
+    if (!origin) return `${parsed.pathname}${parsed.search}`
     return `${origin}${parsed.pathname}${parsed.search}`
   } catch {
     return url

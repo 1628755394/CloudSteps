@@ -1,8 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { CloudButton } from "../components/cloudsteps";
 import { getCaptcha, loginWithPassword, type User } from "../api/auth";
 import { useAuthStore } from "../stores/authStore";
+
+const fieldClass =
+  "w-full px-4 py-3 rounded-xl bg-card border border-input text-charcoal placeholder:text-muted-soft transition-colors duration-200 outline-none hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -43,7 +46,6 @@ export default function Login() {
 
   const onSubmit = async () => {
     const now = Date.now();
-    // 防连点：1秒内重复提交直接忽略
     if (isSubmitting || now - lastSubmitTsRef.current < 1000) return;
     lastSubmitTsRef.current = now;
     setErrorText(null);
@@ -125,56 +127,57 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 via-white to-sky-50">
-      <div className="w-full max-w-md rounded-2xl p-6 shadow-sm bg-white/80 backdrop-blur border border-slate-200">
-        <div className="flex items-center gap-3 mb-6">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <div className="w-full max-w-md rounded-xl p-8 bg-card border border-border">
+        <div className="mb-8">
           <img
             src="/logo.png"
             alt="CloudSteps"
-            className="w-10 h-10 rounded-xl object-contain"
+            className="w-12 h-12 rounded-xl object-contain mb-5"
           />
-          <div>
-            <div className="text-[#2D3748] text-xl font-semibold">欢迎回来</div>
-            <div className="text-[#718096] text-sm">登录以继续使用云阶</div>
-          </div>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">云阶</h1>
+          <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+            登录以继续陪练与单词训练
+          </p>
         </div>
 
         <div className="space-y-4">
           <div>
-            <div className="text-sm text-[#2D3748] font-medium mb-2">账号</div>
+            <label className="text-sm text-charcoal font-medium mb-1.5 block">账号</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="请输入账号"
-              className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20 active:scale-[0.99]"
+              className={fieldClass}
             />
           </div>
 
           <div>
-            <div className="text-sm text-[#2D3748] font-medium mb-2">密码</div>
+            <label className="text-sm text-charcoal font-medium mb-1.5 block">密码</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="请输入密码"
-              className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20 active:scale-[0.99]"
+              className={fieldClass}
             />
           </div>
 
           <div>
-            <div className="text-sm text-[#2D3748] font-medium mb-2">验证码</div>
+            <label className="text-sm text-charcoal font-medium mb-1.5 block">验证码</label>
             <div className="flex items-center gap-3">
               <input
                 value={captchaCode}
                 onChange={(e) => setCaptchaCode(e.target.value)}
                 placeholder="请输入验证码"
-                className="flex-1 px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20 active:scale-[0.99]"
+                className={`flex-1 ${fieldClass}`}
               />
               <CloudButton
                 type="button"
+                variant="outline"
                 onClick={refreshCaptcha}
                 disabled={isSubmitting}
-                className="h-[46px] w-[120px] rounded-xl border border-slate-200 bg-white/70 hover:bg-white transition-all duration-200 overflow-hidden flex items-center justify-center p-0 hover:shadow-sm active:scale-[0.99]"
+                className="h-[46px] w-[120px] overflow-hidden flex items-center justify-center p-0"
                 aria-label="刷新验证码"
               >
                 {captchaImage ? (
@@ -184,31 +187,29 @@ export default function Login() {
                     className="h-full w-full object-contain"
                   />
                 ) : (
-                  <span className="text-xs text-[#718096]">加载中...</span>
+                  <span className="text-xs text-muted-foreground">加载中...</span>
                 )}
               </CloudButton>
             </div>
           </div>
 
           {errorText ? (
-            <div className="text-sm text-[#FF6B6B] bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl px-4 py-3">
+            <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
               {errorText}
             </div>
           ) : null}
 
           <CloudButton
+            variant="brand"
             onClick={onSubmit}
             loading={isSubmitting}
             loadingText="登录中..."
-            className="w-full py-3 rounded-xl font-medium bg-[#4ECDC4] text-white hover:bg-[#45b8b0] transition-all duration-200 hover:shadow-md active:scale-[0.99]"
+            className="w-full h-11"
             disabled={isSubmitting}
           >
             登录
           </CloudButton>
-
-          <div className="text-xs text-[#A0AEC0] leading-relaxed">请使用你的后端账号进行登录。</div>
         </div>
-
       </div>
     </div>
   );

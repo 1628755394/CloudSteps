@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { CloudButton } from "../components/cloudsteps";
 import { useNavigate } from "react-router";
-import { ChevronLeft, Search, Calendar, TrendingUp, CheckCircle2 } from "lucide-react";
-
+import { CheckCircle2, ChevronLeft, Search, TrendingUp, BookOpen } from "lucide-react";
+import { CloudButton } from "../components/cloudsteps";
+import { CloudMonthPicker } from "../components/cloudsteps/arco";
 import { getVocabRecordDetail, listVocabRecords } from "../api/vocab";
 
 type VocabTestRecord = {
@@ -41,10 +41,13 @@ const safeParseAnswers = (s?: string) => {
   }
 };
 
+const fieldClass =
+  "w-full pl-10 pr-3 py-2.5 rounded-xl bg-card border border-input text-sm text-charcoal placeholder:text-muted-soft outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/25";
+
 export default function TestRecords() {
   const navigate = useNavigate();
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("2026-03");
+  const [selectedMonth, setSelectedMonth] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -127,220 +130,244 @@ export default function TestRecords() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] pb-6">
-      {/* 顶部导航 */}
-      <div className="bg-white border-b border-[#E2E8F0] mb-6">
-        <div className="flex items-center h-14 px-4">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate(-1)} className="mr-4">
-            <ChevronLeft size={24} className="text-[#2D3748]" />
+    <div className="min-h-dvh flex flex-col bg-background">
+      <header className="shrink-0 sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border">
+        <div className="max-w-[1200px] mx-auto px-4 h-14 flex items-center gap-2">
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            aria-label="返回"
+          >
+            <ChevronLeft size={22} className="text-charcoal" />
           </CloudButton>
-          <h1 className="text-lg font-semibold text-[#2D3748]">词汇测试记录</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">
+              词汇测试记录
+            </h1>
+            <p className="text-[11px] text-muted-foreground truncate">
+              查看历史测评结果与答题明细
+            </p>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-[1200px] mx-auto px-4 space-y-6">
+      <div className="flex-1 flex flex-col min-h-0 max-w-[1200px] w-full mx-auto px-4 py-4 gap-3">
         {errorMsg && (
-          <div className="bg-white rounded-xl p-4 border border-[#FF6B6B]/30 text-[#FF6B6B]">
+          <div className="shrink-0 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {errorMsg}
           </div>
         )}
 
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[#718096] text-sm mb-2">测试总次数</div>
-                <div className="text-[#2D3748] text-2xl font-bold">{loading ? "-" : filteredData.length}</div>
+        <div className="shrink-0 grid grid-cols-3 gap-2.5 sm:gap-3">
+          <div className="rounded-xl bg-tint-mint border border-transparent px-3 py-3 sm:px-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-[11px] text-muted-foreground">测试次数</div>
+                <div className="text-xl sm:text-2xl font-semibold text-foreground tabular-nums mt-0.5">
+                  {loading ? "-" : filteredData.length}
+                </div>
               </div>
-              <div className="w-12 h-12 bg-[#4ECDC4]/10 rounded-lg flex items-center justify-center">
-                <CheckCircle2 className="text-[#4ECDC4]" size={24} />
-              </div>
+              <CheckCircle2 className="text-primary shrink-0 hidden sm:block" size={20} />
             </div>
           </div>
-          <div className="bg-white rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[#718096] text-sm mb-2">平均正确率</div>
-                <div className="text-[#55A3FF] text-2xl font-bold">{loading ? "-" : `${avgCorrectRate}%`}</div>
+          <div className="rounded-xl bg-tint-sky border border-transparent px-3 py-3 sm:px-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-[11px] text-muted-foreground">平均正确率</div>
+                <div className="text-xl sm:text-2xl font-semibold text-secondary-brand tabular-nums mt-0.5">
+                  {loading ? "-" : `${avgCorrectRate}%`}
+                </div>
               </div>
-              <div className="w-12 h-12 bg-[#55A3FF]/10 rounded-lg flex items-center justify-center">
-                <TrendingUp className="text-[#55A3FF]" size={24} />
-              </div>
+              <TrendingUp className="text-secondary-brand shrink-0 hidden sm:block" size={20} />
             </div>
           </div>
-          <div className="bg-white rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[#718096] text-sm mb-2">总测试词数</div>
-                <div className="text-[#4ECDC4] text-2xl font-bold">
+          <div className="rounded-xl bg-muted border border-transparent px-3 py-3 sm:px-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-[11px] text-muted-foreground">总测试词</div>
+                <div className="text-xl sm:text-2xl font-semibold text-foreground tabular-nums mt-0.5">
                   {loading ? "-" : totalQuestions}
                 </div>
               </div>
-              <div className="w-12 h-12 bg-[#4ECDC4]/10 rounded-lg flex items-center justify-center">
-                <CheckCircle2 className="text-[#4ECDC4]" size={24} />
-              </div>
+              <BookOpen className="text-charcoal shrink-0 hidden sm:block" size={20} />
             </div>
           </div>
         </div>
 
-        {/* 筛选栏 */}
-        <div className="bg-white rounded-xl p-4 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 月份 */}
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0AEC0]" size={20} />
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#F7F9FC] border border-[#E2E8F0] rounded-lg text-[#2D3748] focus:outline-none focus:border-[#4ECDC4]"
-              />
-            </div>
-            {/* 搜索框 */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0AEC0]" size={20} />
-              <input
-                type="text"
-                placeholder="搜索等级/词汇量/记录ID"
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#F7F9FC] border border-[#E2E8F0] rounded-lg text-[#2D3748] placeholder:text-[#A0AEC0] focus:outline-none focus:border-[#4ECDC4]"
-              />
-            </div>
+        <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="relative">
+            <CloudMonthPicker
+              value={selectedMonth || undefined}
+              allowClear
+              placeholder="全部月份"
+              onChange={(v) => setSelectedMonth(v || "")}
+            />
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-soft z-10" size={16} />
+            <input
+              type="text"
+              placeholder="搜索等级 / 词汇量 / 记录 ID"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              className={fieldClass}
+            />
           </div>
         </div>
 
-        {/* 测试记录列表 */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="bg-white rounded-xl p-6 text-[#718096]">加载中...</div>
-          ) : filteredData.length === 0 ? (
-            <div className="bg-white rounded-xl p-6 text-[#718096]">暂无记录</div>
-          ) : (
-            filteredData.map((item) => {
-              const totalQ = Number(item.questionCount || 0);
-              const correctQ = Number(item.correctCount || 0);
-              const wrongQ = Math.max(0, totalQ - correctQ);
-              const rate = totalQ > 0 ? Math.round((correctQ / totalQ) * 100) : 0;
-              const timeText = formatDateTime(item.completedAt || item.createdAt);
-              return (
-            <CloudButton
-              type="button"
-              key={item.id}
-              variant="ghost"
-              className="w-full h-auto text-left bg-white rounded-xl p-6 hover:shadow-md border-0 shadow-sm"
-              onClick={async () => {
-                try {
-                  setDetailOpen(true);
-                  setDetailLoading(true);
-                  setDetail(null);
-                  await loadDetail(item.id);
-                } catch (e) {
-                  console.error(e);
-                } finally {
-                  setDetailLoading(false);
-                }
-              }}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-[#2D3748] font-semibold text-lg">记录 #{item.id}</h3>
-                    <span className="text-sm text-[#718096] bg-[#F7F9FC] px-3 py-1 rounded-full">
-                      等级 {item.estimatedLevel || "-"}
-                    </span>
-                  </div>
-                  <div className="text-sm text-[#718096]">{timeText}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-[#4ECDC4] mb-1">{rate}%</div>
-                  <div className="text-sm text-[#718096]">正确率</div>
-                </div>
+        <div className="flex-1 min-h-0 flex flex-col rounded-xl border border-border bg-card overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {loading ? (
+              <div className="h-full min-h-[12rem] flex items-center justify-center text-sm text-muted-foreground">
+                加载中…
               </div>
-              <div className="flex items-center gap-6 pt-4 border-t border-[#E2E8F0]">
-                <div className="text-sm">
-                  <span className="text-[#718096]">总词数：</span>
-                  <span className="text-[#2D3748] font-medium">{totalQ}</span>
-                </div>
-                <div className="text-sm">
-                  <span className="text-[#718096]">正确：</span>
-                  <span className="text-[#4ECDC4] font-medium">{correctQ}</span>
-                </div>
-                <div className="text-sm">
-                  <span className="text-[#718096]">错误：</span>
-                  <span className="text-[#FF6B6B] font-medium">
-                    {wrongQ}
-                  </span>
-                </div>
-                <div className="text-sm">
-                  <span className="text-[#718096]">估算词汇量：</span>
-                  <span className="text-[#2D3748] font-medium">{item.estimatedVocab || 0}</span>
-                </div>
+            ) : filteredData.length === 0 ? (
+              <div className="h-full min-h-[12rem] flex flex-col items-center justify-center gap-2 px-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {selectedMonth || searchKeyword ? "当前筛选下暂无记录" : "暂无记录"}
+                </p>
+                {(selectedMonth || searchKeyword) && (
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => {
+                      setSelectedMonth("");
+                      setSearchKeyword("");
+                    }}
+                  >
+                    清除筛选
+                  </button>
+                )}
               </div>
-            </CloudButton>
-              );
-            })
-          )}
-        </div>
-
-        {/* 分页 */}
-        <div className="flex items-center justify-between bg-white rounded-xl p-4">
-          <div className="text-sm text-[#718096]">
-            第 {page}/{totalPages} 页，共 {total} 条
+            ) : (
+              <div className="divide-y divide-border">
+                {filteredData.map((item) => {
+                  const totalQ = Number(item.questionCount || 0);
+                  const correctQ = Number(item.correctCount || 0);
+                  const wrongQ = Math.max(0, totalQ - correctQ);
+                  const rate = totalQ > 0 ? Math.round((correctQ / totalQ) * 100) : 0;
+                  const timeText = formatDateTime(item.completedAt || item.createdAt);
+                  return (
+                    <button
+                      type="button"
+                      key={item.id}
+                      className="w-full text-left px-4 py-3.5 sm:px-5 hover:bg-muted/40 transition-colors"
+                      onClick={async () => {
+                        try {
+                          setDetailOpen(true);
+                          setDetailLoading(true);
+                          setDetail(null);
+                          await loadDetail(item.id);
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          setDetailLoading(false);
+                        }
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-foreground">
+                              记录 #{item.id}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                              等级 {item.estimatedLevel || "-"}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">{timeText}</div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-lg font-semibold text-primary tabular-nums">{rate}%</div>
+                          <div className="text-[11px] text-muted-foreground">正确率</div>
+                        </div>
+                      </div>
+                      <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>
+                          总词 <span className="text-charcoal font-medium">{totalQ}</span>
+                        </span>
+                        <span>
+                          正确 <span className="text-primary font-medium">{correctQ}</span>
+                        </span>
+                        <span>
+                          错误 <span className="text-destructive font-medium">{wrongQ}</span>
+                        </span>
+                        <span>
+                          词汇量{" "}
+                          <span className="text-charcoal font-medium">{item.estimatedVocab || 0}</span>
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <div className="flex gap-2">
-            <CloudButton
-              type="button"
-              variant="outline"
-              onClick={async () => {
-                const nextPage = Math.max(1, page - 1);
-                if (nextPage === page) return;
-                try {
-                  setLoading(true);
-                  await loadList(nextPage);
-                } catch (e) {
-                  console.error(e);
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              disabled={loading || page <= 1}
-            >
-              上一页
-            </CloudButton>
-            <CloudButton
-              type="button"
-              variant="outline"
-              onClick={async () => {
-                const nextPage = Math.min(totalPages, page + 1);
-                if (nextPage === page) return;
-                try {
-                  setLoading(true);
-                  await loadList(nextPage);
-                } catch (e) {
-                  console.error(e);
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              disabled={loading || page >= totalPages}
-            >
-              下一页
-            </CloudButton>
+
+          <div className="shrink-0 border-t border-border px-4 py-3 flex items-center justify-between gap-3 bg-surface-soft/80">
+            <span className="text-xs text-muted-foreground tabular-nums">
+              第 {page}/{totalPages} 页，共 {total} 条
+              {selectedMonth || searchKeyword
+                ? ` · 本页筛选后 ${filteredData.length} 条`
+                : ""}
+            </span>
+            <div className="flex gap-2">
+              <CloudButton
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const nextPage = Math.max(1, page - 1);
+                  if (nextPage === page) return;
+                  try {
+                    setLoading(true);
+                    await loadList(nextPage);
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading || page <= 1}
+              >
+                上一页
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const nextPage = Math.min(totalPages, page + 1);
+                  if (nextPage === page) return;
+                  try {
+                    setLoading(true);
+                    await loadList(nextPage);
+                  } catch (e) {
+                    console.error(e);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading || page >= totalPages}
+              >
+                下一页
+              </CloudButton>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 详情弹窗 */}
       {detailOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-[#E2E8F0] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]">
-              <div className="text-[#2D3748] font-semibold">记录详情</div>
+          <div className="w-full max-w-2xl bg-card rounded-xl border border-border overflow-hidden max-h-[85dvh] flex flex-col">
+            <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-border">
+              <div className="text-sm font-semibold text-foreground">记录详情</div>
               <CloudButton
                 type="button"
                 variant="ghost"
+                size="sm"
                 onClick={() => {
                   setDetailOpen(false);
                   setDetail(null);
@@ -350,44 +377,59 @@ export default function TestRecords() {
               </CloudButton>
             </div>
 
-            <div className="p-6 max-h-[70vh] overflow-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto p-5">
               {detailLoading ? (
-                <div className="text-[#718096]">加载中...</div>
+                <div className="text-sm text-muted-foreground">加载中...</div>
               ) : !detail ? (
-                <div className="text-[#718096]">暂无数据</div>
+                <div className="text-sm text-muted-foreground">暂无数据</div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl bg-[#F7F9FC] p-3">
-                      <div className="text-xs text-[#718096]">记录ID</div>
-                      <div className="text-sm font-semibold text-[#2D3748] mt-1">#{detail.id}</div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="rounded-xl bg-muted px-3 py-2.5">
+                      <div className="text-[11px] text-muted-foreground">记录ID</div>
+                      <div className="text-sm font-semibold text-foreground mt-0.5">#{detail.id}</div>
                     </div>
-                    <div className="rounded-xl bg-[#F7F9FC] p-3">
-                      <div className="text-xs text-[#718096]">完成时间</div>
-                      <div className="text-sm font-semibold text-[#2D3748] mt-1">{formatDateTime(detail.completedAt || detail.createdAt)}</div>
+                    <div className="rounded-xl bg-muted px-3 py-2.5">
+                      <div className="text-[11px] text-muted-foreground">完成时间</div>
+                      <div className="text-sm font-semibold text-foreground mt-0.5">
+                        {formatDateTime(detail.completedAt || detail.createdAt)}
+                      </div>
                     </div>
-                    <div className="rounded-xl bg-[#F7F9FC] p-3">
-                      <div className="text-xs text-[#718096]">测评等级</div>
-                      <div className="text-sm font-semibold text-[#2D3748] mt-1">{detail.estimatedLevel}</div>
+                    <div className="rounded-xl bg-muted px-3 py-2.5">
+                      <div className="text-[11px] text-muted-foreground">测评等级</div>
+                      <div className="text-sm font-semibold text-foreground mt-0.5">
+                        {detail.estimatedLevel}
+                      </div>
                     </div>
-                    <div className="rounded-xl bg-[#F7F9FC] p-3">
-                      <div className="text-xs text-[#718096]">估算词汇量</div>
-                      <div className="text-sm font-semibold text-[#2D3748] mt-1">{detail.estimatedVocab}</div>
+                    <div className="rounded-xl bg-muted px-3 py-2.5">
+                      <div className="text-[11px] text-muted-foreground">估算词汇量</div>
+                      <div className="text-sm font-semibold text-foreground mt-0.5">
+                        {detail.estimatedVocab}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-2xl border border-[#E2E8F0] overflow-hidden">
-                    <div className="px-4 py-3 bg-white border-b border-[#E2E8F0] text-sm font-semibold text-[#2D3748]">答题明细</div>
-                    <div className="divide-y divide-[#E2E8F0]">
+                  <div className="mt-4 rounded-xl border border-border overflow-hidden">
+                    <div className="px-4 py-2.5 bg-surface-soft border-b border-border text-sm font-semibold text-foreground">
+                      答题明细
+                    </div>
+                    <div className="divide-y divide-border">
                       {safeParseAnswers(detail.answers).length === 0 ? (
-                        <div className="px-4 py-4 text-sm text-[#718096]">暂无答题明细</div>
+                        <div className="px-4 py-4 text-sm text-muted-foreground">暂无答题明细</div>
                       ) : (
                         safeParseAnswers(detail.answers).map((a, idx) => (
-                          <div key={`${a.questionId}-${idx}`} className="px-4 py-3 flex items-center justify-between">
-                            <div className="text-sm text-[#2D3748]">
+                          <div
+                            key={`${a.questionId}-${idx}`}
+                            className="px-4 py-2.5 flex items-center justify-between"
+                          >
+                            <div className="text-sm text-charcoal">
                               #{idx + 1} 题（{a.level}）
                             </div>
-                            <div className={`text-sm font-semibold ${a.correct ? "text-[#4ECDC4]" : "text-[#FF6B6B]"}`}>
+                            <div
+                              className={`text-sm font-semibold ${
+                                a.correct ? "text-primary" : "text-destructive"
+                              }`}
+                            >
                               {a.correct ? "正确" : "错误"}
                             </div>
                           </div>

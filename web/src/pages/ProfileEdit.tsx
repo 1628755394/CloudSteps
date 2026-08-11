@@ -1,38 +1,52 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
-import { Select } from "@arco-design/web-react";
+import { Camera, ChevronLeft, Loader2 } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
-import { updateCurrentUser } from "../api/auth";
+import { CloudCard, CloudSelect } from "../components/cloudsteps/arco";
+import { updateCurrentUser, uploadAvatar } from "../api/auth";
 import { useAuthStore } from "../stores/authStore";
+import { resolveMediaUrl } from "../utils/mediaUrl";
+import { showToast } from "../utils/toast";
+
+const fieldClass =
+  "w-full px-3.5 py-2.5 rounded-xl bg-card border border-input text-sm text-charcoal placeholder:text-muted-soft outline-none transition-colors hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25";
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const refreshUserInfo = useAuthStore((s) => s.refreshUserInfo);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [region, setRegion] = useState("");
   const [city, setCity] = useState("");
   const [timezone, setTimezone] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+
+  const avatarUrl = resolveMediaUrl(avatarPreview || user?.avatar);
 
   const stats = useMemo(() => {
     return [
-      { label: "登录次数", value: String((user as any)?.loginCount ?? "-") },
+      { label: "登录次数", value: String((user as { loginCount?: number } | null)?.loginCount ?? "-") },
       {
         label: "资料完整度",
         value:
-          typeof (user as any)?.profileComplete === "number"
-            ? `${(user as any).profileComplete}%`
+          typeof (user as { profileComplete?: number } | null)?.profileComplete === "number"
+            ? `${(user as { profileComplete: number }).profileComplete}%`
             : "-",
       },
       {
         label: "连续学习",
         value:
-          typeof (user as any)?.streakDays === "number" ? `${(user as any).streakDays}天` : "-",
+          typeof (user as { streakDays?: number } | null)?.streakDays === "number"
+            ? `${(user as { streakDays: number }).streakDays}天`
+            : "-",
       },
     ];
   }, [user]);
@@ -44,10 +58,6 @@ export default function ProfileEdit() {
     setCity(user?.city ?? "");
     setTimezone(user?.timezone ?? "");
   }, [user]);
-
-  const canSave = useMemo(() => {
-    return !saving;
-  }, [saving]);
 
   const timezoneOptions = useMemo(
     () => [
@@ -61,8 +71,56 @@ export default function ProfileEdit() {
       { value: "Europe/London", label: "Europe/London" },
       { value: "Europe/Paris", label: "Europe/Paris" },
     ],
-    [],
+    []
   );
+
+  const onPickAvatar = () => {
+    if (uploading) return;
+    fileInputRef.current?.click();
+  };
+
+  const onAvatarFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showToast.warning("请选择图片文件");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast.warning("图片不能超过 5MB");
+      return;
+    }
+
+    const localUrl = URL.createObjectURL(file);
+    setAvatarPreview(localUrl);
+    setUploading(true);
+    setErrorText(null);
+    try {
+      const res = await uploadAvatar(file);
+      if (res.code !== 200 || !res.data?.avatar) {
+        setErrorText(res.msg || "头像上传失败");
+        setAvatarPreview(null);
+        return;
+      }
+      updateProfile({ avatar: res.data.avatar });
+      setAvatarPreview(res.data.avatar);
+      await refreshUserInfo();
+      showToast.success("头像已更新");
+    } catch (err: unknown) {
+      setAvatarPreview(null);
+      const msg =
+        err && typeof err === "object" && "msg" in err
+          ? String((err as { msg: string }).msg)
+          : "头像上传失败";
+      setErrorText(msg);
+      showToast.error(msg);
+    } finally {
+      URL.revokeObjectURL(localUrl);
+      setUploading(false);
+    }
+  };
 
   const onSave = async () => {
     setErrorText(null);
@@ -89,120 +147,160 @@ export default function ProfileEdit() {
 
       await refreshUserInfo();
       navigate("/coach-center", { replace: true });
-    } catch (e: any) {
-      setErrorText(e?.msg || e?.message || "保存失败");
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "msg" in e
+          ? String((e as { msg: string }).msg)
+          : e instanceof Error
+            ? e.message
+            : "保存失败";
+      setErrorText(msg);
     } finally {
       setSaving(false);
     }
   };
 
+  const initial =
+    (displayName || user?.email || "?").trim().slice(0, 1).toUpperCase() || "?";
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-slate-900 text-xl font-semibold">编辑个人资料</div>
-            <div className="text-slate-500 text-sm mt-1">账号：{user?.email || "-"}</div>
+    <div className="flex flex-col flex-1 min-h-0 gap-3 max-w-2xl w-full mx-auto">
+      <div className="flex items-center gap-2 shrink-0">
+        <CloudButton
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(-1)}
+          aria-label="返回"
+          className="shrink-0"
+        >
+          <ChevronLeft size={20} />
+        </CloudButton>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">编辑个人资料</h1>
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">账号：{user?.email || "-"}</p>
+        </div>
+        <CloudButton
+          type="button"
+          variant="brand"
+          size="sm"
+          onClick={onSave}
+          disabled={saving || uploading}
+          loading={saving}
+          loadingText="保存中"
+          className="shrink-0"
+        >
+          保存
+        </CloudButton>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 shrink-0">
+        {stats.map((s) => (
+          <CloudCard key={s.label} tint="mint" className="px-3 py-2 border-transparent text-center">
+            <div className="text-[10px] text-muted-foreground">{s.label}</div>
+            <div className="text-sm font-semibold text-foreground mt-0.5 tabular-nums">{s.value}</div>
+          </CloudCard>
+        ))}
+      </div>
+
+      <CloudCard className="p-4 space-y-3.5 flex-1 min-h-0 overflow-y-auto">
+        <div className="flex flex-col items-center gap-3 pb-1">
+          <div className="relative size-[92px] shrink-0">
+            <button
+              type="button"
+              onClick={onPickAvatar}
+              disabled={uploading}
+              className="group relative block size-full appearance-none overflow-hidden rounded-full border border-border bg-primary-soft p-0 shadow-sm transition-[box-shadow,opacity] hover:shadow-md focus:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 disabled:opacity-60 [clip-path:circle(50%_at_50%_50%)]"
+              aria-label="更换头像"
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="block size-full rounded-full object-cover"
+                />
+              ) : (
+                <span className="flex size-full items-center justify-center rounded-full text-xl font-semibold text-primary">
+                  {initial}
+                </span>
+              )}
+              <span className="pointer-events-none absolute inset-0 rounded-full bg-black/0 transition-colors group-hover:bg-black/25" />
+            </button>
+            <span className="pointer-events-none absolute bottom-0.5 right-0.5 z-10 flex size-7 items-center justify-center rounded-full border border-border bg-card text-charcoal shadow-sm">
+              {uploading ? (
+                <Loader2 size={13} className="animate-spin text-primary" />
+              ) : (
+                <Camera size={13} />
+              )}
+            </span>
           </div>
-          <CloudButton
-            onClick={() => navigate(-1)}
-            className="h-9 px-4 rounded-lg border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 transition-all duration-200 hover:shadow-sm active:scale-[0.99]"
-          >
-            返回
-          </CloudButton>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={onAvatarFile}
+          />
         </div>
-      </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {stats.map((s) => (
-            <div key={s.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div className="text-xs text-slate-500">{s.label}</div>
-              <div className="text-lg font-semibold text-slate-900 mt-1">{s.value}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
         <div>
-          <div className="text-sm text-slate-700 font-medium mb-2">昵称</div>
+          <label className="text-sm font-medium text-charcoal mb-1.5 block">昵称</label>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="请输入昵称"
-            className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20 active:scale-[0.99]"
+            className={fieldClass}
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
-            <div className="text-sm text-slate-700 font-medium mb-2">手机号</div>
+            <label className="text-sm font-medium text-charcoal mb-1.5 block">手机号</label>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="请输入手机号"
-              className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20 active:scale-[0.99]"
+              className={fieldClass}
             />
           </div>
 
-          <div>
-            <div className="text-sm text-slate-700 font-medium mb-2">时区</div>
-            <Select
-              value={timezone || undefined}
-              onChange={(v) => setTimezone(v ?? "")}
-              options={timezoneOptions}
-              placeholder="请选择时区"
-              allowClear={false}
-              showSearch
-              style={{ width: "100%" }}
-            />
-          </div>
+          <CloudSelect
+            label="时区"
+            value={timezone || undefined}
+            onChange={(v) => setTimezone(v ?? "")}
+            options={timezoneOptions}
+            placeholder="请选择时区"
+            allowClear={false}
+            showSearch
+            sheetTitle="选择时区"
+          />
 
           <div>
-            <div className="text-sm text-slate-700 font-medium mb-2">地区</div>
+            <label className="text-sm font-medium text-charcoal mb-1.5 block">地区</label>
             <input
               value={region}
               onChange={(e) => setRegion(e.target.value)}
               placeholder="例如：中国"
-              className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20 active:scale-[0.99]"
+              className={fieldClass}
             />
           </div>
 
           <div>
-            <div className="text-sm text-slate-700 font-medium mb-2">城市</div>
+            <label className="text-sm font-medium text-charcoal mb-1.5 block">城市</label>
             <input
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder="例如：深圳"
-              className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 transition-all duration-200 outline-none hover:border-slate-300 hover:shadow-sm focus:border-[#4ECDC4] focus:ring-2 focus:ring-[#4ECDC4]/20 active:scale-[0.99]"
+              className={fieldClass}
             />
           </div>
         </div>
 
         {errorText ? (
-          <div className="text-sm text-[#FF6B6B] bg-[#FF6B6B]/5 border border-[#FF6B6B]/20 rounded-xl px-4 py-3">
+          <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
             {errorText}
           </div>
         ) : null}
-
-        <div className="pt-2 flex items-center justify-end">
-          <CloudButton
-            onClick={onSave}
-            disabled={!canSave}
-            className="h-11 px-6 rounded-xl font-medium bg-[#4ECDC4] text-white hover:bg-[#45b8b0] transition-all duration-200 hover:shadow-md active:scale-[0.99] disabled:opacity-50 disabled:hover:shadow-none"
-          >
-            {saving ? (
-              <span className="inline-flex items-center justify-center gap-2">
-                <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                <span>保存中...</span>
-              </span>
-            ) : (
-              "保存"
-            )}
-          </CloudButton>
-        </div>
-      </div>
+      </CloudCard>
     </div>
   );
 }
