@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/freetype"
@@ -42,8 +43,9 @@ type CaptchaStore interface {
 	Verify(id, code string) (bool, error)
 }
 
-// MemoryCaptchaStore 内存存储实现
+// MemoryCaptchaStore 内存存储实现（并发安全）
 type MemoryCaptchaStore struct {
+	mu   sync.RWMutex
 	data map[string]captchaData
 }
 
@@ -60,16 +62,20 @@ func NewMemoryCaptchaStore() *MemoryCaptchaStore {
 }
 
 func (s *MemoryCaptchaStore) Set(id, code string, expires time.Time) error {
+	s.mu.Lock()
 	s.data[id] = captchaData{
 		code:    code,
 		expires: expires,
 	}
-	// 清理过期数据
+	s.mu.Unlock()
 	go s.cleanup()
 	return nil
 }
 
 func (s *MemoryCaptchaStore) Get(id string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	data, ok := s.data[id]
 	if !ok {
 		return "", errors.New("captcha not found")
@@ -82,6 +88,8 @@ func (s *MemoryCaptchaStore) Get(id string) (string, error) {
 }
 
 func (s *MemoryCaptchaStore) Delete(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.data, id)
 	return nil
 }
@@ -91,9 +99,8 @@ func (s *MemoryCaptchaStore) Verify(id, code string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	// 不区分大小写比较
-	if strings.ToLower(storedCode) == strings.ToLower(code) {
-		s.Delete(id) // 验证成功后删除
+	if strings.EqualFold(storedCode, code) {
+		_ = s.Delete(id)
 		return true, nil
 	}
 	return false, nil
@@ -101,6 +108,8 @@ func (s *MemoryCaptchaStore) Verify(id, code string) (bool, error) {
 
 func (s *MemoryCaptchaStore) cleanup() {
 	now := time.Now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for id, data := range s.data {
 		if now.After(data.expires) {
 			delete(s.data, id)
@@ -124,25 +133,19 @@ func NewCaptchaManager(width, height, length int, expiration time.Duration, stor
 
 // Generate 生成验证码
 func (cm *CaptchaManager) Generate() (*Captcha, error) {
-	// 生成随机验证码
 	code := cm.generateCode()
 
-	// 生成图片
 	img, err := cm.generateImage(code)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate image: %w", err)
 	}
 
-	// 转换为base64
 	imgBase64, err := cm.imageToBase64(img)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode image: %w", err)
 	}
 
-	// 生成ID
 	id := cm.generateID()
-
-	// 存储验证码
 	expires := time.Now().Add(cm.expiration)
 	if err := cm.store.Set(id, code, expires); err != nil {
 		return nil, fmt.Errorf("failed to store captcha: %w", err)
@@ -161,36 +164,29 @@ func (cm *CaptchaManager) Verify(id, code string) (bool, error) {
 	return cm.store.Verify(id, code)
 }
 
-// generateCode 生成随机验证码
 func (cm *CaptchaManager) generateCode() string {
-	// 使用数字和字母（排除容易混淆的字符：0, O, I, 1, l）
 	chars := "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-	rand.Seed(time.Now().UnixNano())
-
 	var code strings.Builder
+	code.Grow(cm.length)
 	for i := 0; i < cm.length; i++ {
 		code.WriteByte(chars[rand.Intn(len(chars))])
 	}
 	return code.String()
 }
 
-// generateID 生成验证码ID
 func (cm *CaptchaManager) generateID() string {
-	rand.Seed(time.Now().UnixNano())
 	chars := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	var id strings.Builder
+	id.Grow(32)
 	for i := 0; i < 32; i++ {
 		id.WriteByte(chars[rand.Intn(len(chars))])
 	}
 	return id.String()
 }
 
-// generateImage 生成验证码图片
 func (cm *CaptchaManager) generateImage(code string) (image.Image, error) {
-	// 创建图片
 	img := image.NewRGBA(image.Rect(0, 0, cm.width, cm.height))
 
-	// 填充背景色（浅色）
 	bgColor := color.RGBA{240, 240, 240, 255}
 	for y := 0; y < cm.height; y++ {
 		for x := 0; x < cm.width; x++ {
@@ -198,8 +194,6 @@ func (cm *CaptchaManager) generateImage(code string) (image.Image, error) {
 		}
 	}
 
-	// 添加干扰线
-	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < 5; i++ {
 		x1 := rand.Intn(cm.width)
 		y1 := rand.Intn(cm.height)
@@ -214,7 +208,6 @@ func (cm *CaptchaManager) generateImage(code string) (image.Image, error) {
 		drawLine(img, x1, y1, x2, y2, lineColor)
 	}
 
-	// 添加干扰点
 	for i := 0; i < 50; i++ {
 		x := rand.Intn(cm.width)
 		y := rand.Intn(cm.height)
@@ -227,7 +220,6 @@ func (cm *CaptchaManager) generateImage(code string) (image.Image, error) {
 		img.Set(x, y, dotColor)
 	}
 
-	// 绘制文字
 	if err := cm.drawText(img, code); err != nil {
 		return nil, err
 	}
@@ -235,9 +227,7 @@ func (cm *CaptchaManager) generateImage(code string) (image.Image, error) {
 	return img, nil
 }
 
-// drawText 绘制文字
 func (cm *CaptchaManager) drawText(img *image.RGBA, text string) error {
-	// 加载字体
 	fontData, err := truetype.Parse(goregular.TTF)
 	if err != nil {
 		return fmt.Errorf("failed to parse font: %w", err)
@@ -251,30 +241,20 @@ func (cm *CaptchaManager) drawText(img *image.RGBA, text string) error {
 	c.SetDst(img)
 	c.SetSrc(image.Black)
 
-	// 计算文字位置（居中）
 	charWidth := float64(cm.width) / float64(len(text))
-	y := float64(cm.height)/2 + 12 // 垂直居中
+	y := float64(cm.height)/2 + 12
 
-	rand.Seed(time.Now().UnixNano())
-
-	// 绘制每个字符
 	for i, char := range text {
 		x := float64(i)*charWidth + charWidth/2 - 8
-
-		// 随机颜色
 		textColor := color.RGBA{
 			uint8(rand.Intn(100) + 50),
 			uint8(rand.Intn(100) + 50),
 			uint8(rand.Intn(100) + 50),
 			255,
 		}
-
 		c.SetSrc(&image.Uniform{textColor})
-
-		// 绘制字符
 		pt := freetype.Pt(int(x), int(y))
-		_, err := c.DrawString(string(char), pt)
-		if err != nil {
+		if _, err := c.DrawString(string(char), pt); err != nil {
 			return fmt.Errorf("failed to draw text: %w", err)
 		}
 	}
@@ -282,7 +262,6 @@ func (cm *CaptchaManager) drawText(img *image.RGBA, text string) error {
 	return nil
 }
 
-// drawLine 绘制直线
 func drawLine(img *image.RGBA, x1, y1, x2, y2 int, c color.Color) {
 	dx := abs(x2 - x1)
 	dy := abs(y2 - y1)
@@ -321,7 +300,6 @@ func abs(x int) int {
 	return x
 }
 
-// imageToBase64 将图片转换为base64
 func (cm *CaptchaManager) imageToBase64(img image.Image) (string, error) {
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {

@@ -1,8 +1,10 @@
 package captcha
 
 import (
+	"fmt"
 	"image"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -391,5 +393,46 @@ func TestAbs(t *testing.T) {
 	}
 	if abs(0) != 0 {
 		t.Fatalf("Expected abs(0) = 0, got %d", abs(0))
+	}
+}
+
+func TestMemoryCaptchaStore_ConcurrentSetCleanup(t *testing.T) {
+	store := NewMemoryCaptchaStore()
+	const workers = 32
+	const perWorker = 50
+
+	errCh := make(chan error, workers)
+	done := make(chan struct{})
+	go func() {
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for w := 0; w < workers; w++ {
+			go func(worker int) {
+				defer wg.Done()
+				for i := 0; i < perWorker; i++ {
+					id := fmt.Sprintf("w%d-%d", worker, i)
+					expires := time.Now().Add(time.Duration(i%3) * time.Millisecond)
+					if err := store.Set(id, "Ab12", expires); err != nil {
+						errCh <- err
+						return
+					}
+					if _, err := store.Get(id); err != nil && !strings.Contains(err.Error(), "expired") && !strings.Contains(err.Error(), "not found") {
+						errCh <- err
+						return
+					}
+					_ = store.Delete(id)
+				}
+			}(w)
+		}
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("concurrent store ops failed: %v", err)
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for concurrent store ops")
 	}
 }

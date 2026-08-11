@@ -4,9 +4,11 @@ import (
 	"net/http"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/internal/voice"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/lingllm/protocol/voice/xiaozhi"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -14,6 +16,8 @@ import (
 type Handlers struct {
 	db                *gorm.DB
 	ipLocationService *utils.IPLocationService
+	realtimeFactory   *voice.RealtimeFactory
+	xiaozhiServer     *xiaozhi.Server
 }
 
 func NewHandlers(db *gorm.DB) *Handlers {
@@ -33,6 +37,7 @@ func (h *Handlers) Register(engine *gin.Engine) {
 	// Register Business Module Routes
 	h.registerAuthRoutes(r)
 	h.registerAdminUserRoutes(r)
+	h.registerSecurityRoutes(r)
 	h.registerWordBookRoutes(r)
 	h.registerLearningRoutes(r)
 	h.registerVocabTestRoutes(r)
@@ -41,6 +46,8 @@ func (h *Handlers) Register(engine *gin.Engine) {
 	h.registerGrammarRoutes(r)
 	h.registerNotificationRoutes(r)
 	h.registerCoachingRoutes(r)
+	h.registerScenarioDialogueRoutes(r)
+	h.registerTTSRoutes(r)
 }
 
 func (h *Handlers) requireAdmin(c *gin.Context) {

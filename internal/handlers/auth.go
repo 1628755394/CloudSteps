@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -22,8 +23,8 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/CloudStepsGo/pkg/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/response"
+	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
-	"github.com/LingByte/lingstorage-sdk-go"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -1575,7 +1576,7 @@ func (h *Handlers) handleGetUserStats(c *gin.Context) {
 	response.Success(c, "User stats retrieved successfully", stats)
 }
 
-// handleUploadAvatar 处理用户头像上传
+// handleUploadAvatar 处理用户头像上传（服务端校验大小并统一压缩为 JPEG）
 func (h *Handlers) handleUploadAvatar(c *gin.Context) {
 	user := models.CurrentUser(c)
 	if user == nil {
@@ -1583,108 +1584,66 @@ func (h *Handlers) handleUploadAvatar(c *gin.Context) {
 		return
 	}
 
-	// 获取上传的文件
 	file, header, err := c.Request.FormFile("avatar")
 	if err != nil {
-		response.Fail(c, "Failed to get uploaded file", err)
+		response.Fail(c, "请选择要上传的图片", err)
 		return
 	}
 	defer file.Close()
 
-	// 验证文件类型
-	allowedTypes := map[string]bool{
-		"image/jpeg": true,
-		"image/jpg":  true,
-		"image/png":  true,
-		"image/gif":  true,
-		"image/webp": true,
-	}
-
-	// 从文件头获取Content-Type
-	contentType := header.Header.Get("Content-Type")
-	if contentType == "" {
-		// 如果header中没有Content-Type，尝试从文件扩展名判断
-		fileExt := strings.ToLower(filepath.Ext(header.Filename))
-		extToType := map[string]string{
-			".jpg":  "image/jpeg",
-			".jpeg": "image/jpeg",
-			".png":  "image/png",
-			".gif":  "image/gif",
-			".webp": "image/webp",
-		}
-		if mappedType, exists := extToType[fileExt]; exists {
-			contentType = mappedType
-		}
-	}
-
-	if !allowedTypes[contentType] {
-		response.Fail(c, "Invalid file type", errors.New("only jpeg, jpg, png, gif, webp files are allowed"))
+	// 先按声明大小快速拒绝（实际还会 LimitReader 再验一次）
+	if header.Size > utils.AvatarMaxUploadBytes {
+		response.Fail(c, fmt.Sprintf("图片过大，请选择不超过 %dMB 的图片", utils.AvatarMaxUploadBytes>>20), errors.New("file too large"))
 		return
 	}
 
-	// 验证文件大小 (最大5MB)
-	maxSize := int64(5 * 1024 * 1024)
-	if header.Size > maxSize {
-		response.Fail(c, "File too large", errors.New("file size must be less than 5MB"))
-		return
-	}
-
-	// 生成文件名
-	fileExt := getFileExtension(header.Filename)
-	fileName := fmt.Sprintf("avatars/%d_%d%s", user.ID, time.Now().Unix(), fileExt)
-
-	reader, err := config.GlobalStore.UploadFromReader(&lingstorage.UploadFromReaderRequest{
-		Reader:   file,
-		Bucket:   config.GlobalConfig.Services.Storage.Bucket,
-		Filename: fileName,
-		Key:      fileName,
-	})
+	processed, err := utils.ProcessAvatarImage(file, header.Size)
 	if err != nil {
-		response.Fail(c, "Failed to upload avatar", err)
+		response.Fail(c, err.Error(), err)
 		return
 	}
-	// 更新用户头像URL
-	avatarURL := reader.URL
 
-	// 保存相对路径用于返回
-	avatarRelativePath := avatarURL
+	fileName := fmt.Sprintf("avatars/%d_%d%s", user.ID, time.Now().Unix(), processed.Ext)
+	store := stores.Default()
+	if err := store.Write(fileName, bytes.NewReader(processed.Data)); err != nil {
+		logger.Error("avatar store write failed",
+			zap.String("key", fileName),
+			zap.String("kind", stores.DefaultStoreKind),
+			zap.Error(err),
+		)
+		response.Fail(c, "头像上传失败，请稍后重试", err.Error())
+		return
+	}
 
-	// 如果是相对路径，转换为完整URL用于数据库存储
-	if strings.HasPrefix(avatarURL, "/") {
-		// 获取请求的Host和Scheme
-		scheme := "http"
-		if c.Request.TLS != nil {
-			scheme = "https"
-		}
-		host := c.Request.Host
-		if host == "" {
-			host = "localhost:7072" // 默认host
-		}
-		avatarURL = fmt.Sprintf("%s://%s%s", scheme, host, avatarURL)
+	avatarRelativePath := store.PublicURL(fileName)
+	avatarURL := avatarRelativePath
+
+	// 相对路径补全为绝对 URL（便于跨域/反向代理）；本地 /uploads 保持相对更利于前端 resolveMediaUrl
+	if strings.HasPrefix(avatarURL, "http://") || strings.HasPrefix(avatarURL, "https://") {
+		// 云存储已是完整 URL
+	} else if strings.HasPrefix(avatarURL, "/") {
+		// DB 存相对路径，前端用 resolveMediaUrl 拼 origin
+		avatarURL = avatarRelativePath
 	}
 
 	err = models.UpdateUser(h.db, user, map[string]any{
 		"avatar": avatarURL,
 	})
 	if err != nil {
-		// 如果数据库更新失败，删除已上传的文件
-		//store.Delete(fileName)
-		response.Fail(c, "Failed to update user avatar", err)
+		response.Fail(c, "更新头像失败", err)
 		return
 	}
 
-	// 更新用户对象
 	user.Avatar = avatarURL
-
-	// 更新资料完整度
-	err = models.UpdateProfileComplete(h.db, user)
-	if err != nil {
+	if err := models.UpdateProfileComplete(h.db, user); err != nil {
 		logger.Warn("Failed to update profile complete", zap.Error(err))
 	}
 
-	// 返回相对路径，方便反向代理
-	response.Success(c, "Avatar uploaded successfully", gin.H{
+	response.Success(c, "头像上传成功", gin.H{
 		"avatar": avatarRelativePath,
+		"width":  processed.Width,
+		"height": processed.Height,
+		"bytes":  len(processed.Data),
 	})
 }
 

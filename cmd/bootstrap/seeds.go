@@ -31,6 +31,34 @@ func (s *SeedService) SeedAll() error {
 	if err := s.seedGrammarLessons(); err != nil {
 		return err
 	}
+	if err := s.seedScenarios(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SeedService) seedScenarios() error {
+	for _, sc := range models.DefaultScenarios {
+		sc.Enabled = true
+		var existing models.ScenarioDialogueScenario
+		err := s.db.Where("slug = ?", sc.Slug).First(&existing).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := s.db.Create(&sc).Error; err != nil {
+				return err
+			}
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		_ = s.db.Model(&existing).Updates(map[string]any{
+			"icon":        sc.Icon,
+			"prompt":      sc.Prompt,
+			"ai_role":     sc.AIRole,
+			"description": sc.Description,
+			"name":        sc.Name,
+		}).Error
+	}
 	return nil
 }
 
