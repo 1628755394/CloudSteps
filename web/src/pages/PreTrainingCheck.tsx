@@ -1,23 +1,34 @@
-import { Volume2, Check, X, Shuffle, Loader2 } from "lucide-react";
+import { Volume2, Check, X, Shuffle, Loader2, ArrowDownAZ, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import { getStudyWords, startStudySession } from "../api/study";
+import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { CloudButton } from "../components/cloudsteps";
 import { TopBar } from "../components/TopBar";
 import { FlowPageShell } from "../components/PageTransition";
+import {
+  WordCardPanel,
+  WordMarkStatsBar,
+  WordViewModeToggle,
+  type WordViewMode,
+} from "../components/WordMarkView";
+import { WordDetailDialog } from "../components/WordDetailDialog";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
+import { formatTranslation } from "../utils/wordFormat";
+import { nextWordTapState } from "../utils/wordReveal";
 
-type WordItem = { 
-  id: number; 
-  word: string; 
+type WordItem = {
+  id: number;
+  word: string;
   translation?: string;
   audioUrl?: string;
   showTranslation?: boolean;
-  status: null | "correct" | "wrong" 
+  heard?: boolean;
+  status: null | "correct" | "wrong";
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 100;
 
 export default function PreTrainingCheck() {
   const navigate = useNavigate();
@@ -28,13 +39,22 @@ export default function PreTrainingCheck() {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // 用于防抖的ref
+  const [shuffleMode, setShuffleMode] = useState(false);
+
   const loadingRef = useRef(false);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+  const shuffleModeRef = useRef(false);
+  const shuffleSeedRef = useRef(0);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const sentinelNodeRef = useRef<HTMLDivElement | null>(null);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
+  const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<WordViewMode>("list");
+  const [cardIndex, setCardIndex] = useState(0);
+  const [detailMode, setDetailMode] = useState(false);
+  const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
 
   const handlePlayAudio = useCallback((word: WordItem) => {
     if (!word.audioUrl) return;
@@ -50,114 +70,141 @@ export default function PreTrainingCheck() {
 
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
 
-  // 加载单词数据
-  const loadWords = useCallback(async (page: number, isInitial = false) => {
-    if (loadingRef.current || !wordBookId) return;
-    
-    loadingRef.current = true;
-    if (isInitial) {
-      setInitialLoading(true);
-    } else {
-      setLoading(true);
-    }
-    
-    try {
-      const res = await getStudyWords(wordBookId, page, PAGE_SIZE);
-      const list = res.data?.words;
-      const totalCount = res.data?.total || 0;
-      const arr = Array.isArray(list) ? (list as Array<{ id: number; word: string; translation?: string; audioUrl?: string }>) : [];
-      
-      if (arr.length === 0) {
-        setHasMore(false);
-        return;
-      }
-      
-      const newWords = arr.map((w) => ({ 
-        id: w.id, 
-        word: w.word, 
-        translation: w.translation,
-        audioUrl: w.audioUrl,
-        showTranslation: false,
-        status: null as WordItem["status"] 
-      }));
-      
-      setWords(prev => {
-        const updatedWords = page === 1 ? newWords : [...prev, ...newWords];
-        
-        // 如果返回的数据少于页面大小，或者已加载完所有数据，说明没有更多数据了
-        if (arr.length < PAGE_SIZE || updatedWords.length >= totalCount) {
-          setHasMore(false);
-        }
-        
-        return updatedWords;
-      });
-      
-      setError(null);
-    } catch (err) {
-      console.error('加载单词失败:', err);
-      setError('加载单词失败，请重试');
-    } finally {
-      loadingRef.current = false;
+  const loadWords = useCallback(
+    async (page: number, isInitial = false) => {
+      if (loadingRef.current || !wordBookId) return;
+
+      loadingRef.current = true;
       if (isInitial) {
-        setInitialLoading(false);
+        setInitialLoading(true);
       } else {
-        setLoading(false);
+        setLoading(true);
       }
-    }
-  }, [wordBookId]);
 
-  // 初始加载
-  useEffect(() => {
-    if (wordBookId) {
-      setCurrentPage(1);
-      setHasMore(true);
-      setError(null);
-      loadWords(1, true);
-    }
-  }, [wordBookId, loadWords]);
+      try {
+        const res = await getStudyWords(wordBookId, page, PAGE_SIZE, {
+          shuffle: shuffleModeRef.current,
+          seed: shuffleSeedRef.current,
+        });
+        const list = res.data?.words;
+        const totalCount = res.data?.total || 0;
+        if (res.data?.seed && shuffleModeRef.current) {
+          shuffleSeedRef.current = Number(res.data.seed);
+        }
+        const arr = Array.isArray(list)
+          ? (list as Array<{ id: number; word: string; translation?: string; audioUrl?: string }>)
+          : [];
 
-  // 设置无限滚动
-  useEffect(() => {
-    if (!loadMoreRef.current || !hasMore || loading) return;
+        if (arr.length === 0) {
+          hasMoreRef.current = false;
+          setHasMore(false);
+          if (page === 1) setWords([]);
+          return;
+        }
+
+        const newWords = arr.map((w) => ({
+          id: w.id,
+          word: w.word,
+          translation: w.translation ? formatTranslation(w.translation) : undefined,
+          audioUrl: w.audioUrl,
+          showTranslation: false,
+          heard: false,
+          status: null as WordItem["status"],
+        }));
+
+        setWords((prev) => {
+          const updated = page === 1 ? newWords : [...prev, ...newWords];
+          const more = arr.length >= PAGE_SIZE && updated.length < totalCount;
+          hasMoreRef.current = more;
+          setHasMore(more);
+          return updated;
+        });
+
+        pageRef.current = page;
+        setCurrentPage(page);
+        setError(null);
+      } catch (err) {
+        console.error("加载单词失败:", err);
+        setError("加载单词失败，请重试");
+      } finally {
+        loadingRef.current = false;
+        if (isInitial) {
+          setInitialLoading(false);
+        } else {
+          setLoading(false);
+        }
+      }
+    },
+    [wordBookId]
+  );
+
+  const attachObserver = useCallback(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+    const node = sentinelNodeRef.current;
+    if (!node || !hasMoreRef.current) return;
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        const target = entries[0];
-        if (target.isIntersecting && hasMore && !loadingRef.current && !loading) {
-          const nextPage = currentPage + 1;
-          setCurrentPage(nextPage);
-          loadWords(nextPage, false);
-        }
+        const hit = entries[0]?.isIntersecting;
+        if (!hit || !hasMoreRef.current || loadingRef.current) return;
+        void loadWords(pageRef.current + 1, false);
       },
-      {
-        threshold: 0.1,
-        rootMargin: '100px',
-      }
+      { root: null, rootMargin: "240px 0px", threshold: 0 }
     );
+    observerRef.current.observe(node);
+  }, [loadWords]);
 
-    observerRef.current.observe(loadMoreRef.current);
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      sentinelNodeRef.current = node;
+      attachObserver();
+    },
+    [attachObserver]
+  );
 
+  // 初始加载
+  useEffect(() => {
+    if (!wordBookId) return;
+    shuffleModeRef.current = false;
+    shuffleSeedRef.current = 0;
+    setShuffleMode(false);
+    pageRef.current = 1;
+    hasMoreRef.current = true;
+    setCurrentPage(1);
+    setHasMore(true);
+    setError(null);
+    setWords([]);
+    void loadWords(1, true);
+  }, [wordBookId, loadWords]);
+
+  // 列表变化后重新挂观察器（首屏加载完成后哨兵才出现）
+  useEffect(() => {
+    if (initialLoading || viewMode !== "list") return;
+    attachObserver();
     return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
+      observerRef.current?.disconnect();
+      observerRef.current = null;
     };
-  }, [hasMore, loading, currentPage]);
+  }, [initialLoading, viewMode, words.length, hasMore, loading, attachObserver]);
 
   const handleStatusClick = useCallback((id: number, newStatus: "correct" | "wrong") => {
     setWords((prev) =>
       prev.map((word) => {
         if (word.id === id) {
           const wasSelected = word.status !== null;
-          const isNowSelected = newStatus !== null;
+          const nextStatus = word.status === newStatus ? null : newStatus;
+          const isNowSelected = nextStatus !== null;
 
           if (!wasSelected && isNowSelected) {
-            setSelectedCount(s => s + 1);
+            setSelectedCount((s) => s + 1);
           } else if (wasSelected && !isNowSelected) {
-            setSelectedCount(s => s - 1);
+            setSelectedCount((s) => s - 1);
           }
 
-          return { ...word, status: word.status === newStatus ? null : newStatus };
+          return { ...word, status: nextStatus };
         }
         return word;
       })
@@ -165,9 +212,15 @@ export default function PreTrainingCheck() {
   }, []);
 
   const handleWordClick = useCallback((word: WordItem) => {
-    const id = word.id;
-    const isShowing = !word.showTranslation;
-    if (isShowing && word.audioUrl) {
+    if (detailMode) {
+      setDetailWord({ id: word.id, word: word.word });
+      return;
+    }
+    const next = nextWordTapState({
+      showTranslation: !!word.showTranslation,
+      heard: !!word.heard,
+    });
+    if (next.shouldPlay && word.audioUrl) {
       abortRef.current?.();
       setPlayingId(word.id);
       const abort = playFirstWordAudio(word.audioUrl, () => setPlayingId(null));
@@ -175,20 +228,49 @@ export default function PreTrainingCheck() {
     }
     setWords((prev) =>
       prev.map((w) => {
-        if (isShowing) {
-          return w.id === id ? { ...w, showTranslation: true } : { ...w, showTranslation: false };
+        if (w.id === word.id) {
+          return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
-        return w.id === id ? { ...w, showTranslation: false } : w;
+        if (next.showTranslation) {
+          return { ...w, showTranslation: false };
+        }
+        return w;
       })
     );
-  }, []);
+  }, [detailMode]);
 
+  /** 后端乱序：换 seed 后从第 1 页重新拉取 */
   const handleShuffle = useCallback(() => {
-    setWords(prev => {
-      const shuffled = [...prev].sort(() => Math.random() - 0.5);
-      return shuffled;
-    });
-  }, []);
+    if (loadingRef.current) return;
+    const seed = Date.now();
+    shuffleModeRef.current = true;
+    shuffleSeedRef.current = seed;
+    setShuffleMode(true);
+    setSelectedCount(0);
+    setCardIndex(0);
+    pageRef.current = 1;
+    hasMoreRef.current = true;
+    setCurrentPage(1);
+    setHasMore(true);
+    setWords([]);
+    void loadWords(1, true);
+  }, [loadWords]);
+
+  /** 恢复正序 */
+  const handleSequential = useCallback(() => {
+    if (loadingRef.current) return;
+    shuffleModeRef.current = false;
+    shuffleSeedRef.current = 0;
+    setShuffleMode(false);
+    setSelectedCount(0);
+    setCardIndex(0);
+    pageRef.current = 1;
+    hasMoreRef.current = true;
+    setCurrentPage(1);
+    setHasMore(true);
+    setWords([]);
+    void loadWords(1, true);
+  }, [loadWords]);
 
   const handleSelectAll = useCallback(() => {
     setWords((prev) => {
@@ -196,10 +278,9 @@ export default function PreTrainingCheck() {
       if (allSelected) {
         setSelectedCount(0);
         return prev.map((word) => ({ ...word, status: null as WordItem["status"] }));
-      } else {
-        setSelectedCount(prev.length);
-        return prev.map((word) => ({ ...word, status: "wrong" as WordItem["status"] }));
       }
+      setSelectedCount(prev.length);
+      return prev.map((word) => ({ ...word, status: "wrong" as WordItem["status"] }));
     });
   }, []);
 
@@ -207,14 +288,12 @@ export default function PreTrainingCheck() {
     setWords((prev) => {
       const unselected = prev.filter((word) => word.status === null);
       const toSelect = unselected.slice(0, 5);
-      
       const newWords = prev.map((word) => {
         if (toSelect.find((w) => w.id === word.id)) {
           return { ...word, status: "wrong" as WordItem["status"] };
         }
         return word;
       });
-      
       setSelectedCount(newWords.filter((w) => w.status !== null).length);
       return newWords;
     });
@@ -226,7 +305,7 @@ export default function PreTrainingCheck() {
 
     const knownIds = selectedWords.filter((w) => w.status === "correct").map((w) => w.id);
     const unknownIds = selectedWords.filter((w) => w.status === "wrong").map((w) => w.id);
-    
+
     try {
       const res = await startStudySession({ wordBookId, knownIds, unknownIds });
       const sessionId = res.data?.sessionId;
@@ -262,7 +341,6 @@ export default function PreTrainingCheck() {
   const correctCount = useMemo(() => words.filter((word) => word.status === "correct").length, [words]);
   const wrongCount = useMemo(() => words.filter((word) => word.status === "wrong").length, [words]);
 
-  // 渲染单个单词项（使用React.memo优化）
   const WordItemComponent = useMemo(() => {
     const Item = ({ word }: { word: WordItem }) => (
       <div
@@ -287,13 +365,11 @@ export default function PreTrainingCheck() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <CloudButton
-            type="button"
-            variant="ghost"
-            size="iconRound"
-            onClick={() => handlePlayAudio(word)}
-          >
-            <Volume2 size={20} className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"} />
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => handlePlayAudio(word)}>
+            <Volume2
+              size={20}
+              className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+            />
           </CloudButton>
           <CloudButton
             type="button"
@@ -316,86 +392,126 @@ export default function PreTrainingCheck() {
       </div>
     );
     return Item;
-  }, [handleStatusClick, handleWordClick]);
+  }, [handleStatusClick, handleWordClick, handlePlayAudio, playingId]);
 
   return (
     <FlowPageShell>
-      <TopBar title="训前检测" onBack={handleBack} />
+      <TopBar
+        title="训前检测"
+        onBack={handleBack}
+        rightSlot={
+          <div className="flex items-center gap-1">
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
+                shuffleMode ? "bg-primary-soft text-primary" : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {shuffleMode ? "乱序" : "正序"}
+            </span>
+            <AnnotationToggleButton
+              active={annotationOpen}
+              onClick={() => setAnnotationOpen((v) => !v)}
+            />
+          </div>
+        }
+      />
 
-      <div className="px-4 mt-6">
-        {/* 错误提示 */}
+      <AnnotationLayer
+        storageKey={`pre-training:${wordBookId}`}
+        open={annotationOpen}
+        onOpenChange={setAnnotationOpen}
+      />
+
+      <div className="px-4 mt-4 pb-36">
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm mb-4">
             {error}
           </div>
         )}
 
-        {/* 单词列表 */}
-        <div className="space-y-3 mb-6">
-          {initialLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-[#4ECDC4]" />
-            </div>
-          ) : (
-            <>
-              {words.map((word) => (
-                <WordItemComponent key={word.id} word={word} />
-              ))}
-              
-              {/* 加载更多指示器 */}
-              {hasMore && (
-                <div ref={loadMoreRef} className="flex justify-center py-4">
-                  {loading ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-[#4ECDC4]" />
-                  ) : (
-                    <span className="text-[#718096] text-sm">下拉加载更多</span>
-                  )}
-                </div>
-              )}
-              
-              {/* 没有更多数据提示 */}
-              {!hasMore && words.length > 0 && (
-                <div className="text-center py-4">
-                  <span className="text-[#718096] text-sm">已加载全部单词</span>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        <WordMarkStatsBar
+          correctCount={correctCount}
+          wrongCount={wrongCount}
+          total={words.length}
+        />
 
-        {/* 加载更多触发器 */}
-        {hasMore && (
-          <div ref={loadMoreRef} className="flex justify-center py-4">
-            {loading ? (
-              <div className="flex items-center gap-2 text-[#718096]">
-                <Loader2 size={16} className="animate-spin" />
-                <span>加载更多...</span>
-              </div>
-            ) : (
-              <div className="text-[#718096] text-sm">下拉加载更多</div>
-            )}
+        {initialLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-[#4ECDC4]" />
           </div>
-        )}
-        
-        {!hasMore && words.length > 0 && (
-          <div className="text-center text-[#718096] text-sm py-4">
-            已加载全部单词
+        ) : viewMode === "card" ? (
+          <WordCardPanel
+            words={words}
+            index={cardIndex}
+            onIndexChange={(i) => {
+              setCardIndex(i);
+              if (hasMoreRef.current && i >= words.length - 3 && !loadingRef.current) {
+                void loadWords(pageRef.current + 1, false);
+              }
+            }}
+            playingId={playingId}
+            onPlay={handlePlayAudio}
+            onWordClick={handleWordClick}
+            onStatus={handleStatusClick}
+          />
+        ) : (
+          <div className="space-y-3 mb-6">
+            {words.map((word) => (
+              <WordItemComponent key={word.id} word={word} />
+            ))}
+
+            {hasMore && (
+              <div ref={loadMoreRef} className="flex justify-center py-4">
+                {loading ? (
+                  <Loader2 className="w-6 h-6 animate-spin text-[#4ECDC4]" />
+                ) : (
+                  <button
+                    type="button"
+                    className="text-[#718096] text-sm hover:text-primary"
+                    onClick={() => {
+                      if (!loadingRef.current) void loadWords(pageRef.current + 1, false);
+                    }}
+                  >
+                    上拉加载更多
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!hasMore && words.length > 0 && (
+              <div className="text-center py-4">
+                <span className="text-[#718096] text-sm">已加载全部单词</span>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* 底部栏 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-sm text-[#718096]">
-            正确 <span className="text-[#66BB6A] font-semibold">{correctCount}</span> ·
-            错误 <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
+          <div className="flex items-center gap-2">
+            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <CloudButton
+              variant={detailMode ? "brand" : "outline"}
+              size="pill"
+              onClick={() => setDetailMode((v) => !v)}
+            >
+              <BookOpen size={16} />
+              拓展
+            </CloudButton>
           </div>
           <div className="flex gap-2">
-            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-              <Shuffle size={16} />
-              乱序
-            </CloudButton>
+            {shuffleMode ? (
+              <CloudButton variant="outline" size="pill" onClick={handleSequential}>
+                <ArrowDownAZ size={16} />
+                正序
+              </CloudButton>
+            ) : (
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
+                <Shuffle size={16} />
+                乱序
+              </CloudButton>
+            )}
             <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
               全选
             </CloudButton>
@@ -416,6 +532,13 @@ export default function PreTrainingCheck() {
           </CloudButton>
         </div>
       </div>
+
+      <WordDetailDialog
+        wordId={detailWord?.id ?? null}
+        wordText={detailWord?.word}
+        open={!!detailWord}
+        onOpenChange={(open) => { if (!open) setDetailWord(null); }}
+      />
     </FlowPageShell>
   );
 }

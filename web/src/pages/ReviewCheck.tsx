@@ -1,13 +1,30 @@
 import { ArrowLeft, Volume2, Check, X, Shuffle, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
+import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { FlowPageTitle } from "../components/PageTitle";
+import {
+  WordCardPanel,
+  WordMarkStatsBar,
+  WordViewModeToggle,
+  type WordViewMode,
+} from "../components/WordMarkView";
+import { WordDetailDialog } from "../components/WordDetailDialog";
 
 import { completeReviewSession, startReviewSession } from "../api/review";
+import { nextWordTapState } from "../utils/wordReveal";
 
-type ReviewWord = { id: number; word: string; status: null | "correct" | "wrong" };
+type ReviewWord = {
+  id: number;
+  word: string;
+  translation?: string;
+  audioUrl?: string;
+  showTranslation?: boolean;
+  heard?: boolean;
+  status: null | "correct" | "wrong";
+};
 
 type StartReviewData = {
   sessionId?: number;
@@ -30,6 +47,11 @@ export default function ReviewCheck() {
 
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
   const [sessionId, setSessionId] = useState<number>(0);
+  const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<WordViewMode>("list");
+  const [cardIndex, setCardIndex] = useState(0);
+  const [detailMode, setDetailMode] = useState(false);
+  const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
 
   useEffect(() => {
     sessionStorage.setItem("lb_mode", "review");
@@ -80,6 +102,32 @@ export default function ReviewCheck() {
         return { ...word, status: newStatus };
       })
     );
+  };
+
+  const handleWordClick = (word: ReviewWord) => {
+    if (detailMode) {
+      setDetailWord({ id: word.id, word: word.word });
+      return;
+    }
+    const next = nextWordTapState({
+      showTranslation: !!word.showTranslation,
+      heard: !!word.heard,
+    });
+    setWords((prev) =>
+      prev.map((w) => {
+        if (w.id === word.id) {
+          return { ...w, heard: next.heard, showTranslation: next.showTranslation };
+        }
+        if (next.showTranslation) {
+          return { ...w, showTranslation: false };
+        }
+        return w;
+      })
+    );
+  };
+
+  const handlePlayAudio = (_word: ReviewWord) => {
+    // ReviewCheck 当前无音频源
   };
 
   const handleShuffle = () => {
@@ -135,7 +183,7 @@ export default function ReviewCheck() {
   return (
     <FlowPageShell>
       <div className="bg-white sticky top-0 z-30 shadow-sm">
-        <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center px-3 py-3">
+        <div className="grid grid-cols-[2.5rem_1fr_auto] items-center px-3 py-3 gap-1">
           <CloudButton
             type="button"
             variant="ghost"
@@ -147,11 +195,22 @@ export default function ReviewCheck() {
             <ArrowLeft size={20} className="text-[#2D3748]" />
           </CloudButton>
           <FlowPageTitle>开始复习</FlowPageTitle>
-          <span className="w-10" aria-hidden />
+          {showList && (
+            <AnnotationToggleButton
+              active={annotationOpen}
+              onClick={() => setAnnotationOpen((v) => !v)}
+            />
+          )}
         </div>
       </div>
 
-      <div className="px-4 mt-6">
+      <AnnotationLayer
+        storageKey={`review-check:${wordBookId}:${sessionId}`}
+        open={annotationOpen}
+        onOpenChange={setAnnotationOpen}
+      />
+
+      <div className="px-4 mt-4 pb-36">
         {loading && (
           <p className="text-center text-[#718096] py-12">加载中…</p>
         )}
@@ -184,96 +243,123 @@ export default function ReviewCheck() {
 
         {showList && (
           <>
-        {/* 提示文字 */}
-        <p className="text-center text-[#718096] mb-4">
-          当前共有 {words.length} 个可选单词
-        </p>
-
-        {/* 单词列表 */}
-        <div className="space-y-3 mb-6">
-          {words.map((word) => (
-            <div
-              key={word.id}
-              className={`bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${
-                word.status === "correct"
-                  ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
-                  : word.status === "wrong"
-                  ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5"
-                  : ""
-              }`}
-            >
-              <div className="flex items-center gap-3 flex-1">
-                <span className="text-base font-medium text-[#2D3748]">{word.word}</span>
+            <p className="text-center text-[#718096] mb-4">
+              当前共有 {words.length} 个可选单词
+            </p>
+            <WordMarkStatsBar
+              correctCount={correctCount}
+              wrongCount={wrongCount}
+              total={words.length}
+            />
+            {viewMode === "card" ? (
+              <WordCardPanel
+                words={words}
+                index={cardIndex}
+                onIndexChange={setCardIndex}
+                playingId={null}
+                onPlay={handlePlayAudio}
+                onWordClick={handleWordClick}
+                onStatus={handleStatusClick}
+              />
+            ) : (
+              <div className="space-y-3 mb-6">
+                {words.map((word) => (
+                  <div
+                    key={word.id}
+                    className={`bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${
+                      word.status === "correct"
+                        ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
+                        : word.status === "wrong"
+                        ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <span className="text-base font-medium text-[#2D3748]">{word.word}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <CloudButton type="button" variant="ghost" size="iconRound">
+                        <Volume2 size={20} className="text-[#4ECDC4]" />
+                      </CloudButton>
+                      <CloudButton
+                        type="button"
+                        variant={word.status === "correct" ? "brand" : "ghost"}
+                        size="iconRound"
+                        onClick={() => handleStatusClick(word.id, "correct")}
+                        className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
+                      >
+                        <Check size={20} />
+                      </CloudButton>
+                      <CloudButton
+                        type="button"
+                        variant={word.status === "wrong" ? "destructive" : "ghost"}
+                        size="iconRound"
+                        onClick={() => handleStatusClick(word.id, "wrong")}
+                      >
+                        <X size={20} />
+                      </CloudButton>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-3">
-                <CloudButton type="button" variant="ghost" size="iconRound">
-                  <Volume2 size={20} className="text-[#4ECDC4]" />
-                </CloudButton>
-                <CloudButton
-                  type="button"
-                  variant={word.status === "correct" ? "brand" : "ghost"}
-                  size="iconRound"
-                  onClick={() => handleStatusClick(word.id, "correct")}
-                  className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
-                >
-                  <Check size={20} />
-                </CloudButton>
-                <CloudButton
-                  type="button"
-                  variant={word.status === "wrong" ? "destructive" : "ghost"}
-                  size="iconRound"
-                  onClick={() => handleStatusClick(word.id, "wrong")}
-                >
-                  <X size={20} />
-                </CloudButton>
-              </div>
-            </div>
-          ))}
-        </div>
+            )}
           </>
         )}
       </div>
 
-      {/* 底部栏：无列表时不挡操作，有列表时固定底部 */}
       {showList && (
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm text-[#718096]">
-            已选择 <span className="text-[#4ECDC4] font-semibold">{correctCount + wrongCount}</span> ·
-            错误 <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
+        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+              <CloudButton
+                variant={detailMode ? "brand" : "outline"}
+                size="pill"
+                onClick={() => setDetailMode((v) => !v)}
+              >
+                <BookOpen size={16} />
+                拓展
+              </CloudButton>
+            </div>
+            <div className="flex gap-2">
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
+                <Shuffle size={16} />
+                乱序
+              </CloudButton>
+              <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
+                全选
+              </CloudButton>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-              <Shuffle size={16} />
-              乱序
-            </CloudButton>
-            <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
-              全选
-            </CloudButton>
-          </div>
+          <CloudButton
+            variant="brand"
+            size="pill"
+            className={`w-full ${markedWords.length === 0 ? "opacity-80" : ""}`}
+            onClick={handleSubmit}
+            disabled={submitting}
+            loading={submitting}
+            loadingText="提交中…"
+          >
+            完成复习
+            {markedWords.length > 0 ? ` (${markedWords.length})` : ""}
+          </CloudButton>
+          {hint && (
+            <p className="text-center text-xs text-amber-600 mt-2">{hint}</p>
+          )}
+          {!hint && markedWords.length === 0 && (
+            <p className="text-center text-xs text-[#A0AEC0] mt-2">
+              选几个交几个，未选的词今天仍可继续复习
+            </p>
+          )}
         </div>
-        <CloudButton
-          variant="brand"
-          size="pill"
-          className={`w-full ${markedWords.length === 0 ? "opacity-80" : ""}`}
-          onClick={handleSubmit}
-          disabled={submitting}
-          loading={submitting}
-          loadingText="提交中…"
-        >
-          完成复习
-          {markedWords.length > 0 ? ` (${markedWords.length})` : ""}
-        </CloudButton>
-        {hint && (
-          <p className="text-center text-xs text-amber-600 mt-2">{hint}</p>
-        )}
-        {!hint && markedWords.length === 0 && (
-          <p className="text-center text-xs text-[#A0AEC0] mt-2">
-            选几个交几个，未选的词今天仍可继续复习
-          </p>
-        )}
-      </div>
       )}
+
+      <WordDetailDialog
+        wordId={detailWord?.id ?? null}
+        wordText={detailWord?.word}
+        open={!!detailWord}
+        onOpenChange={(open) => { if (!open) setDetailWord(null); }}
+      />
     </FlowPageShell>
   );
 }

@@ -1,12 +1,22 @@
-import { ArrowLeft, Volume2, Check, X } from "lucide-react";
+import { ArrowLeft, Volume2, Check, X, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { FlowPageTitle } from "../components/PageTitle";
+import {
+  WordCardPanel,
+  WordMarkStatsBar,
+  WordViewModeToggle,
+  type WordViewMode,
+} from "../components/WordMarkView";
+import { WordDetailDialog } from "../components/WordDetailDialog";
 import { completeStudySession } from "../api/study";
 import { completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
+import { formatTranslation } from "../utils/wordFormat";
+import { nextWordTapState } from "../utils/wordReveal";
 import {
   clearStudyRecheck,
   getCheckPhaseLabel,
@@ -29,6 +39,7 @@ type CheckWord = {
   audioUrl?: string;
   status: null | "correct" | "wrong";
   showTranslation?: boolean;
+  heard?: boolean;
 };
 
 const CHECK_PHASE_KEY = "lb_study_check_phase";
@@ -62,6 +73,11 @@ function getStudyBatchMeta(batchIdx: number) {
 export default function PostTrainingCheck() {
   const navigate = useNavigate();
   const [words, setWords] = useState<CheckWord[]>([]);
+  const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<WordViewMode>("list");
+  const [cardIndex, setCardIndex] = useState(0);
+  const [detailMode, setDetailMode] = useState(false);
+  const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
 
@@ -129,7 +145,7 @@ export default function PostTrainingCheck() {
         navigate(`/review-word-list?wordBookId=${wordBookId}`);
         return;
       }
-      navigate("/anti-forgetting");
+      navigate("/material-selection", { replace: true });
       return;
     }
     if (window.history.length > 1) navigate(-1);
@@ -162,10 +178,11 @@ export default function PostTrainingCheck() {
       const mapped: CheckWord[] = slice.map((w: any) => ({
         id: Number(w.id),
         word: String(w.word || ""),
-        translation: w.translation ? String(w.translation) : undefined,
+        translation: w.translation ? formatTranslation(String(w.translation)) : undefined,
         audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
         status: null,
         showTranslation: false,
+        heard: false,
       }));
       setWords(mapped);
     } catch {
@@ -185,9 +202,15 @@ export default function PostTrainingCheck() {
   };
 
   const handleWordClick = (word: CheckWord) => {
-    const id = word.id;
-    const isShowing = !word.showTranslation;
-    if (isShowing && word.audioUrl) {
+    if (detailMode) {
+      setDetailWord({ id: word.id, word: word.word });
+      return;
+    }
+    const next = nextWordTapState({
+      showTranslation: !!word.showTranslation,
+      heard: !!word.heard,
+    });
+    if (next.shouldPlay && word.audioUrl) {
       abortRef.current?.();
       setPlayingId(word.id);
       const abort = playFirstWordAudio(word.audioUrl, () => setPlayingId(null));
@@ -195,10 +218,13 @@ export default function PostTrainingCheck() {
     }
     setWords((prev) =>
       prev.map((w) => {
-        if (isShowing) {
-          return w.id === id ? { ...w, showTranslation: true } : { ...w, showTranslation: false };
+        if (w.id === word.id) {
+          return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
-        return w.id === id ? { ...w, showTranslation: false } : w;
+        if (next.showTranslation) {
+          return { ...w, showTranslation: false };
+        }
+        return w;
       })
     );
   };
@@ -238,7 +264,9 @@ export default function PostTrainingCheck() {
     sessionStorage.removeItem("lb_study_total_batches");
     sessionStorage.removeItem(CHECK_PHASE_KEY);
     clearStudyRecheck();
-    navigate("/create-anti-forgetting", { replace: true });
+    // 学完所有组后返回选单词界面，而非直接跳创建抗遗忘
+    // 用户可能还有上课时间，可以继续选词学习
+    navigate("/pre-training-check", { replace: true });
   };
 
   const wrongWords = useMemo(() => words.filter((w) => w.status === "wrong"), [words]);
@@ -328,7 +356,7 @@ export default function PostTrainingCheck() {
           }
           sessionStorage.removeItem("lb_review_batch_idx");
           sessionStorage.removeItem("lb_review_results");
-          navigate("/anti-forgetting", { replace: true });
+          navigate("/material-selection", { replace: true });
           return;
         }
 
@@ -398,7 +426,7 @@ export default function PostTrainingCheck() {
   return (
     <FlowPageShell>
       <div className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center px-3 py-3">
+        <div className="grid grid-cols-[2.5rem_1fr_auto] items-center px-3 py-3 gap-1">
           <CloudButton
             type="button"
             variant="ghost"
@@ -411,101 +439,141 @@ export default function PostTrainingCheck() {
           <FlowPageTitle>
             {mode === "review" ? "开始复习" : phaseLabels.title}
           </FlowPageTitle>
+          <AnnotationToggleButton
+            active={annotationOpen}
+            onClick={() => setAnnotationOpen((v) => !v)}
+          />
         </div>
       </div>
 
-      <div className="px-4 mt-6">
+      <AnnotationLayer
+        storageKey={`post-check:${mode}:${checkPhase}:${batchIdx}`}
+        open={annotationOpen}
+        onOpenChange={setAnnotationOpen}
+      />
+
+      <div className="px-4 mt-4 pb-36">
         {mode === "study" && (
           <p className="text-center text-sm text-[#718096] mb-4">{phaseLabels.hint}</p>
         )}
-        <div className="space-y-3 mb-6">
-          {words.map((word) => (
-            <div
-              key={word.id}
-              className={`bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${
-                word.status === "correct"
-                  ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
-                  : word.status === "wrong"
-                  ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5"
-                  : ""
-              }`}
-            >
+        <WordMarkStatsBar
+          correctCount={correctCount}
+          wrongCount={wrongCount}
+          total={words.length}
+        />
+        {viewMode === "card" ? (
+          <WordCardPanel
+            words={words}
+            index={cardIndex}
+            onIndexChange={setCardIndex}
+            playingId={playingId}
+            onPlay={handlePlayAudio}
+            onWordClick={handleWordClick}
+            onStatus={handleStatusClick}
+          />
+        ) : (
+          <div className="space-y-3 mb-6">
+            {words.map((word) => (
               <div
-                className="flex items-center gap-3 flex-1 cursor-pointer"
-                onClick={() => handleWordClick(word)}
+                key={word.id}
+                className={`bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${
+                  word.status === "correct"
+                    ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
+                    : word.status === "wrong"
+                    ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5"
+                    : ""
+                }`}
               >
-                <div>
-                  <span className="text-base font-medium text-[#2D3748] hover:text-[#4ECDC4] transition-colors">
-                    {word.word}
-                  </span>
-                  {word.showTranslation && word.translation && (
-                    <p className="text-[#718096] text-sm mt-1 animate-in fade-in slide-in-from-top-1">
-                      {word.translation}
-                    </p>
-                  )}
+                <div
+                  className="flex items-center gap-3 flex-1 cursor-pointer"
+                  onClick={() => handleWordClick(word)}
+                >
+                  <div>
+                    <span className="text-base font-medium text-[#2D3748] hover:text-[#4ECDC4] transition-colors">
+                      {word.word}
+                    </span>
+                    {word.showTranslation && word.translation && (
+                      <p className="text-[#718096] text-sm mt-1 animate-in fade-in slide-in-from-top-1">
+                        {word.translation}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CloudButton
+                    type="button"
+                    variant="ghost"
+                    size="iconRound"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayAudio(word);
+                    }}
+                  >
+                    <Volume2
+                      size={20}
+                      className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+                    />
+                  </CloudButton>
+                  <CloudButton
+                    type="button"
+                    variant={word.status === "correct" ? "brand" : "ghost"}
+                    size="iconRound"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusClick(word.id, "correct");
+                    }}
+                    className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
+                  >
+                    <Check size={20} />
+                  </CloudButton>
+                  <CloudButton
+                    type="button"
+                    variant={word.status === "wrong" ? "destructive" : "ghost"}
+                    size="iconRound"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusClick(word.id, "wrong");
+                    }}
+                  >
+                    <X size={20} />
+                  </CloudButton>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <CloudButton
-                  type="button"
-                  variant="ghost"
-                  size="iconRound"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePlayAudio(word);
-                  }}
-                >
-                  <Volume2
-                    size={20}
-                    className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
-                  />
-                </CloudButton>
-                <CloudButton
-                  type="button"
-                  variant={word.status === "correct" ? "brand" : "ghost"}
-                  size="iconRound"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStatusClick(word.id, "correct");
-                  }}
-                  className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
-                >
-                  <Check size={20} />
-                </CloudButton>
-                <CloudButton
-                  type="button"
-                  variant={word.status === "wrong" ? "destructive" : "ghost"}
-                  size="iconRound"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStatusClick(word.id, "wrong");
-                  }}
-                >
-                  <X size={20} />
-                </CloudButton>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="text-center text-sm text-[#718096] mb-3">
-          正确 <span className="text-[#66BB6A] font-semibold">{correctCount}</span> · 错误{" "}
-          <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
-          {mode === "study" && isRecheckMode && (
-            <span className="block text-xs text-[#A0AEC0] mt-1">错词复检 · 仅显示刚重练的单词</span>
-          )}
-          {mode === "study" && !isRecheckMode && checkPhase === "milestone" && (
-            <span className="block text-xs text-[#A0AEC0] mt-1">
-              组内复习 · 打 × 将回到快闪剪刀重练
-            </span>
-          )}
-          {mode === "study" && checkPhase === "final" && wrongWords.length > 0 && (
-            <span className="block text-xs text-[#A0AEC0] mt-1">
-              训后检测 · 错词需快闪重练后再提交
-            </span>
-          )}
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <CloudButton
+              variant={detailMode ? "brand" : "outline"}
+              size="pill"
+              onClick={() => setDetailMode((v) => !v)}
+            >
+              <BookOpen size={16} />
+              拓展
+            </CloudButton>
+          </div>
+          <div className="text-sm text-[#718096] text-right">
+            正确 <span className="text-[#66BB6A] font-semibold">{correctCount}</span> · 错误{" "}
+            <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
+            {mode === "study" && isRecheckMode && (
+              <span className="block text-xs text-[#A0AEC0] mt-1">错词复检 · 仅显示刚重练的单词</span>
+            )}
+            {mode === "study" && !isRecheckMode && checkPhase === "milestone" && (
+              <span className="block text-xs text-[#A0AEC0] mt-1">
+                组内复习 · 打 × 将回到快闪剪刀重练
+              </span>
+            )}
+            {mode === "study" && checkPhase === "final" && wrongWords.length > 0 && (
+              <span className="block text-xs text-[#A0AEC0] mt-1">
+                训后检测 · 错词需快闪重练后再提交
+              </span>
+            )}
+          </div>
         </div>
         <CloudButton
           type="button"
@@ -525,6 +593,13 @@ export default function PostTrainingCheck() {
           </p>
         )}
       </div>
+
+      <WordDetailDialog
+        wordId={detailWord?.id ?? null}
+        wordText={detailWord?.word}
+        open={!!detailWord}
+        onOpenChange={(open) => { if (!open) setDetailWord(null); }}
+      />
     </FlowPageShell>
   );
 }
