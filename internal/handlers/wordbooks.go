@@ -14,7 +14,6 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // adminWordPayload 管理端创建/批量导入单词时的可写字段（不含学习进度类字段）
@@ -136,17 +135,50 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 			admin.POST("/:id/words/batch", h.adminBatchCreateWords)
 		}
 	}
+
+	// 单词详情（按 word ID 查询完整词典数据）
+	words := r.Group("words")
+	words.Use(models.AuthRequired)
+	{
+		words.GET("/:id", h.handleGetWordDetail)
+	}
 }
 
 func (h *Handlers) handleListWordBooks(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	level := c.Query("level")
-	books, _, err := models.ListWordBooks(db, level, true, 1, 1000)
+	keyword := strings.TrimSpace(c.Query("keyword"))
+	category := c.Query("category")
+	group := c.Query("group")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	books, total, err := models.ListWordBooksWithSearch(db, keyword, level, category, group, true, page, pageSize)
 	if err != nil {
 		response.Fail(c, "获取词库列表失败", err)
 		return
 	}
-	response.Success(c, "success", books)
+
+	// 预计算总词汇量（所有上架词库的 word_count 之和），使用冗余字段避免 COUNT(*)
+	var totalWords int64
+	db.Table("word_books").
+		Where("is_deleted = 0 AND is_active = 1").
+		Select("COALESCE(SUM(word_count), 0)").Scan(&totalWords)
+
+	response.Success(c, "success", gin.H{
+		"list":        books,
+		"total":       total,
+		"page":        page,
+		"pageSize":    pageSize,
+		"totalWords":  totalWords,
+		"groups":      models.GroupNames(),
+	})
 }
 
 func (h *Handlers) handleGetWordBook(c *gin.Context) {
@@ -158,6 +190,22 @@ func (h *Handlers) handleGetWordBook(c *gin.Context) {
 		return
 	}
 	response.Success(c, "success", book)
+}
+
+// handleGetWordDetail GET /words/:id — 返回单个单词的完整词典数据
+func (h *Handlers) handleGetWordDetail(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	id, _ := strconv.Atoi(c.Param("id"))
+	if id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "单词 ID 无效"})
+		return
+	}
+	var word models.Word
+	if err := db.Where("id = ? AND is_deleted = 0", id).First(&word).Error; err != nil {
+		response.Fail(c, "单词不存在", err)
+		return
+	}
+	response.Success(c, "success", word)
 }
 
 // handleListWordBookWords GET /wordbooks/:id/words?page=&pageSize=&keyword=
@@ -191,7 +239,7 @@ func (h *Handlers) handleListWordBookWords(c *gin.Context) {
 		}
 	}
 	keyword := strings.TrimSpace(c.Query("keyword"))
-	words, total, err := models.ListWords(db, uint(id), keyword, page, pageSize)
+	words, total, err := models.ListWordsLite(db, uint(id), keyword, page, pageSize)
 	if err != nil {
 		response.Fail(c, "查询失败", err)
 		return
@@ -227,31 +275,9 @@ func (h *Handlers) handleSelectWordBook(c *gin.Context) {
 		return
 	}
 
-	if !uwb.ScreenCompleted && uwb.ScreenProgress == 0 {
-		var wordIDs []uint
-		if err := db.Model(&models.Word{}).Where("word_book_id = ?", id).Order("sort_order ASC, id ASC").Pluck("id", &wordIDs).Error; err != nil {
-			response.Fail(c, "初始化失败", err)
-			return
-		}
-		states := make([]models.UserWordState, 0, len(wordIDs))
-		for _, wid := range wordIDs {
-			states = append(states, models.UserWordState{
-				UserID:       user.ID,
-				WordID:       wid,
-				WordBookID:   uint(id),
-				ScreenResult: "unknown",
-				ScreenAt:     &now,
-				LearnStatus:  "pending",
-			})
-		}
-		if len(states) > 0 {
-			_ = db.Where("user_id = ? AND word_book_id = ?", user.ID, id).Delete(&models.UserWordState{}).Error
-			if err := db.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "user_id"}, {Name: "word_id"}}, DoNothing: true}).CreateInBatches(states, 200).Error; err != nil {
-				response.Fail(c, "初始化失败", err)
-				return
-			}
-		}
-	}
+	// 懒初始化：不再为词库每个单词批量创建 UserWordState（大词库几千条 INSERT 很慢）
+	// 筛词时按需创建状态记录，学习时也按需创建
+	// ScreenProgress=0 表示从头开始筛词，不需要预创建任何状态
 
 	response.Success(c, "success", uwb)
 }
@@ -271,8 +297,8 @@ func (h *Handlers) handleGetWordBookProgress(c *gin.Context) {
 		return
 	}
 
-	var totalWords int64
-	_ = db.Model(&models.Word{}).Where("word_book_id = ?", id).Count(&totalWords).Error
+	// 使用 word_books.word_count 冗余字段，避免对 words 表 COUNT(*)
+	totalWords, _ := models.GetWordCountByBookID(db, uint(id))
 
 	var unknownCount int64
 	_ = db.Model(&models.UserWordState{}).
@@ -313,10 +339,13 @@ func (h *Handlers) handleScreenNext(c *gin.Context) {
 		return
 	}
 
+	// 游标分页：用 ScreenProgress 作为已筛数量，通过 LIMIT + OFFSET 1 获取下一条
+	// 对于大词库，这里仍用 Offset 但只取 1 条，MySQL 会利用索引快速定位
 	var word models.Word
-	err := db.Where("word_book_id = ?", id).
+	err := db.Where("word_book_id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).
 		Order("sort_order ASC, id ASC").
 		Offset(uwb.ScreenProgress).
+		Limit(1).
 		First(&word).Error
 	if err != nil {
 		_ = db.Model(&uwb).Updates(map[string]any{"screen_completed": true}).Error
@@ -324,8 +353,8 @@ func (h *Handlers) handleScreenNext(c *gin.Context) {
 		return
 	}
 
-	var totalWords int64
-	_ = db.Model(&models.Word{}).Where("word_book_id = ?", id).Count(&totalWords).Error
+	// 使用 word_books.word_count 冗余字段
+	totalWords, _ := models.GetWordCountByBookID(db, uint(id))
 
 	response.Success(c, "success", gin.H{
 		"word":      word,
@@ -354,6 +383,7 @@ func (h *Handlers) handleScreenSubmit(c *gin.Context) {
 	}
 
 	now := time.Now().UTC()
+	// 懒创建：筛词时按需创建/更新 UserWordState（不再依赖预创建的批量记录）
 	state := models.UserWordState{
 		UserID:       user.ID,
 		WordID:       body.WordID,
@@ -376,8 +406,8 @@ func (h *Handlers) handleScreenSubmit(c *gin.Context) {
 	}
 	newProgress := uwb.ScreenProgress + 1
 
-	var totalWords int64
-	_ = db.Model(&models.Word{}).Where("word_book_id = ?", id).Count(&totalWords).Error
+	// 使用 word_books.word_count 冗余字段
+	totalWords, _ := models.GetWordCountByBookID(db, uint(id))
 	screenCompleted := int64(newProgress) >= totalWords
 
 	_ = db.Model(&uwb).Updates(map[string]any{"screen_progress": newProgress, "screen_completed": screenCompleted}).Error
@@ -424,8 +454,8 @@ func (h *Handlers) handleScreenStatus(c *gin.Context) {
 	_ = db.Model(&models.UserWordState{}).
 		Where("user_id = ? AND word_book_id = ? AND screen_result = ?", user.ID, id, "known").
 		Count(&knownCount).Error
-	var totalWords int64
-	_ = db.Model(&models.Word{}).Where("word_book_id = ?", id).Count(&totalWords).Error
+	// 使用 word_books.word_count 冗余字段
+	totalWords, _ := models.GetWordCountByBookID(db, uint(id))
 
 	response.Success(c, "success", gin.H{
 		"screened":         uwb.ScreenProgress,

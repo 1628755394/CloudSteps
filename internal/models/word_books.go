@@ -1,10 +1,32 @@
 package models
 
 import (
+	"fmt"
+	"strings"
 	"time"
+
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+// WordLite 单词轻量结构（学习/列表场景只需少量字段，避免 SELECT * 40+ 列）
+type WordLite struct {
+	ID            uint   `json:"id"`
+	WordBookID    uint   `json:"wordBookId"`
+	Word          string `json:"word"`
+	Phonetic      string `json:"phonetic"`
+	PhoneticUK    string `json:"phoneticUk"`
+	PhoneticUS    string `json:"phoneticUs"`
+	Translation   string `json:"translation"`
+	PartOfSpeech  string `json:"partOfSpeech"`
+	Definition    string `json:"definition"`
+	AudioURL      string `json:"audioUrl"`
+	SortOrder     int    `json:"sortOrder"`
+}
+
+// TableName 让 GORM 知道映射到 words 表
+func (WordLite) TableName() string { return constants.TABLE_WORDS }
 
 // WordBook 词库
 type WordBook struct {
@@ -41,14 +63,14 @@ func (WordBook) TableName() string { return constants.TABLE_WORD_BOOKS }
 // Word 单词
 type Word struct {
 	BaseModel
-	WordBookID      uint   `json:"wordBookId" gorm:"index;not null;comment:所属词库ID"`
+	WordBookID      uint   `json:"wordBookId" gorm:"index;index:idx_wordbook_sort;not null;comment:所属词库ID"`
 	Word            string `json:"word" gorm:"size:128;not null;index;comment:英文单词"`
 	Phonetic        string `json:"phonetic" gorm:"size:128;comment:音标"`
 	Translation     string `json:"translation" gorm:"type:text;comment:中文释义 JSON数组"`
 	ExampleSentence string `json:"exampleSentence" gorm:"type:text;comment:例句"`
 	AudioURL        string `json:"audioUrl" gorm:"size:512;comment:发音音频URL"`
 	Difficulty      int8   `json:"difficulty" gorm:"default:1;comment:难度 1-5"`
-	SortOrder       int    `json:"sortOrder" gorm:"default:0;comment:词库内排序"`
+	SortOrder       int    `json:"sortOrder" gorm:"default:0;index:idx_wordbook_sort;comment:词库内排序"`
 	
 	// 新增字段
 	PartOfSpeech     string     `json:"partOfSpeech" gorm:"size:50;comment:词性 (noun/verb/adjective等)"`
@@ -465,4 +487,195 @@ func WordExists(db *gorm.DB, wordBookID uint, word string) (bool, error) {
 		Where("word_book_id = ? AND is_deleted = ? AND LOWER(word) = LOWER(?)", wordBookID, SoftDeleteStatusActive, word).
 		Count(&cnt).Error
 	return cnt > 0, err
+}
+
+// ==================== 性能优化查询 ====================
+
+// ListWordBooksWithSearch 分页+关键词搜索词库列表（替代 ListWordBooks 的全量加载）
+func ListWordBooksWithSearch(db *gorm.DB, keyword, level, category, group string, onlyActive bool, page, size int) ([]WordBook, int64, error) {
+	q := db.Model(&WordBook{}).Where("is_deleted = ?", SoftDeleteStatusActive)
+	if onlyActive {
+		q = q.Where("is_active = ?", true)
+	}
+	if keyword != "" {
+		q = q.Where("name LIKE ?", "%"+keyword+"%")
+	}
+	if level != "" {
+		q = q.Where("level = ?", level)
+	}
+	if category != "" {
+		q = q.Where("category = ?", category)
+	}
+	if group != "" {
+		patterns := GroupPatterns(group)
+		if len(patterns) > 0 {
+			orClauses := make([]string, len(patterns))
+			args := make([]interface{}, len(patterns))
+			for i, p := range patterns {
+				orClauses[i] = "name LIKE ?"
+				args[i] = "%" + p + "%"
+			}
+			q = q.Where(strings.Join(orClauses, " OR "), args...)
+		}
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var books []WordBook
+	if err := q.Order("sort_order ASC, id ASC").
+		Offset((page - 1) * size).Limit(size).
+		Find(&books).Error; err != nil {
+		return nil, 0, err
+	}
+	return books, total, nil
+}
+
+// GroupPatterns 返回词库分组对应的名称关键词
+func GroupPatterns(group string) []string {
+	switch group {
+	case "primary":
+		return []string{"小学", "一年级", "二年级", "三年级", "四年级", "五年级", "六年级"}
+	case "middle":
+		return []string{"初中", "中考", "七年级", "八年级", "九年级"}
+	case "high":
+		return []string{"高中", "高考", "必修", "选修"}
+	case "cet4":
+		return []string{"四级", "CET4", "CET-4", "4级"}
+	case "cet6":
+		return []string{"六级", "CET6", "CET-6", "6级"}
+	case "kaoyan":
+		return []string{"考研"}
+	case "abroad":
+		return []string{"托福", "toefl", "雅思", "ielts", "GRE", "SAT"}
+	case "tem":
+		return []string{"专四", "专八", "TEM4", "TEM8"}
+	case "textbook":
+		return []string{"人教", "外研", "北师大", "广州版", "天津", "新思维", "新蕾", "新概念", "NCE", "朗文", "Longman", "牛津", "Oxford", "剑桥", "Cambridge"}
+	default:
+		return nil
+	}
+}
+
+// GroupNames 返回分组名称列表（有序）
+func GroupNames() []map[string]string {
+	return []map[string]string{
+		{"key": "", "label": "全部"},
+		{"key": "primary", "label": "小学"},
+		{"key": "middle", "label": "初中"},
+		{"key": "high", "label": "高中"},
+		{"key": "cet4", "label": "大学四级"},
+		{"key": "cet6", "label": "大学六级"},
+		{"key": "kaoyan", "label": "考研"},
+		{"key": "abroad", "label": "留学考试"},
+		{"key": "tem", "label": "专四专八"},
+		{"key": "textbook", "label": "教材"},
+	}
+}
+
+// ListWordsLite 轻量分页查单词（只 SELECT 学习所需字段，不加载 40+ 列）
+func ListWordsLite(db *gorm.DB, wordBookID uint, keyword string, page, size int) ([]WordLite, int64, error) {
+	q := db.Model(&WordLite{}).Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive)
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		q = q.Where("word LIKE ? OR translation LIKE ? OR part_of_speech LIKE ?", like, like, like)
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var words []WordLite
+	if err := q.Order("sort_order ASC, id ASC").
+		Offset((page - 1) * size).Limit(size).
+		Find(&words).Error; err != nil {
+		return nil, 0, err
+	}
+	return words, total, nil
+}
+
+// GetWordLiteByID 轻量查询单个单词
+func GetWordLiteByID(db *gorm.DB, id uint) (*WordLite, error) {
+	var word WordLite
+	if err := db.Where("is_deleted = ?", SoftDeleteStatusActive).First(&word, id).Error; err != nil {
+		return nil, err
+	}
+	return &word, nil
+}
+
+// GetWordsLiteByIDs 批量轻量查询
+func GetWordsLiteByIDs(db *gorm.DB, ids []uint) ([]WordLite, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var words []WordLite
+	if err := db.Where("id IN ? AND is_deleted = ?", ids, SoftDeleteStatusActive).
+		Order("sort_order ASC, id ASC").Find(&words).Error; err != nil {
+		return nil, err
+	}
+	return words, nil
+}
+
+// GetNextWordAfterCursor 游标分页：获取 sort_order/id 大于 cursor 的下一个单词（筛词用）
+// 替代 Offset(screenProgress)，避免大偏移量性能下降
+func GetNextWordAfterCursor(db *gorm.DB, wordBookID uint, afterSortOrder int, afterID uint) (*Word, error) {
+	var word Word
+	q := db.Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive)
+	if afterID > 0 {
+		q = q.Where("(sort_order > ? OR (sort_order = ? AND id > ?))", afterSortOrder, afterSortOrder, afterID)
+	}
+	if err := q.Order("sort_order ASC, id ASC").First(&word).Error; err != nil {
+		return nil, err
+	}
+	return &word, nil
+}
+
+// GetWordCountByBookID 获取词库单词数（使用 word_count 冗余字段，避免 COUNT(*)）
+func GetWordCountByBookID(db *gorm.DB, wordBookID uint) (int64, error) {
+	var book WordBook
+	if err := db.Select("word_count").First(&book, wordBookID).Error; err != nil {
+		return 0, err
+	}
+	return int64(book.WordCount), nil
+}
+
+// ListStudyWordsLite 学习列表轻量查询：用 NOT EXISTS 排除已学单词。
+// shuffle=true 时按 seed 稳定乱序（同 seed 翻页顺序一致；换 seed 即重新乱序）。
+func ListStudyWordsLite(db *gorm.DB, wordBookID uint, userID uint, page, size int, shuffle bool, seed int64) ([]WordLite, int64, error) {
+	baseWhere := "word_book_id = ? AND is_deleted = ? AND NOT EXISTS (SELECT 1 FROM user_word_states WHERE user_id = ? AND word_id = words.id AND learn_status IN ('learned','mastered'))"
+
+	var total int64
+	if err := db.Model(&WordLite{}).Where(baseWhere, wordBookID, SoftDeleteStatusActive, userID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	orderExpr := "sort_order ASC, id ASC"
+	if shuffle {
+		if seed == 0 {
+			seed = time.Now().UnixNano()
+		}
+		// 用 MD5(id+seed) 做确定性乱序，避免 RAND() 翻页重复/漏词
+		orderExpr = fmt.Sprintf("MD5(CONCAT(id, '-', %d)) ASC, id ASC", seed)
+	}
+
+	var words []WordLite
+	q := db.Model(&WordLite{}).Where(baseWhere, wordBookID, SoftDeleteStatusActive, userID)
+	if shuffle {
+		q = q.Order(clause.Expr{SQL: orderExpr})
+	} else {
+		q = q.Order(orderExpr)
+	}
+	if err := q.Offset((page - 1) * size).Limit(size).Find(&words).Error; err != nil {
+		return nil, 0, err
+	}
+	return words, total, nil
+}
+
+// GetWordIDsByBookID 获取词库全部单词 ID（用于选词库时的懒初始化，只 Pluck ID 不创建状态）
+func GetWordIDsByBookID(db *gorm.DB, wordBookID uint) ([]uint, error) {
+	var ids []uint
+	if err := db.Model(&Word{}).Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive).
+		Order("sort_order ASC, id ASC").Pluck("id", &ids).Error; err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
