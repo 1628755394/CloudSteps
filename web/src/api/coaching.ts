@@ -210,15 +210,3 @@ export const getTeacherCoachingCompleted = async (params?: {
     { params }
   )
 }
-
-export type CoachingTimeStats = {
-  todayMinutes: number    // 今日陪练时长（分钟）
-  totalMinutes: number    // 累积陪练时长（分钟）
-  todaySessions: number   // 今日陪练次数
-  totalSessions: number   // 累积陪练次数
-}
-
-/** 获取用户陪练时长统计（老师或学生通用） */
-export const getCoachingTimeStats = async (): Promise<ApiResponse<CoachingTimeStats>> => {
-  return get<CoachingTimeStats>('/coaching/time-stats')
-}

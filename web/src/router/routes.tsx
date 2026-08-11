@@ -3,6 +3,7 @@ import { Layout } from "../components/Layout";
 import Home from "../pages/Home";
 import AntiForgetting from "../pages/AntiForgetting";
 import CoachCenter from "../pages/CoachCenter";
+import CoachCompletedSessions from "../pages/CoachCompletedSessions";
 import VocabularyTest from "../pages/VocabularyTest";
 import VocabularyTestTesting from "../pages/VocabularyTestTesting";
 import VocabularyTestResult from "../pages/VocabularyTestResult";
@@ -13,6 +14,10 @@ import MaterialSelection from "../pages/MaterialSelection";
 import ReadingComprehension from "../pages/ReadingComprehension";
 import ClozePractice from "../pages/ClozePractice";
 import GrammarAnalysis from "../pages/GrammarAnalysis";
+import ScenarioSelection from "../pages/ScenarioSelection";
+import ScenarioHistory from "../pages/ScenarioHistory";
+import ScenarioDialogue from "../pages/ScenarioDialogue";
+import ScenarioReview from "../pages/ScenarioReview";
 import WordTraining from "../pages/WordTraining";
 import PreTrainingCheck from "../pages/PreTrainingCheck";
 import ReviewCheck from "../pages/ReviewCheck";
@@ -37,6 +42,8 @@ import StudentTrainingRecords from "../pages/StudentTrainingRecords";
 import WordBooks from "../pages/WordBooks";
 import WordBookWords from "../pages/WordBookWords";
 import LighthouseWords from "../pages/LighthouseWords";
+import TrainingRecords from "../pages/TrainingRecords";
+import LessonPrep from "../pages/LessonPrep";
 
 export const router = createBrowserRouter([
   {
@@ -65,11 +72,21 @@ export const router = createBrowserRouter([
           </RequireRole>
         ),
       },
+      { path: "lesson-prep", element: <LessonPrep /> },
       { path: "word-books", element: <WordBooks /> },
       { path: "word-books/:id", element: <WordBookWords /> },
       { path: "lighthouse-words", element: <LighthouseWords /> },
+      { path: "training-records", element: <TrainingRecords /> },
       { path: "anti-forgetting", element: <AntiForgetting /> },
       { path: "coach-center", element: <CoachCenter /> },
+      {
+        path: "coach-center/completed",
+        element: (
+          <RequireRole roles={["user", "teacher", "admin"]}>
+            <CoachCompletedSessions />
+          </RequireRole>
+        ),
+      },
       { path: "profile/edit", element: <ProfileEdit /> },
       { path: "notifications", element: <Notifications /> },
     ],
@@ -191,6 +208,38 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <GrammarAnalysis />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/scenario-dialogues",
+    element: (
+      <RequireAuth>
+        <ScenarioSelection />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/scenario-dialogues/history",
+    element: (
+      <RequireAuth>
+        <ScenarioHistory />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/scenario-dialogue",
+    element: (
+      <RequireAuth>
+        <ScenarioDialogue />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/scenario-review/:sessionId",
+    element: (
+      <RequireAuth>
+        <ScenarioReview />
       </RequireAuth>
     ),
   },

@@ -12,6 +12,8 @@ export interface StudyWordsResponse {
   page: number
   pageSize: number
   words: StudyWordItem[]
+  shuffle?: boolean
+  seed?: number
 }
 
 export interface LighthouseDay {
@@ -45,12 +47,18 @@ export interface CompleteSessionResult {
 }
 
 export const getStudyWords = async (
-  wordBookId: number, 
-  page: number = 1, 
-  pageSize: number = 20
+  wordBookId: number,
+  page: number = 1,
+  pageSize: number = 20,
+  opts?: { shuffle?: boolean; seed?: number }
 ): Promise<ApiResponse<StudyWordsResponse>> => {
-  return get<StudyWordsResponse>('/study/words', { 
-    params: { wordBookId, page, pageSize } 
+  return get<StudyWordsResponse>('/study/words', {
+    params: {
+      wordBookId,
+      page,
+      pageSize,
+      ...(opts?.shuffle ? { shuffle: 1, seed: opts.seed ?? 0 } : {}),
+    },
   })
 }
 
@@ -85,5 +93,56 @@ export const completeStudySession = async (
   results: CompleteSessionResult[]
 ): Promise<ApiResponse<null>> => {
   return post<null>(`/study/session/${sessionId}/complete`, { results })
+}
+
+export interface StudySessionListItem {
+  id: number
+  sessionType: string
+  status: string
+  startedAt: string
+  completedAt?: string | null
+  wordCount: number
+  correctCount: number
+  wordBookId?: number
+  wordBookName?: string
+}
+
+export interface StudySessionsListResponse {
+  list: StudySessionListItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/** 列出当前用户的学习/复习会话记录 */
+export const listStudySessions = async (params?: {
+  page?: number
+  pageSize?: number
+  sessionType?: string
+}): Promise<ApiResponse<StudySessionsListResponse>> => {
+  return get<StudySessionsListResponse>('/study/sessions', { params })
+}
+
+export interface StudySessionDTO {
+  id: number
+  userId: number
+  wordBookId: number
+  sessionType: string
+  status: string
+  startedAt: string
+  completedAt?: string | null
+  wordCount: number
+  correctCount: number
+}
+
+export interface StudySessionDetail {
+  session: StudySessionDTO
+  words: StudyWordItem[]
+}
+
+export const getStudySessionDetail = async (
+  sessionId: number
+): Promise<ApiResponse<StudySessionDetail>> => {
+  return get<StudySessionDetail>(`/study/session/${sessionId}`)
 }
 

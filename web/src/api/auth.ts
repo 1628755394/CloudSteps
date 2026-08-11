@@ -265,6 +265,13 @@ export const updateCurrentUser = async (data: UpdateUserRequest): Promise<ApiRes
   return put<User>('/auth/update', data)
 }
 
+/** 上传头像到对象存储，返回头像 URL */
+export const uploadAvatar = async (file: File): Promise<ApiResponse<{ avatar: string }>> => {
+  const formData = new FormData()
+  formData.append('avatar', file)
+  return post<{ avatar: string }>('/auth/avatar/upload', formData)
+}
+
 // 修改密码
 export const changePassword = async (data: ChangePasswordRequest): Promise<ApiResponse<{ logout?: boolean }>> => {
   return post<{ logout?: boolean }>('/auth/change-password', data)
