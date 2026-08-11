@@ -26,6 +26,7 @@ func (h *Handlers) registerLearningRoutes(r *gin.RouterGroup) {
 		study.GET("/words", h.handleStudyWords)
 		study.GET("/lighthouse", h.handleStudyLighthouse)
 		study.GET("/lighthouse/words", h.handleStudyLighthouseWords)
+		study.GET("/sessions", h.handleStudySessionsList)
 		study.POST("/session/start", h.handleStudySessionStart)
 		study.POST("/session/:id/complete", h.handleStudySessionComplete)
 		study.GET("/session/:id", h.handleStudySessionGet)
@@ -157,7 +158,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 		order[it.WordID] = i
 	}
 
-	var words []models.Word
+	var words []models.WordLite
 	if len(wordIDs) > 0 {
 		if err := db.Where("id IN ?", wordIDs).Find(&words).Error; err != nil {
 			response.Fail(c, "查询单词失败", err)
@@ -166,8 +167,8 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 	}
 
 	// preserve queue order
-	sorted := make([]models.Word, 0, len(words))
-	tmp := make([]*models.Word, len(items))
+	sorted := make([]models.WordLite, 0, len(words))
+	tmp := make([]*models.WordLite, len(items))
 	for i := range words {
 		w := words[i]
 		idx, ok := order[w.ID]

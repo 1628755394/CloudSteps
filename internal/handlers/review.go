@@ -25,6 +25,10 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 
 	now := time.Now().UTC()
 	wordBookID, _ := strconv.Atoi(c.Query("wordBookId"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
 
 	q := db.Model(&models.ReviewQueue{}).
 		Where("user_id = ? AND status = ? AND due_at <= ?", user.ID, "pending", now)
@@ -33,7 +37,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 	}
 
 	var items []models.ReviewQueue
-	if err := q.Order("due_at ASC, id ASC").Find(&items).Error; err != nil {
+	if err := q.Order("due_at ASC, id ASC").Limit(limit).Find(&items).Error; err != nil {
 		response.Fail(c, "查询失败", err)
 		return
 	}
@@ -45,14 +49,14 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 		order[it.WordID] = i
 	}
 
-	var words []models.Word
+	var words []models.WordLite
 	if len(wordIDs) > 0 {
 		_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 	}
 
 	// preserve queue order
-	sorted := make([]models.Word, 0, len(words))
-	tmp := make([]*models.Word, len(items))
+	sorted := make([]models.WordLite, 0, len(words))
+	tmp := make([]*models.WordLite, len(items))
 	for i := range words {
 		w := words[i]
 		idx, ok := order[w.ID]
@@ -312,7 +316,7 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 		return
 	}
 
-	var words []models.Word
+	var words []models.WordLite
 	_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 
 	session = models.StudySession{
@@ -367,17 +371,28 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 	now := time.Now().UTC()
 	correct := 0
 
-	// write session_words and reuse queue logic (S1)
+	// 批量更新 session_words（替代逐行循环 UPDATE）
+	rememberedIDs := make([]uint, 0, len(body.Results))
+	forgotIDs := make([]uint, 0, len(body.Results))
 	for _, r := range body.Results {
-		remembered := r.Remembered
-		answeredAt := now
-		_ = db.Model(&models.SessionWord{}).
-			Where("session_id = ? AND word_id = ?", sessionID, r.WordID).
-			Updates(map[string]any{"remembered": &remembered, "answered_at": &answeredAt}).Error
-
-		if remembered {
+		if r.Remembered {
+			rememberedIDs = append(rememberedIDs, r.WordID)
 			correct++
+		} else {
+			forgotIDs = append(forgotIDs, r.WordID)
 		}
+	}
+	t := true
+	if len(rememberedIDs) > 0 {
+		_ = db.Model(&models.SessionWord{}).
+			Where("session_id = ? AND word_id IN ?", sessionID, rememberedIDs).
+			Updates(map[string]any{"remembered": &t, "answered_at": &now}).Error
+	}
+	f := false
+	if len(forgotIDs) > 0 {
+		_ = db.Model(&models.SessionWord{}).
+			Where("session_id = ? AND word_id IN ?", sessionID, forgotIDs).
+			Updates(map[string]any{"remembered": &f, "answered_at": &now}).Error
 	}
 
 	// Use existing /review/submit logic for queue+state update
@@ -510,7 +525,7 @@ func (h *Handlers) handleReviewSessionGet(c *gin.Context) {
 	for _, sw := range sessionWords {
 		wordIDs = append(wordIDs, sw.WordID)
 	}
-	var words []models.Word
+	var words []models.WordLite
 	if len(wordIDs) > 0 {
 		_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 	}

@@ -8,9 +8,9 @@ import (
 
 type StudySession struct {
 	BaseModel
-	UserID       uint       `json:"userId" gorm:"index;not null"`
+	UserID       uint       `json:"userId" gorm:"index;index:idx_user_type_created;not null"`
 	WordBookID   uint       `json:"wordBookId" gorm:"index"`
-	SessionType  string     `json:"sessionType" gorm:"size:20;not null"`
+	SessionType  string     `json:"sessionType" gorm:"size:20;not null;index:idx_user_type_created"`
 	Status       string     `json:"status" gorm:"size:20;default:'in_progress';index"`
 	StartedAt    time.Time  `json:"startedAt"`
 	CompletedAt  *time.Time `json:"completedAt"`

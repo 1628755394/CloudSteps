@@ -9,6 +9,9 @@ const (
 	DEVICE_ERROR_LOG_TABLE_NAME = "device_error_logs"
 )
 
+// DefaultUploadDir 本地存储默认上传目录
+const DefaultUploadDir = "./data/uploads"
+
 // Default Value: 1024
 const ENV_CONFIG_CACHE_SIZE = "CONFIG_CACHE_SIZE"
 

@@ -4,15 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/response"
+	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -38,6 +42,7 @@ func (h *Handlers) registerVocabTestRoutes(r *gin.RouterGroup) {
 		admin.PUT("/questions/:id", h.handleUpdateQuestion)
 		admin.DELETE("/questions/:id", h.handleDeleteQuestion)
 		admin.POST("/questions/batch", h.handleBatchCreateQuestions)
+		admin.POST("/questions/purge-bad-audio", h.handlePurgeBadAudio)
 	}
 }
 
@@ -252,23 +257,32 @@ func (h *Handlers) handleVocabTestNext(c *gin.Context) {
 	}
 
 	if next.ID == 0 {
-		// 兜底：如果按等级/难度找不到题，再尝试从全题库中随机取一题（避免直接结束）
+		// 兜底：如果按等级/难度找不到题，再尝试从全题库中取一题（避免直接结束）
+		// 用 id 排序 + 随机 offset 替代 ORDER BY RAND()（避免全表扫描）
 		fallbackQ := db.Model(&models.VocabTestQuestion{})
 		if len(body.AnsweredIDs) > 0 {
 			fallbackQ = fallbackQ.Where("id NOT IN ?", body.AnsweredIDs)
 		}
-		if err := fallbackQ.Order(gorm.Expr("RAND()")).First(&next).Error; err == nil && next.ID > 0 {
-			currentLevel = strings.TrimSpace(next.Level)
-			if currentLevel == "" {
-				currentLevel = "A1"
+		var fallbackCount int64
+		fallbackQ.Count(&fallbackCount)
+		if fallbackCount > 0 {
+			randomOffset := int(fallbackCount) // 简单取最后一个，避免 RAND() 全表扫描
+			if randomOffset > 0 {
+				randomOffset = randomOffset - 1
 			}
-			response.Success(c, "success", gin.H{
-				"question":               next,
-				"currentDifficultyScore": nextScore,
-				"currentLevel":           currentLevel,
-				"finished":               false,
-			})
-			return
+			if err := fallbackQ.Order("id ASC").Offset(randomOffset).First(&next).Error; err == nil && next.ID > 0 {
+				currentLevel = strings.TrimSpace(next.Level)
+				if currentLevel == "" {
+					currentLevel = "A1"
+				}
+				response.Success(c, "success", gin.H{
+					"question":               next,
+					"currentDifficultyScore": nextScore,
+					"currentLevel":           currentLevel,
+					"finished":               false,
+				})
+				return
+			}
 		}
 
 		response.Success(c, "测试完成", gin.H{"finished": true})
@@ -470,11 +484,13 @@ func (h *Handlers) handleCreateQuestion(c *gin.Context) {
 	response.Success(c, "success", q)
 }
 
-// handleListQuestions GET /vocab-test/admin/questions?level=B1&page=1&size=20
+// handleListQuestions GET /vocab/questions?level=B1&page=1&pageSize=20&word=hi&withoutAudio=1
 func (h *Handlers) handleListQuestions(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 
 	level := c.Query("level")
+	word := strings.TrimSpace(c.Query("word"))
+	withoutAudio := c.Query("withoutAudio") == "1" || strings.EqualFold(c.Query("withoutAudio"), "true")
 	page := 1
 	size := 20
 	if p := c.Query("page"); p != "" {
@@ -482,15 +498,29 @@ func (h *Handlers) handleListQuestions(c *gin.Context) {
 			page = 1
 		}
 	}
-	if s := c.Query("size"); s != "" {
-		if _, err := fmt.Sscanf(s, "%d", &size); err != nil || size < 1 || size > 100 {
+	// 兼容 size / pageSize；批量全选场景允许较大 pageSize
+	sizeRaw := c.Query("pageSize")
+	if sizeRaw == "" {
+		sizeRaw = c.Query("size")
+	}
+	if sizeRaw != "" {
+		if _, err := fmt.Sscanf(sizeRaw, "%d", &size); err != nil || size < 1 {
 			size = 20
+		}
+		if size > 2000 {
+			size = 2000
 		}
 	}
 
 	q := db.Model(&models.VocabTestQuestion{})
 	if level != "" {
 		q = q.Where("level = ?", level)
+	}
+	if word != "" {
+		q = q.Where("word LIKE ?", "%"+word+"%")
+	}
+	if withoutAudio {
+		q = q.Where("audio_url IS NULL OR audio_url = ''")
 	}
 
 	var total int64
@@ -504,6 +534,7 @@ func (h *Handlers) handleListQuestions(c *gin.Context) {
 		"total":     total,
 		"page":      page,
 		"size":      size,
+		"pageSize":  size,
 		"questions": questions,
 	})
 }
@@ -547,6 +578,156 @@ func (h *Handlers) handleDeleteQuestion(c *gin.Context) {
 	}
 	invalidateVocabPoolCache()
 	response.Success(c, "success", nil)
+}
+
+// handlePurgeBadAudio POST /vocab/questions/purge-bad-audio
+// 检测题目音频是否可访问；无法返回正常音频的清空 audio_url。
+func (h *Handlers) handlePurgeBadAudio(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+
+	var questions []models.VocabTestQuestion
+	if err := db.Select("id, word, audio_url").
+		Where("audio_url IS NOT NULL AND audio_url <> ''").
+		Find(&questions).Error; err != nil {
+		response.Fail(c, "查询失败", err)
+		return
+	}
+
+	client := &http.Client{Timeout: 8 * time.Second}
+	checked := 0
+	cleared := 0
+	clearedWords := make([]string, 0)
+	for _, q := range questions {
+		checked++
+		if vocabAudioURLUsable(client, q.AudioURL) {
+			continue
+		}
+		if err := db.Model(&models.VocabTestQuestion{}).
+			Where("id = ?", q.ID).
+			Update("audio_url", "").Error; err != nil {
+			continue
+		}
+		cleared++
+		if q.Word != "" {
+			clearedWords = append(clearedWords, q.Word)
+		}
+	}
+	if cleared > 0 {
+		invalidateVocabPoolCache()
+	}
+	response.Success(c, "success", gin.H{
+		"checked":      checked,
+		"cleared":      cleared,
+		"clearedWords": clearedWords,
+	})
+}
+
+// vocabAudioURLUsable 判断音频字段是否至少有一段可正常取回的音频。
+func vocabAudioURLUsable(client *http.Client, raw string) bool {
+	parts := strings.Split(raw, ";")
+	any := false
+	for _, p := range parts {
+		u := strings.TrimSpace(p)
+		if u == "" {
+			continue
+		}
+		any = true
+		if !vocabSingleAudioUsable(client, u) {
+			return false
+		}
+	}
+	return any
+}
+
+func vocabSingleAudioUsable(client *http.Client, raw string) bool {
+	// 本地/对象存储相对路径：优先查 store
+	key := ""
+	switch {
+	case strings.HasPrefix(raw, "/uploads/"):
+		key = strings.TrimPrefix(raw, "/uploads/")
+	case strings.HasPrefix(raw, "uploads/"):
+		key = strings.TrimPrefix(raw, "uploads/")
+	}
+	if key != "" {
+		ok, err := stores.Default().Exists(key)
+		if err == nil && ok {
+			return true
+		}
+		// Exists 失败时再尝试 HTTP（CDN PublicURL）
+		if pub := stores.Default().PublicURL(key); pub != "" && (strings.HasPrefix(pub, "http://") || strings.HasPrefix(pub, "https://")) {
+			return vocabHTTPAudioOK(client, pub)
+		}
+	}
+
+	abs := raw
+	if strings.HasPrefix(raw, "/") {
+		base := ""
+		if config.GlobalConfig != nil {
+			base = strings.TrimRight(config.GlobalConfig.Server.URL, "/")
+		}
+		if base == "" {
+			base = "http://127.0.0.1:7080"
+		}
+		abs = base + raw
+	} else if !strings.HasPrefix(raw, "http://") && !strings.HasPrefix(raw, "https://") {
+		// 裸 key
+		if ok, err := stores.Default().Exists(raw); err == nil && ok {
+			return true
+		}
+		pub := stores.Default().PublicURL(path.Clean(raw))
+		if pub == "" {
+			return false
+		}
+		if strings.HasPrefix(pub, "http://") || strings.HasPrefix(pub, "https://") {
+			abs = pub
+		} else if strings.HasPrefix(pub, "/") {
+			base := "http://127.0.0.1:7080"
+			if config.GlobalConfig != nil && config.GlobalConfig.Server.URL != "" {
+				base = strings.TrimRight(config.GlobalConfig.Server.URL, "/")
+			}
+			abs = base + pub
+		} else {
+			return false
+		}
+	}
+	return vocabHTTPAudioOK(client, abs)
+}
+
+func vocabHTTPAudioOK(client *http.Client, url string) bool {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return false
+	}
+	req.Header.Set("Range", "bytes=0-2047")
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		return false
+	}
+	// 读一点内容，确认不是空壳/错误页
+	buf := make([]byte, 64)
+	n, err := io.ReadFull(resp.Body, buf)
+	if n == 0 && err != nil {
+		return false
+	}
+	ct := strings.ToLower(resp.Header.Get("Content-Type"))
+	if ct != "" {
+		if strings.Contains(ct, "text/html") || strings.Contains(ct, "application/json") {
+			return false
+		}
+		if strings.HasPrefix(ct, "audio/") ||
+			strings.Contains(ct, "octet-stream") ||
+			strings.Contains(ct, "wav") ||
+			strings.Contains(ct, "mpeg") ||
+			strings.Contains(ct, "mp4") {
+			return true
+		}
+	}
+	// 无可靠 Content-Type 时：有实体字节即视为可用（兼容部分 CDN）
+	return n >= 16
 }
 
 // handleBatchCreateQuestions POST /vocab-test/admin/questions/batch
@@ -669,8 +850,18 @@ func pickBalancedRandomQuestions(db *gorm.DB, level string, n int, excludeIDs []
 		if max >= min && max < 1000000 {
 			qq = qq.Where("difficulty_score <= ?", max)
 		}
+		// 用随机 offset 替代 ORDER BY RAND()（避免全表排序）
+		var cnt int64
+		qq.Count(&cnt)
+		if cnt == 0 {
+			return nil, nil
+		}
+		offset := 0
+		if cnt > int64(limit) {
+			offset = int(cnt) - limit
+		}
 		var out []models.VocabTestQuestion
-		if err := qq.Order("RAND()").Limit(limit).Find(&out).Error; err != nil {
+		if err := qq.Order("id ASC").Offset(offset).Limit(limit).Find(&out).Error; err != nil {
 			return nil, err
 		}
 		return out, nil
@@ -696,38 +887,54 @@ func pickBalancedRandomQuestions(db *gorm.DB, level string, n int, excludeIDs []
 	// 不足则用任意难度补齐（仍优先不重复）
 	if len(res) < n {
 		need := n - len(res)
-		var fill []models.VocabTestQuestion
-		if err := baseNoRepeat.Order("RAND()").Limit(need).Find(&fill).Error; err != nil {
-			return nil, err
-		}
-		for _, q := range fill {
-			if len(res) >= n {
-				break
+		var fillCnt int64
+		baseNoRepeat.Count(&fillCnt)
+		if fillCnt > 0 {
+			fillOffset := 0
+			if fillCnt > int64(need) {
+				fillOffset = int(fillCnt) - need
 			}
-			if used[q.ID] {
-				continue
+			var fill []models.VocabTestQuestion
+			if err := baseNoRepeat.Order("id ASC").Offset(fillOffset).Limit(need).Find(&fill).Error; err != nil {
+				return nil, err
 			}
-			used[q.ID] = true
-			res = append(res, q)
+			for _, q := range fill {
+				if len(res) >= n {
+					break
+				}
+				if used[q.ID] {
+					continue
+				}
+				used[q.ID] = true
+				res = append(res, q)
+			}
 		}
 	}
 
 	// 如果因为排除导致仍不足，则允许重复补齐
 	if len(res) < n {
 		need := n - len(res)
-		var fill []models.VocabTestQuestion
-		if err := base.Order("RAND()").Limit(need).Find(&fill).Error; err != nil {
-			return nil, err
-		}
-		for _, q := range fill {
-			if len(res) >= n {
-				break
+		var fillCnt int64
+		base.Count(&fillCnt)
+		if fillCnt > 0 {
+			fillOffset := 0
+			if fillCnt > int64(need) {
+				fillOffset = int(fillCnt) - need
 			}
-			if used[q.ID] {
-				continue
+			var fill []models.VocabTestQuestion
+			if err := base.Order("id ASC").Offset(fillOffset).Limit(need).Find(&fill).Error; err != nil {
+				return nil, err
 			}
-			used[q.ID] = true
-			res = append(res, q)
+			for _, q := range fill {
+				if len(res) >= n {
+					break
+				}
+				if used[q.ID] {
+					continue
+				}
+				used[q.ID] = true
+				res = append(res, q)
+			}
 		}
 	}
 
@@ -814,6 +1021,10 @@ func validateQuestionPayload(q *models.VocabTestQuestion) error {
 
 func validateQuestionUpdate(updates map[string]any) error {
 	// 仅校验与题目质量相关的字段，不做强制白名单（保持现有接口兼容）
+	if v, ok := updates["audioUrl"]; ok {
+		updates["audio_url"] = strings.TrimSpace(fmt.Sprint(v))
+		delete(updates, "audioUrl")
+	}
 	if v, ok := updates["difficultyScore"]; ok {
 		s, ok2 := toInt(v)
 		if !ok2 || s < 1 || s > 20 {

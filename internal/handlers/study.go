@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
@@ -53,74 +54,62 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 		pageSize = 50
 	}
 
-	// 根据 step 查询对应的 word_id 列表
-	var wordIDs []uint
+	// 构建状态过滤条件（不再 Pluck 全量 wordIDs，直接用 JOIN 分页查轻量字段）
+	now := time.Now().UTC()
+	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	endOfToday := startOfToday.Add(24 * time.Hour)
 
+	var stateWhere string
+	var stateArgs []any
 	switch {
 	case step == "today":
-		// 今日新学：本日首次标记为已学的词
-		now := time.Now().UTC()
-		startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-		endOfToday := startOfToday.Add(24 * time.Hour)
-		q := db.Model(&models.UserWordState{}).
-			Where("user_id = ? AND first_learned_at IS NOT NULL AND first_learned_at >= ? AND first_learned_at < ?", user.ID, startOfToday, endOfToday)
-		if wordBookID > 0 {
-			q = q.Where("word_book_id = ?", wordBookID)
-		}
-		_ = q.Pluck("word_id", &wordIDs).Error
-
+		stateWhere = "uws.user_id = ? AND uws.first_learned_at IS NOT NULL AND uws.first_learned_at >= ? AND uws.first_learned_at < ?"
+		stateArgs = []any{user.ID, startOfToday, endOfToday}
 	case step == "pending":
-		// 待学：screen_result=unknown, learn_status=pending
-		q := db.Model(&models.UserWordState{}).
-			Where("user_id = ? AND screen_result = ? AND learn_status = ?", user.ID, "unknown", "pending")
-		if wordBookID > 0 {
-			q = q.Where("word_book_id = ?", wordBookID)
-		}
-		_ = q.Pluck("word_id", &wordIDs).Error
-
+		stateWhere = "uws.user_id = ? AND uws.screen_result = ? AND uws.learn_status = ?"
+		stateArgs = []any{user.ID, "unknown", "pending"}
 	case step == "mastered":
-		// 掌握：learn_status=mastered
-		q := db.Model(&models.UserWordState{}).
-			Where("user_id = ? AND learn_status = ?", user.ID, "mastered")
-		if wordBookID > 0 {
-			q = q.Where("word_book_id = ?", wordBookID)
-		}
-		_ = q.Pluck("word_id", &wordIDs).Error
-
+		stateWhere = "uws.user_id = ? AND uws.learn_status = ?"
+		stateArgs = []any{user.ID, "mastered"}
 	default:
-		// 步骤 01-07：对应 review_stage 0-6，learn_status IN (learning, learned, mastered)
 		stage, err := strconv.Atoi(step)
 		if err != nil || stage < 1 || stage > 7 {
 			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "step 参数无效，应为 today、01-07、pending 或 mastered"})
 			return
 		}
-		q := db.Model(&models.UserWordState{}).
-			Where("user_id = ? AND learn_status IN ? AND review_stage = ?", user.ID, []string{"learning", "learned", "mastered"}, stage-1)
-		if wordBookID > 0 {
-			q = q.Where("word_book_id = ?", wordBookID)
-		}
-		_ = q.Pluck("word_id", &wordIDs).Error
+		stateWhere = "uws.user_id = ? AND uws.learn_status IN ? AND uws.review_stage = ?"
+		stateArgs = []any{user.ID, []string{"learning", "learned", "mastered"}, stage - 1}
+	}
+	if wordBookID > 0 {
+		stateWhere += " AND uws.word_book_id = ?"
+		stateArgs = append(stateArgs, uint(wordBookID))
 	}
 
-	var total int64 = int64(len(wordIDs))
+	// 先 COUNT 总数
+	var total int64
+	countSQL := "SELECT COUNT(*) FROM user_word_states uws WHERE " + stateWhere
+	_ = db.Raw(countSQL, stateArgs...).Scan(&total).Error
 	if total == 0 {
-		response.Success(c, "success", gin.H{"words": []models.Word{}, "total": 0})
+		response.Success(c, "success", gin.H{"words": []models.WordLite{}, "total": 0})
 		return
 	}
 
-	// 分页截取 wordIDs
+	// JOIN words 表分页查轻量字段（避免 Pluck 全量 ID + 二次查询）
 	offset := (page - 1) * pageSize
-	end := offset + pageSize
-	if offset > len(wordIDs) {
-		offset = len(wordIDs)
-	}
-	if end > len(wordIDs) {
-		end = len(wordIDs)
-	}
-	pageIDs := wordIDs[offset:end]
+	dataSQL := `SELECT w.id, w.word_book_id, w.word, w.phonetic, w.phonetic_uk, w.phonetic_us,
+		w.translation, w.part_of_speech, w.definition, w.audio_url, w.sort_order
+		FROM user_word_states uws
+		JOIN words w ON w.id = uws.word_id AND w.is_deleted = 0
+		WHERE ` + stateWhere + `
+		ORDER BY w.sort_order ASC, w.id ASC
+		LIMIT ? OFFSET ?`
+	dataArgs := append(append(stateArgs, pageSize), offset)
 
-	var words []models.Word
-	_ = db.Where("id IN ?", pageIDs).Order("sort_order ASC, id ASC").Find(&words).Error
+	var words []models.WordLite
+	if err := db.Raw(dataSQL, dataArgs...).Scan(&words).Error; err != nil {
+		response.Fail(c, "查询失败", err)
+		return
+	}
 
 	response.Success(c, "success", gin.H{
 		"words": words,
@@ -135,14 +124,17 @@ func pad2(n int) string {
 	return strconv.Itoa(n)
 }
 
-// handleStudyWords GET /study/words?wordBookId=N&page=1&pageSize=20
+// handleStudyWords GET /study/words?wordBookId=N&page=1&pageSize=20&shuffle=0&seed=0
 func (h *Handlers) handleStudyWords(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	user := models.CurrentUser(c)
 	wordBookID, _ := strconv.Atoi(c.Query("wordBookId"))
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	
+	shuffleQ := strings.ToLower(strings.TrimSpace(c.DefaultQuery("shuffle", "0")))
+	shuffle := shuffleQ == "1" || shuffleQ == "true" || shuffleQ == "yes"
+	seed, _ := strconv.ParseInt(c.DefaultQuery("seed", "0"), 10, 64)
+
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
 		return
@@ -151,7 +143,7 @@ func (h *Handlers) handleStudyWords(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "wordBookId 必填"})
 		return
 	}
-	
+
 	// 确保分页参数合理
 	if page < 1 {
 		page = 1
@@ -159,34 +151,22 @@ func (h *Handlers) handleStudyWords(c *gin.Context) {
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
-
-	var processedIDs []uint
-	_ = db.Model(&models.UserWordState{}).
-		Where("user_id = ? AND word_book_id = ? AND learn_status IN ?", user.ID, wordBookID, []string{"learned", "mastered"}).
-		Pluck("word_id", &processedIDs).Error
-
-	// 先获取总数
-	var total int64
-	countQuery := db.Model(&models.Word{}).Where("word_book_id = ?", wordBookID)
-	if len(processedIDs) > 0 {
-		countQuery = countQuery.Where("id NOT IN ?", processedIDs)
-	}
-	countQuery.Count(&total)
-
-	// 分页查询
-	q := db.Model(&models.Word{}).Where("word_book_id = ?", wordBookID).Order("sort_order ASC, id ASC")
-	if len(processedIDs) > 0 {
-		q = q.Where("id NOT IN ?", processedIDs)
+	if shuffle && seed == 0 {
+		seed = time.Now().UnixNano()
 	}
 
-	var words []models.Word
-	offset := (page - 1) * pageSize
-	_ = q.Offset(offset).Limit(pageSize).Find(&words).Error
+	words, total, err := models.ListStudyWordsLite(db, uint(wordBookID), user.ID, page, pageSize, shuffle, seed)
+	if err != nil {
+		response.Fail(c, "查询失败", err)
+		return
+	}
 
 	response.Success(c, "success", gin.H{
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,
+		"shuffle":  shuffle,
+		"seed":     seed,
 		"words":    words,
 	})
 }
@@ -344,7 +324,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 			Update("learn_status", "learning").Error
 	}
 
-	var words []models.Word
+	var words []models.WordLite
 	_ = db.Where("id IN ?", selectedIDs).Find(&words).Error
 
 	response.Success(c, "success", gin.H{
@@ -482,7 +462,7 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	for _, sw := range sessionWords {
 		wordIDs = append(wordIDs, sw.WordID)
 	}
-	var words []models.Word
+	var words []models.WordLite
 	if len(wordIDs) > 0 {
 		_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 	}
@@ -490,5 +470,78 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	response.Success(c, "success", gin.H{
 		"session": session,
 		"words":   words,
+	})
+}
+
+// handleStudySessionsList GET /study/sessions?page=1&pageSize=20&sessionType=study
+// 列出当前用户的学习/复习会话记录
+func (h *Handlers) handleStudySessionsList(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	user := models.CurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	sessionType := c.Query("sessionType") // "study" | "review" | "" (all)
+
+	q := db.Model(&models.StudySession{}).Where("user_id = ?", user.ID)
+	if sessionType != "" {
+		q = q.Where("session_type = ?", sessionType)
+	}
+
+	var total int64
+	_ = q.Count(&total).Error
+
+	var sessions []models.StudySession
+	if err := q.Order("created_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&sessions).Error; err != nil {
+		response.Fail(c, "查询失败", err)
+		return
+	}
+
+	// 附上词书名
+	wbIDs := make([]uint, 0, len(sessions))
+	for _, s := range sessions {
+		if s.WordBookID > 0 {
+			wbIDs = append(wbIDs, s.WordBookID)
+		}
+	}
+	wbNames := make(map[uint]string, len(wbIDs))
+	if len(wbIDs) > 0 {
+		var books []models.WordBook
+		_ = db.Where("id IN ?", wbIDs).Find(&books).Error
+		for _, b := range books {
+			wbNames[b.ID] = b.Name
+		}
+	}
+
+	list := make([]gin.H, 0, len(sessions))
+	for _, s := range sessions {
+		list = append(list, gin.H{
+			"id":           s.ID,
+			"sessionType":  s.SessionType,
+			"status":       s.Status,
+			"startedAt":    s.StartedAt,
+			"completedAt":  s.CompletedAt,
+			"wordCount":    s.WordCount,
+			"correctCount": s.CorrectCount,
+			"wordBookId":   s.WordBookID,
+			"wordBookName": wbNames[s.WordBookID],
+		})
+	}
+
+	response.Success(c, "success", gin.H{
+		"list":     list,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
 	})
 }

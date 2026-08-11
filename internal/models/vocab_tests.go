@@ -8,8 +8,8 @@ type VocabTestQuestion struct {
 	Word            string `json:"word" gorm:"size:128;not null;index;comment:测试单词"`
 	Options         string `json:"options" gorm:"type:text;comment:选项 JSON数组（4个中文释义）"`
 	CorrectAnswer   string `json:"correctAnswer" gorm:"size:256;not null;comment:正确答案"`
-	Level           string `json:"level" gorm:"size:10;index;comment:对应等级 A1-C1"`
-	DifficultyScore int    `json:"difficultyScore" gorm:"default:1;comment:难度分值 用于自适应"`
+	Level           string `json:"level" gorm:"size:10;index;index:idx_level_difficulty;comment:对应等级 A1-C1"`
+	DifficultyScore int    `json:"difficultyScore" gorm:"default:1;index:idx_level_difficulty;comment:难度分值 用于自适应"`
 	AudioURL        string `json:"audioUrl" gorm:"size:512;comment:发音音频URL"`
 }
 
