@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo, memo } from 'react'
 import faviconUrl from '/favicon.png'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -10,7 +10,6 @@ import {
   ChevronRight,
   User as UserIcon,
   Users,
-  Sliders,
   History,
   FileText,
   Lock,
@@ -33,7 +32,32 @@ interface NavItem {
   children?: NavItem[]
 }
 
-const AdminSidebar = () => {
+const NAVIGATION: NavItem[] = [
+  { name: '用户管理', href: '/users', icon: Users },
+  { name: '词库管理', href: '/wordbooks', icon: Library },
+  {
+    name: '题库管理',
+    href: '/quiz',
+    icon: FlaskConical,
+    children: [
+      { name: '词汇测评题库', href: '/vocab-questions', icon: Brain },
+      { name: '测试记录', href: '/vocab-records', icon: FileText },
+    ],
+  },
+  { name: '一对一陪练', href: '/coaching', icon: CalendarDays },
+  {
+    name: '安全管理',
+    href: '/security',
+    icon: Lock,
+    children: [
+      { name: '操作日志', href: '/operation-logs', icon: FileText },
+      { name: '登录历史', href: '/login-history', icon: History },
+    ],
+  },
+  { name: '系统设置', href: '/settings', icon: Settings },
+]
+
+const AdminSidebar = memo(function AdminSidebar() {
   const { isCollapsed, toggleCollapse } = useSidebar()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [expandedItems, setExpandedItems] = useState<string[]>([])
@@ -46,7 +70,30 @@ const AdminSidebar = () => {
   const siteName = config?.SITE_NAME || '云阶管理'
   const logoUrl = config?.SITE_LOGO_URL || faviconUrl
 
-  // 点击外部关闭下拉菜单
+  const isPathActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + '/')
+
+  const isItemActive = (item: NavItem) => {
+    if (item.children?.length) {
+      return item.children.some((child) => isPathActive(child.href))
+    }
+    return isPathActive(item.href)
+  }
+
+  useEffect(() => {
+    const parents = NAVIGATION.filter((item) =>
+      item.children?.some((child) => isPathActive(child.href))
+    ).map((item) => item.name)
+    if (parents.length === 0) return
+    setExpandedItems((prev) => {
+      const next = new Set(prev)
+      parents.forEach((name) => next.add(name))
+      return Array.from(next)
+    })
+    setIsMobileOpen(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname])
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -63,31 +110,6 @@ const AdminSidebar = () => {
     }
   }, [showDropdown])
 
-  const navigation: NavItem[] = [
-    { name: '用户管理', href: '/users', icon: Users },
-    { name: '词库管理', href: '/wordbooks', icon: Library },
-    {
-      name: '题库管理',
-      href: '/quiz',
-      icon: FlaskConical,
-      children: [
-        { name: '词汇测评题库', href: '/vocab-questions', icon: Brain },
-        { name: '测试记录', href: '/vocab-records', icon: FileText },
-      ],
-    },
-    { name: '一对一陪练', href: '/coaching', icon: CalendarDays },
-    {
-      name: '安全管理',
-      href: '/security',
-      icon: Lock,
-      children: [
-        { name: '操作日志', href: '/operation-logs', icon: FileText },
-        { name: '登录历史', href: '/login-history', icon: History },
-      ],
-    },
-    { name: '系统设置', href: '/settings', icon: Settings },
-  ]
-
   const toggleExpand = (itemName: string) => {
     setExpandedItems((prev) =>
       prev.includes(itemName)
@@ -96,14 +118,15 @@ const AdminSidebar = () => {
     )
   }
 
-  const isActive = (path: string) => {
-    return location.pathname === path || location.pathname.startsWith(path + '/')
-  }
-
   const handleLogout = async () => {
     await logout()
     navigate('/login')
   }
+
+  const userLabel = useMemo(
+    () => user?.displayName || user?.email || '管理员',
+    [user?.displayName, user?.email]
+  )
 
   const SidebarContent = ({ showLogo = true }: { showLogo?: boolean }) => {
     const { config: sidebarConfig } = useSiteConfig()
@@ -111,18 +134,17 @@ const AdminSidebar = () => {
     const sidebarLogoUrl = sidebarConfig?.SITE_LOGO_URL
       ? buildLogoUrl(sidebarConfig.SITE_LOGO_URL)
       : faviconUrl
-    
+
     return (
       <>
-        {/* Logo区域 - 只在桌面端显示，移动端不显示（因为移动端侧边栏已经有logo了） */}
         {showLogo && (
           <div className="h-16 flex items-center justify-between px-4 border-b border-border">
             {!isCollapsed && (
               <Link to="/wordbooks" className="flex items-center gap-3 group min-w-0">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <img 
-                    src={sidebarLogoUrl} 
-                    alt={currentSiteName} 
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <img
+                    src={sidebarLogoUrl}
+                    alt={currentSiteName}
                     className="w-6 h-6 object-contain"
                   />
                 </div>
@@ -131,183 +153,175 @@ const AdminSidebar = () => {
                 </span>
               </Link>
             )}
-          {isCollapsed && (
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center mx-auto bg-primary/10">
-              <img 
-                src={sidebarLogoUrl} 
-                alt={currentSiteName} 
-                className="w-6 h-6 object-contain"
-              />
-            </div>
-          )}
-          <button
-            onClick={toggleCollapse}
-            className="hidden lg:flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent text-muted-foreground transition-colors"
-            title={isCollapsed ? '展开' : '折叠'}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <X className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* 导航菜单 */}
-      <nav className="flex-1 px-3 py-4 ling-sidebar-nav overflow-y-auto">
-        {navigation.map((item) => {
-          const Icon = item.icon
-          const hasChildren = item.children && item.children.length > 0
-          const isExpanded = expandedItems.includes(item.name)
-          const itemActive = isActive(item.href)
-
-          if (hasChildren) {
-            return (
-              <div key={item.name}>
-                <button
-                  onClick={() => !isCollapsed && toggleExpand(item.name)}
-                  className={cn(
-                    'ling-sidebar-nav-item',
-                    itemActive && 'ling-sidebar-nav-item--active',
-                    isCollapsed && 'ling-sidebar-nav-item--compact justify-center'
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5" />
-                    {!isCollapsed && <span>{item.name}</span>}
-                  </div>
-                  {!isCollapsed && (
-                    <ChevronRight
-                      className={cn(
-                        'w-4 h-4 transition-transform',
-                        isExpanded && 'rotate-90'
-                      )}
-                    />
-                  )}
-                </button>
-                <AnimatePresence>
-                  {isExpanded && !isCollapsed && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="ml-4 mt-1 space-y-1 border-l-2 border-slate-200 dark:border-slate-700 pl-4"
-                    >
-                      {item.children?.map((child) => {
-                        const ChildIcon = child.icon
-                        const childActive = isActive(child.href)
-                        return (
-                          <Link
-                            key={child.name}
-                            to={child.href}
-                            className={cn(
-                              'ling-sidebar-nav-item text-sm',
-                              childActive && 'ling-sidebar-nav-item--active'
-                            )}
-                          >
-                            <ChildIcon className="w-4 h-4" />
-                            <span>{child.name}</span>
-                          </Link>
-                        )
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+            {isCollapsed && (
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto bg-primary/10">
+                <img
+                  src={sidebarLogoUrl}
+                  alt={currentSiteName}
+                  className="w-6 h-6 object-contain"
+                />
               </div>
-            )
-          }
-
-          return (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={cn(
-                'ling-sidebar-nav-item',
-                itemActive && 'ling-sidebar-nav-item--active',
-                isCollapsed && 'ling-sidebar-nav-item--compact justify-center'
-              )}
-              title={isCollapsed ? item.name : ''}
-            >
-              <Icon className="w-5 h-5" />
-              {!isCollapsed && (
-                <span className="flex-1">{item.name}</span>
-              )}
-              {item.badge && !isCollapsed && (
-                <span className="px-2 py-0.5 text-xs font-medium bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 rounded-full">
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* 底部用户信息 */}
-      {!isCollapsed && (
-        <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-800">
-          <div className="relative" ref={dropdownRef}>
+            )}
             <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center gap-3 w-full p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              type="button"
+              onClick={toggleCollapse}
+              className="hidden lg:flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent text-muted-foreground transition-colors"
+              title={isCollapsed ? '展开' : '折叠'}
             >
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-medium text-slate-900 truncate">
-                  {user?.displayName || user?.email || '管理员'}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                  {user?.email || 'admin@example.com'}
-                </p>
-              </div>
-              <ChevronRight className={cn(
-                "w-4 h-4 text-slate-400 transition-transform",
-                showDropdown && "rotate-90"
-              )} />
+              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <X className="w-4 h-4" />}
             </button>
-            
-            {/* 下拉菜单 */}
-            {showDropdown && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <button
-                  onClick={() => {
-                    setShowDropdown(false)
-                    navigate('/profile')
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <UserIcon className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-                  <span className="text-sm text-slate-900">个人中心</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setShowDropdown(false)
-                    handleLogout()
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-red-600 dark:text-red-400"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="text-sm">退出登录</span>
-                </button>
-              </div>
-            )}
           </div>
-        </div>
-      )}
-    </>
+        )}
+
+        <nav className="flex-1 px-3 py-4 ling-sidebar-nav overflow-y-auto">
+          {NAVIGATION.map((item) => {
+            const Icon = item.icon
+            const hasChildren = Boolean(item.children?.length)
+            const isExpanded = expandedItems.includes(item.name)
+            const itemActive = isItemActive(item)
+
+            if (hasChildren) {
+              return (
+                <div key={item.name}>
+                  <button
+                    type="button"
+                    onClick={() => !isCollapsed && toggleExpand(item.name)}
+                    className={cn(
+                      'ling-sidebar-nav-item',
+                      itemActive && 'ling-sidebar-nav-item--active',
+                      isCollapsed && 'ling-sidebar-nav-item--compact justify-center'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-5 h-5" />
+                      {!isCollapsed && <span>{item.name}</span>}
+                    </div>
+                    {!isCollapsed && (
+                      <ChevronRight
+                        className={cn('w-4 h-4 transition-transform', isExpanded && 'rotate-90')}
+                      />
+                    )}
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isExpanded && !isCollapsed && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="ml-4 mt-1 space-y-1 border-l-2 border-border pl-4 overflow-hidden"
+                      >
+                        {item.children?.map((child) => {
+                          const ChildIcon = child.icon
+                          const childActive = isPathActive(child.href)
+                          return (
+                            <Link
+                              key={child.name}
+                              to={child.href}
+                              className={cn(
+                                'ling-sidebar-nav-item text-sm',
+                                childActive && 'ling-sidebar-nav-item--active'
+                              )}
+                            >
+                              <ChildIcon className="w-4 h-4" />
+                              <span>{child.name}</span>
+                            </Link>
+                          )
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )
+            }
+
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={cn(
+                  'ling-sidebar-nav-item',
+                  itemActive && 'ling-sidebar-nav-item--active',
+                  isCollapsed && 'ling-sidebar-nav-item--compact justify-center'
+                )}
+                title={isCollapsed ? item.name : ''}
+              >
+                <Icon className="w-5 h-5" />
+                {!isCollapsed && <span className="flex-1">{item.name}</span>}
+                {item.badge && !isCollapsed && (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-primary/12 text-[hsl(var(--primary-deep))] rounded-md">
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {!isCollapsed && (
+          <div className="px-3 py-4 border-t border-border">
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="flex items-center gap-3 w-full p-2 rounded-xl hover:bg-accent transition-colors"
+              >
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-medium text-foreground truncate">{userLabel}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user?.email || 'admin@example.com'}
+                  </p>
+                </div>
+                <ChevronRight
+                  className={cn(
+                    'w-4 h-4 text-muted-foreground transition-transform',
+                    showDropdown && 'rotate-90'
+                  )}
+                />
+              </button>
+
+              {showDropdown && (
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-card rounded-xl shadow-soft-lg border border-border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDropdown(false)
+                      navigate('/profile')
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors"
+                  >
+                    <UserIcon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-foreground">个人中心</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDropdown(false)
+                      handleLogout()
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent transition-colors text-destructive"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm">退出登录</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </>
     )
   }
 
   return (
     <>
-      {/* 移动端菜单按钮 */}
       <button
+        type="button"
         onClick={() => setIsMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-700"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-xl bg-card shadow-rest border border-border"
       >
-        <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+        <Menu className="w-5 h-5 text-foreground" />
       </button>
 
-      {/* 移动端遮罩 */}
       <AnimatePresence>
         {isMobileOpen && (
           <>
@@ -316,41 +330,28 @@ const AdminSidebar = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileOpen(false)}
-              className="lg:hidden fixed inset-0 bg-black/50 z-40"
+              className="lg:hidden fixed inset-0 bg-black/40 z-40"
             />
             <motion.aside
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="lg:hidden fixed left-0 top-0 bottom-0 w-70 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-r border-slate-200/50 dark:border-slate-800/50 shadow-xl z-50 flex flex-col"
+              className="lg:hidden fixed left-0 top-0 bottom-0 w-70 bg-background border-r border-border shadow-soft-lg z-50 flex flex-col"
             >
-              <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="h-16 flex items-center justify-between px-4 border-b border-border">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4ECDC4] to-[#45b8b0] flex items-center justify-center shadow-lg">
-                    <img 
-                      src={logoUrl} 
-                      alt={siteName} 
-                      className="w-6 h-6 object-contain"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.style.display = 'none'
-                        const parent = target.parentElement
-                        if (parent) {
-                          parent.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>'
-                        }
-                      }}
-                    />
+                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <img src={logoUrl} alt={siteName} className="w-6 h-6 object-contain" />
                   </div>
-                  <span className="font-bold text-lg bg-gradient-to-r from-[#4ECDC4] to-[#45b8b0] bg-clip-text">
-                    {siteName}
-                  </span>
+                  <span className="font-semibold text-lg text-foreground">{siteName}</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsMobileOpen(false)}
-                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="p-2 rounded-lg hover:bg-accent"
                 >
-                  <X className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                  <X className="w-5 h-5 text-muted-foreground" />
                 </button>
               </div>
               <SidebarContent showLogo={false} />
@@ -359,19 +360,16 @@ const AdminSidebar = () => {
         )}
       </AnimatePresence>
 
-      {/* 桌面端侧边栏 */}
       <motion.aside
         initial={false}
         animate={{ width: isCollapsed ? 80 : 220 }}
         transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-30 bg-[#f5f5f5] dark:bg-card border-r border-border"
+        className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-30 bg-background border-r border-border"
       >
         <SidebarContent showLogo={true} />
       </motion.aside>
-
     </>
   )
-}
+})
 
 export default AdminSidebar
-

@@ -12,8 +12,10 @@
   }
   
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
     font-feature-settings: "rlig" 1, "calt" 1;
+    line-height: 1.55;
   }
 
   /* Modern font rendering */
@@ -182,58 +184,60 @@
 
 @layer base {
   :root {
-    /* Modern professional color system */
-    --background: 210 33% 98%;
-    --foreground: 240 10% 3.9%;
+    /* CloudSteps Warm Mint — aligned with H5 DESIGN.md */
+    --font-sans: "Plus Jakarta Sans", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    --background: 30 8% 96%;
+    --foreground: 0 0% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 40 6% 20%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 215 87% 51%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 176 55% 55%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 215 87% 51%;
-    --radius: 0.5rem;
-    
-    /* Modern shadow system */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --primary-deep: 176 50% 48%;
+    --secondary: 210 70% 95%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 30 8% 93%;
+    --muted-foreground: 40 5% 46%;
+    --accent: 168 40% 94%;
+    --accent-foreground: 40 6% 20%;
+    --destructive: 0 74% 54%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 12% 89%;
+    --input: 30 8% 76%;
+    --ring: 176 55% 55%;
+    --radius: 0.75rem;
+    --shadow-rest: 0 1px 2px rgba(0, 0, 0, 0.04);
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.06);
+    --shadow-lg: 0 10px 20px -4px rgb(0 0 0 / 0.08);
+    --shadow-xl: 0 16px 28px -6px rgb(0 0 0 / 0.1);
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 215 87% 51%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 215 87% 51%;
+    --background: 0 0% 10%;
+    --foreground: 40 10% 98%;
+    --card: 60 3% 14%;
+    --card-foreground: 30 8% 93%;
+    --popover: 60 3% 14%;
+    --popover-foreground: 40 10% 98%;
+    --primary: 176 55% 55%;
+    --primary-foreground: 0 0% 4%;
+    --primary-deep: 176 50% 48%;
+    --secondary: 60 3% 16%;
+    --secondary-foreground: 40 10% 98%;
+    --muted: 60 3% 16%;
+    --muted-foreground: 40 5% 62%;
+    --accent: 168 20% 16%;
+    --accent-foreground: 40 10% 98%;
+    --destructive: 0 74% 54%;
+    --destructive-foreground: 40 10% 98%;
+    --border: 40 4% 22%;
+    --input: 40 4% 22%;
+    --ring: 176 55% 55%;
 
-    /* Dark mode shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
@@ -625,8 +629,8 @@
 
 /* Ling sidebar — aligned with example/web */
 .ling-sidebar-sider {
-  background: #f5f5f5 !important;
-  border-right: none !important;
+  background: #f6f5f4 !important;
+  border-right: 1px solid hsl(var(--border)) !important;
 }
 
 .dark .ling-sidebar-sider {
@@ -649,40 +653,40 @@
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.25;
-  color: #4e4e4e;
+  color: hsl(var(--muted-foreground));
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .dark .ling-sidebar-nav-item {
-  color: hsl(var(--foreground) / 0.82);
+  color: hsl(var(--muted-foreground));
 }
 
 .ling-sidebar-nav-item:hover {
-  color: #1a1a1a;
-  background: rgb(255 255 255 / 0.55);
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
 }
 
 .dark .ling-sidebar-nav-item:hover {
   color: hsl(var(--foreground));
-  background: hsl(var(--accent) / 0.45);
+  background: hsl(var(--accent));
 }
 
 .ling-sidebar-nav-item--active {
-  color: #1a1a1a !important;
-  font-weight: 500;
-  background: #ffffff !important;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+  color: hsl(var(--primary-deep)) !important;
+  font-weight: 600;
+  background: hsl(var(--primary) / 0.12) !important;
+  box-shadow: none;
 }
 
 .dark .ling-sidebar-nav-item--active {
-  color: hsl(var(--foreground)) !important;
-  background: hsl(var(--background)) !important;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  color: hsl(var(--primary)) !important;
+  background: hsl(var(--primary) / 0.18) !important;
+  box-shadow: none;
 }
 
 .ling-sidebar-nav-item--compact {

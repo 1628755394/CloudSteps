@@ -16,6 +16,17 @@ export default defineConfig({
     strictPort: true,
     open: false,
     host: "127.0.0.1",
+    proxy: {
+      '/api': {
+        target: 'http://localhost:7080',
+        changeOrigin: true,
+        ws: true,
+      },
+      '/uploads': {
+        target: 'http://localhost:7080',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',

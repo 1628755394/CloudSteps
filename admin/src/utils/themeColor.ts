@@ -1,5 +1,5 @@
 /** Converts Tailwind-style HSL token "215 87% 51%" to #rrggbb for Arco ConfigProvider. */
-export function hslTokenToHex(hslToken: string, fallback = '#1671EF'): string {
+export function hslTokenToHex(hslToken: string, fallback = '#4ECDC4'): string {
   const parts = hslToken.trim().split(/\s+/)
   if (parts.length < 3) return fallback
   const h = parseFloat(parts[0]!)
@@ -38,7 +38,7 @@ export function hslTokenToHex(hslToken: string, fallback = '#1671EF'): string {
   return `#${toByte(r)}${toByte(g)}${toByte(b)}`
 }
 
-export function readPrimaryColorFromDocument(fallback = '#1671EF'): string {
+export function readPrimaryColorFromDocument(fallback = '#4ECDC4'): string {
   if (typeof document === 'undefined') return fallback
   const token = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim()
   return hslTokenToHex(token, fallback)

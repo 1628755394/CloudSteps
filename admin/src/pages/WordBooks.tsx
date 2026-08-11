@@ -212,7 +212,7 @@ export default function WordBooks() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {books.map(b => (
-              <div key={b.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow">
+              <div key={b.id} className="bg-card rounded-xl border border-border overflow-hidden hover:border-primary/35 transition-colors shadow-rest">
                 {/* 封面 */}
                 <div
                   className="h-28 flex items-center justify-center cursor-pointer overflow-hidden relative"

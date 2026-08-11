@@ -1,8 +1,9 @@
-/** Lingecho 开放 TTS：批量生成时的请求间隔（毫秒），可用环境变量覆盖 */
-
-const LINGECHO_URL = 'https://soulmy.top/api/open/tts'
-const API_KEY = import.meta.env.VITE_LINGECHO_API_KEY as string
-const API_SECRET = import.meta.env.VITE_LINGECHO_API_SECRET as string
+/**
+ * 管理端 TTS：走后端 /api/admin/tts（DashScope Qwen-TTS，与 cmd/tts-gen 同源）。
+ * 不再使用 Lingecho 开放接口。
+ */
+import { post } from '@/utils/request'
+import { getApiBaseURL } from '@/config/apiConfig'
 
 /** 同一单词内，连续多次 TTS 请求之间的间隔（默认 30ms） */
 export const TTS_REQUEST_GAP_MS = Math.max(
@@ -22,20 +23,13 @@ export function sleep(ms: number): Promise<void> {
 }
 
 export async function fetchTTS(text: string): Promise<string> {
-  const res = await fetch(LINGECHO_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': API_KEY,
-      'x-api-secret': API_SECRET,
-    },
-    body: JSON.stringify({ text }),
+  const res = await post<{ url: string }>(`${getApiBaseURL()}/admin/tts`, {
+    text: text.trim(),
   })
-  const data = await res.json()
-  if (data.code !== 200 || !data.data?.url) {
-    throw new Error(data.msg || 'TTS 失败')
+  if (res.code !== 200 || !res.data?.url) {
+    throw new Error(res.msg || 'TTS 失败')
   }
-  return data.data.url as string
+  return res.data.url
 }
 
 /** 从释义字段提取中文，用于第三条音频 */

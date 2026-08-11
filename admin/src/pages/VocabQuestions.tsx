@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import AdminLayout from '@/components/Layout/AdminLayout'
+import ConfirmDialog from '@/components/UI/ConfirmDialog'
 import { get, post, put, del } from '@/utils/request'
 import { getApiBaseURL } from '@/config/apiConfig'
 import { showAlert } from '@/utils/notification'
-import { Plus, Pencil, Trash2, Search, X, Upload, Download, AlertTriangle, Wand2, Volume2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, X, Upload, Download, AlertTriangle, Wand2, Volume2, VolumeX, Loader2 } from 'lucide-react'
 import LingechoTTS from '@/components/UI/LingechoTTS'
 import { fetchTTS, sleep, TTS_WORD_GAP_MS } from '@/utils/lingechoTts'
 
@@ -50,9 +51,12 @@ export default function VocabQuestions() {
   const [optionsArr, setOptionsArr] = useState<string[]>(['', '', '', ''])
   const [saving, setSaving] = useState(false)
   const [generatingAudio, setGeneratingAudio] = useState(false)
-  const [showBatchAudioModal, setShowBatchAudioModal] = useState(false)
-  const [batchGenerating, setBatchGenerating] = useState(false)
-  const [selectedForBatch, setSelectedForBatch] = useState<Set<number>>(new Set())
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null)
+  const batchStopRef = useRef(false)
+  const batchLockRef = useRef(false)
+  const [purgingAudio, setPurgingAudio] = useState(false)
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false)
 
   const handleGenerateAudio = async () => {
     if (!form.word?.trim()) {
@@ -71,42 +75,126 @@ export default function VocabQuestions() {
     }
   }
 
-  const handleBatchAudioGeneration = async () => {
-    const questionsWithoutAudio = list.filter(q => !q.audioUrl)
-    if (questionsWithoutAudio.length === 0) {
-      showAlert('没有需要生成音频的题目', 'info')
-      return
+  /** 拉取全部无音频题目（跨分页） */
+  const fetchAllWithoutAudio = async (): Promise<VocabQuestion[]> => {
+    const pageLimit = 500
+    let pageNo = 1
+    let totalCount = Infinity
+    const all: VocabQuestion[] = []
+    while (all.length < totalCount) {
+      const params = new URLSearchParams({
+        page: String(pageNo),
+        pageSize: String(pageLimit),
+        withoutAudio: '1',
+      })
+      if (level) params.append('level', level)
+      if (keyword) params.append('word', keyword)
+      const res = await get<any>(`${getApiBaseURL()}/vocab/questions?${params}`)
+      if (res?.code && res.code !== 200) {
+        throw new Error(res.msg || '加载无音频题目失败')
+      }
+      const payload = res?.data
+      totalCount = Number(payload?.total || 0)
+      const chunk = payload?.questions || payload?.list || []
+      if (!Array.isArray(chunk) || chunk.length === 0) break
+      all.push(...chunk)
+      if (chunk.length < pageLimit || all.length >= totalCount) break
+      pageNo += 1
+      if (pageNo > 100) break
     }
-    setSelectedForBatch(new Set(questionsWithoutAudio.map(q => q.id)))
-    setShowBatchAudioModal(true)
+    return all
   }
 
-  const handleBatchGenerateAudio = async () => {
-    if (selectedForBatch.size === 0) {
-      showAlert('请至少选择一个题目', 'error')
+  /** 与词库一致：后台逐条生成并即时写回，不弹模态框 */
+  const handleBatchAudio = async () => {
+    // 已在跑：生成阶段可停止；加载阶段忽略误触
+    if (batchRunning || batchLockRef.current) {
+      if (batchProgress) batchStopRef.current = true
       return
     }
-    setBatchGenerating(true)
+
+    batchLockRef.current = true
+    setBatchRunning(true)
+    batchStopRef.current = false
+    setBatchProgress(null)
+
+    let targets: VocabQuestion[]
     try {
-      const selectedQuestions = list.filter(q => selectedForBatch.has(q.id))
-      let successCount = 0
-      for (const q of selectedQuestions) {
-        try {
-          const url = await fetchTTS(q.word)
-          await put(`${getApiBaseURL()}/vocab/questions/${q.id}`, { audioUrl: url })
-          successCount++
-        } catch (e) {
-          console.error(`Failed to generate audio for ${q.word}:`, e)
-        }
-        await sleep(TTS_WORD_GAP_MS)
+      targets = await fetchAllWithoutAudio()
+    } catch (e: any) {
+      batchLockRef.current = false
+      setBatchRunning(false)
+      setBatchProgress(null)
+      showAlert(e?.message || '加载失败', 'error')
+      return
+    }
+    if (batchStopRef.current) {
+      batchLockRef.current = false
+      setBatchRunning(false)
+      setBatchProgress(null)
+      return
+    }
+    if (targets.length === 0) {
+      batchLockRef.current = false
+      setBatchRunning(false)
+      setBatchProgress(null)
+      showAlert('所有题目已有音频', 'success')
+      return
+    }
+
+    setBatchProgress({ done: 0, total: targets.length })
+
+    let done = 0
+    let successCount = 0
+    for (const q of targets) {
+      if (batchStopRef.current) break
+      try {
+        const audioUrl = await fetchTTS(q.word)
+        await put(`${getApiBaseURL()}/vocab/questions/${q.id}`, { audioUrl })
+        successCount++
+        setList((prev) =>
+          prev.map((item) => (item.id === q.id ? { ...item, audioUrl } : item))
+        )
+      } catch {
+        // 单个失败跳过，继续下一个
       }
-      showAlert(`成功生成 ${successCount}/${selectedForBatch.size} 个音频`, 'success')
-      setShowBatchAudioModal(false)
+      done++
+      setBatchProgress({ done, total: targets.length })
+      await sleep(TTS_WORD_GAP_MS)
+    }
+
+    batchLockRef.current = false
+    setBatchRunning(false)
+    setBatchProgress(null)
+    showAlert(
+      batchStopRef.current
+        ? `已停止，成功 ${successCount}/${done}`
+        : `完成，成功 ${successCount}/${done}`,
+      'success'
+    )
+    fetchList()
+  }
+
+  const runPurgeBadAudio = async () => {
+    if (purgingAudio) return
+    setPurgingAudio(true)
+    try {
+      const res = await post<{ checked: number; cleared: number; clearedWords?: string[] }>(
+        `${getApiBaseURL()}/vocab/questions/purge-bad-audio`
+      )
+      if (res.code !== 200) {
+        showAlert(res.msg || '检测失败', 'error')
+        return
+      }
+      const checked = res.data?.checked ?? 0
+      const cleared = res.data?.cleared ?? 0
+      showAlert(`已检测 ${checked} 条，清空无效音频 ${cleared} 条`, cleared > 0 ? 'success' : 'info')
+      setShowPurgeConfirm(false)
       fetchList()
     } catch (e: any) {
-      showAlert(e?.message || '批量生成失败', 'error')
+      showAlert(e?.msg || e?.message || '检测失败', 'error')
     } finally {
-      setBatchGenerating(false)
+      setPurgingAudio(false)
     }
   }
 
@@ -120,7 +208,11 @@ export default function VocabQuestions() {
   const fetchList = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+        size: String(pageSize),
+      })
       if (level) params.append('level', level)
       if (keyword) params.append('word', keyword)
       const res = await get<any>(`${getApiBaseURL()}/vocab/questions?${params}`)
@@ -286,10 +378,30 @@ export default function VocabQuestions() {
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">词汇测评题库</h1>
-          <div className="flex items-center gap-2">
-            <button onClick={handleBatchAudioGeneration} disabled={loading}
-              className="flex items-center gap-2 px-3 py-2 border border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-300 rounded-lg text-sm hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors disabled:opacity-50">
-              <Wand2 className="w-4 h-4" /> 批量生成音频
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button onClick={() => setShowPurgeConfirm(true)} disabled={loading || purgingAudio}
+              className="flex items-center gap-2 px-3 py-2 border border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300 rounded-lg text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50">
+              <VolumeX className="w-4 h-4" /> {purgingAudio ? '检测中...' : '检测音频是否可用'}
+            </button>
+            <button
+              onClick={handleBatchAudio}
+              disabled={(loading && !batchRunning) || (batchRunning && !batchProgress)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:pointer-events-none ${
+                batchRunning
+                  ? 'border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                  : 'border border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+              }`}
+            >
+              {batchRunning && !batchProgress ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Wand2 className="w-4 h-4" />
+              )}
+              {!batchRunning
+                ? '批量生成音频'
+                : !batchProgress
+                  ? '加载中...'
+                  : `停止 (${batchProgress.done}/${batchProgress.total})`}
             </button>
             <button onClick={downloadTemplate}
               className="flex items-center gap-2 px-3 py-2 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
@@ -555,73 +667,20 @@ export default function VocabQuestions() {
         </div>
       )}
 
-      {/* 批量生成音频弹窗 */}
-      {showBatchAudioModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-              <div>
-                <h2 className="font-semibold text-slate-900 dark:text-slate-100">批量生成音频</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  共 {list.filter(q => !q.audioUrl).length} 条无音频题目，已选 {selectedForBatch.size} 条
-                </p>
-              </div>
-              <button onClick={() => setShowBatchAudioModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
-            </div>
+      <ConfirmDialog
+        isOpen={showPurgeConfirm}
+        onClose={() => {
+          if (!purgingAudio) setShowPurgeConfirm(false)
+        }}
+        onConfirm={runPurgeBadAudio}
+        title="检测音频是否可用"
+        message="将检测所有已填写音频的题目，无法正常访问的音频链接会被清空。是否继续？"
+        confirmText="开始检测"
+        cancelText="取消"
+        variant="warning"
+        loading={purgingAudio}
+      />
 
-            <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0 flex gap-3">
-              <button onClick={() => setSelectedForBatch(new Set(list.filter(q => !q.audioUrl).map(q => q.id)))} className="text-xs text-purple-600 hover:underline">全选</button>
-              <button onClick={() => setSelectedForBatch(new Set())} className="text-xs text-slate-500 hover:underline">全不选</button>
-            </div>
-
-            <div className="overflow-auto flex-1">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-2 text-left w-10"></th>
-                    <th className="px-4 py-2 text-left">单词</th>
-                    <th className="px-4 py-2 text-left">等级</th>
-                    <th className="px-4 py-2 text-left">状态</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {list.filter(q => !q.audioUrl).map((q, i) => (
-                    <tr key={q.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="px-4 py-2">
-                        <input type="checkbox" checked={selectedForBatch.has(q.id)} onChange={() => {
-                          const newSet = new Set(selectedForBatch)
-                          if (newSet.has(q.id)) {
-                            newSet.delete(q.id)
-                          } else {
-                            newSet.add(q.id)
-                          }
-                          setSelectedForBatch(newSet)
-                        }} className="rounded border-slate-300" />
-                      </td>
-                      <td className="px-4 py-2 font-medium text-slate-900 dark:text-slate-100">{q.word}</td>
-                      <td className="px-4 py-2">
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">{q.level}</span>
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className="text-xs text-purple-600">无音频</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
-              <button onClick={() => setShowBatchAudioModal(false)}
-                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-400">取消</button>
-              <button onClick={handleBatchGenerateAudio} disabled={batchGenerating || selectedForBatch.size === 0}
-                className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm disabled:opacity-50">
-                {batchGenerating ? '生成中...' : `生成 ${selectedForBatch.size} 个音频`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AdminLayout>
   )
 }

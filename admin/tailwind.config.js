@@ -139,23 +139,34 @@ export default {
         },
 
         fontFamily: {
-            sans: ["Inter", "system-ui", "sans-serif"],
-            display: ["Poppins", "system-ui", "sans-serif"],
+            sans: [
+                "Plus Jakarta Sans",
+                "PingFang SC",
+                "Noto Sans SC",
+                "Microsoft YaHei",
+                "system-ui",
+                "sans-serif",
+            ],
+            display: [
+                "Plus Jakarta Sans",
+                "PingFang SC",
+                "Noto Sans SC",
+                "Microsoft YaHei",
+                "system-ui",
+                "sans-serif",
+            ],
         },
 
         backgroundImage: {
             "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
             "gradient-conic": "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
-            "soft-gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            "warm-gradient": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-            "cool-gradient": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+            "mint-soft": "linear-gradient(160deg, #f6f5f4 0%, #e8f8f5 55%, #f6f5f4 100%)",
         },
 
         boxShadow: {
-            soft: "0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)",
-            "soft-lg": "0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
-            glow: "0 0 20px rgba(59, 130, 246, 0.5)",
-            "glow-lg": "0 0 40px rgba(59, 130, 246, 0.3)",
+            soft: "0 1px 2px rgba(0, 0, 0, 0.04)",
+            "soft-lg": "0 4px 12px -2px rgba(0, 0, 0, 0.06)",
+            rest: "0 1px 2px rgba(0, 0, 0, 0.04)",
         },
 
         // === 合并后的 keyframes（保留全部） ===

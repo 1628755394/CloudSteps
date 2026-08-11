@@ -329,7 +329,15 @@ export const getOperationLogs = async (params?: {
   if (params?.action) queryParams.action = params.action
   if (params?.target) queryParams.target = params.target
   const res = await get<OperationLogListResponse>(`${BACKEND_BASE}/security/operation-logs`, { params: queryParams })
-  return res.data
+  if (res.code !== 200) {
+    throw { code: res.code, msg: res.msg || '获取操作日志失败', data: null }
+  }
+  return {
+    logs: res.data?.logs || [],
+    total: res.data?.total || 0,
+    page: res.data?.page || params?.page || 1,
+    page_size: res.data?.page_size || params?.page_size || 20,
+  }
 }
 
 export const getOperationLog = async (id: number): Promise<{ log: OperationLog }> => {
@@ -409,6 +417,7 @@ export const getLoginHistory = async (params?: {
   page?: number
   page_size?: number
   user_id?: number
+  search?: string
   success?: boolean
   is_suspicious?: boolean
 }): Promise<LoginHistoryListResponse> => {
@@ -416,10 +425,19 @@ export const getLoginHistory = async (params?: {
   if (params?.page) queryParams.page = params.page
   if (params?.page_size) queryParams.page_size = params.page_size
   if (params?.user_id) queryParams.user_id = params.user_id
+  if (params?.search) queryParams.search = params.search
   if (params?.success !== undefined) queryParams.success = params.success.toString()
   if (params?.is_suspicious !== undefined) queryParams.is_suspicious = params.is_suspicious.toString()
   const res = await get<LoginHistoryListResponse>(`${BACKEND_BASE}/auth/login-history`, { params: queryParams })
-  return res.data
+  if (res.code !== 200) {
+    throw { code: res.code, msg: res.msg || '获取登录历史失败', data: null }
+  }
+  return {
+    histories: res.data?.histories || [],
+    total: res.data?.total || 0,
+    page: res.data?.page || params?.page || 1,
+    page_size: res.data?.page_size || params?.page_size || 20,
+  }
 }
 
 export const getLoginHistoryDetail = async (id: number): Promise<{ history: LoginHistory }> => {
