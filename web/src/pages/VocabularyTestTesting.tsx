@@ -44,12 +44,12 @@ export default function VocabularyTestTesting() {
   const currentQuestion = questions[currentIndex] ?? null;
 
   const wordDisplayClass = useMemo(() => {
-    if (!currentQuestion?.word) return "text-lg";
+    if (!currentQuestion?.word) return "text-2xl sm:text-3xl";
     const len = currentQuestion.word.length;
-    if (len <= 8) return "text-lg sm:text-xl";
-    if (len <= 14) return "text-base sm:text-lg";
-    if (len <= 22) return "text-sm sm:text-base";
-    return "text-sm";
+    if (len <= 8) return "text-3xl sm:text-4xl";
+    if (len <= 14) return "text-2xl sm:text-3xl";
+    if (len <= 22) return "text-xl sm:text-2xl";
+    return "text-lg sm:text-xl";
   }, [currentQuestion?.word]);
 
   const abortAudioRef = useRef<(() => void) | null>(null);
@@ -60,16 +60,15 @@ export default function VocabularyTestTesting() {
     abortAudioRef.current = playFirstWordAudio(currentQuestion.audioUrl);
   };
 
-  // 进入新题后自动播放发音（经 resolveMediaUrl，相对路径/代理域名可播）
+  // 切题时停掉上一题音频，不自动播放
   useEffect(() => {
-    if (!currentQuestion?.audioUrl || loading || submitting) return;
     abortAudioRef.current?.();
-    abortAudioRef.current = playFirstWordAudio(currentQuestion.audioUrl);
+    abortAudioRef.current = null;
     return () => {
       abortAudioRef.current?.();
       abortAudioRef.current = null;
     };
-  }, [currentQuestion?.id, currentQuestion?.audioUrl, loading, submitting]);
+  }, [currentQuestion?.id]);
 
   const options: OptionItem[] = useMemo(() => {
     if (!currentQuestion) return [];
@@ -175,12 +174,12 @@ export default function VocabularyTestTesting() {
           <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })} className="mr-2">
             <ChevronLeft size={20} className="text-[#2D3748]" />
           </CloudButton>
-          <h1 className="text-sm font-medium text-[#718096]">词汇量测试</h1>
+          <span className="text-sm font-medium text-[#718096]">词汇量测试</span>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col min-h-0 px-3 py-2 max-w-lg mx-auto w-full">
-        <div className="shrink-0 flex items-center gap-2 mb-2">
+      <main className="flex-1 flex flex-col min-h-0 px-4 py-3 max-w-2xl mx-auto w-full">
+        <div className="shrink-0 flex items-center gap-2 mb-3">
           <div className="text-[#4ECDC4] text-sm font-semibold tabular-nums">
             {questions.length > 0
               ? `${String(currentIndex + 1).padStart(2, "0")}/${questions.length}`
@@ -198,25 +197,25 @@ export default function VocabularyTestTesting() {
         </div>
 
         {showWarning && !busy && (
-          <p className="shrink-0 text-center text-[11px] text-amber-600 mb-1">
+          <p className="shrink-0 text-center text-[11px] text-amber-600 mb-2">
             超过 8 秒，建议选「不认识」
           </p>
         )}
 
-        <div className="shrink-0 bg-white rounded-xl px-3 py-3 mb-2 text-center shadow-sm border border-[#E2E8F0]/80">
-          <div className="flex flex-col items-center justify-center gap-1.5 min-h-[56px]">
+        <div className="shrink-0 bg-white rounded-2xl px-4 py-6 mb-3 text-center shadow-sm border border-[#E2E8F0]/80">
+          <div className="flex flex-col items-center justify-center gap-2 min-h-[88px]">
             {busy || !currentQuestion ? (
-              <p className="text-[#A0AEC0] text-xs animate-pulse">加载中…</p>
+              <p className="text-[#A0AEC0] text-sm animate-pulse">加载中…</p>
             ) : (
               <>
                 <p
-                  className={`${wordDisplayClass} font-semibold text-[#2D3748] leading-tight break-words [overflow-wrap:anywhere] max-w-full line-clamp-3`}
+                  className={`${wordDisplayClass} font-semibold text-[#2D3748] leading-tight break-words [overflow-wrap:anywhere] max-w-full`}
                 >
                   {currentQuestion.word}
                 </p>
                 {currentQuestion.audioUrl && (
                   <CloudButton type="button" variant="ghost" size="iconRound" onClick={handlePlayAudio}>
-                    <Volume2 size={18} className="text-[#55A3FF]" />
+                    <Volume2 size={20} className="text-[#55A3FF]" />
                   </CloudButton>
                 )}
               </>
@@ -224,18 +223,18 @@ export default function VocabularyTestTesting() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col justify-center gap-1.5 py-1">
+        <div className="flex-1 min-h-0 flex flex-col justify-center gap-2 py-1">
           {options.map((option, index) => (
             <CloudButton
               key={index}
               variant={option.label === "不认识" ? "secondary" : "outline"}
-              className={`w-full justify-start px-3 py-2.5 h-auto min-h-[2.5rem] max-h-[3.5rem] rounded-lg text-left whitespace-normal ${
+              className={`w-full justify-start px-4 py-3 h-auto min-h-[3rem] max-h-[4.5rem] rounded-xl text-left whitespace-normal ${
                 selectedAnswer === option.value ? "ring-2 ring-[#4ECDC4] bg-[#4ECDC4]/10" : ""
               } ${busy ? "opacity-60 pointer-events-none" : ""}`}
               onClick={() => handleAnswerSelect(option.value)}
               disabled={busy || !currentQuestion}
             >
-              <span className="text-[13px] leading-snug break-words [overflow-wrap:anywhere] w-full line-clamp-2">
+              <span className="text-sm leading-snug break-words [overflow-wrap:anywhere] w-full line-clamp-2">
                 {option.label}
               </span>
             </CloudButton>
@@ -243,8 +242,8 @@ export default function VocabularyTestTesting() {
         </div>
       </main>
 
-      <footer className="shrink-0 bg-white border-t border-[#E2E8F0] py-2 px-4">
-        <div className="flex items-center justify-around max-w-lg mx-auto">
+      <footer className="shrink-0 bg-white border-t border-[#E2E8F0] py-2.5 px-4">
+        <div className="flex items-center justify-around max-w-2xl mx-auto">
           <div className="text-center">
             <div className="text-base font-bold text-[#2D3748]">{correctCount}</div>
             <div className="text-[11px] text-[#718096]">正确</div>

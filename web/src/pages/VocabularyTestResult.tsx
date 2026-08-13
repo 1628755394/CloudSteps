@@ -1,22 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
 import { useNavigate } from "react-router";
-import { ChevronLeft, RefreshCw, TrendingUp, BookOpen } from "lucide-react";
+import { ChevronLeft, RefreshCw, TrendingUp } from "lucide-react";
 
 import { getVocabResult } from "../api/vocab";
 import {
   clearVocabTestResultCache,
   refreshVocabTestQuestions,
 } from "../utils/vocabTestCache";
-
-type RecommendedBook = {
-  id: number;
-  name: string;
-  description?: string;
-  level?: string;
-  wordCount?: number;
-  coverUrl?: string;
-};
 
 type ResultPayload = {
   level: string;
@@ -32,7 +23,6 @@ type ResultPayload = {
       weightedRate?: number;
     }
   >;
-  recommendedBooks?: RecommendedBook[];
 };
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1"] as const;
@@ -66,6 +56,85 @@ const vocabToChineseLevel = (vocab: number): string => {
   return "托福 / GRE 高级水平";
 };
 
+/** 能力导向说明：现在大致能做什么 / 还做不到什么 */
+const vocabCapability = (vocab: number): { canDo: string; nextStep: string } => {
+  if (vocab < 200) {
+    return {
+      canDo:
+        "目前大致能认读少量基础单词（如颜色、数字、称呼），尚难独立看懂完整句子或短文。",
+      nextStep: "建议先稳住高频启蒙词，配合听音跟读，再过渡到极短句。",
+    };
+  }
+  if (vocab < 500) {
+    return {
+      canDo:
+        "目前大致能认识常见简单词汇，但独立阅读整句、理解短文仍比较吃力。",
+      nextStep: "建议巩固小学基础词，多做「看词说义 + 听音辨词」，再逐步接触极简句。",
+    };
+  }
+  if (vocab < 800) {
+    return {
+      canDo:
+        "目前对日常基础词较熟，能勉强看懂很短的简单句，但连贯阅读和听懂完整对话仍不稳定。",
+      nextStep: "建议在识词同时加入短句跟读，把「认识单词」推进到「能读懂一句话」。",
+    };
+  }
+  if (vocab < 1200) {
+    return {
+      canDo:
+        "目前能处理多数小学常见词，短句阅读开始成型，但稍长段落或陌生主题仍会卡住。",
+      nextStep: "建议扩大主题词（学校、天气、购物等），并用抗遗忘巩固已学词。",
+    };
+  }
+  if (vocab < 1800) {
+    return {
+      canDo:
+        "目前接近初中起步：能读懂简单叙述句，但对复合句、抽象词和稍长短文仍吃力。",
+      nextStep: "建议加强动词短语与常见搭配，配合短文精读，提升「句子→段落」的理解。",
+    };
+  }
+  if (vocab < 2500) {
+    return {
+      canDo:
+        "目前能较顺利阅读简易短文，日常话题交流词基本够用，但议论文与考试长难句仍需支撑。",
+      nextStep: "建议系统补齐初中核心词，并开始训练段落大意与关键词抓取。",
+    };
+  }
+  if (vocab < 3500) {
+    return {
+      canDo:
+        "目前大致能应对初高中常规阅读中的多数实词，简单说明文可跟读；复杂论证与学术词仍有缺口。",
+      nextStep: "建议按主题扩展（科技、社会、环境），并结合错词抗遗忘。",
+    };
+  }
+  if (vocab < 5000) {
+    return {
+      canDo:
+        "目前接近高中 / 四级起步：一般新闻短文与课堂材料可抓大意，细读精确理解仍需词典辅助。",
+      nextStep: "建议突破同义替换与多义词，积累写作高频词块。",
+    };
+  }
+  if (vocab < 7000) {
+    return {
+      canDo:
+        "目前大致能独立阅读多数一般英语材料，课堂听力与阅读障碍明显减少；专业/学术文本仍有挑战。",
+      nextStep: "建议向六级 / 雅思方向推进：学术词、搭配与长难句精读。",
+    };
+  }
+  if (vocab < 10000) {
+    return {
+      canDo:
+        "目前接近较高阶应试水平：多数议论文与说明文可较顺畅阅读，表达也更精确。",
+      nextStep: "建议聚焦低频词、近义辨析与写作地道表达。",
+    };
+  }
+  return {
+    canDo:
+      "目前词汇面较广，一般学术与专业阅读障碍较小，可支撑较高阶听说读写任务。",
+    nextStep: "建议按目标场景（学术、职场、考试）做专题精进即可。",
+  };
+};
+
 export default function VocabularyTestResult() {
   const navigate = useNavigate();
   const [result, setResult] = useState<ResultPayload | null>(null);
@@ -85,16 +154,13 @@ export default function VocabularyTestResult() {
 
         const res = await getVocabResult();
         if (res.code === 200) {
-          // /vocab/result 返回 { record, recommendedBooks }
           const r = res.data?.record;
-          const books = res.data?.recommendedBooks || [];
           if (r) {
             const mapped: ResultPayload = {
               level: r.estimatedLevel,
               estimatedVocab: r.estimatedVocab,
               correctCount: r.correctCount,
               totalCount: r.questionCount,
-              recommendedBooks: books,
             };
             if (mounted) setResult(mapped);
           }
@@ -111,7 +177,6 @@ export default function VocabularyTestResult() {
     };
   }, []);
 
-  // 看结果时后台预拉下一套题，点「重新测试」可秒进
   useEffect(() => {
     if (!result) return;
     refreshVocabTestQuestions().catch(() => {});
@@ -126,47 +191,43 @@ export default function VocabularyTestResult() {
     if (!result) return null;
     const lv = clampLevel(result.level);
     const approxByLevel = VOCAB_MAP[lv];
-    const chineseLevel = vocabToChineseLevel(result.estimatedVocab || approxByLevel);
-    let bestLevel: string | null = null;
-    let bestScore = -1;
-    if (result.levelStats) {
-      for (const [k, v] of Object.entries(result.levelStats)) {
-        const score = v.weightedRate ?? v.correctRate ?? 0;
-        if (score > bestScore) {
-          bestScore = score;
-          bestLevel = k;
-        }
-      }
-    }
+    const vocab = result.estimatedVocab || approxByLevel;
+    const chineseLevel = vocabToChineseLevel(vocab);
+    const capability = vocabCapability(vocab);
     return {
       level: lv,
       approxByLevel,
       chineseLevel,
-      bestLevel,
-      bestScorePct: bestScore < 0 ? null : Math.round(bestScore * 100),
+      capability,
+      vocab,
     };
   }, [result]);
 
   return (
     <div className="min-h-screen bg-[#F7F9FC] pb-20">
-      {/* 顶部导航 */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-14 px-4">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })} className="mr-4">
-            <ChevronLeft size={24} className="text-[#2D3748]" />
+        <div className="flex items-center h-11 px-3">
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="iconRound"
+            onClick={() => navigate("/material-selection", { replace: true })}
+            className="mr-2"
+          >
+            <ChevronLeft size={18} className="text-[#2D3748]" />
           </CloudButton>
-          <h1 className="text-lg font-semibold text-[#2D3748]">测试结果</h1>
+          <span className="text-sm font-semibold text-[#2D3748]">测试结果</span>
         </div>
       </div>
 
-      <div className="pt-16 px-4">
+      <div className="pt-14 px-4">
         {loading ? (
-          <div className="max-w-md mx-auto text-center text-[#718096] py-16">
+          <div className="max-w-2xl mx-auto text-center text-[#718096] py-16">
             结果加载中...
           </div>
         ) : !result ? (
-          <div className="max-w-md mx-auto bg-white rounded-2xl p-8 text-center shadow-sm border border-[#E2E8F0]">
-            <div className="text-[#2D3748] font-semibold text-lg">暂无测试结果</div>
+          <div className="max-w-2xl mx-auto bg-white rounded-2xl p-8 text-center shadow-sm border border-[#E2E8F0]">
+            <div className="text-[#2D3748] font-semibold text-base">暂无测试结果</div>
             <div className="text-[#718096] text-sm mt-2">去开始一次词汇量测试吧</div>
             <CloudButton
               variant="brand"
@@ -178,13 +239,12 @@ export default function VocabularyTestResult() {
             </CloudButton>
           </div>
         ) : (
-          <div className="max-w-md mx-auto space-y-4">
-            {/* 主结论卡 */}
+          <div className="max-w-2xl mx-auto space-y-4">
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="text-sm text-[#718096]">词汇水平</div>
-                  <div className="text-2xl font-bold text-[#2D3748] mt-1">
+                  <div className="text-xl font-bold text-[#2D3748] mt-1">
                     {summary?.chineseLevel || "—"}
                   </div>
                 </div>
@@ -195,11 +255,15 @@ export default function VocabularyTestResult() {
               <div className="mt-4 grid grid-cols-3 gap-3">
                 <div className="rounded-xl bg-[#F7F9FC] p-3">
                   <div className="text-xs text-[#718096]">估算词汇量</div>
-                  <div className="text-lg font-semibold text-[#2D3748] mt-1">{result.estimatedVocab}</div>
+                  <div className="text-lg font-semibold text-[#2D3748] mt-1">
+                    {result.estimatedVocab}
+                  </div>
                 </div>
                 <div className="rounded-xl bg-[#F7F9FC] p-3">
                   <div className="text-xs text-[#718096]">正确</div>
-                  <div className="text-lg font-semibold text-[#2D3748] mt-1">{result.correctCount}</div>
+                  <div className="text-lg font-semibold text-[#2D3748] mt-1">
+                    {result.correctCount}
+                  </div>
                 </div>
                 <div className="rounded-xl bg-[#F7F9FC] p-3">
                   <div className="text-xs text-[#718096]">正确率</div>
@@ -208,11 +272,12 @@ export default function VocabularyTestResult() {
               </div>
             </div>
 
-            {/* 词汇量金字塔 */}
             {summary && (
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
                 <div className="text-base font-semibold text-[#2D3748]">词汇量金字塔</div>
-                <div className="text-sm text-[#718096] mt-1">按 CEFR 等级分层，当前测评等级已高亮</div>
+                <div className="text-sm text-[#718096] mt-1">
+                  高亮层为本次测评落点，越高表示词汇面越宽。
+                </div>
 
                 <div className="mt-5 flex flex-col items-center gap-2">
                   {[...LEVELS].reverse().map((lv, idx) => {
@@ -230,7 +295,7 @@ export default function VocabularyTestResult() {
                         style={{ maxWidth: `${widthPct}%` }}
                       >
                         <div className="flex items-center justify-between">
-                          <div className={`text-sm font-semibold ${isActive ? "text-[#2D3748]" : "text-[#2D3748]"}`}>{lv}</div>
+                          <div className="text-sm font-semibold text-[#2D3748]">{lv}</div>
                           <div className="text-xs text-[#718096]">约 {vocabHint}+</div>
                         </div>
                       </div>
@@ -238,70 +303,27 @@ export default function VocabularyTestResult() {
                   })}
                 </div>
 
-                <div className="mt-4 rounded-xl bg-[#F7F9FC] p-4">
+                <div className="mt-4 rounded-xl bg-[#F7F9FC] p-4 space-y-2">
                   <div className="text-sm font-semibold text-[#2D3748]">本次自测总结</div>
-                  <div className="text-sm text-[#718096] mt-2 leading-relaxed">
-                    你的词汇量大约在 <span className="text-[#2D3748] font-semibold">{result.estimatedVocab}</span> 个，
-                    相当于 <span className="text-[#2D3748] font-semibold">{summary.chineseLevel}</span>。
-                    {summary.bestLevel ? (
-                      <>
-                        {" "}你在 <span className="text-[#2D3748] font-semibold">{summary.bestLevel}</span> 段表现最好（约
-                        <span className="text-[#2D3748] font-semibold"> {summary.bestScorePct}%</span>）。
-                      </>
-                    ) : null}
-                  </div>
-                  <div className="text-xs text-[#A0AEC0] mt-2">提示：选择“不认识”会计为错误，用于快速收敛你的真实水平。</div>
+                  <p className="text-sm text-[#718096] leading-relaxed">
+                    当前大约相当于{" "}
+                    <span className="text-[#2D3748] font-semibold">{summary.chineseLevel}</span>
+                    （估算约{" "}
+                    <span className="text-[#2D3748] font-semibold">{summary.vocab}</span> 词）。
+                  </p>
+                  <p className="text-sm text-[#2D3748] leading-relaxed">
+                    {summary.capability.canDo}
+                  </p>
+                  <p className="text-sm text-[#718096] leading-relaxed">
+                    {summary.capability.nextStep}
+                  </p>
+                  <p className="text-xs text-[#A0AEC0]">
+                    结果仅作起点参考，可据此安排正课与抗遗忘；选择「不认识」有助于更快贴近真实水平。
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* 分项统计（如有） */}
-            {result.levelStats && Object.keys(result.levelStats).length > 0 && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-                <div className="text-base font-semibold text-[#2D3748]">分等级表现</div>
-                <div className="mt-4 space-y-3">
-                  {Object.entries(result.levelStats)
-                    .sort((a, b) => a[0].localeCompare(b[0]))
-                    .map(([lv, s]) => {
-                      const rate = Math.round((s.correctRate || 0) * 100);
-                      const wRate = s.weightedRate === undefined ? null : Math.round((s.weightedRate || 0) * 100);
-                      return (
-                        <div key={lv} className="rounded-xl bg-[#F7F9FC] p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm font-semibold text-[#2D3748]">{lv}</div>
-                            <div className="text-xs text-[#718096]">
-                              {s.correct}/{s.total}（{rate}%{wRate !== null ? ` / 加权 ${wRate}%` : ""}）
-                            </div>
-                          </div>
-                          <div className="mt-2 h-2 bg-white rounded-full overflow-hidden border border-[#E2E8F0]">
-                            <div className="h-full bg-[#4ECDC4]" style={{ width: `${Math.min(100, Math.max(0, rate))}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-
-            {/* 推荐词库 */}
-            {result.recommendedBooks && result.recommendedBooks.length > 0 && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
-                <div className="flex items-center justify-between">
-                  <div className="text-base font-semibold text-[#2D3748]">推荐词库</div>
-                  <BookOpen className="w-5 h-5 text-[#4ECDC4]" />
-                </div>
-                <div className="mt-4 space-y-3">
-                  {result.recommendedBooks.slice(0, 6).map((b) => (
-                    <div key={b.id} className="rounded-xl border border-[#E2E8F0] bg-[#F7F9FC] p-3">
-                      <div className="text-sm font-semibold text-[#2D3748] truncate">{b.name}</div>
-                      <div className="text-xs text-[#718096] mt-1 line-clamp-2">{b.description || ""}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 操作 */}
             <div className="flex gap-3">
               <CloudButton
                 variant="brand"

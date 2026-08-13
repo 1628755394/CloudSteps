@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
-import { CheckCircle2, ChevronLeft, Search, TrendingUp, BookOpen } from "lucide-react";
+import { CheckCircle2, Search, TrendingUp, BookOpen } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudMonthPicker } from "../components/cloudsteps/arco";
+import { PageBackHeader } from "../components/PageBackHeader";
 import { getVocabRecordDetail, listVocabRecords } from "../api/vocab";
 
 type VocabTestRecord = {
@@ -45,7 +45,6 @@ const fieldClass =
   "w-full pl-10 pr-3 py-2.5 rounded-xl bg-card border border-input text-sm text-charcoal placeholder:text-muted-soft outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/25";
 
 export default function TestRecords() {
-  const navigate = useNavigate();
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
 
@@ -131,27 +130,12 @@ export default function TestRecords() {
 
   return (
     <div className="min-h-dvh flex flex-col bg-background">
-      <header className="shrink-0 sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-[1200px] mx-auto px-4 h-14 flex items-center gap-2">
-          <CloudButton
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-            aria-label="返回"
-          >
-            <ChevronLeft size={22} className="text-charcoal" />
-          </CloudButton>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">
-              词汇测试记录
-            </h1>
-            <p className="text-[11px] text-muted-foreground truncate">
-              查看历史测评结果与答题明细
-            </p>
-          </div>
-        </div>
-      </header>
+      <PageBackHeader
+        title="词汇测试记录"
+        subtitle="查看历史测评结果与答题明细"
+        fallbackTo="/coach-center"
+        maxWidthClass="max-w-[1200px]"
+      />
 
       <div className="flex-1 flex flex-col min-h-0 max-w-[1200px] w-full mx-auto px-4 py-4 gap-3">
         {errorMsg && (
