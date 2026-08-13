@@ -35,6 +35,19 @@ function normalizeOptions(options: OptionLike[] | undefined): MobileSelectOption
   });
 }
 
+function heightForSize(size: CloudSelectProps["size"]): number {
+  switch (size) {
+    case "mini":
+      return 28;
+    case "small":
+      return 32;
+    case "large":
+      return 40;
+    default:
+      return 40;
+  }
+}
+
 /**
  * 选择器：H5 底部弹层（取消/确认），桌面用 Arco Select
  */
@@ -43,6 +56,7 @@ export function CloudSelect({
   sheetTitle,
   className,
   style,
+  size,
   options,
   value,
   onChange,
@@ -57,6 +71,11 @@ export function CloudSelect({
     () => normalizeOptions(options as OptionLike[] | undefined),
     [options]
   );
+  const height = heightForSize(size);
+  const radius = size === "mini" || size === "small" ? 8 : 12;
+  const classNameText = Array.isArray(className)
+    ? className.filter(Boolean).join(" ")
+    : className;
 
   if (isMobile) {
     const strValue =
@@ -69,9 +88,6 @@ export function CloudSelect({
         : Array.isArray(placeholder)
           ? String(placeholder[0] ?? "请选择")
           : "请选择";
-    const classNameText = Array.isArray(className)
-      ? className.filter(Boolean).join(" ")
-      : className;
 
     return (
       <MobileSelectSheet
@@ -82,7 +98,9 @@ export function CloudSelect({
         placeholder={placeholderText}
         disabled={disabled}
         showSearch={Boolean(showSearch)}
+        size={size === "mini" || size === "small" ? "small" : "default"}
         className={classNameText}
+        style={style}
         onChange={(v) => {
           (onChange as ((value: string) => void) | undefined)?.(v);
         }}
@@ -91,17 +109,17 @@ export function CloudSelect({
   }
 
   return (
-    <div className="w-full">
+    <div className={classNameText || "w-full"} style={style}>
       {label && (
         <label className="text-sm text-charcoal font-medium mb-1.5 block">{label}</label>
       )}
       <ArcoSelect
-        className={`cloud-select ${className ?? ""}`}
+        className="cloud-select"
+        size={size}
         style={{
-          borderRadius: 12,
-          height: 40,
+          borderRadius: radius,
+          height,
           width: "100%",
-          ...style,
         }}
         options={options}
         value={value}
@@ -111,6 +129,19 @@ export function CloudSelect({
         showSearch={showSearch}
         allowClear={allowClear}
         {...props}
+        dropdownMenuStyle={{
+          maxHeight: 360,
+          overflowY: "auto",
+          ...(typeof props.dropdownMenuStyle === "object" ? props.dropdownMenuStyle : null),
+        }}
+        triggerProps={{
+          autoFitPosition: true,
+          ...props.triggerProps,
+        }}
+        virtualListProps={{
+          height: 320,
+          ...props.virtualListProps,
+        }}
       />
     </div>
   );

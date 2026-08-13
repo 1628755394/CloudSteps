@@ -24,7 +24,7 @@ export function TopBar({ title, onBack, rightSlot }: Props) {
         >
           <ArrowLeft size={18} className="text-[#2D3748]" />
         </CloudButton>
-        <FlowPageTitle className="!text-sm !font-medium !leading-none">{title}</FlowPageTitle>
+        <FlowPageTitle>{title}</FlowPageTitle>
         <div className="flex items-center justify-end min-w-[2.5rem]">{rightSlot}</div>
       </div>
     </div>

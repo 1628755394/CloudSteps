@@ -4,6 +4,10 @@
   --font-size: 16px;
   --font-sans: "Plus Jakarta Sans", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* 练习页单词显示（默认约 26px，可在设置中精确调节） */
+  --practice-word-size: 26px;
+  --practice-trans-size: 16px;
+  --practice-font-family: "Plus Jakarta Sans", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
 
   /* CloudSteps Warm Mint — Notion surfaces + Mintlify mint */
   --background: #f6f5f4;

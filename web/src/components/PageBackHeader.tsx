@@ -6,27 +6,60 @@ type PageBackHeaderProps = {
   title: string;
   subtitle?: string;
   onBack?: () => void;
+  /** history 为空时的回退路径 */
+  fallbackTo?: string;
+  /** 内容区最大宽度，默认与主站一致 */
+  maxWidthClass?: string;
 };
 
-/** 独立页顶栏：返回 + 标题 */
-export function PageBackHeader({ title, subtitle, onBack }: PageBackHeaderProps) {
+/**
+ * 独立页顶栏：与主 Header 同系白底毛玻璃，返回 + 标题。
+ * 含 safe-area，不铺主题色。
+ */
+export function PageBackHeader({
+  title,
+  subtitle,
+  onBack,
+  fallbackTo = "/",
+  maxWidthClass = "max-w-3xl",
+}: PageBackHeaderProps) {
   const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    if (window.history.length > 1) navigate(-1);
+    else navigate(fallbackTo);
+  };
+
   return (
-    <header className="shrink-0 sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border">
-      <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-2">
+    <header
+      className="shrink-0 sticky top-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border"
+      aria-label={title}
+    >
+      <div
+        className={`${maxWidthClass} mx-auto w-full px-3 sm:px-4 flex items-center gap-1 h-11 min-h-11 pt-[env(safe-area-inset-top,0px)]`}
+      >
         <CloudButton
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => (onBack ? onBack() : navigate(-1))}
+          onClick={handleBack}
+          className="shrink-0 size-9 -ml-1 text-charcoal"
           aria-label="返回"
         >
-          <ChevronLeft size={22} className="text-charcoal" />
+          <ChevronLeft size={22} />
         </CloudButton>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">{title}</h1>
+        <div className="min-w-0 flex-1 py-0.5">
+          <div className="text-[15px] font-semibold text-foreground truncate leading-none">
+            {title}
+          </div>
           {subtitle ? (
-            <p className="text-[11px] text-muted-foreground truncate">{subtitle}</p>
+            <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+              {subtitle}
+            </p>
           ) : null}
         </div>
       </div>

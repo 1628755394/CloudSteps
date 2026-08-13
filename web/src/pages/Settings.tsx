@@ -1,9 +1,29 @@
 import { useNavigate } from "react-router";
-import { ChevronLeft, ChevronRight, Lock, Smartphone, Bell, Shield, LogOut } from "lucide-react";
+import {
+  ChevronRight,
+  Lock,
+  Smartphone,
+  Bell,
+  Shield,
+  LogOut,
+  Palette,
+  LayoutTemplate,
+  SunMoon,
+} from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
+import { PageBackHeader } from "../components/PageBackHeader";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../stores/authStore";
+import {
+  ACCENT_PRESETS,
+  LAYOUT_PRESETS,
+  THEME_MODE_PRESETS,
+  type AccentColor,
+  type LayoutMode,
+  type ThemeMode,
+  useThemeStore,
+} from "../stores/themeStore";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
@@ -66,6 +86,10 @@ const tintIcon: Record<"mint" | "sky", string> = {
   sky: "bg-tint-sky text-secondary-brand",
 };
 
+const ACCENT_KEYS = Object.keys(ACCENT_PRESETS) as AccentColor[];
+const LAYOUT_KEYS = Object.keys(LAYOUT_PRESETS) as LayoutMode[];
+const MODE_KEYS = Object.keys(THEME_MODE_PRESETS) as ThemeMode[];
+
 export default function Settings() {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
@@ -73,6 +97,13 @@ export default function Settings() {
   const refreshUserInfo = useAuthStore((s) => s.refreshUserInfo);
   const user = useAuthStore((s) => s.user);
   const [logoutOpen, setLogoutOpen] = useState(false);
+
+  const themeMode = useThemeStore((s) => s.mode);
+  const accent = useThemeStore((s) => s.accent);
+  const layout = useThemeStore((s) => s.layout);
+  const setMode = useThemeStore((s) => s.setMode);
+  const setAccent = useThemeStore((s) => s.setAccent);
+  const setLayout = useThemeStore((s) => s.setLayout);
 
   const [panel, setPanel] = useState<null | "password" | "phone" | "notifications" | "security">(null);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -136,16 +167,104 @@ export default function Settings() {
 
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden">
-      <div className="shrink-0 bg-card border-b border-border">
-        <div className="flex items-center h-12 px-3 max-w-[800px] mx-auto">
-          <CloudButton variant="ghost" size="icon" onClick={() => navigate(-1)} className="mr-1" aria-label="返回">
-            <ChevronLeft size={22} className="text-charcoal" />
-          </CloudButton>
-          <h1 className="text-base font-semibold text-foreground">设置</h1>
-        </div>
-      </div>
+      <PageBackHeader title="设置" fallbackTo="/coach-center" maxWidthClass="max-w-[800px]" />
 
-      <div className="flex-1 min-h-0 max-w-[800px] w-full mx-auto px-3 py-3 flex flex-col gap-2.5 overflow-hidden">
+      <div className="flex-1 min-h-0 max-w-[800px] w-full mx-auto px-3 py-3 flex flex-col gap-2.5 overflow-y-auto">
+        <CloudCard className="p-3 shrink-0">
+          <h2 className="text-xs font-semibold text-muted-foreground px-1 pb-2 flex items-center gap-1.5">
+            <SunMoon size={13} />
+            外观与主题
+          </h2>
+
+          <div className="space-y-3">
+            <div>
+              <div className="text-[11px] text-muted-foreground mb-1.5 px-0.5">主题模式</div>
+              <div className="flex flex-wrap gap-1.5">
+                {MODE_KEYS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    className={`px-3 py-1.5 rounded-xl text-sm border transition-colors ${
+                      themeMode === m
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border hover:border-primary/40"
+                    }`}
+                  >
+                    {THEME_MODE_PRESETS[m].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[11px] text-muted-foreground mb-1.5 px-0.5 flex items-center gap-1">
+                <Palette size={12} />
+                主题色
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {ACCENT_KEYS.map((key) => {
+                  const preset = ACCENT_PRESETS[key];
+                  const active = accent === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setAccent(key)}
+                      className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2 transition-colors ${
+                        active
+                          ? "border-primary bg-primary-soft"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                      title={preset.label}
+                    >
+                      <span
+                        className={`size-7 rounded-full ring-2 ring-offset-2 ring-offset-card ${
+                          active ? "ring-primary" : "ring-transparent"
+                        }`}
+                        style={{ backgroundColor: preset.hex }}
+                      />
+                      <span className="text-[10px] text-foreground leading-none">{preset.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[11px] text-muted-foreground mb-1.5 px-0.5 flex items-center gap-1">
+                <LayoutTemplate size={12} />
+                布局
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {LAYOUT_KEYS.map((key) => {
+                  const preset = LAYOUT_PRESETS[key];
+                  const active = layout === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setLayout(key)}
+                      className={`rounded-xl border px-2.5 py-2 text-left transition-colors ${
+                        active
+                          ? "border-primary bg-primary-soft"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                    >
+                      <div className={`text-sm font-medium ${active ? "text-primary" : "text-foreground"}`}>
+                        {preset.label}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+                        {preset.desc}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </CloudCard>
+
         <CloudCard className="p-1.5 shrink-0">
           <h2 className="text-xs font-semibold text-muted-foreground px-2.5 pt-1.5 pb-0.5">账号设置</h2>
           <div className="divide-y divide-border">

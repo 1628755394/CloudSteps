@@ -47,7 +47,6 @@
 
 /* CloudSteps form controls — Warm Mint */
 .cloud-input,
-.cloud-select,
 .cloud-datepicker,
 .cloud-timepicker {
   border-radius: 12px !important;
@@ -55,10 +54,22 @@
   background: var(--input-background) !important;
 }
 
+/* Select：只给 view 铺底，避免根节点 + view 双层灰白 */
+.cloud-select {
+  border-radius: 12px !important;
+  background: transparent !important;
+}
+.cloud-select .arco-select-view {
+  border-color: var(--input) !important;
+  background: var(--input-background) !important;
+  border-radius: inherit !important;
+  min-height: 0 !important;
+}
+
 .cloud-input:focus,
 .cloud-input:focus-within,
 .arco-input-wrapper:focus-within.cloud-input,
-.arco-select-view.cloud-select:focus-within,
+.cloud-select .arco-select-view:focus-within,
 .cloud-datepicker:focus-within,
 .cloud-timepicker:focus-within {
   border-color: var(--primary) !important;

@@ -1,5 +1,4 @@
 import {
-  DollarSign,
   ClipboardList,
   Settings2,
   ChevronRight,
@@ -13,16 +12,12 @@ import { CloudCard } from "../components/cloudsteps/arco";
 import { useAuthStore } from "../stores/authStore";
 import { resolveMediaUrl } from "../utils/mediaUrl";
 
-const features = (role: string) => [
-  ...(role === "student"
-    ? []
-    : [{ id: 1, icon: DollarSign, label: "佣金核对", tint: "mint" as const, path: "/commission-check" }]),
+const features = [
   { id: 2, icon: ClipboardList, label: "词汇测试记录", tint: "sky" as const, path: "/test-records" },
   { id: 3, icon: Settings2, label: "设置", tint: "cream" as const, path: "/settings" },
 ];
 
 const tintClass = {
-  mint: "bg-primary-soft text-primary",
   sky: "bg-tint-sky text-secondary-brand",
   cream: "bg-tint-cream text-warning",
 };
@@ -45,7 +40,7 @@ export default function CoachCenter() {
     if (hour < 18) return "Good afternoon";
     return "Good evening";
   }, []);
-  const featureList = useMemo(() => features(role), [role]);
+  const featureList = features;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full gap-3 overflow-hidden">

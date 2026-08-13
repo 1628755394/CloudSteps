@@ -7,7 +7,6 @@ import CoachCompletedSessions from "../pages/CoachCompletedSessions";
 import VocabularyTest from "../pages/VocabularyTest";
 import VocabularyTestTesting from "../pages/VocabularyTestTesting";
 import VocabularyTestResult from "../pages/VocabularyTestResult";
-import CommissionCheck from "../pages/CommissionCheck";
 import TestRecords from "../pages/TestRecords";
 import Settings from "../pages/Settings";
 import MaterialSelection from "../pages/MaterialSelection";
@@ -38,6 +37,7 @@ import Privacy from "../pages/Privacy";
 import { RouteErrorBoundary } from "../components/RouteErrorBoundary";
 import { PublicOnly, RequireAuth, RequireRole } from "../components/AuthGuard";
 import MyStudents from "../pages/MyStudents";
+import CreateStudent from "../pages/CreateStudent";
 import StudentTrainingRecords from "../pages/StudentTrainingRecords";
 import WordBooks from "../pages/WordBooks";
 import WordBookWords from "../pages/WordBookWords";
@@ -55,12 +55,20 @@ export const router = createBrowserRouter([
     ),
     errorElement: <RouteErrorBoundary />,
     children: [
-      { index: true, element: <Home /> },
+      { index: true, element: <LessonPrep /> },
       {
         path: "my-students",
         element: (
           <RequireRole roles={["user", "teacher", "admin"]}>
             <MyStudents />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "my-students/new",
+        element: (
+          <RequireRole roles={["user", "teacher", "admin"]}>
+            <CreateStudent />
           </RequireRole>
         ),
       },
@@ -72,7 +80,7 @@ export const router = createBrowserRouter([
           </RequireRole>
         ),
       },
-      { path: "lesson-prep", element: <LessonPrep /> },
+      { path: "lesson-prep", element: <Home /> },
       { path: "word-books", element: <WordBooks /> },
       { path: "word-books/:id", element: <WordBookWords /> },
       { path: "lighthouse-words", element: <LighthouseWords /> },
@@ -121,16 +129,6 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <ReviewWordList />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/commission-check",
-    element: (
-      <RequireAuth>
-        <RequireRole roles={["admin", "user"]}>
-          <CommissionCheck />
-        </RequireRole>
       </RequireAuth>
     ),
   },

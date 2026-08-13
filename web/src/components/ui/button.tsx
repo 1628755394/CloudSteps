@@ -15,6 +15,11 @@ const buttonVariants = cva(
           "bg-primary text-primary-foreground hover:bg-primary-deep focus-visible:ring-primary/40",
         brandOutline:
           "border border-primary bg-transparent text-primary hover:bg-primary-soft focus-visible:ring-primary/40",
+        /** 训练流程选词/高亮：固定薄荷绿，不跟随主题色 */
+        mint:
+          "bg-[#4ECDC4] text-white hover:bg-[#3DB8B0] focus-visible:ring-[#4ECDC4]/40",
+        mintOutline:
+          "border border-[#4ECDC4] bg-transparent text-[#4ECDC4] hover:bg-[#4ECDC4]/10 focus-visible:ring-[#4ECDC4]/40",
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
         outline:

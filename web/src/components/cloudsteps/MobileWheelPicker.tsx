@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 type WheelColumnProps = {
@@ -292,7 +292,10 @@ export type MobileSelectSheetProps = {
   placeholder?: string;
   disabled?: boolean;
   showSearch?: boolean;
+  /** 作用在外层容器（宽度等），按钮始终撑满容器 */
   className?: string;
+  style?: CSSProperties;
+  size?: "small" | "default";
 };
 
 /** H5 底部弹层单选（取消/确认），支持搜索 */
@@ -306,6 +309,8 @@ export function MobileSelectSheet({
   disabled,
   showSearch,
   className,
+  style,
+  size = "default",
 }: MobileSelectSheetProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value || "");
@@ -328,9 +333,10 @@ export function MobileSelectSheet({
   }, [options, q]);
 
   const selectedLabel = options.find((o) => o.value === value)?.label;
+  const compact = size === "small";
 
   return (
-    <div className="w-full">
+    <div className={className || "w-full"} style={style}>
       {label && (
         <label className="text-sm text-charcoal font-medium mb-1.5 block">{label}</label>
       )}
@@ -338,7 +344,9 @@ export function MobileSelectSheet({
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        className={`w-full h-10 px-3 rounded-xl bg-card border border-input text-sm text-left outline-none transition-colors hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25 disabled:opacity-50 flex items-center justify-between gap-2 ${className ?? ""}`}
+        className={`w-full px-2.5 bg-card border border-input text-sm text-left outline-none transition-colors hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25 disabled:opacity-50 flex items-center justify-between gap-2 ${
+          compact ? "h-8 rounded-lg" : "h-10 px-3 rounded-xl"
+        }`}
       >
         <span className={`truncate ${selectedLabel ? "text-charcoal" : "text-muted-soft"}`}>
           {selectedLabel || placeholder}

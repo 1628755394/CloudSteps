@@ -3,7 +3,7 @@ import { PageBackHeader } from "../components/PageBackHeader";
 export default function Privacy() {
   return (
     <div className="min-h-dvh flex flex-col bg-background">
-      <PageBackHeader title="隐私政策" subtitle="更新日期：2026-03-26" />
+      <PageBackHeader title="隐私政策" subtitle="更新日期：2026-03-26" fallbackTo="/settings" />
       <div className="flex-1 max-w-3xl w-full mx-auto px-4 py-5">
         <div className="rounded-xl border border-border bg-card p-5 space-y-5 text-charcoal leading-relaxed text-sm">
           <p>
