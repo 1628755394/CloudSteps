@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import { getStudyWords, startStudySession } from "../api/study";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
+import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { CloudButton } from "../components/cloudsteps";
 import { TopBar } from "../components/TopBar";
 import { FlowPageShell } from "../components/PageTransition";
@@ -13,14 +14,16 @@ import {
   WordViewModeToggle,
   type WordViewMode,
 } from "../components/WordMarkView";
-import { WordDetailDialog } from "../components/WordDetailDialog";
+import { WordDetailPanel } from "../components/WordDetailPanel";
+import { ClassTimerBadge, ClassTimerSetupDialog } from "../components/ClassSessionTimer";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
-import { formatTranslation } from "../utils/wordFormat";
+import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState } from "../utils/wordReveal";
 
 type WordItem = {
   id: number;
   word: string;
+  phonetic?: string;
   translation?: string;
   audioUrl?: string;
   showTranslation?: boolean;
@@ -54,7 +57,10 @@ export default function PreTrainingCheck() {
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
+  /** 拓展简易模式：默认开，只展示部分标签 */
+  const [simpleDetail, setSimpleDetail] = useState(true);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
+  const [timerOpen, setTimerOpen] = useState(false);
 
   const handlePlayAudio = useCallback((word: WordItem) => {
     if (!word.audioUrl) return;
@@ -92,7 +98,15 @@ export default function PreTrainingCheck() {
           shuffleSeedRef.current = Number(res.data.seed);
         }
         const arr = Array.isArray(list)
-          ? (list as Array<{ id: number; word: string; translation?: string; audioUrl?: string }>)
+          ? (list as Array<{
+              id: number;
+              word: string;
+              translation?: string;
+              audioUrl?: string;
+              phonetic?: string;
+              phoneticUk?: string;
+              phoneticUs?: string;
+            }>)
           : [];
 
         if (arr.length === 0) {
@@ -105,6 +119,7 @@ export default function PreTrainingCheck() {
         const newWords = arr.map((w) => ({
           id: w.id,
           word: w.word,
+          phonetic: pickPhoneticDisplay(w),
           translation: w.translation ? formatTranslation(w.translation) : undefined,
           audioUrl: w.audioUrl,
           showTranslation: false,
@@ -213,7 +228,9 @@ export default function PreTrainingCheck() {
 
   const handleWordClick = useCallback((word: WordItem) => {
     if (detailMode) {
-      setDetailWord({ id: word.id, word: word.word });
+      setDetailWord((prev) =>
+        prev?.id === word.id ? null : { id: word.id, word: word.word }
+      );
       return;
     }
     const next = nextWordTapState({
@@ -299,13 +316,16 @@ export default function PreTrainingCheck() {
     });
   }, []);
 
+  const [starting, setStarting] = useState(false);
+
   const handleStartLearning = async () => {
     const selectedWords = words.filter((word) => word.status !== null);
-    if (selectedWords.length === 0) return;
+    if (selectedWords.length === 0 || starting) return;
 
     const knownIds = selectedWords.filter((w) => w.status === "correct").map((w) => w.id);
     const unknownIds = selectedWords.filter((w) => w.status === "wrong").map((w) => w.id);
 
+    setStarting(true);
     try {
       const res = await startStudySession({ wordBookId, knownIds, unknownIds });
       const sessionId = res.data?.sessionId;
@@ -334,7 +354,7 @@ export default function PreTrainingCheck() {
       sessionStorage.removeItem("lb_review_batch_idx");
       navigate("/word-practice");
     } catch {
-      // ignore
+      setStarting(false);
     }
   };
 
@@ -344,55 +364,74 @@ export default function PreTrainingCheck() {
   const WordItemComponent = useMemo(() => {
     const Item = ({ word }: { word: WordItem }) => (
       <div
-        className={`bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${
+        className={`bg-white rounded-xl p-3.5 sm:p-4 shadow-sm border border-transparent transition-all hover:shadow-md hover:border-[#4ECDC4]/35 hover:bg-[#4ECDC4]/5 ${
           word.status === "correct"
-            ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
+            ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5 hover:border-[#66BB6A] hover:bg-[#66BB6A]/10"
             : word.status === "wrong"
-            ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5"
+            ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5 hover:border-[#FF6B6B] hover:bg-[#FF6B6B]/10"
             : ""
         }`}
       >
-        <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => handleWordClick(word)}>
-          <div>
-            <span className="text-base font-medium text-[#2D3748] hover:text-[#4ECDC4] transition-colors">
-              {word.word}
-            </span>
-            {word.showTranslation && word.translation && (
-              <p className="text-[#718096] text-sm mt-1 animate-in fade-in slide-in-from-top-1">
-                {word.translation}
-              </p>
-            )}
+        <div className="flex items-center justify-between gap-2">
+          <div
+            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+            onClick={() => handleWordClick(word)}
+          >
+            <div className="min-w-0">
+              <span className={`${PRACTICE_WORD_CLASS} transition-colors`}>
+                {word.word}
+              </span>
+              {word.showTranslation && (
+                <div className="mt-0.5 animate-in fade-in slide-in-from-top-1">
+                  {word.phonetic ? (
+                    <span className="block text-sm text-[#718096] font-mono">{word.phonetic}</span>
+                  ) : null}
+                  {word.translation ? (
+                    <span className={`${PRACTICE_TRANS_CLASS} block`}>{word.translation}</span>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => handlePlayAudio(word)}>
+              <Volume2
+                size={20}
+                className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+              />
+            </CloudButton>
+            <CloudButton
+              type="button"
+              variant={word.status === "correct" ? "brand" : "ghost"}
+              size="iconRound"
+              onClick={() => handleStatusClick(word.id, "correct")}
+              className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
+            >
+              <Check size={20} />
+            </CloudButton>
+            <CloudButton
+              type="button"
+              variant={word.status === "wrong" ? "destructive" : "ghost"}
+              size="iconRound"
+              onClick={() => handleStatusClick(word.id, "wrong")}
+            >
+              <X size={20} />
+            </CloudButton>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => handlePlayAudio(word)}>
-            <Volume2
-              size={20}
-              className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
-            />
-          </CloudButton>
-          <CloudButton
-            type="button"
-            variant={word.status === "correct" ? "brand" : "ghost"}
-            size="iconRound"
-            onClick={() => handleStatusClick(word.id, "correct")}
-            className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
-          >
-            <Check size={20} />
-          </CloudButton>
-          <CloudButton
-            type="button"
-            variant={word.status === "wrong" ? "destructive" : "ghost"}
-            size="iconRound"
-            onClick={() => handleStatusClick(word.id, "wrong")}
-          >
-            <X size={20} />
-          </CloudButton>
-        </div>
+        {detailMode && detailWord?.id === word.id && (
+          <WordDetailPanel
+            wordId={word.id}
+            wordText={word.word}
+            variant="inline"
+            simpleMode={simpleDetail}
+            onClose={() => setDetailWord(null)}
+          />
+        )}
       </div>
     );
     return Item;
-  }, [handleStatusClick, handleWordClick, handlePlayAudio, playingId]);
+  }, [handleStatusClick, handleWordClick, handlePlayAudio, playingId, detailWord, detailMode, simpleDetail]);
 
   return (
     <FlowPageShell>
@@ -403,17 +442,25 @@ export default function PreTrainingCheck() {
           <div className="flex items-center gap-1">
             <span
               className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
-                shuffleMode ? "bg-primary-soft text-primary" : "bg-muted text-muted-foreground"
+                shuffleMode ? "bg-[#4ECDC4]/15 text-[#4ECDC4]" : "bg-muted text-muted-foreground"
               }`}
             >
               {shuffleMode ? "乱序" : "正序"}
             </span>
+            <ClassTimerBadge onClick={() => setTimerOpen(true)} />
             <AnnotationToggleButton
               active={annotationOpen}
               onClick={() => setAnnotationOpen((v) => !v)}
             />
+            <PracticeFontSettingsButton />
           </div>
         }
+      />
+
+      <ClassTimerSetupDialog
+        open={timerOpen}
+        onOpenChange={setTimerOpen}
+        wordCount={selectedCount}
       />
 
       <AnnotationLayer
@@ -422,7 +469,7 @@ export default function PreTrainingCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-4 pb-36">
+      <div className="px-4 mt-4 pb-36 max-w-2xl mx-auto w-full">
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm mb-4">
             {error}
@@ -453,9 +500,12 @@ export default function PreTrainingCheck() {
             onPlay={handlePlayAudio}
             onWordClick={handleWordClick}
             onStatus={handleStatusClick}
+            detailWordId={detailMode ? detailWord?.id ?? null : undefined}
+            onDetailClose={() => setDetailWord(null)}
+            simpleMode={simpleDetail}
           />
         ) : (
-          <div className="space-y-3 mb-6">
+          <div className="space-y-2.5 mb-6">
             {words.map((word) => (
               <WordItemComponent key={word.id} word={word} />
             ))}
@@ -487,18 +537,34 @@ export default function PreTrainingCheck() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
+        <div className="max-w-2xl mx-auto w-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
               variant={detailMode ? "brand" : "outline"}
               size="pill"
-              onClick={() => setDetailMode((v) => !v)}
+              onClick={() => {
+                setDetailMode((v) => {
+                  if (v) setDetailWord(null);
+                  return !v;
+                });
+              }}
             >
               <BookOpen size={16} />
               拓展
             </CloudButton>
+            {detailMode && (
+              <CloudButton
+                variant={simpleDetail ? "brand" : "outline"}
+                size="pill"
+                onClick={() => setSimpleDetail((v) => !v)}
+                title={simpleDetail ? "当前简易：点击查看全部拓展" : "当前全部：点击切回简易"}
+              >
+                简易
+              </CloudButton>
+            )}
           </div>
           <div className="flex gap-2">
             {shuffleMode ? (
@@ -527,18 +593,15 @@ export default function PreTrainingCheck() {
             className="flex-1"
             onClick={handleStartLearning}
             disabled={selectedCount === 0}
+            loading={starting}
+            loadingText="启动中…"
           >
             开始识记
           </CloudButton>
         </div>
+        </div>
       </div>
 
-      <WordDetailDialog
-        wordId={detailWord?.id ?? null}
-        wordText={detailWord?.word}
-        open={!!detailWord}
-        onOpenChange={(open) => { if (!open) setDetailWord(null); }}
-      />
     </FlowPageShell>
   );
 }

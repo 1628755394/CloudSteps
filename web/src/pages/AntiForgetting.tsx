@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { BookOpen, ChevronLeft, ChevronRight, Clock, Eye } from "lucide-react";
-import { PageTitle } from "../components/PageTitle";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudDatePicker, CloudEmpty, CloudSpin } from "../components/cloudsteps/arco";
 import { listReviewBooksByDate } from "../api/review";
@@ -89,16 +88,16 @@ export default function AntiForgetting() {
   };
 
   const handleOpenTask = (task: ReviewTask) => {
+    if (task.count <= 0) return;
     sessionStorage.setItem("lb_mode", "review");
     sessionStorage.setItem("lb_review_wordbook_id", String(task.wordBookId));
     sessionStorage.setItem("lb_review_wordbook_name", task.vocabularyPack);
-    navigate(`/review-word-list?wordBookId=${task.wordBookId}`);
+    sessionStorage.setItem("lb_review_date", selectedDate);
+    navigate(`/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}`);
   };
 
   return (
-    <div className="space-y-6">
-      <PageTitle description="定期复习，巩固记忆，防止遗忘">抗遗忘复习</PageTitle>
-
+    <div className="space-y-4">
       <CloudCard className="p-4 sm:p-5">
         <div className="flex items-center gap-2 sm:gap-4">
           <CloudButton
@@ -170,7 +169,7 @@ export default function AntiForgetting() {
                         <span className="text-sm text-charcoal truncate">{task.vocabularyPack}</span>
                       </span>
                       <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">
-                        {task.trainingTime}
+                        {task.count} 词 · {task.trainingTime}
                       </span>
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
@@ -179,10 +178,11 @@ export default function AntiForgetting() {
                         variant="brand"
                         size="sm"
                         onClick={() => handleOpenTask(task)}
+                        disabled={task.count <= 0}
                         className="gap-1.5"
                       >
                         <Eye size={14} />
-                        {task.status === "completed" ? "查看" : "复习"}
+                        {task.count <= 0 ? "暂无词" : task.status === "completed" ? "查看" : "复习"}
                       </CloudButton>
                     </div>
                   </div>

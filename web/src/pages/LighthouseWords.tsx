@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getLighthouseWords, type StudyWordItem } from "../api/study";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
+import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { CloudButton } from "../components/cloudsteps";
 import { TopBar } from "../components/TopBar";
 import { FlowPageShell } from "../components/PageTransition";
@@ -124,10 +125,13 @@ export default function LighthouseWords() {
         title={label}
         onBack={handleBack}
         rightSlot={
-          <AnnotationToggleButton
-            active={annotationOpen}
-            onClick={() => setAnnotationOpen((v) => !v)}
-          />
+          <div className="flex items-center gap-0.5">
+            <AnnotationToggleButton
+              active={annotationOpen}
+              onClick={() => setAnnotationOpen((v) => !v)}
+            />
+            <PracticeFontSettingsButton />
+          </div>
         }
       />
 
@@ -175,11 +179,11 @@ export default function LighthouseWords() {
                     onClick={() => handleWordClick(word)}
                   >
                     <div>
-                      <span className="text-base font-medium text-[#2D3748] hover:text-[#4ECDC4] transition-colors">
+                      <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
                         {word.word}
                       </span>
                       {showTranslationMap.get(word.id) && word.translation && (
-                        <p className="text-[#718096] text-sm mt-1">
+                        <p className={`${PRACTICE_TRANS_CLASS} mt-1`}>
                           {word.translation}
                         </p>
                       )}

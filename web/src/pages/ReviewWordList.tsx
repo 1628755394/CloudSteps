@@ -1,13 +1,18 @@
 import { useNavigate } from "react-router";
-import { ChevronLeft, Volume2, Check, X } from "lucide-react";
+import { Volume2, Check, X } from "lucide-react";
 import { completeReviewSession } from "../api/review";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getReviewToday, startReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
+import {
+  PracticeFontSettingsButton,
+  PRACTICE_TRANS_CLASS,
+  PRACTICE_WORD_CLASS,
+} from "../components/PracticeFontSettings";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
-import { FlowPageTitle } from "../components/PageTitle";
+import { TopBar } from "../components/TopBar";
 import {
   WordCardPanel,
   WordMarkStatsBar,
@@ -38,13 +43,9 @@ const formatTranslation = (raw?: string): string => {
   }
 };
 
-const reviewGroups = ["今日复习"];
-
 export default function ReviewWordList() {
   const navigate = useNavigate();
   const [words, setWords] = useState<ReviewWordItem[]>([]);
-  const [showGroupMenu, setShowGroupMenu] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState(reviewGroups[0]);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
@@ -54,6 +55,13 @@ export default function ReviewWordList() {
     const qp = Number(url.searchParams.get("wordBookId") || 0);
     if (qp) return qp;
     return Number(sessionStorage.getItem("lb_review_wordbook_id") || 0);
+  }, []);
+
+  const reviewDate = useMemo(() => {
+    const url = new URL(window.location.href);
+    const qp = url.searchParams.get("date") || "";
+    if (qp) return qp;
+    return sessionStorage.getItem("lb_review_date") || "";
   }, []);
 
   const [playingId, setPlayingId] = useState<number | null>(null);
@@ -75,9 +83,19 @@ export default function ReviewWordList() {
     let mounted = true;
     (async () => {
       try {
-        const res = await getReviewToday(wordBookId);
-        const ws = Array.isArray(res.data?.words) ? (res.data.words as Array<{ id: number; word: string; translation?: string }>) : [];
-        const mapped: ReviewWordItem[] = ws.map((w: any) => ({
+        const res = await getReviewToday(wordBookId, {
+          date: reviewDate || undefined,
+          limit: 200,
+        });
+        const ws = Array.isArray(res.data?.words)
+          ? (res.data.words as Array<{
+              id: number;
+              word: string;
+              translation?: string;
+              audioUrl?: string;
+            }>)
+          : [];
+        const mapped: ReviewWordItem[] = ws.map((w) => ({
           id: Number(w.id),
           word: String(w.word || ""),
           translation: w.translation ? formatTranslation(String(w.translation)) : undefined,
@@ -96,24 +114,24 @@ export default function ReviewWordList() {
     return () => {
       mounted = false;
     };
-  }, [wordBookId]);
+  }, [wordBookId, reviewDate]);
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
     else navigate("/anti-forgetting");
   };
 
-  const handleStatusClick = (id: number, newStatus: "correct" | "wrong") => {
+  const handleStatusClick = useCallback((id: number, newStatus: "correct" | "wrong") => {
     setHint(null);
     setWords((prev) =>
       prev.map((word) => {
         if (word.id !== id) return word;
-        // 同一按钮再点保持选中，避免误取消导致无法结束
-        if (word.status === newStatus) return word;
+        // 再点同一状态则取消勾选
+        if (word.status === newStatus) return { ...word, status: null };
         return { ...word, status: newStatus };
       })
     );
-  };
+  }, []);
 
   const handleWordClick = (item: ReviewWordItem) => {
     const next = nextWordTapState({
@@ -137,6 +155,18 @@ export default function ReviewWordList() {
         return word;
       })
     );
+  };
+
+  /** 批量：全部认识 */
+  const markAllCorrect = () => {
+    setHint(null);
+    setWords((prev) => prev.map((w) => ({ ...w, status: "correct" as const })));
+  };
+
+  /** 清空标记 */
+  const clearMarks = () => {
+    setHint(null);
+    setWords((prev) => prev.map((w) => ({ ...w, status: null })));
   };
 
   const [submitting, setSubmitting] = useState(false);
@@ -175,7 +205,7 @@ export default function ReviewWordList() {
 
         sessionStorage.removeItem("lb_review_batch_idx");
         sessionStorage.removeItem("lb_review_results");
-        navigate("/material-selection", { replace: true });
+        navigate("/anti-forgetting", { replace: true });
       } catch {
         setHint("提交失败，请稍后重试");
       } finally {
@@ -188,19 +218,20 @@ export default function ReviewWordList() {
   const wrongCount = words.filter((word) => word.status === "wrong").length;
 
   return (
-    <FlowPageShell className="min-h-screen bg-[#F7F9FC] pb-36">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
-        <div className="grid grid-cols-[2.5rem_1fr_auto] items-center h-14 px-3 gap-1">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={handleBack} className="justify-self-start">
-            <ChevronLeft size={20} className="text-[#2D3748]" />
-          </CloudButton>
-          <FlowPageTitle className="text-left">开始复习</FlowPageTitle>
-          <AnnotationToggleButton
-            active={annotationOpen}
-            onClick={() => setAnnotationOpen((v) => !v)}
-          />
-        </div>
-      </div>
+    <FlowPageShell className="min-h-dvh bg-[#F7F9FC] pb-[max(7.5rem,env(safe-area-inset-bottom))]">
+      <TopBar
+        title="开始复习"
+        onBack={handleBack}
+        rightSlot={
+          <div className="flex items-center gap-0.5">
+            <AnnotationToggleButton
+              active={annotationOpen}
+              onClick={() => setAnnotationOpen((v) => !v)}
+            />
+            <PracticeFontSettingsButton />
+          </div>
+        }
+      />
 
       <AnnotationLayer
         storageKey={`review-list:${wordBookId}`}
@@ -208,145 +239,147 @@ export default function ReviewWordList() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="pt-14 px-4 py-6">
-        <div className="mb-4">
-          <p className="text-[#718096] text-sm mb-3">
-            当前共有 {words.length} 个可选单词
-          </p>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-2 h-2 rounded-full bg-[#4ECDC4]" />
-            <p className="text-[#2D3748] font-medium">{selectedGroup}</p>
-          </div>
-          <WordMarkStatsBar
-            correctCount={correctCount}
-            wrongCount={wrongCount}
-            total={words.length}
-          />
+      <div className="px-4 pt-3 pb-4 max-w-2xl mx-auto w-full">
+        <div className="mb-3">
+          <p className="text-[#718096] text-sm">当前共有 {words.length} 个可选单词</p>
+          {words.length === 0 && (
+            <p className="text-xs text-amber-600 mt-1">
+              该日暂无待复习单词（可能已完成，或列表统计与取词日期不一致，请返回重进或换一天）
+            </p>
+          )}
         </div>
 
+        <WordMarkStatsBar
+          correctCount={correctCount}
+          wrongCount={wrongCount}
+          total={words.length}
+        />
+
         {viewMode === "card" ? (
-          <WordCardPanel
-            words={words}
-            index={cardIndex}
-            onIndexChange={setCardIndex}
-            playingId={playingId}
-            onPlay={handlePlayAudio}
-            onWordClick={handleWordClick}
-            onStatus={handleStatusClick}
-          />
+          <div className="mt-3">
+            <WordCardPanel
+              words={words}
+              index={cardIndex}
+              onIndexChange={setCardIndex}
+              playingId={playingId}
+              onPlay={handlePlayAudio}
+              onWordClick={handleWordClick}
+              onStatus={handleStatusClick}
+            />
+          </div>
         ) : (
-          <div className="space-y-3">
-            {words.map((item, index) => (
-              <div
-                key={item.id}
-                className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
-                  item.status === "correct"
-                    ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
-                    : item.status === "wrong"
-                    ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5"
-                    : ""
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start gap-4 flex-1">
-                    <span className="text-[#A0AEC0] text-sm mt-1">{index + 1}</span>
-                    <div className="flex-1 cursor-pointer" onClick={() => handleWordClick(item)}>
-                      <h3 className="text-2xl font-semibold text-[#2D3748] hover:text-[#4ECDC4] transition-colors">
-                        {item.word}
-                      </h3>
-                      {item.showTranslation && item.translation && (
-                        <p className="text-[#718096] text-sm mt-2 animate-in fade-in slide-in-from-top-1">
-                          {item.translation}
-                        </p>
-                      )}
+          <div className="space-y-2.5 mt-3">
+            {words.map((item, index) => {
+              return (
+                <div
+                  key={item.id}
+                  className={`bg-white rounded-xl p-3.5 shadow-sm border border-transparent transition-all hover:shadow-md hover:border-[#4ECDC4]/35 ${
+                    item.status === "correct"
+                      ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5 hover:border-[#66BB6A]"
+                      : item.status === "wrong"
+                      ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5 hover:border-[#FF6B6B]"
+                      : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                      <span className="text-[#A0AEC0] text-xs mt-1 tabular-nums w-5 shrink-0">
+                        {index + 1}
+                      </span>
+                      <div
+                        className="flex-1 min-w-0 cursor-pointer"
+                        onClick={() => handleWordClick(item)}
+                      >
+                        <h3
+                          className={`${PRACTICE_WORD_CLASS} !font-semibold hover:text-[#4ECDC4] transition-colors break-all`}
+                        >
+                          {item.word}
+                        </h3>
+                        {item.showTranslation && item.translation && (
+                          <p
+                            className={`${PRACTICE_TRANS_CLASS} mt-1.5 animate-in fade-in slide-in-from-top-1`}
+                          >
+                            {item.translation}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <CloudButton
+                        type="button"
+                        variant="ghost"
+                        size="iconRound"
+                        onClick={() => handlePlayAudio(item)}
+                        className={playingId === item.id ? "text-[#4ECDC4]" : "text-[#55A3FF]"}
+                      >
+                        <Volume2 size={20} className={playingId === item.id ? "animate-pulse" : ""} />
+                      </CloudButton>
+                      <CloudButton
+                        type="button"
+                        variant={item.status === "correct" ? "brand" : "ghost"}
+                        size="iconRound"
+                        onClick={() => handleStatusClick(item.id, "correct")}
+                        className={item.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
+                      >
+                        <Check size={18} />
+                      </CloudButton>
+                      <CloudButton
+                        type="button"
+                        variant={item.status === "wrong" ? "destructive" : "ghost"}
+                        size="iconRound"
+                        onClick={() => handleStatusClick(item.id, "wrong")}
+                      >
+                        <X size={18} />
+                      </CloudButton>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <CloudButton
-                      type="button"
-                      variant="ghost"
-                      size="iconRound"
-                      onClick={() => handlePlayAudio(item)}
-                      className={playingId === item.id ? "text-[#4ECDC4]" : "text-[#55A3FF]"}
-                    >
-                      <Volume2 size={24} className={playingId === item.id ? "animate-pulse" : ""} />
-                    </CloudButton>
-                    <CloudButton
-                      type="button"
-                      variant={item.status === "correct" ? "brand" : "ghost"}
-                      size="iconRound"
-                      onClick={() => handleStatusClick(item.id, "correct")}
-                      className={item.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
-                    >
-                      <Check size={20} />
-                    </CloudButton>
-                    <CloudButton
-                      type="button"
-                      variant={item.status === "wrong" ? "destructive" : "ghost"}
-                      size="iconRound"
-                      onClick={() => handleStatusClick(item.id, "wrong")}
-                    >
-                      <X size={20} />
-                    </CloudButton>
-                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <div className="relative">
-            <CloudButton variant="brand" size="sm" onClick={() => setShowGroupMenu(!showGroupMenu)}>
-              {selectedGroup}
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
+        <div className="max-w-2xl mx-auto w-full space-y-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <CloudButton type="button" variant="outline" size="pill" onClick={markAllCorrect}>
+              全部认识
             </CloudButton>
-            {showGroupMenu && (
-              <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg overflow-hidden">
-                {reviewGroups.map((group) => (
-                  <CloudButton
-                    key={group}
-                    variant="ghost"
-                    className={`w-full justify-start rounded-none px-4 py-3 h-auto ${
-                      selectedGroup === group ? "bg-[#4ECDC4]/10 text-[#4ECDC4]" : "text-[#2D3748]"
-                    }`}
-                    onClick={() => {
-                      setSelectedGroup(group);
-                      setShowGroupMenu(false);
-                    }}
-                  >
-                    {group}
-                  </CloudButton>
-                ))}
-              </div>
-            )}
+            <CloudButton
+              type="button"
+              variant="ghost"
+              size="pill"
+              onClick={clearMarks}
+              disabled={markedCount === 0}
+            >
+              清空
+            </CloudButton>
+            <div className="flex-1" />
+            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
           </div>
-
-          <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-
           <CloudButton
             type="button"
             variant="brand"
-            size="sm"
+            size="pill"
             onClick={handleSubmit}
             disabled={submitting}
             loading={submitting}
             loadingText="提交中…"
-            className={markedCount === 0 && words.length > 0 ? "opacity-80" : ""}
+            className={`w-full ${markedCount === 0 && words.length > 0 ? "opacity-80" : ""}`}
           >
             完成复习
             {markedCount > 0 ? ` (${markedCount})` : ""}
           </CloudButton>
+          {hint && (
+            <p className="text-center text-xs text-amber-600 px-1 animate-in fade-in">{hint}</p>
+          )}
+          {!hint && markedCount === 0 && words.length > 0 && (
+            <p className="text-center text-xs text-[#A0AEC0]">
+              点右侧 ✓ / × 标记；选几个交几个，未选的词今天仍可继续复习
+            </p>
+          )}
         </div>
-        {hint && (
-          <p className="text-center text-xs text-amber-600 mt-2 px-1 animate-in fade-in">{hint}</p>
-        )}
-        {!hint && markedCount === 0 && words.length > 0 && (
-          <p className="text-center text-xs text-[#A0AEC0] mt-2">
-            选几个交几个，未选的词今天仍可继续复习
-          </p>
-        )}
       </div>
     </FlowPageShell>
   );

@@ -1,16 +1,19 @@
 import { CloudButton } from "../components/cloudsteps";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
-import { ArrowLeft, Pause, ArrowRight, Volume2 } from "lucide-react";
+import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { TopBar } from "../components/TopBar";
+import { Pause, ArrowRight, Volume2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { playFirstWordAudio } from "../utils/audioPlayer";
-import { formatTranslation } from "../utils/wordFormat";
+import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 
 type ListenWord = {
   id: number;
   word: string;
   phonetic?: string;
   translation?: string;
+  translationShort?: string;
   audioUrl?: string;
   /** idle=未听 / played=已发音 / revealed=已显示释义 */
   state: "idle" | "played" | "revealed";
@@ -54,6 +57,7 @@ export default function ListenIdentify() {
   }, [mode]);
 
   const [playingId, setPlayingId] = useState<number | null>(null);
+  const [fullMeaning, setFullMeaning] = useState(false);
   const abortRef = useRef<(() => void) | null>(null);
 
   const handleBack = () => {
@@ -72,8 +76,9 @@ export default function ListenIdentify() {
       const mapped: ListenWord[] = slice.map((w: any) => ({
         id: Number(w.id),
         word: String(w.word || ""),
-        phonetic: w.phonetic ? String(w.phonetic) : "",
+        phonetic: pickPhoneticDisplay(w),
         translation: formatTranslation(w.translation),
+        translationShort: formatTranslationShort(w.translation),
         audioUrl: w.audioUrl ? String(w.audioUrl) : "",
         state: "idle",
       }));
@@ -111,31 +116,27 @@ export default function ListenIdentify() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      {/* 顶部栏 */}
-      <div className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="grid grid-cols-[2.5rem_1fr_auto] items-center px-4 py-4 gap-1">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={handleBack} className="-ml-2 justify-self-start">
-            <ArrowLeft size={24} className="text-[#2D3748]" />
-          </CloudButton>
-          <h1 className="text-center text-lg font-semibold text-[#2D3748]">
-            听音识词
-          </h1>
-          <div className="flex items-center justify-end gap-0.5 -mr-2">
+      <TopBar
+        title="听音识词"
+        onBack={handleBack}
+        rightSlot={
+          <div className="flex items-center gap-0.5">
             <AnnotationToggleButton
               active={annotationOpen}
               onClick={() => setAnnotationOpen((v) => !v)}
             />
+            <PracticeFontSettingsButton />
             <CloudButton
               type="button"
               variant="ghost"
               size="iconRound"
               onClick={() => setShowPauseMenu(!showPauseMenu)}
             >
-              <Pause size={24} className="text-[#2D3748]" />
+              <Pause size={18} className="text-[#2D3748]" />
             </CloudButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <AnnotationLayer
         storageKey="listen-identify"
@@ -143,7 +144,7 @@ export default function ListenIdentify() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6">
+      <div className="px-4 mt-6 max-w-2xl mx-auto w-full pb-28">
         {/* 组信息 */}
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
@@ -178,8 +179,27 @@ export default function ListenIdentify() {
                       )}
                       {showAnswer && (
                         <>
-                          <div className="text-base font-medium text-[#2D3748] mb-1">{w.word}</div>
-                          <div className="text-sm text-[#718096]">{w.translation}</div>
+                          <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{w.word}</div>
+                          {w.phonetic ? (
+                            <div className="text-sm text-[#718096] font-mono mb-0.5">{w.phonetic}</div>
+                          ) : null}
+                          <div className={PRACTICE_TRANS_CLASS}>
+                            {fullMeaning
+                              ? w.translation || w.translationShort
+                              : w.translationShort || w.translation}
+                          </div>
+                          {(w.translation || w.translationShort) && (
+                            <button
+                              type="button"
+                              className="text-xs text-[#4ECDC4] hover:underline mt-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFullMeaning((v) => !v);
+                              }}
+                            >
+                              {fullMeaning ? "简译" : "全部意思"}
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -193,7 +213,7 @@ export default function ListenIdentify() {
 
       {/* 底部工具栏 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="flex items-center justify-between">
+        <div className="max-w-2xl mx-auto w-full flex items-center justify-between">
           <div className="text-sm text-[#718096]">全部完成后进入快闪</div>
           <CloudButton variant="brand" size="iconRound" className="size-12" onClick={() => navigate("/flash-review")}>
             <ArrowRight size={24} />

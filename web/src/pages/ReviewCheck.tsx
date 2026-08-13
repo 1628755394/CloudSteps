@@ -2,6 +2,7 @@ import { ArrowLeft, Volume2, Check, X, Shuffle, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
+import { PracticeFontSettingsButton, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { FlowPageTitle } from "../components/PageTitle";
@@ -11,7 +12,7 @@ import {
   WordViewModeToggle,
   type WordViewMode,
 } from "../components/WordMarkView";
-import { WordDetailDialog } from "../components/WordDetailDialog";
+import { WordDetailPanel } from "../components/WordDetailPanel";
 
 import { completeReviewSession, startReviewSession } from "../api/review";
 import { nextWordTapState } from "../utils/wordReveal";
@@ -106,7 +107,9 @@ export default function ReviewCheck() {
 
   const handleWordClick = (word: ReviewWord) => {
     if (detailMode) {
-      setDetailWord({ id: word.id, word: word.word });
+      setDetailWord((prev) =>
+        prev?.id === word.id ? null : { id: word.id, word: word.word }
+      );
       return;
     }
     const next = nextWordTapState({
@@ -195,12 +198,15 @@ export default function ReviewCheck() {
             <ArrowLeft size={20} className="text-[#2D3748]" />
           </CloudButton>
           <FlowPageTitle>开始复习</FlowPageTitle>
-          {showList && (
-            <AnnotationToggleButton
-              active={annotationOpen}
-              onClick={() => setAnnotationOpen((v) => !v)}
-            />
-          )}
+          <div className="flex items-center justify-end gap-0.5">
+            {showList && (
+              <AnnotationToggleButton
+                active={annotationOpen}
+                onClick={() => setAnnotationOpen((v) => !v)}
+              />
+            )}
+            <PracticeFontSettingsButton />
+          </div>
         </div>
       </div>
 
@@ -210,7 +216,7 @@ export default function ReviewCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-4 pb-36">
+      <div className="px-4 mt-4 pb-36 max-w-2xl mx-auto w-full">
         {loading && (
           <p className="text-center text-[#718096] py-12">加载中…</p>
         )}
@@ -260,13 +266,15 @@ export default function ReviewCheck() {
                 onPlay={handlePlayAudio}
                 onWordClick={handleWordClick}
                 onStatus={handleStatusClick}
+                detailWordId={detailMode ? detailWord?.id ?? null : undefined}
+                onDetailClose={() => setDetailWord(null)}
               />
             ) : (
               <div className="space-y-3 mb-6">
                 {words.map((word) => (
                   <div
                     key={word.id}
-                    className={`bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${
+                    className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
                       word.status === "correct"
                         ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
                         : word.status === "wrong"
@@ -274,31 +282,44 @@ export default function ReviewCheck() {
                         : ""
                     }`}
                   >
-                    <div className="flex items-center gap-3 flex-1">
-                      <span className="text-base font-medium text-[#2D3748]">{word.word}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <CloudButton type="button" variant="ghost" size="iconRound">
-                        <Volume2 size={20} className="text-[#4ECDC4]" />
-                      </CloudButton>
-                      <CloudButton
-                        type="button"
-                        variant={word.status === "correct" ? "brand" : "ghost"}
-                        size="iconRound"
-                        onClick={() => handleStatusClick(word.id, "correct")}
-                        className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
+                    <div className="flex items-center justify-between">
+                      <div
+                        className="flex items-center gap-3 flex-1 cursor-pointer"
+                        onClick={() => handleWordClick(word)}
                       >
-                        <Check size={20} />
-                      </CloudButton>
-                      <CloudButton
-                        type="button"
-                        variant={word.status === "wrong" ? "destructive" : "ghost"}
-                        size="iconRound"
-                        onClick={() => handleStatusClick(word.id, "wrong")}
-                      >
-                        <X size={20} />
-                      </CloudButton>
+                        <span className={PRACTICE_WORD_CLASS}>{word.word}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <CloudButton type="button" variant="ghost" size="iconRound">
+                          <Volume2 size={20} className="text-[#4ECDC4]" />
+                        </CloudButton>
+                        <CloudButton
+                          type="button"
+                          variant={word.status === "correct" ? "brand" : "ghost"}
+                          size="iconRound"
+                          onClick={() => handleStatusClick(word.id, "correct")}
+                          className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
+                        >
+                          <Check size={20} />
+                        </CloudButton>
+                        <CloudButton
+                          type="button"
+                          variant={word.status === "wrong" ? "destructive" : "ghost"}
+                          size="iconRound"
+                          onClick={() => handleStatusClick(word.id, "wrong")}
+                        >
+                          <X size={20} />
+                        </CloudButton>
+                      </div>
                     </div>
+                    {detailMode && detailWord?.id === word.id && (
+                      <WordDetailPanel
+                        wordId={word.id}
+                        wordText={word.word}
+                        variant="inline"
+                        onClose={() => setDetailWord(null)}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -309,13 +330,19 @@ export default function ReviewCheck() {
 
       {showList && (
         <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
+          <div className="max-w-2xl mx-auto w-full">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
               <CloudButton
                 variant={detailMode ? "brand" : "outline"}
                 size="pill"
-                onClick={() => setDetailMode((v) => !v)}
+                onClick={() => {
+                  setDetailMode((v) => {
+                    if (v) setDetailWord(null);
+                    return !v;
+                  });
+                }}
               >
                 <BookOpen size={16} />
                 拓展
@@ -351,15 +378,9 @@ export default function ReviewCheck() {
               选几个交几个，未选的词今天仍可继续复习
             </p>
           )}
+          </div>
         </div>
       )}
-
-      <WordDetailDialog
-        wordId={detailWord?.id ?? null}
-        wordText={detailWord?.word}
-        open={!!detailWord}
-        onOpenChange={(open) => { if (!open) setDetailWord(null); }}
-      />
     </FlowPageShell>
   );
 }

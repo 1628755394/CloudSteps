@@ -21,13 +21,14 @@ import {
   ChevronLeft,
 } from "lucide-react";
 
-type Tool = "pen" | "eraser" | "highlighter" | "select";
+type Tool = "pen" | "eraser" | "highlighter" | "select" | "circle" | "rect" | "text";
 
 type Stroke = {
   tool: Tool;
   color: string;
   width: number;
   points: Array<{ x: number; y: number }>;
+  text?: string;
 };
 
 const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#a855f7", "#111827", "#ffffff"];
@@ -38,8 +39,71 @@ type AnnotationLayerProps = {
   onOpenChange: (open: boolean) => void;
 };
 
+function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
+  if (s.tool === "text" && s.text && s.points[0]) {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = s.color;
+    ctx.font = `${Math.max(14, s.width * 4)}px sans-serif`;
+    ctx.textBaseline = "top";
+    ctx.fillText(s.text, s.points[0].x, s.points[0].y);
+    return;
+  }
+
+  if (s.tool === "circle" && s.points.length >= 2) {
+    const a = s.points[0];
+    const b = s.points[s.points.length - 1];
+    const cx = (a.x + b.x) / 2;
+    const cy = (a.y + b.y) / 2;
+    const rx = Math.abs(b.x - a.x) / 2;
+    const ry = Math.abs(b.y - a.y) / 2;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.width;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, Math.max(rx, 0.5), Math.max(ry, 0.5), 0, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+
+  if (s.tool === "rect" && s.points.length >= 2) {
+    const a = s.points[0];
+    const b = s.points[s.points.length - 1];
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.width;
+    ctx.strokeRect(
+      Math.min(a.x, b.x),
+      Math.min(a.y, b.y),
+      Math.abs(b.x - a.x),
+      Math.abs(b.y - a.y)
+    );
+    return;
+  }
+
+  if (s.points.length < 2) return;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = s.width;
+  if (s.tool === "eraser") {
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.strokeStyle = "rgba(0,0,0,1)";
+  } else if (s.tool === "highlighter") {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = s.color.length === 7 ? `${s.color}66` : s.color;
+  } else {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = s.color;
+  }
+  ctx.beginPath();
+  ctx.moveTo(s.points[0].x, s.points[0].y);
+  for (let i = 1; i < s.points.length; i++) {
+    ctx.lineTo(s.points[i].x, s.points[i].y);
+  }
+  ctx.stroke();
+}
+
 /**
- * 批注层：可描画/擦除，关闭后保留，再次打开恢复
+ * 批注层：可描画/擦除/形状/文字，关闭后保留，再次打开恢复
  */
 export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -59,26 +123,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (const s of list) {
-      if (s.points.length < 2) continue;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.lineWidth = s.width;
-      if (s.tool === "eraser") {
-        ctx.globalCompositeOperation = "destination-out";
-        ctx.strokeStyle = "rgba(0,0,0,1)";
-      } else if (s.tool === "highlighter") {
-        ctx.globalCompositeOperation = "source-over";
-        ctx.strokeStyle = s.color.length === 7 ? `${s.color}66` : s.color;
-      } else {
-        ctx.globalCompositeOperation = "source-over";
-        ctx.strokeStyle = s.color;
-      }
-      ctx.beginPath();
-      ctx.moveTo(s.points[0].x, s.points[0].y);
-      for (let i = 1; i < s.points.length; i++) {
-        ctx.lineTo(s.points[i].x, s.points[i].y);
-      }
-      ctx.stroke();
+      drawStroke(ctx, s);
     }
     ctx.globalCompositeOperation = "source-over";
   }, []);
@@ -98,7 +143,6 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     redraw(strokes);
   }, [redraw, strokes]);
 
-  // 从 sessionStorage 恢复
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(`anno:${storageKey}`);
@@ -111,7 +155,6 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     }
   }, [storageKey]);
 
-  // 持久化
   useEffect(() => {
     try {
       sessionStorage.setItem(`anno:${storageKey}`, JSON.stringify(strokes));
@@ -139,6 +182,23 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (tool === "select") return;
+
+    if (tool === "text") {
+      const p = getPos(e);
+      const text = window.prompt("输入批注文字");
+      if (!text?.trim()) return;
+      const stroke: Stroke = {
+        tool: "text",
+        color,
+        width,
+        points: [p],
+        text: text.trim(),
+      };
+      setStrokes((prev) => [...prev, stroke]);
+      setRedoStack([]);
+      return;
+    }
+
     e.currentTarget.setPointerCapture(e.pointerId);
     drawingRef.current = true;
     const p = getPos(e);
@@ -154,8 +214,13 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current || !currentRef.current) return;
     const p = getPos(e);
-    currentRef.current.points.push(p);
-    redraw([...strokes, currentRef.current]);
+    const cur = currentRef.current;
+    if (cur.tool === "circle" || cur.tool === "rect") {
+      cur.points = [cur.points[0], p];
+    } else {
+      cur.points.push(p);
+    }
+    redraw([...strokes, cur]);
   };
 
   const onPointerUp = () => {
@@ -163,7 +228,11 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     drawingRef.current = false;
     const done = currentRef.current;
     currentRef.current = null;
-    if (done.points.length > 1) {
+    const ok =
+      done.tool === "circle" || done.tool === "rect"
+        ? done.points.length >= 2
+        : done.points.length > 1;
+    if (ok) {
       setStrokes((prev) => [...prev, done]);
     }
   };
@@ -193,6 +262,26 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
   };
 
   if (!open) return null;
+
+  const toolBtn = (
+    id: Tool,
+    Icon: typeof Pencil,
+    tip: string
+  ) => (
+    <button
+      key={id}
+      type="button"
+      title={tip}
+      onClick={() => setTool(id)}
+      className={`h-9 rounded-lg flex items-center justify-center border ${
+        tool === id
+          ? "border-primary bg-primary-soft text-primary"
+          : "border-border text-charcoal hover:bg-muted"
+      }`}
+    >
+      <Icon size={16} />
+    </button>
+  );
 
   return (
     <>
@@ -236,28 +325,10 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
 
           <div className="p-3 space-y-3">
             <div className="grid grid-cols-5 gap-1.5">
-              {(
-                [
-                  { id: "select" as const, Icon: ArrowUpLeft, tip: "选择" },
-                  { id: "pen" as const, Icon: Pencil, tip: "画笔" },
-                  { id: "highlighter" as const, Icon: Highlighter, tip: "荧光笔" },
-                  { id: "eraser" as const, Icon: Eraser, tip: "橡皮" },
-                ] as const
-              ).map(({ id, Icon, tip }) => (
-                <button
-                  key={id}
-                  type="button"
-                  title={tip}
-                  onClick={() => setTool(id)}
-                  className={`h-9 rounded-lg flex items-center justify-center border ${
-                    tool === id
-                      ? "border-primary bg-primary-soft text-primary"
-                      : "border-border text-charcoal hover:bg-muted"
-                  }`}
-                >
-                  <Icon size={16} />
-                </button>
-              ))}
+              {toolBtn("select", ArrowUpLeft, "选择")}
+              {toolBtn("pen", Pencil, "画笔")}
+              {toolBtn("highlighter", Highlighter, "荧光笔")}
+              {toolBtn("eraser", Eraser, "橡皮")}
               <button
                 type="button"
                 title="撤销"
@@ -285,15 +356,9 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
               >
                 <Trash2 size={16} />
               </button>
-              <span className="h-9 rounded-lg flex items-center justify-center border border-dashed border-border text-muted-soft opacity-50">
-                <Circle size={14} />
-              </span>
-              <span className="h-9 rounded-lg flex items-center justify-center border border-dashed border-border text-muted-soft opacity-50">
-                <Square size={14} />
-              </span>
-              <span className="h-9 rounded-lg flex items-center justify-center border border-dashed border-border text-muted-soft opacity-50">
-                <Type size={14} />
-              </span>
+              {toolBtn("circle", Circle, "圆形")}
+              {toolBtn("rect", Square, "矩形")}
+              {toolBtn("text", Type, "文字")}
             </div>
 
             <div>

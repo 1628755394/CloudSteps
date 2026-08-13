@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { BookOpen, Check, ChevronLeft, ChevronRight, LayoutGrid, List, Volume2, X } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
-import { WordDetailDialog } from "./WordDetailDialog";
+import { WordDetailPanel } from "./WordDetailPanel";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
 
 export type MarkableWord = {
   id: number;
   word: string;
+  phonetic?: string;
   translation?: string;
   audioUrl?: string;
   showTranslation?: boolean;
@@ -54,6 +56,10 @@ type CardProps = {
   onPlay: (word: MarkableWord) => void;
   onWordClick: (word: MarkableWord) => void;
   onStatus: (id: number, status: "correct" | "wrong") => void;
+  /** 外部控制：展开该词的拓展面板（页内，非模态） */
+  detailWordId?: number | null;
+  onDetailClose?: () => void;
+  simpleMode?: boolean;
 };
 
 export function WordCardPanel({
@@ -64,14 +70,20 @@ export function WordCardPanel({
   onPlay,
   onWordClick,
   onStatus,
+  detailWordId,
+  onDetailClose,
+  simpleMode = true,
 }: CardProps) {
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [localDetail, setLocalDetail] = useState(false);
 
-  // 切换单词时收起详情
+  const detailControlled = detailWordId !== undefined;
+  const detailOpen = detailControlled ? detailWordId === word?.id : localDetail;
+
+  // 切换单词时收起本地详情
   useEffect(() => {
-    setDetailOpen(false);
+    setLocalDetail(false);
   }, [safeIndex]);
 
   if (!word) {
@@ -82,7 +94,7 @@ export function WordCardPanel({
 
   return (
     <div className="flex flex-col items-center gap-5 py-4">
-      <div className="flex items-center gap-3 w-full max-w-md">
+      <div className="flex items-center gap-3 w-full max-w-2xl">
         <CloudButton
           type="button"
           variant="ghost"
@@ -108,9 +120,20 @@ export function WordCardPanel({
           <p className="text-xs text-muted-foreground mb-4">
             {safeIndex + 1} / {words.length}
           </p>
-          <h2 className="text-3xl font-bold text-[#1e3a5f] text-center break-all">{word.word}</h2>
-          {word.showTranslation && word.translation && (
-            <p className="text-muted-foreground text-sm mt-4 text-center animate-in fade-in">{word.translation}</p>
+          <h2 className={`${PRACTICE_WORD_CLASS} !font-bold text-[#1e3a5f] text-center break-all`}>
+            {word.word}
+          </h2>
+          {word.showTranslation && (
+            <>
+              {word.phonetic ? (
+                <p className="text-sm text-[#718096] font-mono mt-3 text-center">{word.phonetic}</p>
+              ) : null}
+              {word.translation ? (
+                <p className={`${PRACTICE_TRANS_CLASS} mt-2 text-center animate-in fade-in`}>
+                  {word.translation}
+                </p>
+              ) : null}
+            </>
           )}
         </div>
 
@@ -129,13 +152,20 @@ export function WordCardPanel({
 
       <div className="flex items-center gap-3">
         <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => onPlay(word)}>
-          <Volume2 size={20} className={playingId === word.id ? "text-primary animate-pulse" : "text-primary"} />
+          <Volume2 size={20} className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"} />
         </CloudButton>
         <CloudButton
           type="button"
           variant="ghost"
           size="iconRound"
-          onClick={() => setDetailOpen(true)}
+          onClick={() => {
+            if (detailControlled) {
+              if (detailOpen) onDetailClose?.();
+              else onWordClick(word);
+            } else {
+              setLocalDetail((v) => !v);
+            }
+          }}
           aria-label="单词详情"
           className="text-[#4ECDC4] hover:bg-[#4ECDC4]/10"
         >
@@ -160,12 +190,20 @@ export function WordCardPanel({
         </CloudButton>
       </div>
 
-      <WordDetailDialog
-        wordId={word.id}
-        wordText={word.word}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
+      {detailOpen && (
+        <div className="w-full max-w-2xl px-1">
+          <WordDetailPanel
+            wordId={word.id}
+            wordText={word.word}
+            variant="inline"
+            simpleMode={simpleMode}
+            onClose={() => {
+              setLocalDetail(false);
+              onDetailClose?.();
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

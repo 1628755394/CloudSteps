@@ -1,5 +1,6 @@
 import { CloudButton } from "../components/cloudsteps";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
+import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { ArrowLeft, Pause, Shuffle, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -185,6 +186,7 @@ export default function WordReview() {
               active={annotationOpen}
               onClick={() => setAnnotationOpen((v) => !v)}
             />
+            <PracticeFontSettingsButton />
             <CloudButton
               type="button"
               variant="ghost"
@@ -203,7 +205,7 @@ export default function WordReview() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6">
+      <div className="px-4 mt-6 max-w-2xl mx-auto w-full pb-28">
         {/* 组信息 */}
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
@@ -221,9 +223,9 @@ export default function WordReview() {
                   onClick={() => handleWordTap(word)}
                   className="flex-1 cursor-pointer pr-3"
                 >
-                  <div className="text-base font-medium text-[#2D3748] mb-1">{word.word}</div>
+                  <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{word.word}</div>
                   {word.showTranslation && (
-                    <div className="text-sm text-[#718096]">{word.translation}</div>
+                    <div className={PRACTICE_TRANS_CLASS}>{word.translation}</div>
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -259,7 +261,7 @@ export default function WordReview() {
 
       {/* 底部工具栏 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="flex items-center justify-between">
+        <div className="max-w-2xl mx-auto w-full flex items-center justify-between">
           <div className="flex gap-2">
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />

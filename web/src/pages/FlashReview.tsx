@@ -1,11 +1,13 @@
 import { CloudButton } from "../components/cloudsteps";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
-import { ArrowLeft, Pause, Volume2, Scissors } from "lucide-react";
+import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { TopBar } from "../components/TopBar";
+import { Pause, Volume2, Scissors } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
-import { formatTranslation } from "../utils/wordFormat";
+import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState } from "../utils/wordReveal";
 import {
   clearStudyRetryFlash,
@@ -21,6 +23,7 @@ const CHECK_PHASE_KEY = "lb_study_check_phase";
 type FlashWord = {
   id: number;
   word: string;
+  phonetic: string;
   translation: string;
   audioUrl?: string;
   scissorCount: number;
@@ -32,6 +35,7 @@ function mapToFlashWord(w: Record<string, unknown>): FlashWord {
   return {
     id: Number(w.id),
     word: String(w.word || ""),
+    phonetic: pickPhoneticDisplay(w as { phonetic?: string; phoneticUk?: string; phoneticUs?: string }),
     translation: formatTranslation(w.translation as string),
     audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
     scissorCount: 0,
@@ -98,22 +102,11 @@ export default function FlashReview() {
   const abortRef = useRef<(() => void) | null>(null);
 
   const handleScissorClick = (word: FlashWord, action: "red" | "green") => {
-    if (word.audioUrl) {
-      abortRef.current?.();
-      setPlayingId(word.id);
-      const abort = playFirstWordAudio(word.audioUrl, () => setPlayingId(null));
-      abortRef.current = abort;
-    }
     setWords((prev) =>
       prev.map((w) => {
         if (w.id !== word.id) return w;
-        if (action === "red") {
-          // 红剪：不熟。再次点击红剪则取消（回到 0）
-          return { ...w, scissorCount: w.scissorCount === 1 ? 0 : 1 };
-        } else {
-          // 绿剪：掌握。再次点击绿剪则取消（回到 0）
-          return { ...w, scissorCount: w.scissorCount === 2 ? 0 : 2 };
-        }
+        // 红/绿都会剪掉：红=不熟(1)，绿=掌握(2)
+        return { ...w, scissorCount: action === "red" ? 1 : 2 };
       })
     );
   };
@@ -150,7 +143,7 @@ export default function FlashReview() {
     );
   };
 
-  const allCut = words.length > 0 && words.every((word) => word.scissorCount >= 2);
+  const allCut = words.length > 0 && words.every((word) => word.scissorCount > 0);
 
   const continueAfterRetry = () => {
     const retried = getStudyRetryWords();
@@ -232,29 +225,22 @@ export default function FlashReview() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="grid grid-cols-[2.5rem_1fr_auto] items-center px-4 py-4 gap-1">
-          <CloudButton
-            type="button"
-            variant="ghost"
-            size="iconRound"
-            onClick={handleBack}
-            className="-ml-2 justify-self-start"
-          >
-            <ArrowLeft size={24} className="text-[#2D3748]" />
-          </CloudButton>
-          <h1 className="text-center text-lg font-semibold text-[#2D3748]">{headerTitle}</h1>
-          <div className="flex items-center justify-end gap-0.5 -mr-2">
+      <TopBar
+        title={headerTitle}
+        onBack={handleBack}
+        rightSlot={
+          <div className="flex items-center gap-0.5">
             <AnnotationToggleButton
               active={annotationOpen}
               onClick={() => setAnnotationOpen((v) => !v)}
             />
+            <PracticeFontSettingsButton />
             <CloudButton type="button" variant="ghost" size="iconRound">
-              <Pause size={24} className="text-[#2D3748]" />
+              <Pause size={18} className="text-[#2D3748]" />
             </CloudButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <AnnotationLayer
         storageKey="flash-review"
@@ -262,16 +248,16 @@ export default function FlashReview() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6">
+      <div className="px-4 mt-6 max-w-2xl mx-auto w-full pb-28">
         <p className="text-center text-sm text-[#718096] mb-6">
           {isRetryMode
-            ? "点红剪刀表示不熟，点绿剪刀表示掌握"
-            : `${words.filter((w) => w.scissorCount < 2).length} 个待剪`}
+            ? "点红剪刀表示不熟，点绿剪刀表示掌握（都会剪掉）"
+            : `${words.filter((w) => w.scissorCount === 0).length} 个待剪`}
         </p>
 
         <div className="space-y-3 mb-6">
           {words
-            .filter((w) => w.scissorCount < 2)
+            .filter((w) => w.scissorCount === 0)
             .map((word) => (
               <div
                 key={word.id}
@@ -282,12 +268,17 @@ export default function FlashReview() {
                   onClick={() => handleWordTap(word)}
                 >
                   <div>
-                    <div className="text-base font-medium text-[#2D3748] mb-1 hover:text-[#4ECDC4] transition-colors">
+                    <div className={`${PRACTICE_WORD_CLASS} mb-1 hover:text-[#4ECDC4] transition-colors`}>
                       {word.word}
                     </div>
-                    {word.showTranslation && word.translation && (
-                      <div className="text-sm text-[#718096] animate-in fade-in slide-in-from-top-1">
-                        {word.translation}
+                    {word.showTranslation && (
+                      <div className="animate-in fade-in slide-in-from-top-1">
+                        {word.phonetic ? (
+                          <div className="text-sm text-[#718096] font-mono mb-0.5">{word.phonetic}</div>
+                        ) : null}
+                        {word.translation ? (
+                          <div className={PRACTICE_TRANS_CLASS}>{word.translation}</div>
+                        ) : null}
                       </div>
                     )}
                   </div>
