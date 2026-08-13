@@ -155,7 +155,7 @@ func (h *Handlers) handleListWordBooks(c *gin.Context) {
 	if page < 1 {
 		page = 1
 	}
-	if pageSize < 1 || pageSize > 100 {
+	if pageSize < 1 || pageSize > 1000 {
 		pageSize = 20
 	}
 
@@ -165,19 +165,12 @@ func (h *Handlers) handleListWordBooks(c *gin.Context) {
 		return
 	}
 
-	// 预计算总词汇量（所有上架词库的 word_count 之和），使用冗余字段避免 COUNT(*)
-	var totalWords int64
-	db.Table("word_books").
-		Where("is_deleted = 0 AND is_active = 1").
-		Select("COALESCE(SUM(word_count), 0)").Scan(&totalWords)
-
 	response.Success(c, "success", gin.H{
-		"list":        books,
-		"total":       total,
-		"page":        page,
-		"pageSize":    pageSize,
-		"totalWords":  totalWords,
-		"groups":      models.GroupNames(),
+		"list":     books,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"groups":   models.GroupNames(),
 	})
 }
 

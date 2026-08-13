@@ -450,9 +450,18 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	}
 
 	var session models.StudySession
-	if err := db.Where("id = ? AND user_id = ?", sessionID, user.ID).First(&session).Error; err != nil {
+	if err := db.Where("id = ?", sessionID).First(&session).Error; err != nil {
 		response.Fail(c, "会话不存在", err)
 		return
+	}
+
+	// 本人或绑定师生关系的老师可查看
+	if session.UserID != user.ID {
+		tid := coachingCoachingTeacherID(c)
+		if tid == 0 || coachingTeacherHasStudentPair(db, tid, session.UserID) != nil {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "无权查看该会话"})
+			return
+		}
 	}
 
 	var sessionWords []models.SessionWord
@@ -473,8 +482,9 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	})
 }
 
-// handleStudySessionsList GET /study/sessions?page=1&pageSize=20&sessionType=study
-// 列出当前用户的学习/复习会话记录
+// handleStudySessionsList GET /study/sessions
+// query: page, pageSize, sessionType, studentId(老师查学员), date / dateFrom / dateTo (YYYY-MM-DD),
+//        wordBookId, status(completed|in_progress), groupBy(bookDay=按词库+日聚合)
 func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	user := models.CurrentUser(c)
@@ -491,11 +501,150 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
-	sessionType := c.Query("sessionType") // "study" | "review" | "" (all)
+	sessionType := c.Query("sessionType") // "learn"|"study"(正课) | "review" | "" (all)
+	if sessionType == "study" {
+		sessionType = "learn" // 前端正课 tab 用 study，库里存 learn
+	}
 
-	q := db.Model(&models.StudySession{}).Where("user_id = ?", user.ID)
+	targetUserID := user.ID
+	if sidStr := strings.TrimSpace(c.Query("studentId")); sidStr != "" {
+		sid64, err := strconv.ParseUint(sidStr, 10, 64)
+		if err != nil || sid64 == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+			return
+		}
+		sid := uint(sid64)
+		tid := coachingCoachingTeacherID(c)
+		if tid == 0 {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "仅老师可查看学员记录"})
+			return
+		}
+		if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+			return
+		}
+		// 正课会话记在老师账号：studentId 仅做权限校验
+		_ = sid
+		targetUserID = user.ID
+	}
+
+	q := db.Model(&models.StudySession{}).Where("user_id = ?", targetUserID)
 	if sessionType != "" {
 		q = q.Where("session_type = ?", sessionType)
+	}
+	if wbID, err := strconv.Atoi(c.Query("wordBookId")); err == nil && wbID > 0 {
+		q = q.Where("word_book_id = ?", wbID)
+	}
+	if status := strings.TrimSpace(c.Query("status")); status != "" {
+		q = q.Where("status = ?", status)
+	}
+
+	// 日期筛选：优先 date（单日），否则 dateFrom / dateTo
+	dateOnly := strings.TrimSpace(c.Query("date"))
+	dateFrom := strings.TrimSpace(c.Query("dateFrom"))
+	dateTo := strings.TrimSpace(c.Query("dateTo"))
+	if dateOnly != "" {
+		dateFrom, dateTo = dateOnly, dateOnly
+	}
+	if dateFrom != "" {
+		if t, err := time.ParseInLocation("2006-01-02", dateFrom, time.Local); err == nil {
+			q = q.Where("started_at >= ?", t)
+		}
+	}
+	if dateTo != "" {
+		if t, err := time.ParseInLocation("2006-01-02", dateTo, time.Local); err == nil {
+			q = q.Where("started_at < ?", t.Add(24*time.Hour))
+		}
+	}
+
+	// 按「词库 + 上课日」聚合，避免同课多次开练刷屏
+	if strings.TrimSpace(c.Query("groupBy")) == "bookDay" {
+		type groupRow struct {
+			WordBookID   uint      `gorm:"column:word_book_id"`
+			Day          string    `gorm:"column:day"`
+			SessionCount int64     `gorm:"column:session_count"`
+			WordCount    int64     `gorm:"column:word_count"`
+			CorrectCount int64     `gorm:"column:correct_count"`
+			LatestAt     time.Time `gorm:"column:latest_at"`
+			SessionIDs   string    `gorm:"column:session_ids"`
+		}
+
+		countQ := q.Session(&gorm.Session{})
+		var total int64
+		_ = db.Table("(?) AS g", countQ.Select("word_book_id, DATE(started_at) AS d").Group("word_book_id, DATE(started_at)")).
+			Count(&total).Error
+
+		var rows []groupRow
+		if err := q.Select(`
+			word_book_id,
+			DATE(started_at) AS day,
+			COUNT(*) AS session_count,
+			COALESCE(SUM(word_count), 0) AS word_count,
+			COALESCE(SUM(correct_count), 0) AS correct_count,
+			MAX(started_at) AS latest_at,
+			GROUP_CONCAT(id ORDER BY started_at DESC, id DESC) AS session_ids
+		`).Group("word_book_id, DATE(started_at)").
+			Order("MAX(started_at) DESC").
+			Offset((page - 1) * pageSize).
+			Limit(pageSize).
+			Scan(&rows).Error; err != nil {
+			response.Fail(c, "查询失败", err)
+			return
+		}
+
+		wbIDs := make([]uint, 0, len(rows))
+		for _, r := range rows {
+			if r.WordBookID > 0 {
+				wbIDs = append(wbIDs, r.WordBookID)
+			}
+		}
+		wbNames := make(map[uint]string, len(wbIDs))
+		if len(wbIDs) > 0 {
+			var books []models.WordBook
+			_ = db.Where("id IN ?", wbIDs).Find(&books).Error
+			for _, b := range books {
+				wbNames[b.ID] = b.Name
+			}
+		}
+
+		list := make([]gin.H, 0, len(rows))
+		for _, r := range rows {
+			ids := make([]uint, 0)
+			for _, p := range strings.Split(r.SessionIDs, ",") {
+				p = strings.TrimSpace(p)
+				if p == "" {
+					continue
+				}
+				if id64, err := strconv.ParseUint(p, 10, 64); err == nil && id64 > 0 {
+					ids = append(ids, uint(id64))
+				}
+			}
+			day := strings.TrimSpace(r.Day)
+			if len(day) >= 10 {
+				day = day[:10]
+			}
+			list = append(list, gin.H{
+				"wordBookId":   r.WordBookID,
+				"wordBookName": wbNames[r.WordBookID],
+				"day":          day,
+				"sessionCount": r.SessionCount,
+				"wordCount":    r.WordCount,
+				"correctCount": r.CorrectCount,
+				"latestAt":     r.LatestAt,
+				"sessionIds":   ids,
+				"sessionType":  sessionType,
+				"status":       "grouped",
+			})
+		}
+
+		response.Success(c, "success", gin.H{
+			"list":     list,
+			"total":    total,
+			"page":     page,
+			"pageSize": pageSize,
+			"grouped":  true,
+		})
+		return
 	}
 
 	var total int64
@@ -535,6 +684,7 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 			"correctCount": s.CorrectCount,
 			"wordBookId":   s.WordBookID,
 			"wordBookName": wbNames[s.WordBookID],
+			"userId":       s.UserID,
 		})
 	}
 
@@ -543,5 +693,110 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,
+	})
+}
+
+// handleStudySessionsExportWords GET /study/sessions/export-words
+// 一次返回筛选条件下去重后的单词（英文 / 音标 / 中文释义），供导出。
+func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	user := models.CurrentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		return
+	}
+
+	sessionType := c.Query("sessionType")
+	if sessionType == "study" {
+		sessionType = "learn"
+	}
+	targetUserID := user.ID
+	if sidStr := strings.TrimSpace(c.Query("studentId")); sidStr != "" {
+		sid64, err := strconv.ParseUint(sidStr, 10, 64)
+		if err != nil || sid64 == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+			return
+		}
+		sid := uint(sid64)
+		tid := coachingCoachingTeacherID(c)
+		if tid == 0 {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "仅老师可查看学员记录"})
+			return
+		}
+		if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+			return
+		}
+		// 正课会话目前记在老师账号；传 studentId 仅做权限校验，仍导出老师侧会话词
+		_ = sid
+		targetUserID = user.ID
+	}
+
+	q := db.Model(&models.StudySession{}).Where("user_id = ?", targetUserID)
+	if sessionType != "" {
+		q = q.Where("session_type = ?", sessionType)
+	}
+	if status := strings.TrimSpace(c.Query("status")); status != "" {
+		q = q.Where("status = ?", status)
+	}
+	if wbID, err := strconv.Atoi(c.Query("wordBookId")); err == nil && wbID > 0 {
+		q = q.Where("word_book_id = ?", wbID)
+	}
+
+	dateOnly := strings.TrimSpace(c.Query("date"))
+	dateFrom := strings.TrimSpace(c.Query("dateFrom"))
+	dateTo := strings.TrimSpace(c.Query("dateTo"))
+	if dateOnly != "" {
+		dateFrom, dateTo = dateOnly, dateOnly
+	}
+	if dateFrom != "" {
+		if t, err := time.ParseInLocation("2006-01-02", dateFrom, time.Local); err == nil {
+			q = q.Where("started_at >= ?", t)
+		}
+	}
+	if dateTo != "" {
+		if t, err := time.ParseInLocation("2006-01-02", dateTo, time.Local); err == nil {
+			q = q.Where("started_at < ?", t.Add(24*time.Hour))
+		}
+	}
+
+	var sessionIDs []uint
+	if err := q.Order("id DESC").Limit(500).Pluck("id", &sessionIDs).Error; err != nil {
+		response.Fail(c, "查询失败", err)
+		return
+	}
+	if len(sessionIDs) == 0 {
+		response.Success(c, "success", gin.H{"words": []any{}, "total": 0})
+		return
+	}
+
+	type exportRow struct {
+		ID           uint   `json:"id" gorm:"column:id"`
+		Word         string `json:"word" gorm:"column:word"`
+		Phonetic     string `json:"phonetic" gorm:"column:phonetic"`
+		PhoneticUK   string `json:"phoneticUk" gorm:"column:phonetic_uk"`
+		PhoneticUS   string `json:"phoneticUs" gorm:"column:phonetic_us"`
+		Translation  string `json:"translation" gorm:"column:translation"`
+		PartOfSpeech string `json:"partOfSpeech" gorm:"column:part_of_speech"`
+		AudioURL     string `json:"audioUrl" gorm:"column:audio_url"`
+	}
+
+	var rows []exportRow
+	err := db.Raw(`
+		SELECT w.id, w.word, w.phonetic, w.phonetic_uk, w.phonetic_us, w.translation, w.part_of_speech, w.audio_url
+		FROM session_words sw
+		JOIN words w ON w.id = sw.word_id
+		WHERE sw.session_id IN ?
+		GROUP BY w.id, w.word, w.phonetic, w.phonetic_uk, w.phonetic_us, w.translation, w.part_of_speech, w.audio_url
+		ORDER BY w.word ASC
+	`, sessionIDs).Scan(&rows).Error
+	if err != nil {
+		response.Fail(c, "导出查询失败", err)
+		return
+	}
+
+	response.Success(c, "success", gin.H{
+		"words": rows,
+		"total": len(rows),
 	})
 }

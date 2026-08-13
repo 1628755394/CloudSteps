@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
@@ -14,7 +15,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// handleReviewToday GET /review/today?wordBookId=1
+// handleReviewToday GET /review/today?wordBookId=1&date=YYYY-MM-DD&timeZone=Asia/Shanghai
+// 取词口径与 /review/books-by-date 对齐：今日含逾期至本地明日 0 点前；其它日仅该日 due。
 func (h *Handlers) handleReviewToday(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	user := models.CurrentUser(c)
@@ -23,17 +25,43 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 		return
 	}
 
-	now := time.Now().UTC()
 	wordBookID, _ := strconv.Atoi(c.Query("wordBookId"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
 
+	tzName := c.DefaultQuery("timeZone", "Asia/Shanghai")
+	loc, err := time.LoadLocation(tzName)
+	if err != nil {
+		loc = time.FixedZone("CST", 8*3600)
+	}
+
+	nowLocal := time.Now().In(loc)
+	todayStart := time.Date(nowLocal.Year(), nowLocal.Month(), nowLocal.Day(), 0, 0, 0, 0, loc)
+
+	dateStr := strings.TrimSpace(c.Query("date"))
+	dayStart := todayStart
+	if dateStr != "" {
+		parsed, perr := time.ParseInLocation("2006-01-02", dateStr, loc)
+		if perr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "date 格式应为 YYYY-MM-DD"})
+			return
+		}
+		dayStart = time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, loc)
+	}
+	dayEnd := dayStart.Add(24 * time.Hour)
+	isSelectedToday := dayStart.Equal(todayStart)
+
 	q := db.Model(&models.ReviewQueue{}).
-		Where("user_id = ? AND status = ? AND due_at <= ?", user.ID, "pending", now)
+		Where("user_id = ? AND status = ?", user.ID, "pending")
 	if wordBookID > 0 {
 		q = q.Where("word_book_id = ?", wordBookID)
+	}
+	if isSelectedToday {
+		q = q.Where("due_at < ?", dayEnd)
+	} else {
+		q = q.Where("due_at >= ? AND due_at < ?", dayStart, dayEnd)
 	}
 
 	var items []models.ReviewQueue
@@ -54,7 +82,6 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 		_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 	}
 
-	// preserve queue order
 	sorted := make([]models.WordLite, 0, len(words))
 	tmp := make([]*models.WordLite, len(items))
 	for i := range words {
@@ -75,6 +102,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 	response.Success(c, "success", gin.H{
 		"total": len(sorted),
 		"words": sorted,
+		"date":  dayStart.Format("2006-01-02"),
 	})
 }
 
@@ -254,10 +282,10 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 	var session models.StudySession
 	if err := db.Transaction(func(tx *gorm.DB) error {
 		if len(body.WordIDs) > 0 {
-			// validate + reserve those queue items too
+			// 显式 wordIds：只校验 pending，不再卡 due_at<=now（与抗遗忘列表日期口径一致）
 			var items []models.ReviewQueue
 			q := tx.Model(&models.ReviewQueue{}).
-				Where("user_id = ? AND word_id IN ? AND status = ? AND due_at <= ?", user.ID, body.WordIDs, "pending", now)
+				Where("user_id = ? AND word_id IN ? AND status = ?", user.ID, body.WordIDs, "pending")
 			if body.WordBookID > 0 {
 				q = q.Where("word_book_id = ?", body.WordBookID)
 			}
@@ -265,7 +293,7 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 				return err
 			}
 			if len(items) != len(body.WordIDs) {
-				return errors.New("存在未到期或不可用的复习单词")
+				return errors.New("存在不可用的复习单词（可能已完成或不在队列）")
 			}
 			ids := make([]uint, 0, len(items))
 			for _, it := range items {
@@ -282,8 +310,12 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 			// Do NOT auto-pick extra due words.
 			return nil
 		}
+		// 未指定词：取「本地今日应复习」（含逾期），与 books-by-date /today 对齐
+		loc := time.Local
+		nowLocal := time.Now().In(loc)
+		dayEnd := time.Date(nowLocal.Year(), nowLocal.Month(), nowLocal.Day(), 0, 0, 0, 0, loc).Add(24 * time.Hour)
 		q := tx.Model(&models.ReviewQueue{}).
-			Where("user_id = ? AND status = ? AND due_at <= ?", user.ID, "pending", now)
+			Where("user_id = ? AND status = ? AND due_at < ?", user.ID, "pending", dayEnd)
 		if body.WordBookID > 0 {
 			q = q.Where("word_book_id = ?", body.WordBookID)
 		}
