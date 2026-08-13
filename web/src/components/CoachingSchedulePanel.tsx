@@ -16,7 +16,7 @@ import {
   createTeacherCoachingAppointment,
   deleteTeacherCoachingAppointment,
   endCoachingAppointment,
-  getTeacherCoachingQuotas,
+  listAllTeacherCoachingQuotas,
   getTeacherCoachingWeek,
   searchCoachingStudents,
   startCoachingAppointment,
@@ -113,8 +113,7 @@ export function CoachingSchedulePanel({ nowTs }: Props) {
 
   const loadQuotas = useCallback(async () => {
     try {
-      const res = await getTeacherCoachingQuotas();
-      setQuotas(Array.isArray(res.data) ? res.data : []);
+      setQuotas(await listAllTeacherCoachingQuotas());
     } catch {
       setQuotas([]);
     }

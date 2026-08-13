@@ -1,20 +1,36 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   ChevronLeft,
-  ChevronRight,
   ClipboardList,
   Clock,
-  Phone,
+  KeyRound,
+  Loader2,
   RefreshCw,
   Search,
-  Users,
+  UserPlus,
 } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudEmpty, CloudInput, CloudSpin } from "../components/cloudsteps/arco";
-import { PageTitle } from "../components/PageTitle";
-import { getTeacherCoachingQuotas, type TeacherCoachingQuotaRow } from "../api/coaching";
+import { AddStudentPanel } from "../components/AddStudentPanel";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import {
+  getTeacherCoachingQuotas,
+  setTeacherStudentPassword,
+  type TeacherCoachingQuotaRow,
+} from "../api/coaching";
 import { showToast } from "../utils/toast";
+import { resolveMediaUrl } from "../utils/mediaUrl";
+
+const DEFAULT_PASSWORD = "student123";
+const PAGE_LIMIT = 20;
 
 function studentLabel(row: TeacherCoachingQuotaRow) {
   const s = row.student;
@@ -25,12 +41,12 @@ function studentInitial(row: TeacherCoachingQuotaRow) {
   return (studentLabel(row) || "?").trim().slice(0, 1).toUpperCase() || "?";
 }
 
-function fmtShort(iso?: string | null) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(iso).slice(0, 10);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function studentAvatarUrl(row: TeacherCoachingQuotaRow) {
+  return resolveMediaUrl(row.student?.avatar);
+}
+
+function loginAccount(row: TeacherCoachingQuotaRow) {
+  return row.student?.username || row.student?.email || "";
 }
 
 function minsLabel(n: number) {
@@ -44,59 +60,93 @@ function minsLabel(n: number) {
 
 export default function MyStudents() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<TeacherCoachingQuotaRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [keyword, setKeyword] = useState("");
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getTeacherCoachingQuotas();
-      if (res.code !== 200) {
-        showToast.error(res.msg || "加载失败");
-        setRows([]);
-        return;
-      }
-      setRows(Array.isArray(res.data) ? res.data : []);
-    } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载失败";
-      showToast.error(msg);
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
+  const [hasMore, setHasMore] = useState(false);
+  const [showAdd, setShowAdd] = useState(() => searchParams.get("link") === "1");
+  const [pwdTarget, setPwdTarget] = useState<TeacherCoachingQuotaRow | null>(null);
+  const [pwdValue, setPwdValue] = useState(DEFAULT_PASSWORD);
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (searchParams.get("link") === "1") {
+      setShowAdd(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("link");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
-  const filtered = useMemo(() => {
-    const q = keyword.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => {
-      const hay = [
-        studentLabel(r),
-        r.student?.username,
-        r.student?.email,
-        r.student?.phone,
-        String(r.studentId),
-        r.student?.city,
-        r.student?.region,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [rows, keyword]);
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(keyword.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [keyword]);
 
-  const summary = useMemo(() => {
-    const totalMins = rows.reduce((s, r) => s + (r.remainingMinutes || 0), 0);
-    const lowQuota = rows.filter((r) => (r.remainingMinutes || 0) < 30).length;
-    return { count: rows.length, totalMins, lowQuota };
-  }, [rows]);
+  const fetchPage = useCallback(
+    async (opts: { cursor?: string; append: boolean; q: string }) => {
+      if (opts.append) {
+        if (loadingMoreRef.current) return;
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      try {
+        const res = await getTeacherCoachingQuotas({
+          cursor: opts.cursor,
+          limit: PAGE_LIMIT,
+          q: opts.q || undefined,
+        });
+        if (res.code !== 200) {
+          showToast.error(res.msg || "加载失败");
+          if (!opts.append) setRows([]);
+          return;
+        }
+        const list = Array.isArray(res.data?.list) ? res.data.list : [];
+        setRows((prev) => (opts.append ? [...prev, ...list] : list));
+        setNextCursor(res.data?.nextCursor || undefined);
+        setHasMore(Boolean(res.data?.hasMore));
+      } catch (e: unknown) {
+        const msg =
+          e && typeof e === "object" && "msg" in e
+            ? String((e as { msg: string }).msg)
+            : "加载失败";
+        showToast.error(msg);
+        if (!opts.append) setRows([]);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        loadingMoreRef.current = false;
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    void fetchPage({ append: false, q: debouncedQ });
+  }, [debouncedQ, fetchPage]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        if (!hasMore || loading || loadingMoreRef.current || !nextCursor) return;
+        void fetchPage({ cursor: nextCursor, append: true, q: debouncedQ });
+      },
+      { rootMargin: "120px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, nextCursor, loading, debouncedQ, fetchPage]);
 
   const openActivity = (r: TeacherCoachingQuotaRow) => {
     navigate(`/my-students/${r.studentId}/training`, {
@@ -104,202 +154,251 @@ export default function MyStudents() {
     });
   };
 
+  const openPwdModal = (r: TeacherCoachingQuotaRow) => {
+    setPwdTarget(r);
+    setPwdValue(DEFAULT_PASSWORD);
+  };
+
+  const closePwdModal = (open: boolean) => {
+    if (pwdSaving) return;
+    if (!open) {
+      setPwdTarget(null);
+      setPwdValue(DEFAULT_PASSWORD);
+    }
+  };
+
+  const savePassword = async (resetDefault: boolean) => {
+    if (!pwdTarget) return;
+    const pwd = resetDefault ? DEFAULT_PASSWORD : pwdValue.trim();
+    if (!pwd || pwd.length < 8) {
+      showToast.warning("密码至少 8 位");
+      return;
+    }
+    setPwdSaving(true);
+    try {
+      const res = await setTeacherStudentPassword(pwdTarget.studentId, pwd);
+      if (res.code !== 200) {
+        showToast.error(res.msg || "设置失败");
+        return;
+      }
+      const account = res.data?.username || loginAccount(pwdTarget) || studentLabel(pwdTarget);
+      showToast.success(
+        resetDefault
+          ? `已重置：${account} / ${DEFAULT_PASSWORD}`
+          : `已更新：${account} 的密码`
+      );
+      setPwdTarget(null);
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "设置失败";
+      showToast.error(msg);
+    } finally {
+      setPwdSaving(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-4">
-      <div className="flex items-start gap-2 shrink-0">
+    <div className="flex flex-col flex-1 min-h-0 gap-3">
+      <div className="flex items-center gap-2 shrink-0">
         <CloudButton
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => navigate(-1)}
-          aria-label="返回"
-          className="shrink-0 mt-0.5"
+          onClick={() => navigate("/")}
+          aria-label="返回首页"
+          className="shrink-0"
         >
           <ChevronLeft size={20} />
         </CloudButton>
         <div className="min-w-0 flex-1">
-          <PageTitle description="查看额度、测评与训练活动">学员管理</PageTitle>
+          <span className="text-sm font-semibold text-foreground">学员管理</span>
         </div>
         <CloudButton
           type="button"
           variant="outline"
+          size="sm"
+          onClick={() => navigate("/my-students/new")}
+          className="shrink-0 gap-1"
+        >
+          <UserPlus size={14} />
+          新建
+        </CloudButton>
+        <CloudButton
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowAdd((v) => !v)}
+          className="shrink-0"
+        >
+          关联
+        </CloudButton>
+        <CloudButton
+          type="button"
+          variant="outline"
           size="icon"
-          onClick={() => void load()}
+          onClick={() => void fetchPage({ append: false, q: debouncedQ })}
           aria-label="刷新"
-          className="shrink-0 mt-0.5"
+          className="shrink-0"
           disabled={loading}
         >
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
         </CloudButton>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 shrink-0">
-        <CloudCard tint="mint" className="px-3 py-2.5 border-transparent text-center">
-          <div className="text-[10px] text-muted-foreground">学员</div>
-          <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">
-            {summary.count}
-          </div>
-        </CloudCard>
-        <CloudCard tint="sky" className="px-3 py-2.5 border-transparent text-center">
-          <div className="text-[10px] text-muted-foreground">剩余额度</div>
-          <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">
-            {summary.totalMins}
-            <span className="text-[10px] font-medium text-muted-soft ml-0.5">分</span>
-          </div>
-        </CloudCard>
-        <CloudCard tint="cream" className="px-3 py-2.5 border-transparent text-center">
-          <div className="text-[10px] text-muted-foreground">额度将尽</div>
-          <div className="text-base font-semibold text-foreground tabular-nums mt-0.5">
-            {summary.lowQuota}
-          </div>
-        </CloudCard>
-      </div>
+      <AddStudentPanel
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onAdded={() => void fetchPage({ append: false, q: debouncedQ })}
+      />
+
+      <Dialog open={!!pwdTarget} onOpenChange={closePwdModal}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>设置登录密码</DialogTitle>
+            <DialogDescription>
+              {pwdTarget
+                ? `${studentLabel(pwdTarget)}${
+                    loginAccount(pwdTarget) ? ` · ${loginAccount(pwdTarget)}` : ""
+                  }`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <CloudInput
+            value={pwdValue}
+            onChange={setPwdValue}
+            placeholder={DEFAULT_PASSWORD}
+            autoComplete="new-password"
+          />
+          <DialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
+            <CloudButton
+              type="button"
+              variant="outline"
+              className="flex-1"
+              disabled={pwdSaving}
+              onClick={() => void savePassword(true)}
+            >
+              重置为 {DEFAULT_PASSWORD}
+            </CloudButton>
+            <CloudButton
+              type="button"
+              variant="brand"
+              className="flex-1"
+              loading={pwdSaving}
+              onClick={() => void savePassword(false)}
+            >
+              保存密码
+            </CloudButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="shrink-0">
         <CloudInput
           value={keyword}
           onChange={setKeyword}
-          placeholder="搜索姓名 / 手机 / ID…"
+          placeholder="搜索姓名 / 账号 / 手机…"
           prefix={<Search size={16} className="text-muted-foreground" />}
           allowClear
         />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-2">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pb-2">
         {loading ? (
           <CloudCard className="p-10">
             <CloudSpin tip="加载中…" />
           </CloudCard>
-        ) : filtered.length === 0 ? (
+        ) : rows.length === 0 ? (
           <CloudCard className="p-8">
             <CloudEmpty
               description={
-                keyword.trim()
+                debouncedQ
                   ? "没有匹配的学员"
-                  : "暂无学员。可在首页「陪练排课」里添加学员。"
+                  : "暂无学员。点击右上角「新建」创建账号，或「关联」已有学员。"
               }
             />
           </CloudCard>
         ) : (
-          filtered.map((r) => {
+          rows.map((r) => {
             const low = (r.remainingMinutes || 0) < 30;
-            const region = [r.student?.region, r.student?.city].filter(Boolean).join(" · ");
+            const account = loginAccount(r);
+            const avatar = studentAvatarUrl(r);
             return (
-              <CloudCard
-                key={r.id}
-                interactive
-                className="p-4"
-                onClick={() => openActivity(r)}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="size-12 rounded-full bg-primary-soft border border-border overflow-hidden flex items-center justify-center shrink-0">
-                    <span className="text-sm font-semibold text-primary">
-                      {studentInitial(r)}
-                    </span>
+              <CloudCard key={r.id} className="p-3">
+                <div className="flex items-center gap-3">
+                  <div className="size-11 rounded-full bg-primary-soft border border-border overflow-hidden flex items-center justify-center shrink-0">
+                    {avatar ? (
+                      <img src={avatar} alt="" className="size-full object-cover" />
+                    ) : (
+                      <span className="text-sm font-semibold text-primary">
+                        {studentInitial(r)}
+                      </span>
+                    )}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h2 className="text-sm font-semibold text-foreground truncate">
-                          {studentLabel(r)}
-                        </h2>
-                        <p className="text-[11px] text-muted-soft mt-0.5 truncate">
-                          #{r.studentId}
-                          {r.student?.username ? ` · ${r.student.username}` : ""}
-                          {region ? ` · ${region}` : ""}
-                        </p>
-                      </div>
-                      <ChevronRight
-                        size={16}
-                        className="text-muted-soft shrink-0 mt-0.5"
-                        aria-hidden
-                      />
-                    </div>
-
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h2 className="text-sm font-semibold text-foreground truncate">
+                        {studentLabel(r)}
+                      </h2>
                       <span
-                        className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium tabular-nums ${
+                        className={`shrink-0 inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium tabular-nums ${
                           low
                             ? "bg-destructive/5 text-destructive"
                             : "bg-primary-soft text-primary"
                         }`}
                       >
-                        <Clock size={12} />
-                        剩余 {minsLabel(r.remainingMinutes || 0)}
+                        <Clock size={10} />
+                        {minsLabel(r.remainingMinutes || 0)}
                       </span>
-                      {typeof r.totalAllocatedMinutes === "number" && (
-                        <span className="inline-flex items-center rounded-lg bg-muted px-2 py-1 text-[11px] text-muted-foreground tabular-nums">
-                          累计 {r.totalAllocatedMinutes} 分
-                        </span>
-                      )}
-                      {r.student?.phone && (
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-[11px] text-muted-foreground">
-                          <Phone size={11} />
-                          {r.student.phone}
-                        </span>
-                      )}
                     </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                      {account || "—"}
+                      <span className="text-muted-soft">
+                        {" "}
+                        · 测评 {r.vocabTestCount ?? 0} · 陪练 {r.coachingSessionCount ?? 0} · 训练{" "}
+                        {r.studySessionCount ?? 0}
+                      </span>
+                    </p>
+                  </div>
 
-                    <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-lg bg-surface-soft px-1.5 py-1.5">
-                        <div className="text-sm font-semibold text-foreground tabular-nums">
-                          {r.vocabTestCount ?? 0}
-                        </div>
-                        <div className="text-[10px] text-muted-soft">测评</div>
-                      </div>
-                      <div className="rounded-lg bg-surface-soft px-1.5 py-1.5">
-                        <div className="text-sm font-semibold text-foreground tabular-nums">
-                          {r.coachingSessionCount ?? 0}
-                        </div>
-                        <div className="text-[10px] text-muted-soft">陪练</div>
-                      </div>
-                      <div className="rounded-lg bg-surface-soft px-1.5 py-1.5">
-                        <div className="text-sm font-semibold text-foreground tabular-nums">
-                          {r.studySessionCount ?? 0}
-                        </div>
-                        <div className="text-[10px] text-muted-soft">训练</div>
-                      </div>
-                    </div>
-
-                    {(r.latestVocabTestAt || r.latestVocabLevel || r.latestEstimatedVocab) && (
-                      <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed">
-                        最近测评 {fmtShort(r.latestVocabTestAt)}
-                        {r.latestVocabLevel ? ` · ${r.latestVocabLevel}` : ""}
-                        {r.latestEstimatedVocab != null ? ` · 估词 ${r.latestEstimatedVocab}` : ""}
-                      </p>
-                    )}
-
-                    <div className="mt-3">
-                      <CloudButton
-                        type="button"
-                        variant="brandOutline"
-                        size="sm"
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openActivity(r);
-                        }}
-                      >
-                        <ClipboardList size={14} />
-                        活动记录
-                      </CloudButton>
-                    </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <CloudButton
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="px-2.5"
+                      onClick={() => openPwdModal(r)}
+                    >
+                      <KeyRound size={14} />
+                      <span className="hidden sm:inline">密码</span>
+                    </CloudButton>
+                    <CloudButton
+                      type="button"
+                      variant="brandOutline"
+                      size="sm"
+                      className="px-2.5"
+                      onClick={() => openActivity(r)}
+                    >
+                      <ClipboardList size={14} />
+                      <span className="hidden sm:inline">活动</span>
+                    </CloudButton>
                   </div>
                 </div>
               </CloudCard>
             );
           })
         )}
-      </div>
 
-      {!loading && rows.length > 0 && (
-        <p className="text-center text-[11px] text-muted-soft shrink-0 pb-1">
-          <Users size={12} className="inline mr-1 -mt-0.5" />
-          共 {filtered.length}
-          {keyword.trim() ? ` / ${rows.length}` : ""} 名学员
-        </p>
-      )}
+        <div ref={sentinelRef} className="h-4" />
+        {loadingMore && (
+          <div className="flex justify-center py-2 text-muted-foreground">
+            <Loader2 size={18} className="animate-spin" />
+          </div>
+        )}
+        {!loading && !hasMore && rows.length > 0 && (
+          <p className="text-center text-[11px] text-muted-soft py-1">没有更多了</p>
+        )}
+      </div>
     </div>
   );
 }

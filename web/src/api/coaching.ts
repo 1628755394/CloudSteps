@@ -35,6 +35,9 @@ export type TeacherCoachingQuotaRow = {
   remainingMinutes: number
   totalAllocatedMinutes?: number
   version?: number
+  reviewTimes?: number
+  accent?: string
+  preferredWordBookId?: number
   /** 词汇测评次数 */
   vocabTestCount?: number
   /** 与该老师的陪练完课次数 */
@@ -49,15 +52,70 @@ export type TeacherCoachingQuotaRow = {
     username?: string
     email?: string
     phone?: string
+    avatar?: string
     role?: string
     city?: string
     region?: string
   }
 }
 
-/** 当前老师名下学员与陪练剩余分钟（与后台额度同源，含词汇测评摘要） */
-export const getTeacherCoachingQuotas = async (): Promise<ApiResponse<TeacherCoachingQuotaRow[]>> => {
-  return get<TeacherCoachingQuotaRow[]>('/teacher/coaching/quotas')
+/** 当前老师名下学员与陪练剩余分钟（游标分页） */
+export const getTeacherCoachingQuotas = async (params?: {
+  cursor?: string
+  limit?: number
+  q?: string
+}): Promise<
+  ApiResponse<{
+    list: TeacherCoachingQuotaRow[]
+    nextCursor?: string
+    hasMore: boolean
+    limit: number
+  }>
+> => {
+  return get('/teacher/coaching/quotas', { params })
+}
+
+/** 兼容：取名下学员列表（下拉选择等场景一次拉满） */
+export const listAllTeacherCoachingQuotas = async (): Promise<TeacherCoachingQuotaRow[]> => {
+  const res = await getTeacherCoachingQuotas({ limit: 100 })
+  if (res.code !== 200) return []
+  const data = res.data as unknown
+  if (Array.isArray(data)) return data as TeacherCoachingQuotaRow[]
+  if (data && typeof data === 'object' && Array.isArray((data as { list?: unknown }).list)) {
+    return (data as { list: TeacherCoachingQuotaRow[] }).list
+  }
+  return []
+}
+
+export type StudentActivityStats = {
+  total: number
+  coaching: number
+  vocab: number
+  study: number
+  vocabAvgCorrectRate: number
+  vocabTotalQuestions: number
+  vocabCorrectCount?: number
+}
+
+/** 学员活动时间线（游标分页 + 月筛选 + 统计） */
+export const listStudentActivityRecordsAsTeacher = async (
+  studentId: number,
+  params?: {
+    cursor?: string
+    limit?: number
+    month?: string
+    q?: string
+  }
+): Promise<
+  ApiResponse<{
+    list: StudentActivityListItem[]
+    nextCursor?: string
+    hasMore: boolean
+    limit: number
+    stats: StudentActivityStats
+  }>
+> => {
+  return get(`/teacher/coaching/students/${studentId}/vocab-records`, { params })
 }
 
 export type VocabTestRecordDTO = {
@@ -117,14 +175,7 @@ export type StudentActivityListItem = {
   studySession?: StudySessionDTO
 }
 
-/** 合并：陪练完课 + 词汇测评 + 单词训练会话（完整时间线，前端自行筛选分页） */
-export const listStudentActivityRecordsAsTeacher = async (
-  studentId: number
-): Promise<ApiResponse<{ list: StudentActivityListItem[]; total: number; page: number; pageSize: number }>> => {
-  return get<{ list: StudentActivityListItem[]; total: number; page: number; pageSize: number }>(
-    `/teacher/coaching/students/${studentId}/vocab-records`
-  )
-}
+/** 合并：陪练完课 + 词汇测评 + 单词训练会话（游标分页见上方 listStudentActivityRecordsAsTeacher） */
 
 export const getStudentVocabRecordAsTeacher = async (
   studentId: number,
@@ -165,11 +216,28 @@ export const endCoachingAppointment = async (id: number): Promise<ApiResponse<un
   return post(`/teacher/coaching/appointments/${id}/end`)
 }
 
+/** 无排课练习：按学员立即开课计时（结束仍走 appointments/:id/end） */
+export const startPracticeSession = async (body: {
+  studentId: number
+  plannedMinutes?: number
+}): Promise<
+  ApiResponse<{
+    appointmentId: number
+    studentId: number
+    owned: boolean
+    reused?: boolean
+    appointment?: CoachingWeekSchedule
+  }>
+> => {
+  return post('/teacher/coaching/practice/start', body)
+}
+
 export type CoachingStudentSearchResult = {
   id: number
   username?: string
   displayName?: string
   phone?: string
+  email?: string
 }
 
 export const searchCoachingStudents = async (
@@ -183,6 +251,40 @@ export const addTeacherCoachingStudent = async (body: {
   remainingMinutes: number
 }): Promise<ApiResponse<TeacherCoachingQuotaRow>> => {
   return post<TeacherCoachingQuotaRow>('/teacher/coaching/quotas', body)
+}
+
+export type CreateTeacherStudentPayload = {
+  displayName: string
+  password?: string
+  studyHours?: number
+}
+
+export type CreateTeacherStudentResult = {
+  quota: TeacherCoachingQuotaRow
+  student: {
+    id: number
+    username?: string
+    displayName?: string
+  }
+  username?: string
+  initialPassword?: string
+}
+
+/** 老师新建学员账号并建立陪练额度 */
+export const createTeacherStudent = async (
+  body: CreateTeacherStudentPayload
+): Promise<ApiResponse<CreateTeacherStudentResult>> => {
+  return post<CreateTeacherStudentResult>('/teacher/coaching/students', body)
+}
+
+/** 老师设置/重置学员登录密码；password 空则重置为 student123 */
+export const setTeacherStudentPassword = async (
+  studentId: number,
+  password?: string
+): Promise<ApiResponse<{ studentId: number; username?: string; password: string }>> => {
+  return post(`/teacher/coaching/students/${studentId}/password`, {
+    password: password ?? '',
+  })
 }
 
 export const createTeacherCoachingAppointment = async (body: {
