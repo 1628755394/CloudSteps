@@ -9,7 +9,7 @@ import { resolveMediaUrl } from "../utils/mediaUrl";
 import { showToast } from "../utils/toast";
 
 const fieldClass =
-  "w-full px-3.5 py-2.5 rounded-xl bg-card border border-input text-sm text-charcoal placeholder:text-muted-soft outline-none transition-colors hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25";
+  "w-full px-3 py-2 rounded-xl bg-card border border-input text-sm text-charcoal placeholder:text-muted-soft outline-none transition-colors hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25";
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
@@ -31,25 +31,31 @@ export default function ProfileEdit() {
 
   const avatarUrl = resolveMediaUrl(avatarPreview || user?.avatar);
 
+  const profileComplete = useMemo(() => {
+    if (typeof user?.profileComplete === "number") return user.profileComplete;
+    // 本地兜底（刷新前）：与后端计分项一致
+    const checks = [
+      Boolean(displayName.trim() || user?.displayName),
+      Boolean(avatarPreview || user?.avatar),
+      Boolean(phone.trim() || user?.phone),
+      Boolean(city.trim() || user?.city),
+      Boolean(region.trim() || user?.region),
+      Boolean(user?.locale),
+    ];
+    const n = checks.filter(Boolean).length;
+    return Math.round((n / checks.length) * 100);
+  }, [user, displayName, avatarPreview, phone, city, region]);
+
   const stats = useMemo(() => {
     return [
-      { label: "登录次数", value: String((user as { loginCount?: number } | null)?.loginCount ?? "-") },
-      {
-        label: "资料完整度",
-        value:
-          typeof (user as { profileComplete?: number } | null)?.profileComplete === "number"
-            ? `${(user as { profileComplete: number }).profileComplete}%`
-            : "-",
-      },
+      { label: "登录次数", value: String(user?.loginCount ?? "-") },
+      { label: "资料完整度", value: `${profileComplete}%` },
       {
         label: "连续学习",
-        value:
-          typeof (user as { streakDays?: number } | null)?.streakDays === "number"
-            ? `${(user as { streakDays: number }).streakDays}天`
-            : "-",
+        value: typeof user?.streakDays === "number" ? `${user.streakDays}天` : "-",
       },
     ];
-  }, [user]);
+  }, [user, profileComplete]);
 
   useEffect(() => {
     setDisplayName(user?.displayName ?? "");
@@ -173,11 +179,13 @@ export default function ProfileEdit() {
           aria-label="返回"
           className="shrink-0"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={18} />
         </CloudButton>
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">编辑个人资料</h1>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">账号：{user?.email || "-"}</p>
+          <span className="text-sm font-semibold tracking-tight text-foreground">编辑个人资料</span>
+          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+            账号：{user?.email || "-"}
+          </p>
         </div>
         <CloudButton
           type="button"
@@ -195,16 +203,16 @@ export default function ProfileEdit() {
 
       <div className="grid grid-cols-3 gap-2 shrink-0">
         {stats.map((s) => (
-          <CloudCard key={s.label} tint="mint" className="px-3 py-2 border-transparent text-center">
+          <CloudCard key={s.label} tint="mint" className="px-2.5 py-2 border-transparent text-center">
             <div className="text-[10px] text-muted-foreground">{s.label}</div>
             <div className="text-sm font-semibold text-foreground mt-0.5 tabular-nums">{s.value}</div>
           </CloudCard>
         ))}
       </div>
 
-      <CloudCard className="p-4 space-y-3.5 flex-1 min-h-0 overflow-y-auto">
-        <div className="flex flex-col items-center gap-3 pb-1">
-          <div className="relative size-[92px] shrink-0">
+      <CloudCard className="p-3.5 space-y-3 flex-1 min-h-0 overflow-y-auto">
+        <div className="flex flex-col items-center gap-2 pb-0.5">
+          <div className="relative size-16 shrink-0">
             <button
               type="button"
               onClick={onPickAvatar}
@@ -219,17 +227,17 @@ export default function ProfileEdit() {
                   className="block size-full rounded-full object-cover"
                 />
               ) : (
-                <span className="flex size-full items-center justify-center rounded-full text-xl font-semibold text-primary">
+                <span className="flex size-full items-center justify-center rounded-full text-base font-semibold text-primary">
                   {initial}
                 </span>
               )}
               <span className="pointer-events-none absolute inset-0 rounded-full bg-black/0 transition-colors group-hover:bg-black/25" />
             </button>
-            <span className="pointer-events-none absolute bottom-0.5 right-0.5 z-10 flex size-7 items-center justify-center rounded-full border border-border bg-card text-charcoal shadow-sm">
+            <span className="pointer-events-none absolute bottom-0 right-0 z-10 flex size-6 items-center justify-center rounded-full border border-border bg-card text-charcoal shadow-sm">
               {uploading ? (
-                <Loader2 size={13} className="animate-spin text-primary" />
+                <Loader2 size={12} className="animate-spin text-primary" />
               ) : (
-                <Camera size={13} />
+                <Camera size={12} />
               )}
             </span>
           </div>
@@ -240,10 +248,11 @@ export default function ProfileEdit() {
             className="hidden"
             onChange={onAvatarFile}
           />
+          <p className="text-[11px] text-muted-foreground">点击头像可更换</p>
         </div>
 
         <div>
-          <label className="text-sm font-medium text-charcoal mb-1.5 block">昵称</label>
+          <label className="text-xs font-medium text-charcoal mb-1 block">昵称</label>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
@@ -252,9 +261,9 @@ export default function ProfileEdit() {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-sm font-medium text-charcoal mb-1.5 block">手机号</label>
+            <label className="text-xs font-medium text-charcoal mb-1 block">手机号</label>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -275,7 +284,7 @@ export default function ProfileEdit() {
           />
 
           <div>
-            <label className="text-sm font-medium text-charcoal mb-1.5 block">地区</label>
+            <label className="text-xs font-medium text-charcoal mb-1 block">地区</label>
             <input
               value={region}
               onChange={(e) => setRegion(e.target.value)}
@@ -285,7 +294,7 @@ export default function ProfileEdit() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-charcoal mb-1.5 block">城市</label>
+            <label className="text-xs font-medium text-charcoal mb-1 block">城市</label>
             <input
               value={city}
               onChange={(e) => setCity(e.target.value)}
@@ -296,7 +305,7 @@ export default function ProfileEdit() {
         </div>
 
         {errorText ? (
-          <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
+          <div className="text-xs text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-3 py-2.5">
             {errorText}
           </div>
         ) : null}

@@ -2,7 +2,9 @@ import { post, get, put, ApiResponse } from '../utils/request'
 
 // 用户注册表单类型
 export interface RegisterUserForm {
-  email: string
+  /** 账号（用户名），兼容旧字段 email */
+  username?: string
+  email?: string
   password: string
   displayName?: string
   firstName?: string
@@ -217,7 +219,16 @@ export interface UpdateUserRequest {
 
 // 用户注册
 export const registerUser = async (data: RegisterUserForm): Promise<ApiResponse<RegisterResponseData>> => {
-  return post<RegisterResponseData>('/auth/register', data)
+  const username = (data.username || data.email || '').trim()
+  return post<RegisterResponseData>('/auth/register', {
+    username,
+    password: data.password,
+    displayName: data.displayName || username,
+    timezone: data.timezone,
+    captchaId: data.captchaId,
+    captchaCode: data.captchaCode,
+    source: data.source || 'web',
+  })
 }
 
 // 邮箱验证码注册
