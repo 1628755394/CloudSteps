@@ -1,19 +1,23 @@
-import { ArrowLeft, Pause, Shuffle, ArrowRight, BookOpen } from "lucide-react";
+import { Pause, Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
+import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
-import { FlowPageTitle } from "../components/PageTitle";
-import { WordDetailDialog } from "../components/WordDetailDialog";
+import { TopBar } from "../components/TopBar";
+import { WordDetailPanel } from "../components/WordDetailPanel";
+import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, parseAudioUrls } from "../utils/audioPlayer";
-import { formatTranslation } from "../utils/wordFormat";
+import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState } from "../utils/wordReveal";
 
 type PracticeWord = {
   id: number;
   word: string;
+  phonetic: string;
   translation: string;
+  translationShort: string;
   audioUrl?: string;
   count: number;
   completed: boolean;
@@ -29,10 +33,12 @@ export default function WordPractice() {
   const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [frameIdx, setFrameIdx] = useState(0);
-  const [finished, setFinished] = useState(false);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
+  const [viewMode, setViewMode] = useState<WordViewMode>("list");
+  const [cardIndex, setCardIndex] = useState(0);
+  const [fullMeaning, setFullMeaning] = useState(false);
   const abortRef = useRef<(() => void) | null>(null);
 
   const [audioIndexMap, setAudioIndexMap] = useState<Map<number, number>>(new Map());
@@ -46,7 +52,6 @@ export default function WordPractice() {
     const urls = parseAudioUrls(word.audioUrl);
     if (urls.length === 0) return;
     const prev = audioIndexMap.get(word.id) ?? 0;
-    // 默认显示 0；每次点击后在 1..n 间循环
     const next = prev >= urls.length ? 1 : prev + 1;
     setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
@@ -96,18 +101,19 @@ export default function WordPractice() {
       const all: any[] = Array.isArray(arr) ? arr : [];
       const start = batchIdx * 5;
       const slice = all.slice(start, start + 5);
-      
-      // 初始乱序（Fisher-Yates 洗牌算法）
+
       const shuffledSlice = [...slice];
       for (let i = shuffledSlice.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffledSlice[i], shuffledSlice[j]] = [shuffledSlice[j], shuffledSlice[i]];
       }
-      
+
       const mapped: PracticeWord[] = shuffledSlice.map((w: any) => ({
         id: Number(w.id),
         word: String(w.word || ""),
+        phonetic: pickPhoneticDisplay(w),
         translation: formatTranslation(w.translation),
+        translationShort: formatTranslationShort(w.translation),
         audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
         count: 0,
         completed: false,
@@ -116,14 +122,13 @@ export default function WordPractice() {
       }));
       setWords(mapped);
       setCurrentIndex(0);
+      setCardIndex(0);
       setFrameIdx(0);
-      setFinished(false);
     } catch {
       // ignore
     }
   }, [batchIdx, mode]);
 
-  // LinguaStart memorize sequence: 1,2,1,2,3,1,2,3,4,1,2,3,4,5 (0-based)
   const sequence = useMemo(() => {
     const n = words.length;
     if (n <= 0) return [] as number[];
@@ -142,10 +147,12 @@ export default function WordPractice() {
     setCurrentIndex(activeIndex);
   }, [activeIndex, words.length]);
 
-  /** 点单词（非 123）：第一次发音，第二次显示释义 */
+  /** 点单词：第一次发音，第二次显示音标+释义 */
   const handleWordTap = (word: PracticeWord) => {
     if (detailMode) {
-      setDetailWord({ id: word.id, word: word.word });
+      setDetailWord((prev) =>
+        prev?.id === word.id ? null : { id: word.id, word: word.word }
+      );
       return;
     }
     const next = nextWordTapState({
@@ -175,10 +182,8 @@ export default function WordPractice() {
     const idx = words.findIndex((w) => w.id === id);
     if (idx !== activeIndex) return;
 
-    // advance one frame in the fixed sequence
     if (sequence.length === 0) return;
     if (frameIdx >= sequence.length - 1) {
-      setFinished(true);
       return;
     }
     setFrameIdx((f) => f + 1);
@@ -188,53 +193,72 @@ export default function WordPractice() {
     const shuffled = [...words].sort(() => Math.random() - 0.5);
     setWords(shuffled);
     setCurrentIndex(0);
+    setCardIndex(0);
     setFrameIdx(0);
-    setFinished(false);
   };
 
   const handleNext = () => {
-    // 普通训练：练习后进入听音辨义，不再经过「单词复习」页
     navigate("/listen-identify");
   };
 
-  const allCompleted = finished;
+  const meaningText = (word: PracticeWord) =>
+    fullMeaning ? word.translation || word.translationShort : word.translationShort || word.translation;
+
+  const renderReveal = (word: PracticeWord) => {
+    if (!word.showTranslation) return null;
+    return (
+      <div className="mt-1 space-y-1 animate-in fade-in">
+        {word.phonetic ? (
+          <div className="text-sm text-[#718096] font-mono">{word.phonetic}</div>
+        ) : null}
+        {meaningText(word) ? (
+          <div className={PRACTICE_TRANS_CLASS}>{meaningText(word)}</div>
+        ) : null}
+        {(word.translation || word.translationShort) && (
+          <button
+            type="button"
+            className="text-xs text-[#4ECDC4] hover:underline"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullMeaning((v) => !v);
+            }}
+          >
+            {fullMeaning ? "简译" : "全部意思"}
+          </button>
+        )}
+      </div>
+    );
+  };
 
   if (mode === "review") {
     return null;
   }
 
+  const cardWord = words[Math.min(Math.max(0, cardIndex), Math.max(0, words.length - 1))];
+
   return (
     <FlowPageShell>
-      <div className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="grid grid-cols-[2.5rem_1fr_auto] items-center px-3 py-3 gap-1">
-          <CloudButton
-            type="button"
-            variant="ghost"
-            size="iconRound"
-            onClick={handleBack}
-            className="-ml-1 justify-self-start"
-          >
-            <ArrowLeft size={20} className="text-[#2D3748]" />
-          </CloudButton>
-          <FlowPageTitle>
-            {mode === "review" ? "开始复习" : "单词练习"}
-          </FlowPageTitle>
-          <div className="flex items-center justify-end gap-0.5 -mr-1">
+      <TopBar
+        title={mode === "review" ? "开始复习" : "单词练习"}
+        onBack={handleBack}
+        rightSlot={
+          <div className="flex items-center gap-0.5">
             <AnnotationToggleButton
               active={annotationOpen}
               onClick={() => setAnnotationOpen((v) => !v)}
             />
+            <PracticeFontSettingsButton />
             <CloudButton
               type="button"
               variant="ghost"
               size="iconRound"
               onClick={() => setShowPauseMenu(!showPauseMenu)}
             >
-              <Pause size={20} className="text-[#2D3748]" />
+              <Pause size={18} className="text-[#2D3748]" />
             </CloudButton>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <AnnotationLayer
         storageKey="word-practice"
@@ -242,62 +266,140 @@ export default function WordPractice() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6">
-        {/* 组信息 */}
+      <div className="px-4 mt-6 max-w-2xl mx-auto w-full pb-28">
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
-        {/* 单词列表 */}
-        <div className="space-y-3 mb-6">
-          {words.map((word, index) => (
-            <div
-              key={word.id}
-              className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
-                !manualReadMode && index === currentIndex ? "bg-[#4ECDC4]/10 border-2 border-[#4ECDC4]" : ""
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div
-                  onClick={() => handleWordTap(word)}
-                  className="flex-1 cursor-pointer pr-3"
+        {viewMode === "card" && cardWord ? (
+          <div className="flex flex-col items-center gap-5 py-2">
+            <div className="flex items-center gap-3 w-full">
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                disabled={cardIndex <= 0}
+                onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
+                className="shrink-0 bg-muted disabled:opacity-40"
+              >
+                <ChevronLeft size={22} />
+              </CloudButton>
+              <div
+                className={`flex-1 min-h-[220px] bg-white border rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                  !manualReadMode && words.findIndex((w) => w.id === cardWord.id) === currentIndex
+                    ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/10"
+                    : "border-[#E2E8F0]"
+                }`}
+                onClick={() => handleWordTap(cardWord)}
+              >
+                <p className="text-xs text-[#718096] mb-4">
+                  {cardIndex + 1} / {words.length}
+                </p>
+                <div className={`${PRACTICE_WORD_CLASS} !font-bold text-center break-all`}>{cardWord.word}</div>
+                {renderReveal(cardWord)}
+              </div>
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                disabled={cardIndex >= words.length - 1}
+                onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
+                className="shrink-0 bg-muted disabled:opacity-40"
+              >
+                <ChevronRight size={22} />
+              </CloudButton>
+            </div>
+            {!manualReadMode && (
+              <div className="flex items-center gap-2">
+                {parseAudioUrls(cardWord.audioUrl).length > 0 && (
+                  <CloudButton
+                    variant={playingId === cardWord.id ? "mint" : "mintOutline"}
+                    size="iconRound"
+                    className="size-10 text-sm font-bold"
+                    onClick={() => handlePlayNextAudio(cardWord)}
+                  >
+                    {audioIndexMap.get(cardWord.id) ?? 0}
+                  </CloudButton>
+                )}
+                <CloudButton
+                  variant={words.findIndex((w) => w.id === cardWord.id) === activeIndex ? "mint" : "ghost"}
+                  size="iconRound"
+                  className={`size-12 text-lg font-bold ${
+                    words.findIndex((w) => w.id === cardWord.id) !== activeIndex ? "text-[#A0AEC0]" : ""
+                  }`}
+                  onClick={() => handleCountClick(cardWord.id)}
                 >
-                  <div className="text-base font-medium text-[#2D3748] mb-1">{word.word}</div>
-                  {word.showTranslation && (
-                    <div className="text-sm text-[#718096]">{word.translation}</div>
+                  ✓
+                </CloudButton>
+              </div>
+            )}
+            {detailMode && detailWord?.id === cardWord.id && (
+              <div className="w-full">
+                <WordDetailPanel
+                  wordId={cardWord.id}
+                  wordText={cardWord.word}
+                  variant="inline"
+                  onClose={() => setDetailWord(null)}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3 mb-6">
+            {words.map((word, index) => (
+              <div
+                key={word.id}
+                className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
+                  !manualReadMode && index === currentIndex ? "bg-[#4ECDC4]/10 border-2 border-[#4ECDC4]" : ""
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div
+                    onClick={() => handleWordTap(word)}
+                    className="flex-1 cursor-pointer pr-3"
+                  >
+                    <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{word.word}</div>
+                    {renderReveal(word)}
+                  </div>
+                  {!manualReadMode && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {parseAudioUrls(word.audioUrl).length > 0 && (
+                        <CloudButton
+                          variant={playingId === word.id ? "mint" : "mintOutline"}
+                          size="iconRound"
+                          className="size-10 text-sm font-bold"
+                          onClick={() => handlePlayNextAudio(word)}
+                        >
+                          {audioIndexMap.get(word.id) ?? 0}
+                        </CloudButton>
+                      )}
+                      <CloudButton
+                        variant={index === activeIndex ? "mint" : "ghost"}
+                        size="iconRound"
+                        className={`size-12 text-lg font-bold ${index !== activeIndex ? "text-[#A0AEC0]" : ""}`}
+                        onClick={() => handleCountClick(word.id)}
+                      >
+                        ✓
+                      </CloudButton>
+                    </div>
                   )}
                 </div>
-                {/* 人工带读模式：不显示任何按钮，只靠点单词来发音/看意思 */}
-                {!manualReadMode && (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {parseAudioUrls(word.audioUrl).length > 0 && (
-                      <CloudButton
-                        variant={playingId === word.id ? "brand" : "brandOutline"}
-                        size="iconRound"
-                        className="size-10 text-sm font-bold"
-                        onClick={() => handlePlayNextAudio(word)}
-                      >
-                        {(audioIndexMap.get(word.id) ?? 0)}
-                      </CloudButton>
-                    )}
-                    <CloudButton
-                      variant={index === activeIndex ? "brand" : "ghost"}
-                      size="iconRound"
-                      className={`size-12 text-lg font-bold ${index !== activeIndex ? "text-[#A0AEC0]" : ""}`}
-                      onClick={() => handleCountClick(word.id)}
-                    >
-                      ✓
-                    </CloudButton>
-                  </div>
+                {detailMode && detailWord?.id === word.id && (
+                  <WordDetailPanel
+                    wordId={word.id}
+                    wordText={word.word}
+                    variant="inline"
+                    onClose={() => setDetailWord(null)}
+                  />
                 )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* 底部工具栏 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
+        <div className="max-w-2xl mx-auto w-full flex items-center justify-between gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
               乱序
@@ -317,26 +419,23 @@ export default function WordPractice() {
             <CloudButton
               variant={detailMode ? "brand" : "outline"}
               size="pill"
-              onClick={() => setDetailMode((v) => !v)}
+              onClick={() => {
+                setDetailMode((v) => {
+                  if (v) setDetailWord(null);
+                  return !v;
+                });
+              }}
             >
               <BookOpen size={16} />
               拓展
             </CloudButton>
           </div>
-          <CloudButton variant="brand" size="iconRound" className="size-12" onClick={handleNext}>
+          <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
             <ArrowRight size={24} />
           </CloudButton>
         </div>
       </div>
 
-      <WordDetailDialog
-        wordId={detailWord?.id ?? null}
-        wordText={detailWord?.word}
-        open={!!detailWord}
-        onOpenChange={(open) => { if (!open) setDetailWord(null); }}
-      />
-
-      {/* 暂停菜单 */}
       {showPauseMenu && (
         <div
           className="fixed inset-0 bg-black/50 z-50"
@@ -363,8 +462,6 @@ export default function WordPractice() {
           </div>
         </div>
       )}
-
-      {/* 右下角箭头按钮（仅在完成后显示） */}
     </FlowPageShell>
   );
 }

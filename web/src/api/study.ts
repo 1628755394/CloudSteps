@@ -4,6 +4,11 @@ export interface StudyWordItem {
   id: number
   word: string
   translation?: string
+  phonetic?: string
+  phoneticUk?: string
+  phoneticUs?: string
+  partOfSpeech?: string
+  definition?: string
   audioUrl?: string
 }
 
@@ -96,15 +101,21 @@ export const completeStudySession = async (
 }
 
 export interface StudySessionListItem {
-  id: number
+  id?: number
   sessionType: string
   status: string
-  startedAt: string
+  startedAt?: string
   completedAt?: string | null
   wordCount: number
   correctCount: number
   wordBookId?: number
   wordBookName?: string
+  userId?: number
+  /** groupBy=bookDay 时返回 */
+  day?: string
+  latestAt?: string
+  sessionCount?: number
+  sessionIds?: number[]
 }
 
 export interface StudySessionsListResponse {
@@ -112,13 +123,21 @@ export interface StudySessionsListResponse {
   total: number
   page: number
   pageSize: number
+  grouped?: boolean
 }
 
-/** 列出当前用户的学习/复习会话记录 */
+/** 列出学习/复习会话；老师可传 studentId 做权限校验；groupBy=bookDay 按词库+日聚合 */
 export const listStudySessions = async (params?: {
   page?: number
   pageSize?: number
   sessionType?: string
+  studentId?: number
+  date?: string
+  dateFrom?: string
+  dateTo?: string
+  wordBookId?: number
+  status?: string
+  groupBy?: "bookDay"
 }): Promise<ApiResponse<StudySessionsListResponse>> => {
   return get<StudySessionsListResponse>('/study/sessions', { params })
 }
@@ -144,5 +163,29 @@ export const getStudySessionDetail = async (
   sessionId: number
 ): Promise<ApiResponse<StudySessionDetail>> => {
   return get<StudySessionDetail>(`/study/session/${sessionId}`)
+}
+
+export type StudyExportWord = {
+  id: number
+  word: string
+  phonetic?: string
+  phoneticUk?: string
+  phoneticUs?: string
+  translation?: string
+  partOfSpeech?: string
+  audioUrl?: string
+}
+
+/** 一次拉取筛选条件下去重单词（导出用） */
+export const exportStudySessionWords = async (params?: {
+  sessionType?: string
+  studentId?: number
+  date?: string
+  dateFrom?: string
+  dateTo?: string
+  wordBookId?: number
+  status?: string
+}): Promise<ApiResponse<{ words: StudyExportWord[]; total: number }>> => {
+  return get<{ words: StudyExportWord[]; total: number }>('/study/sessions/export-words', { params })
 }
 

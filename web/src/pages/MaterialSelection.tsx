@@ -2,6 +2,7 @@ import { Button, Typography } from "@arco-design/web-react";
 import { IconCheckCircle, IconLeft, IconRight } from "@arco-design/web-react/icon";
 import { useNavigate } from "react-router";
 import { kickoffVocabTestPrefetch } from "../utils/vocabTestCache";
+import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
 
 const materials = [
   { id: 1, name: "词汇测试", enabled: true, path: "/vocabulary-test" },
@@ -22,6 +23,9 @@ export default function MaterialSelection() {
 
     if (material.name === "词汇测试") {
       kickoffVocabTestPrefetch();
+    }
+    if (material.path === "/word-training") {
+      kickoffWordBooksPrefetch();
     }
     navigate(material.path);
   };
