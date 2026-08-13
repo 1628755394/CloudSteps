@@ -145,6 +145,7 @@ func (h *Handlers) handleUserInfo(c *gin.Context) {
 			user.AuthToken = models.BuildAuthToken(user, expired, false)
 		}
 	}
+	models.FillProfileComplete(user)
 	response.Success(c, "success", user)
 }
 
@@ -763,9 +764,13 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 
 	clientIP := c.ClientIP()
 
-	// 1. 输入清理和验证
+	// 1. 输入清理和验证（支持用户名或邮箱作为账号）
 	var err error
-	form.Username, err = utils.SanitizeAndValidate(form.Username, "email")
+	usernameType := "username"
+	if strings.Contains(form.Username, "@") {
+		usernameType = "email"
+	}
+	form.Username, err = utils.SanitizeAndValidate(form.Username, usernameType)
 	if err != nil {
 		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
@@ -894,6 +899,10 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	// 记录成功注册
 	if utils.GlobalRegistrationGuard != nil {
 		utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, true, "registration successful")
+	}
+
+	if strings.TrimSpace(form.DisplayName) == "" {
+		form.DisplayName = form.Username
 	}
 
 	vals := utils.StructAsMap(form, []string{

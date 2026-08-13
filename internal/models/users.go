@@ -134,6 +134,8 @@ type User struct {
 	// 学习连续天数（每次完成 study_session 时维护，当天已学不变，隔天+1，断天归零）
 	StreakDays    int        `json:"streakDays" gorm:"default:0"` // 连续学习天数
 	LastStudyDate *time.Time `json:"lastStudyDate,omitempty"`     // 最后学习日期（精确到天）
+	// 资料完整度（计算字段，不落库）
+	ProfileComplete int `json:"profileComplete" gorm:"-"`
 }
 
 func (u *User) TableName() string {
@@ -630,58 +632,40 @@ func UpdatePreferences(db *gorm.DB, user *User, preferences map[string]string) e
 	return nil
 }
 
-// CalculateProfileComplete 计算资料完整度
+// CalculateProfileComplete 计算资料完整度（0–100）
 func CalculateProfileComplete(user *User) int {
+	if user == nil {
+		return 0
+	}
+	checks := []bool{
+		strings.TrimSpace(user.DisplayName) != "",
+		strings.TrimSpace(user.Avatar) != "",
+		strings.TrimSpace(user.Phone) != "",
+		strings.TrimSpace(user.City) != "",
+		strings.TrimSpace(user.Region) != "",
+		strings.TrimSpace(user.Locale) != "",
+	}
 	complete := 0
-	total := 0
-
-	// 基本信息 (60%)
-	total += 6
-	if user.DisplayName != "" {
-		complete++
+	for _, ok := range checks {
+		if ok {
+			complete++
+		}
 	}
-	if user.FirstName != "" {
-		complete++
-	}
-	if user.LastName != "" {
-		complete++
-	}
-	if user.Avatar != "" {
-		complete++
-	}
-	if user.Username != "" {
-		complete++
-	}
-	if user.Phone != "" {
-		complete++
-	}
-
-	// 地址信息 (20%)
-	total += 2
-	if user.City != "" {
-		complete++
-	}
-	if user.Region != "" {
-		complete++
-	}
-
-	// 偏好设置 (10%)
-	total += 1
-	if user.Locale != "" {
-		complete++
-	}
-
-	percentage := (complete * 100) / total
-	if percentage > 100 {
-		percentage = 100
-	}
-
-	return percentage
+	return (complete * 100) / len(checks)
 }
 
-// UpdateProfileComplete 更新资料完整度 - 已移除资料完整度功能
+// FillProfileComplete 填充计算字段，便于接口直接返回
+func FillProfileComplete(user *User) {
+	if user == nil {
+		return
+	}
+	user.ProfileComplete = CalculateProfileComplete(user)
+}
+
+// UpdateProfileComplete 兼容旧调用：仅刷新内存中的完整度，不写库
 func UpdateProfileComplete(db *gorm.DB, user *User) error {
-	// 资料完整度功能已禁用，直接返回成功
+	_ = db
+	FillProfileComplete(user)
 	return nil
 }
 
