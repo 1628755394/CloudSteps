@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router";
 import { BookOpen, ChevronRight, ChevronLeft, Search } from "lucide-react";
-import { PageTitle } from "../components/PageTitle";
 import { CloudCard, CloudEmpty, CloudSpin, CloudInput } from "../components/cloudsteps/arco";
 import { listWordBooks, type WordBookItem, type WordBookGroup } from "../api/wordbooks";
 
@@ -64,7 +63,6 @@ const DEFAULT_GROUPS: WordBookGroup[] = [
 export default function WordBooks() {
   const [books, setBooks] = useState<WordBookItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [totalWords, setTotalWords] = useState(0);
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState("");
   const [searchInput, setSearchInput] = useState("");
@@ -86,7 +84,6 @@ export default function WordBooks() {
       }
       setBooks(Array.isArray(res.data.list) ? res.data.list : []);
       setTotal(res.data.total || 0);
-      setTotalWords(res.data.totalWords || 0);
       if (res.data.groups && res.data.groups.length > 0) {
         setGroups(res.data.groups);
       }
@@ -128,20 +125,7 @@ export default function WordBooks() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageTitle description="选择词库查看单词、音标、释义并播放发音">词库</PageTitle>
-
-      <div className="grid grid-cols-2 gap-3">
-        <CloudCard tint="mint" className="p-4 border-transparent text-center">
-          <div className="text-2xl font-semibold text-foreground tabular-nums">{total}</div>
-          <div className="text-xs text-muted-foreground mt-1">总词库</div>
-        </CloudCard>
-        <CloudCard tint="sky" className="p-4 border-transparent text-center">
-          <div className="text-2xl font-semibold text-foreground tabular-nums">{totalWords.toLocaleString()}</div>
-          <div className="text-xs text-muted-foreground mt-1">总词汇</div>
-        </CloudCard>
-      </div>
-
+    <div className="space-y-4">
       {/* 搜索栏 */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-md">

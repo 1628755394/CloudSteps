@@ -26,8 +26,19 @@ export interface CompleteReviewResult {
   remembered: boolean
 }
 
-export const getReviewToday = async (wordBookId: number): Promise<ApiResponse<ReviewTodayResponse>> => {
-  return get<ReviewTodayResponse>('/review/today', { params: { wordBookId } })
+export const getReviewToday = async (
+  wordBookId: number,
+  opts?: { date?: string; timeZone?: string; limit?: number }
+): Promise<ApiResponse<ReviewTodayResponse>> => {
+  const tz = opts?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
+  return get<ReviewTodayResponse>('/review/today', {
+    params: {
+      wordBookId,
+      ...(opts?.date ? { date: opts.date } : {}),
+      timeZone: tz,
+      ...(opts?.limit ? { limit: opts.limit } : {}),
+    },
+  })
 }
 
 export type ReviewBookStatRow = { wordBookId: number; cnt: number; name: string; level: string }

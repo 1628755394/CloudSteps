@@ -12,3 +12,25 @@ export function formatTranslation(raw?: string | null): string {
     return raw;
   }
 }
+
+/** 简译：只取第一条释义 */
+export function formatTranslationShort(raw?: string | null): string {
+  if (!raw) return "";
+  try {
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr) && arr.length > 0) return String(arr[0] ?? "");
+    return String(arr);
+  } catch {
+    const parts = raw.split(/[；;，,\n]/).map((s) => s.trim()).filter(Boolean);
+    return parts[0] || raw;
+  }
+}
+
+export function pickPhoneticDisplay(w: {
+  phonetic?: string;
+  phoneticUk?: string;
+  phoneticUs?: string;
+}): string {
+  const p = w.phoneticUk || w.phoneticUs || w.phonetic || "";
+  return p ? `/${p.replace(/^\[|\]$/g, "").replace(/^\//, "").replace(/\/$/, "")}/` : "";
+}

@@ -28,8 +28,8 @@ export const listWordBooks = async (params?: {
   level?: string
   category?: string
   group?: string
-}): Promise<ApiResponse<WordBookListResult & { totalWords: number; groups: WordBookGroup[] }>> => {
-  return get<WordBookListResult & { totalWords: number; groups: WordBookGroup[] }>('/wordbooks', {
+}): Promise<ApiResponse<WordBookListResult & { groups: WordBookGroup[] }>> => {
+  return get<WordBookListResult & { groups: WordBookGroup[] }>('/wordbooks', {
     params: {
       page: params?.page ?? 1,
       pageSize: params?.pageSize ?? 20,
