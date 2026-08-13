@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
@@ -326,13 +327,96 @@ func (h *Handlers) coachingTeacherStudentVocabRecords(c *gin.Context) {
 		response.Fail(c, "查询失败", err.Error())
 		return
 	}
-	// 一次返回完整时间线（各来源已 Limit），由前端按月份筛选与分页
-	n := len(feed)
+
+	month := strings.TrimSpace(c.Query("month")) // YYYY-MM
+	kw := strings.ToLower(strings.TrimSpace(c.Query("q")))
+	filtered := make([]studentActivityListItem, 0, len(feed))
+	for _, it := range feed {
+		if month != "" {
+			if it.Time.Format("2006-01") != month {
+				continue
+			}
+		}
+		if kw != "" {
+			hay := strings.ToLower(it.Title + " " + it.Summary + " " + it.Kind + " " + strconv.FormatUint(uint64(it.ID), 10))
+			if !strings.Contains(hay, kw) {
+				continue
+			}
+		}
+		filtered = append(filtered, it)
+	}
+
+	// 筛选范围内的测评统计（不受分页影响）
+	var vocabN, vocabQ, vocabCorrectSum int
+	var vocabRateAcc float64
+	var coachingN, studyN int
+	for _, it := range filtered {
+		switch it.Kind {
+		case "coaching_session":
+			coachingN++
+		case "study_session":
+			studyN++
+		case "vocab_test":
+			vocabN++
+			qc, cc := 0, 0
+			if it.VocabTest != nil {
+				qc = it.VocabTest.QuestionCount
+				cc = it.VocabTest.CorrectCount
+			}
+			if qc > 0 {
+				vocabQ += qc
+				vocabCorrectSum += cc
+				vocabRateAcc += float64(cc) / float64(qc) * 100
+			}
+		}
+	}
+	avgRate := 0
+	if vocabN > 0 {
+		avgRate = int(vocabRateAcc/float64(vocabN) + 0.5)
+	}
+
+	limit := 20
+	if ps := c.Query("limit"); ps != "" {
+		if v, e := strconv.Atoi(ps); e == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	cursor := strings.TrimSpace(c.Query("cursor"))
+	start := 0
+	if cursor != "" {
+		for i, it := range filtered {
+			if fmt.Sprintf("%s|%s|%d", it.Time.UTC().Format(time.RFC3339Nano), it.Kind, it.ID) == cursor {
+				start = i + 1
+				break
+			}
+		}
+	}
+	end := start + limit
+	hasMore := end < len(filtered)
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	page := filtered[start:end]
+	var nextCursor string
+	if hasMore && len(page) > 0 {
+		last := page[len(page)-1]
+		nextCursor = fmt.Sprintf("%s|%s|%d", last.Time.UTC().Format(time.RFC3339Nano), last.Kind, last.ID)
+	}
+
 	response.Success(c, "ok", gin.H{
-		"list":     feed,
-		"total":    int64(n),
-		"page":     1,
-		"pageSize": n,
+		"list":       page,
+		"nextCursor": nextCursor,
+		"hasMore":    hasMore,
+		"limit":      limit,
+		"stats": gin.H{
+			"total":               len(filtered),
+			"coaching":            coachingN,
+			"vocab":               vocabN,
+			"study":               studyN,
+			"vocabAvgCorrectRate": avgRate,
+			"vocabTotalQuestions": vocabQ,
+			"vocabCorrectCount":   vocabCorrectSum,
+		},
 	})
 }
 

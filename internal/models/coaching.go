@@ -26,11 +26,11 @@ const (
 // StudentTeacherCoachingQuota 学员在某老师名下的陪练剩余时长（分钟）
 type StudentTeacherCoachingQuota struct {
 	BaseModel
-	TeacherID             uint `json:"teacherId" gorm:"uniqueIndex:idx_coach_quota_pair;not null;index"`
-	StudentID             uint `json:"studentId" gorm:"uniqueIndex:idx_coach_quota_pair;not null;index"`
-	RemainingMinutes      int  `json:"remainingMinutes" gorm:"not null;default:0"`
-	TotalAllocatedMinutes int  `json:"totalAllocatedMinutes" gorm:"not null;default:0"`
-	Version               int  `json:"version" gorm:"not null;default:0"`
+	TeacherID             uint  `json:"teacherId" gorm:"uniqueIndex:idx_coach_quota_pair;not null;index"`
+	StudentID             uint  `json:"studentId" gorm:"uniqueIndex:idx_coach_quota_pair;not null;index"`
+	RemainingMinutes      int   `json:"remainingMinutes" gorm:"not null;default:0"`
+	TotalAllocatedMinutes int   `json:"totalAllocatedMinutes" gorm:"not null;default:0"`
+	Version               int   `json:"version" gorm:"not null;default:0"`
 	Teacher               *User `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
 	Student               *User `json:"student,omitempty" gorm:"foreignKey:StudentID"`
 }
@@ -213,20 +213,11 @@ func CoachingAppointmentSlotBounds(ap *CoachingAppointment, loc *time.Location) 
 	return slotStart, slotEnd, endMin - startMin, nil
 }
 
-// CoachingCanStartAt 是否处于可点击「开始上课」的排课时段 [start, end)
+// CoachingCanStartAt 校验排课时段配置是否有效。
+// 允许提前/延后开始：不再限制必须落在 [start, end) 内。
 func CoachingCanStartAt(ap *CoachingAppointment, now time.Time, loc *time.Location) error {
-	slotStart, slotEnd, _, err := CoachingAppointmentSlotBounds(ap, loc)
-	if err != nil {
-		return err
-	}
-	now = now.In(loc)
-	if now.Before(slotStart) {
-		return errors.New("未到上课时间，请在排课时段内开始")
-	}
-	if !now.Before(slotEnd) {
-		return errors.New("已过排课结束时间，无法开始上课")
-	}
-	return nil
+	_, _, _, err := CoachingAppointmentSlotBounds(ap, loc)
+	return err
 }
 
 // CoachingEffectiveEndTime 完课时刻不超过排课结束时间

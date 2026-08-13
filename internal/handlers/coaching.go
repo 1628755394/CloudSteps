@@ -6,10 +6,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/response"
+	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -36,6 +38,8 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 		t.GET("/completed", h.coachingTeacherCompleted)
 		t.GET("/quotas", h.coachingTeacherListQuotas)
 		t.POST("/quotas", h.coachingTeacherUpsertQuota)
+		t.POST("/students", h.coachingTeacherCreateStudent)
+		t.POST("/students/:studentId/password", h.coachingTeacherSetStudentPassword)
 		t.GET("/students/search", h.coachingTeacherSearchStudents)
 		t.POST("/appointments", h.coachingTeacherCreateAppointment)
 		t.PUT("/appointments/:id", h.coachingTeacherUpdateAppointment)
@@ -46,6 +50,8 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 		t.GET("/students/:studentId/vocab-records", h.coachingTeacherStudentVocabRecords)
 		t.POST("/appointments/:id/start", h.coachingTeacherStart)
 		t.POST("/appointments/:id/end", h.coachingTeacherEnd)
+		// 无排课练习：按所选学员开课计时并扣额度
+		t.POST("/practice/start", h.coachingTeacherStartPractice)
 	}
 
 	s := r.Group("student/coaching")
@@ -610,17 +616,64 @@ func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
 		return
 	}
+
+	limit := 20
+	if ps := c.Query("limit"); ps != "" {
+		if v, err := strconv.Atoi(ps); err == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	q := strings.TrimSpace(c.Query("q"))
+	var cursorID uint
+	if raw := strings.TrimSpace(c.Query("cursor")); raw != "" {
+		if v, err := strconv.ParseUint(raw, 10, 64); err == nil {
+			cursorID = uint(v)
+		}
+	}
+
+	tx := db.Model(&models.StudentTeacherCoachingQuota{}).
+		Where("student_teacher_coaching_quotas.teacher_id = ? AND student_teacher_coaching_quotas.is_deleted = 0", tid)
+	if cursorID > 0 {
+		tx = tx.Where("student_teacher_coaching_quotas.id < ?", cursorID)
+	}
+	if q != "" {
+		like := "%" + q + "%"
+		tx = tx.Joins("LEFT JOIN users ON users.id = student_teacher_coaching_quotas.student_id").
+			Where(
+				"users.display_name LIKE ? OR users.username LIKE ? OR users.phone LIKE ? OR CAST(student_teacher_coaching_quotas.student_id AS CHAR) LIKE ?",
+				like, like, like, like,
+			)
+	}
+
 	var list []models.StudentTeacherCoachingQuota
-	if err := db.Where("teacher_id = ? AND is_deleted = 0", tid).Preload("Student").Order("student_id").Find(&list).Error; err != nil {
+	if err := tx.Preload("Student").
+		Order("student_teacher_coaching_quotas.id DESC").
+		Limit(limit + 1).
+		Find(&list).Error; err != nil {
 		response.Fail(c, "查询失败", err.Error())
 		return
 	}
+
+	hasMore := len(list) > limit
+	if hasMore {
+		list = list[:limit]
+	}
+	var nextCursor string
+	if hasMore && len(list) > 0 {
+		nextCursor = strconv.FormatUint(uint64(list[len(list)-1].ID), 10)
+	}
+
 	items, err := coachingEnrichTeacherQuotaList(db, tid, list)
 	if err != nil {
 		response.Fail(c, "汇总测评数据失败", err.Error())
 		return
 	}
-	response.Success(c, "ok", items)
+	response.Success(c, "ok", gin.H{
+		"list":       items,
+		"nextCursor": nextCursor,
+		"hasMore":    hasMore,
+		"limit":      limit,
+	})
 }
 
 func (h *Handlers) coachingStudentWeek(c *gin.Context) {
@@ -734,6 +787,186 @@ type coachingTeacherApptBody struct {
 type coachingTeacherQuotaBody struct {
 	StudentID        uint `json:"studentId" binding:"required"`
 	RemainingMinutes int  `json:"remainingMinutes"`
+}
+
+const coachingDefaultStudentPassword = "student123"
+
+type coachingTeacherCreateStudentBody struct {
+	DisplayName string `json:"displayName" binding:"required"`
+	Password    string `json:"password"`  // 可选；默认 student123
+	StudyHours  int    `json:"studyHours"` // 学时 → 转成分钟额度
+}
+
+type coachingTeacherSetStudentPasswordBody struct {
+	Password string `json:"password"` // 空则重置为 student123
+}
+
+// coachingUsernameFromDisplayName 姓名（可含中文）+ 随机数字，生成可登录账号
+func coachingUsernameFromDisplayName(db *gorm.DB, displayName string) (string, error) {
+	base := strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, strings.TrimSpace(displayName))
+	if base == "" {
+		base = "学员"
+	}
+	runes := []rune(base)
+	if len(runes) > 16 {
+		base = string(runes[:16])
+	}
+	for i := 0; i < 12; i++ {
+		suffix := strconv.FormatInt(time.Now().UnixNano()%10000, 10)
+		for len(suffix) < 4 {
+			suffix = "0" + suffix
+		}
+		cand := base + suffix
+		if err := utils.ValidateUserName(cand); err != nil {
+			// 极端非法字符时退回英文前缀
+			cand = "st" + strconv.FormatInt(time.Now().UnixNano()%1e8, 10)
+		}
+		if !models.IsExistsByUsername(db, cand) {
+			return cand, nil
+		}
+		time.Sleep(time.Millisecond)
+	}
+	return "", errors.New("生成账号失败")
+}
+
+func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	tid := coachingCoachingTeacherID(c)
+	if tid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		return
+	}
+	var body coachingTeacherCreateStudentBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		return
+	}
+	name := strings.TrimSpace(body.DisplayName)
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "请填写学生姓名"})
+		return
+	}
+	if body.StudyHours < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学时不能为负"})
+		return
+	}
+
+	remaining := body.StudyHours * 60
+	username, err := coachingUsernameFromDisplayName(db, name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "msg": "生成账号失败，请重试"})
+		return
+	}
+
+	pwd := strings.TrimSpace(body.Password)
+	if pwd == "" {
+		pwd = coachingDefaultStudentPassword
+	}
+	if len(pwd) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "密码至少 8 位"})
+		return
+	}
+	student := models.User{
+		Username:    username,
+		Password:    models.HashPassword(pwd),
+		DisplayName: name,
+		Role:        models.RoleStudent,
+		Source:      "teacher_create",
+	}
+	runes := []rune(name)
+	if len(runes) > 0 {
+		student.FirstName = string(runes[0])
+	}
+	if len(runes) > 1 {
+		student.LastName = string(runes[1:])
+	}
+
+	var quota models.StudentTeacherCoachingQuota
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&student).Error; err != nil {
+			return err
+		}
+		quota = models.StudentTeacherCoachingQuota{
+			TeacherID:             tid,
+			StudentID:             student.ID,
+			RemainingMinutes:      remaining,
+			TotalAllocatedMinutes: remaining,
+		}
+		return tx.Create(&quota).Error
+	})
+	if err != nil {
+		response.Fail(c, "创建失败", err.Error())
+		return
+	}
+	_ = db.Preload("Student").First(&quota, quota.ID).Error
+	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", quota.ID, 0, "老师新建学员", map[string]any{
+		"teacherId": tid, "studentId": student.ID, "displayName": name,
+		"remainingMinutes": remaining, "username": username,
+	})
+	response.Success(c, "ok", gin.H{
+		"quota":           quota,
+		"student":         student,
+		"username":        username,
+		"initialPassword": pwd,
+	})
+}
+
+func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	tid := coachingCoachingTeacherID(c)
+	if tid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		return
+	}
+	sid, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
+	if err != nil || sid == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		return
+	}
+	var body coachingTeacherSetStudentPasswordBody
+	_ = c.ShouldBindJSON(&body)
+
+	var quota models.StudentTeacherCoachingQuota
+	if err := db.Where("teacher_id = ? AND student_id = ?", tid, sid).First(&quota).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "该学员不在你的名下"})
+			return
+		}
+		response.Fail(c, "查询失败", err.Error())
+		return
+	}
+
+	var user models.User
+	if err := db.First(&user, sid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "学员不存在"})
+		return
+	}
+
+	pwd := strings.TrimSpace(body.Password)
+	if pwd == "" {
+		pwd = coachingDefaultStudentPassword
+	}
+	if len(pwd) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "密码至少 8 位"})
+		return
+	}
+	if err := models.ResetPassword(db, &user, pwd); err != nil {
+		response.Fail(c, "设置密码失败", err.Error())
+		return
+	}
+	coachingWriteCoachingAudit(db, c, "student_password_set", "student", user.ID, 0, "老师设置学员密码", map[string]any{
+		"teacherId": tid, "studentId": user.ID, "resetToDefault": strings.TrimSpace(body.Password) == "",
+	})
+	response.Success(c, "ok", gin.H{
+		"studentId": user.ID,
+		"username":  user.Username,
+		"password":  pwd,
+	})
 }
 
 func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
@@ -1105,3 +1338,139 @@ func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 	}
 	response.Success(c, "ok", gin.H{"session": rec, "appointment": apCompleted})
 }
+
+type coachingPracticeStartBody struct {
+	StudentID      uint `json:"studentId" binding:"required"`
+	PlannedMinutes int  `json:"plannedMinutes"` // 计划练习分钟，默认 45，范围 1–180
+}
+
+// coachingTeacherStartPractice 无排课练习开课：为所选学员创建临时课次并立即开始，结束时走普通下课扣额度。
+func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	tid := coachingCoachingTeacherID(c)
+	if tid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		return
+	}
+	var body coachingPracticeStartBody
+	if err := c.ShouldBindJSON(&body); err != nil || body.StudentID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "请选择学员"})
+		return
+	}
+	planned := body.PlannedMinutes
+	if planned <= 0 {
+		planned = 45
+	}
+	if planned > 180 {
+		planned = 180
+	}
+
+	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "请先添加该学员后再练习"})
+		return
+	}
+	q, err := coachingGetQuota(db, tid, body.StudentID)
+	if errors.Is(err, gorm.ErrRecordNotFound) || q.RemainingMinutes <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "陪练剩余时长不足，无法开始练习"})
+		return
+	}
+	if err != nil {
+		response.Fail(c, "查询额度失败", err.Error())
+		return
+	}
+
+	now := time.Now().In(time.Local)
+	if err := coachingTeacherCapAllowsStart(db, tid, now); err != nil {
+		if errors.Is(err, errCoachingTeacherCapFull) {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+			return
+		}
+		response.Fail(c, "查询老师计量失败", err.Error())
+		return
+	}
+
+	// 已有进行中课次：同学员复用；其他学员则提示先下课
+	var inProgress []models.CoachingAppointment
+	if err := db.Where("is_deleted = 0 AND teacher_id = ? AND status = ?", tid, models.CoachingStatusInProgress).
+		Find(&inProgress).Error; err != nil {
+		response.Fail(c, "查询上课中课次失败", err.Error())
+		return
+	}
+	for i := range inProgress {
+		ap := inProgress[i]
+		if ap.StudentID == body.StudentID {
+			_ = db.Preload("Teacher").Preload("Student").First(&ap, ap.ID).Error
+			dto := coachingToWeekDTO([]models.CoachingAppointment{ap})
+			var out any
+			if len(dto) > 0 {
+				out = dto[0]
+			} else {
+				out = ap
+			}
+			response.Success(c, "ok", gin.H{
+				"appointment": out,
+				"appointmentId": ap.ID,
+				"studentId":     ap.StudentID,
+				"owned":         false,
+				"reused":        true,
+			})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code": 400,
+			"msg":  "当前已有其他学员的上课中课次，请先结束后再开始练习",
+		})
+		return
+	}
+
+	endAt := now.Add(time.Duration(planned) * time.Minute)
+	startHm := now.Format("15:04")
+	endHm := endAt.Format("15:04")
+	if endAt.Day() != now.Day() || endHm <= startHm {
+		endHm = "23:59"
+	}
+	dur, err := models.CoachingDurationMinutes(startHm, endHm)
+	if err != nil || dur < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "练习时段无效"})
+		return
+	}
+
+	title := "单词练习"
+	ap := models.CoachingAppointment{
+		TeacherID: tid, StudentID: body.StudentID,
+		ScheduledDate:   coachingDateOnly(now),
+		StartTime:       startHm,
+		EndTime:         endHm,
+		DurationMinutes: dur,
+		Status:          models.CoachingStatusInProgress,
+		Title:           title,
+		Notes:           "practice",
+		ActualStartedAt: &now,
+	}
+	// 练习课次不与已有「已排定」课表做冲突拦截（否则临近有排课就无法练习），
+	// 仅上面已拦截「上课中」冲突。
+	if err := db.Create(&ap).Error; err != nil {
+		response.Fail(c, "创建练习课次失败", err.Error())
+		return
+	}
+	_ = db.Preload("Teacher").Preload("Student").First(&ap, ap.ID).Error
+	coachingWriteCoachingAudit(db, c, coachingAuditSessionStart, "appointment", ap.ID, ap.ID, "无排课练习开课", map[string]any{
+		"teacherId": ap.TeacherID, "studentId": ap.StudentID,
+		"plannedMinutes": planned, "practice": true,
+	})
+	dto := coachingToWeekDTO([]models.CoachingAppointment{ap})
+	var out any
+	if len(dto) > 0 {
+		out = dto[0]
+	} else {
+		out = ap
+	}
+	response.Success(c, "ok", gin.H{
+		"appointment":   out,
+		"appointmentId": ap.ID,
+		"studentId":     ap.StudentID,
+		"owned":         true,
+		"reused":        false,
+	})
+}
+
