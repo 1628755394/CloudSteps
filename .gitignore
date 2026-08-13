@@ -68,3 +68,6 @@ go.work.sum
 /ddjdc-dict-import
 /ddjdc-import
 /tts-gen
+
+# Local package store
+.pnpm-store/
