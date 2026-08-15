@@ -31,7 +31,6 @@ export default function ListenIdentify() {
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
-  const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
 
@@ -105,16 +104,6 @@ export default function ListenIdentify() {
   };
 
   const handleCardClick = (word: ListenWord) => {
-    if (detailMode) {
-      if (word.state === "idle") {
-        handlePlayFirstAudio(word);
-        setWords((prev) => prev.map((w) => (w.id === word.id ? { ...w, state: "played" } : w)));
-      }
-      setDetailWord((prev) =>
-        prev?.id === word.id ? null : { id: word.id, word: word.word }
-      );
-      return;
-    }
     setWords((prev) =>
       prev.map((w) => {
         if (w.id !== word.id) return w;
@@ -206,13 +195,13 @@ export default function ListenIdentify() {
             {showAnswer && renderRevealed(w)}
           </div>
         </div>
-        {detailMode && detailWord?.id === w.id && (
+        {detailMode && showAnswer && (
           <div className="mt-3" onClick={(e) => e.stopPropagation()}>
             <WordDetailPanel
               wordId={w.id}
               wordText={w.word}
               variant="inline"
-              onClose={() => setDetailWord(null)}
+              onClose={() => {}}
             />
           </div>
         )}
@@ -309,12 +298,7 @@ export default function ListenIdentify() {
             <CloudButton
               variant={detailMode ? "brand" : "outline"}
               size="pill"
-              onClick={() => {
-                setDetailMode((v) => {
-                  if (v) setDetailWord(null);
-                  return !v;
-                });
-              }}
+              onClick={() => setDetailMode((v) => !v)}
             >
               <BookOpen size={16} />
               拓展
