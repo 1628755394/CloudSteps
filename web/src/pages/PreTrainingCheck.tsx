@@ -361,77 +361,74 @@ export default function PreTrainingCheck() {
   const correctCount = useMemo(() => words.filter((word) => word.status === "correct").length, [words]);
   const wrongCount = useMemo(() => words.filter((word) => word.status === "wrong").length, [words]);
 
-  const WordItemComponent = useMemo(() => {
-    const Item = ({ word }: { word: WordItem }) => (
-      <div
-        className={`bg-white rounded-xl p-3.5 sm:p-4 shadow-sm border border-transparent transition-all hover:shadow-md hover:border-[#4ECDC4]/35 hover:bg-[#4ECDC4]/5 ${
-          word.status === "correct"
-            ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5 hover:border-[#66BB6A] hover:bg-[#66BB6A]/10"
-            : word.status === "wrong"
-            ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5 hover:border-[#FF6B6B] hover:bg-[#FF6B6B]/10"
-            : ""
-        }`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <div
-            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-            onClick={() => handleWordClick(word)}
-          >
-            <div className="min-w-0">
-              <span className={`${PRACTICE_WORD_CLASS} transition-colors`}>
-                {word.word}
-              </span>
-              {word.showTranslation && (
-                <div className="mt-0.5 animate-in fade-in slide-in-from-top-1">
-                  {word.phonetic ? (
-                    <span className="block text-sm text-[#718096] font-mono">{word.phonetic}</span>
-                  ) : null}
-                  {word.translation ? (
-                    <span className={`${PRACTICE_TRANS_CLASS} block`}>{word.translation}</span>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => handlePlayAudio(word)}>
-              <Volume2
-                size={20}
-                className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
-              />
-            </CloudButton>
-            <CloudButton
-              type="button"
-              variant={word.status === "correct" ? "brand" : "ghost"}
-              size="iconRound"
-              onClick={() => handleStatusClick(word.id, "correct")}
-              className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
-            >
-              <Check size={20} />
-            </CloudButton>
-            <CloudButton
-              type="button"
-              variant={word.status === "wrong" ? "destructive" : "ghost"}
-              size="iconRound"
-              onClick={() => handleStatusClick(word.id, "wrong")}
-            >
-              <X size={20} />
-            </CloudButton>
+  const renderWordItem = (word: WordItem) => (
+    <div
+      className={`bg-white rounded-xl p-3.5 sm:p-4 shadow-sm border border-transparent transition-all hover:shadow-md hover:border-[#4ECDC4]/35 hover:bg-[#4ECDC4]/5 ${
+        word.status === "correct"
+          ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5 hover:border-[#66BB6A] hover:bg-[#66BB6A]/10"
+          : word.status === "wrong"
+          ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5 hover:border-[#FF6B6B] hover:bg-[#FF6B6B]/10"
+          : ""
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div
+          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+          onClick={() => handleWordClick(word)}
+        >
+          <div className="min-w-0">
+            <span className={`${PRACTICE_WORD_CLASS} transition-colors`}>
+              {word.word}
+            </span>
+            {word.showTranslation && (
+              <div className="mt-0.5 animate-in fade-in slide-in-from-top-1">
+                {word.phonetic ? (
+                  <span className="block text-sm text-[#718096] font-mono">{word.phonetic}</span>
+                ) : null}
+                {word.translation ? (
+                  <span className={`${PRACTICE_TRANS_CLASS} block`}>{word.translation}</span>
+                ) : null}
+              </div>
+            )}
           </div>
         </div>
-        {detailMode && detailWord?.id === word.id && (
-          <WordDetailPanel
-            wordId={word.id}
-            wordText={word.word}
-            variant="inline"
-            simpleMode={simpleDetail}
-            onClose={() => setDetailWord(null)}
-          />
-        )}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => handlePlayAudio(word)}>
+            <Volume2
+              size={20}
+              className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+            />
+          </CloudButton>
+          <CloudButton
+            type="button"
+            variant={word.status === "correct" ? "brand" : "ghost"}
+            size="iconRound"
+            onClick={() => handleStatusClick(word.id, "correct")}
+            className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
+          >
+            <Check size={20} />
+          </CloudButton>
+          <CloudButton
+            type="button"
+            variant={word.status === "wrong" ? "destructive" : "ghost"}
+            size="iconRound"
+            onClick={() => handleStatusClick(word.id, "wrong")}
+          >
+            <X size={20} />
+          </CloudButton>
+        </div>
       </div>
-    );
-    return Item;
-  }, [handleStatusClick, handleWordClick, handlePlayAudio, playingId, detailWord, detailMode, simpleDetail]);
+      {detailMode && detailWord?.id === word.id && (
+        <WordDetailPanel
+          wordId={word.id}
+          wordText={word.word}
+          variant="inline"
+          simpleMode={simpleDetail}
+          onClose={() => setDetailWord(null)}
+        />
+      )}
+    </div>
+  );
 
   return (
     <FlowPageShell>
@@ -507,7 +504,7 @@ export default function PreTrainingCheck() {
         ) : (
           <div className="space-y-2.5 mb-6">
             {words.map((word) => (
-              <WordItemComponent key={word.id} word={word} />
+              <div key={word.id}>{renderWordItem(word)}</div>
             ))}
 
             {hasMore && (
