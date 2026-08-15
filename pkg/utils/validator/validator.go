@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/LingByte/CloudStepsGo/pkg/i18n"
+	"github.com/LingByte/ling-base/i18n"
 )
 
 // Validator validates data

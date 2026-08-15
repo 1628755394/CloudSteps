@@ -1,8 +1,8 @@
 package validator
 
 import (
-	"github.com/LingByte/CloudStepsGo/pkg/i18n"
 	"github.com/LingByte/CloudStepsGo/pkg/response"
+	basegin "github.com/LingByte/ling-base/i18n/gin"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,7 +18,7 @@ func Middleware(validator *Validator) gin.HandlerFunc {
 func ValidateStruct(c *gin.Context, data interface{}) ValidationErrors {
 	validator, _ := c.Get("validator")
 	if v, ok := validator.(*Validator); ok {
-		locale := i18n.GetLocaleFromGin(c)
+		locale := basegin.GetLocale(c)
 		return v.Validate(data, locale)
 	}
 	return ValidationErrors{}

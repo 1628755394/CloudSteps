@@ -6,7 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/LingByte/CloudStepsGo/pkg/i18n"
+	basei18n "github.com/LingByte/ling-base/i18n"
+	basegin "github.com/LingByte/ling-base/i18n/gin"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -174,14 +175,14 @@ func TestShouldBindForm(t *testing.T) {
 
 func TestValidateStruct_WithLocale(t *testing.T) {
 	// Initialize i18n
-	i18nManager := i18n.NewManager(nil)
+	i18nManager := basei18n.NewManager(nil)
 	i18nManager.LoadTranslations("pkg/i18n/translations")
 
 	validator := NewValidator(i18nManager)
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(i18n.Middleware(i18nManager))
+	r.Use(basegin.Middleware(i18nManager))
 	r.Use(Middleware(validator))
 	r.POST("/test", func(c *gin.Context) {
 		type TestStruct struct {
