@@ -87,7 +87,6 @@ func DefaultOperationLogConfig() *OperationLogConfig {
 			"/api/notification/read", // 标记已读（批量操作）
 			"/api/chat/typing",       // 输入状态
 			"/api/voice/heartbeat",   // 语音心跳
-			"/api/metrics/collect",   // 指标收集
 		},
 		SystemInternalPaths: []string{
 			"/api/system/",
