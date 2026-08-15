@@ -65,3 +65,19 @@ func DeleteRecordingURL(raw string) error {
 	}
 	return nil
 }
+
+// DeleteObjectURLs deletes each semicolon-separated URL/key via Default().Delete.
+// Continues on individual failures. Returns attempted and failed counts.
+func DeleteObjectURLs(raw string) (attempted, failed int) {
+	for _, part := range strings.Split(raw, ";") {
+		u := strings.TrimSpace(part)
+		if u == "" {
+			continue
+		}
+		attempted++
+		if err := DeleteRecordingURL(u); err != nil {
+			failed++
+		}
+	}
+	return attempted, failed
+}

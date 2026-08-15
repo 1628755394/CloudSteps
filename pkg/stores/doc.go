@@ -1,21 +1,10 @@
-// Package stores provides a unified storage abstraction layer supporting
-// multiple cloud object storage backends and local file system storage.
+// Package stores is a CloudSteps-specific factory that wires
+// ling-base/stores backends to CloudSteps environment variables.
 //
-// All backends implement the Store interface with five operations:
-// Read, Write, Delete, Exists, and PublicURL. Configuration is injected
-// through environment variables following the twelve-factor app pattern.
-//
-// Supported for:
-//
-//	local   - Local filesystem (default fallback)
-//	cos     - Tencent Cloud COS
-//	minio   - MinIO / S3 compatible
-//	qiniu   - Qiniu Kodo
-//	oss     - Alibaba Cloud OSS
-//	s3      - AWS S3 / S3 compatible
-//	tos     - Volcengine TOS
-//	obs     - Huawei Cloud OBS
-//	ks3     - Kingsoft Cloud KS3
+// The actual Store implementations (local, cos, oss, minio, kodo, s3,
+// tos, obs, ks3) live in ling-base/stores/* submodules. This package
+// reads the CloudSteps env-var convention and constructs the
+// corresponding ling-base Config, then returns a ling-base stores.Store.
 //
 // Usage:
 //
