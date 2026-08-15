@@ -28,6 +28,11 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
     try {
       const res = await getCaptcha();
       if (res.code === 200 && res.data) {
+        // click 类型在移动端 H5 不好操作，自动跳过
+        if (res.data.type === "click") {
+          refresh();
+          return;
+        }
         setCaptcha(res.data);
       } else {
         setError(res.msg || "获取验证码失败");
@@ -92,58 +97,6 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
         />
         <button type="button" onClick={refresh} className="text-xs text-muted-foreground hover:text-foreground">
           换一题
-        </button>
-      </div>
-    );
-  };
-
-  // ─── click captcha ───
-  const renderClick = () => {
-    const data = captcha?.data;
-    if (!data) return null;
-    const width = (data.width as number) || 300;
-    const height = (data.height as number) || 200;
-    const chars = (data.chars as Array<{ char: string; x: number; y: number }>) || [];
-    const targets = (data.targets as Array<{ char: string }>) || [];
-    const img = (data.image as string) || "";
-    const clicksRef = useRef<Array<{ x: number; y: number }>>([]);
-    const [clicks, setClicks] = useState<Array<{ x: number; y: number }>>([]);
-
-    const onCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = Math.round(e.clientX - rect.left);
-      const y = Math.round(e.clientY - rect.top);
-      const next = [...clicksRef.current, { x, y }];
-      clicksRef.current = next;
-      setClicks(next);
-      if (next.length >= targets.length) {
-        reportValue(next);
-      }
-    };
-
-    return (
-      <div className="space-y-2">
-        <div className="text-sm text-muted-foreground">
-          请按顺序点击: <span className="font-mono font-medium text-foreground">{targets.map((t) => t.char).join(" ")}</span>
-        </div>
-        <div
-          onClick={onCanvasClick}
-          className="relative cursor-pointer rounded-xl overflow-hidden border border-input select-none"
-          style={{ width, height }}
-        >
-          {img ? <img src={img} alt="click-captcha" className="w-full h-full" /> : <div className="w-full h-full bg-muted" />}
-          {clicks.map((c, i) => (
-            <div
-              key={i}
-              className="absolute w-6 h-6 rounded-full bg-primary/80 text-white text-xs flex items-center justify-center pointer-events-none -translate-x-1/2 -translate-y-1/2"
-              style={{ left: c.x, top: c.y }}
-            >
-              {i + 1}
-            </div>
-          ))}
-        </div>
-        <button type="button" onClick={refresh} className="text-xs text-muted-foreground hover:text-foreground">
-          换一张
         </button>
       </div>
     );
@@ -262,7 +215,6 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
     <div className={className}>
       {captcha.type === "image" && renderImage()}
       {captcha.type === "math" && renderMath()}
-      {captcha.type === "click" && renderClick()}
       {captcha.type === "jigsaw" && renderJigsaw()}
       {captcha.type === "rotate" && renderRotate()}
     </div>

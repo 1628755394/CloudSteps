@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { RefreshCw, MousePointer2 } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { get, post } from '@/utils/request'
 import { getApiBaseURL } from '@/config/apiConfig'
 
 export interface CaptchaData {
   id: string
-  type: 'image' | 'click' | 'math' | 'jigsaw' | 'rotate'
+  type: 'image' | 'math' | 'jigsaw' | 'rotate'
   data: any
   expires: string
 }
@@ -24,10 +24,6 @@ const Captcha = ({ onVerify, onError }: CaptchaProps) => {
   
   // Image captcha
   const [imageCode, setImageCode] = useState('')
-
-  // Click captcha
-  const [clickedPositions, setClickedPositions] = useState<Array<{ x: number; y: number }>>([])
-  const clickImageRef = useRef<HTMLImageElement>(null)
 
   // Math captcha
   const [mathAnswer, setMathAnswer] = useState('')
@@ -51,6 +47,11 @@ const Captcha = ({ onVerify, onError }: CaptchaProps) => {
       
       if (response.code === 200 && response.data) {
         const raw = response.data as any
+        // click 类型在移动端 H5 不好操作，自动跳过
+        if (raw.type === 'click') {
+          loadCaptcha()
+          return
+        }
         const adapted: CaptchaData = {
           id: raw.id,
           type: raw.type || 'image',
@@ -61,7 +62,6 @@ const Captcha = ({ onVerify, onError }: CaptchaProps) => {
         setCaptcha(adapted)
         // Reset states based on type
         setImageCode('')
-        setClickedPositions([])
         setMathAnswer('')
         setJigsawOffset(0)
         setRotateAngle(0)
@@ -102,29 +102,6 @@ const Captcha = ({ onVerify, onError }: CaptchaProps) => {
       return
     }
     verifyCaptcha(imageCode.trim())
-  }
-
-  // Handle click captcha
-  const handleClickImage = (e: React.MouseEvent<HTMLImageElement>) => {
-    if (!clickImageRef.current) return
-    const rect = clickImageRef.current.getBoundingClientRect()
-    const img = clickImageRef.current
-    
-    // 计算点击位置相对于图片的坐标
-    // 需要考虑图片的实际显示尺寸和原始尺寸的缩放比例
-    const scaleX = img.naturalWidth / rect.width
-    const scaleY = img.naturalHeight / rect.height
-    
-    const x = Math.round((e.clientX - rect.left) * scaleX)
-    const y = Math.round((e.clientY - rect.top) * scaleY)
-    
-    const newPositions = [...clickedPositions, { x, y }]
-    setClickedPositions(newPositions)
-    
-    // If we've clicked enough positions, verify
-    if (captcha?.data?.count && newPositions.length >= captcha.data.count) {
-      verifyCaptcha(newPositions)
-    }
   }
 
   if (loading) {
@@ -208,66 +185,6 @@ const Captcha = ({ onVerify, onError }: CaptchaProps) => {
                 确认验证
               </button>
             </>
-          )}
-        </div>
-      )}
-
-      {/* Click Captcha */}
-      {captcha.type === 'click' && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-              <MousePointer2 className="w-4 h-4" />
-              点击指定位置 ({clickedPositions.length}/{captcha.data?.count || 0})
-            </label>
-            <button
-              type="button"
-              onClick={loadCaptcha}
-              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
-            >
-              <RefreshCw className="w-3 h-3" />
-              换一张
-            </button>
-          </div>
-          {verified ? (
-            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
-              <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm text-green-600 dark:text-green-400">验证成功</span>
-            </div>
-          ) : (
-            <div className="relative">
-            <img
-              ref={clickImageRef}
-              src={captcha.data?.image?.startsWith('data:') ? captcha.data.image : `data:image/png;base64,${captcha.data?.image}`}
-              alt="Click captcha"
-              className="w-full border border-slate-200 dark:border-slate-700 rounded-md cursor-crosshair"
-              onClick={handleClickImage}
-            />
-              {clickedPositions.map((pos, idx) => {
-                // 计算标记的显示位置（考虑图片缩放）
-                const img = clickImageRef.current
-                if (!img) return null
-                const rect = img.getBoundingClientRect()
-                const scaleX = rect.width / (img.naturalWidth || rect.width)
-                const scaleY = rect.height / (img.naturalHeight || rect.height)
-                const displayX = pos.x * scaleX
-                const displayY = pos.y * scaleY
-                return (
-                  <div
-                    key={idx}
-                    className="absolute w-4 h-4 bg-blue-500 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                    style={{ left: `${displayX}px`, top: `${displayY}px` }}
-                  />
-                )
-              })}
-              {verifying && (
-                <div className="absolute inset-0 bg-black/20 rounded-md flex items-center justify-center">
-                  <RefreshCw className="w-6 h-6 animate-spin text-white" />
-                </div>
-              )}
-            </div>
           )}
         </div>
       )}
