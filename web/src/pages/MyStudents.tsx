@@ -148,6 +148,12 @@ export default function MyStudents() {
     return () => io.disconnect();
   }, [hasMore, nextCursor, loading, debouncedQ, fetchPage]);
 
+  const openDetail = (r: TeacherCoachingQuotaRow) => {
+    navigate(`/my-students/${r.studentId}`, {
+      state: { studentName: studentLabel(r) },
+    });
+  };
+
   const openActivity = (r: TeacherCoachingQuotaRow) => {
     navigate(`/my-students/${r.studentId}/training`, {
       state: { studentName: studentLabel(r) },
@@ -325,41 +331,47 @@ export default function MyStudents() {
             return (
               <CloudCard key={r.id} className="p-3">
                 <div className="flex items-center gap-3">
-                  <div className="size-11 rounded-full bg-primary-soft border border-border overflow-hidden flex items-center justify-center shrink-0">
-                    {avatar ? (
-                      <img src={avatar} alt="" className="size-full object-cover" />
-                    ) : (
-                      <span className="text-sm font-semibold text-primary">
-                        {studentInitial(r)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <h2 className="text-sm font-semibold text-foreground truncate">
-                        {studentLabel(r)}
-                      </h2>
-                      <span
-                        className={`shrink-0 inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium tabular-nums ${
-                          low
-                            ? "bg-destructive/5 text-destructive"
-                            : "bg-primary-soft text-primary"
-                        }`}
-                      >
-                        <Clock size={10} />
-                        {minsLabel(r.remainingMinutes || 0)}
-                      </span>
+                  <button
+                    type="button"
+                    className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                    onClick={() => openDetail(r)}
+                  >
+                    <div className="size-11 rounded-full bg-primary-soft border border-border overflow-hidden flex items-center justify-center shrink-0">
+                      {avatar ? (
+                        <img src={avatar} alt="" className="size-full object-cover" />
+                      ) : (
+                        <span className="text-sm font-semibold text-primary">
+                          {studentInitial(r)}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      {account || "—"}
-                      <span className="text-muted-soft">
-                        {" "}
-                        · 测评 {r.vocabTestCount ?? 0} · 陪练 {r.coachingSessionCount ?? 0} · 训练{" "}
-                        {r.studySessionCount ?? 0}
-                      </span>
-                    </p>
-                  </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h2 className="text-sm font-semibold text-foreground truncate">
+                          {studentLabel(r)}
+                        </h2>
+                        <span
+                          className={`shrink-0 inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium tabular-nums ${
+                            low
+                              ? "bg-destructive/5 text-destructive"
+                              : "bg-primary-soft text-primary"
+                          }`}
+                        >
+                          <Clock size={10} />
+                          {minsLabel(r.remainingMinutes || 0)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                        {account || "—"}
+                        <span className="text-muted-soft">
+                          {" "}
+                          · 测评 {r.vocabTestCount ?? 0} · 陪练 {r.coachingSessionCount ?? 0} · 训练{" "}
+                          {r.studySessionCount ?? 0}
+                        </span>
+                      </p>
+                    </div>
+                  </button>
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     <CloudButton

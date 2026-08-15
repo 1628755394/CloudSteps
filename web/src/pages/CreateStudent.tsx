@@ -30,6 +30,7 @@ export default function CreateStudent() {
     username: string;
     password: string;
     name: string;
+    studentId?: number;
   } | null>(null);
   const [copied, setCopied] = useState<"account" | "password" | "all" | null>(null);
 
@@ -71,10 +72,13 @@ export default function CreateStudent() {
       const initPwd = res.data?.initialPassword || DEFAULT_PASSWORD;
       if (!loginName) {
         showToast.success("学生已创建");
-        navigate("/my-students", { replace: true });
+        navigate(sid ? `/my-students/${sid}` : "/my-students", {
+          replace: true,
+          state: sid ? { studentName: name } : undefined,
+        });
         return;
       }
-      setCreated({ username: loginName, password: initPwd, name });
+      setCreated({ username: loginName, password: initPwd, name, studentId: sid });
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "创建失败";
@@ -146,8 +150,13 @@ export default function CreateStudent() {
         open={!!created}
         onOpenChange={(open) => {
           if (!open) {
+            const sid = created?.studentId;
+            const name = created?.name;
             setCreated(null);
-            navigate("/my-students", { replace: true });
+            navigate(sid ? `/my-students/${sid}` : "/my-students", {
+              replace: true,
+              state: sid ? { studentName: name } : undefined,
+            });
           }
         }}
       >
@@ -223,8 +232,13 @@ export default function CreateStudent() {
               variant="brand"
               className="flex-1"
               onClick={() => {
+                const sid = created?.studentId;
+                const name = created?.name;
                 setCreated(null);
-                navigate("/my-students", { replace: true });
+                navigate(sid ? `/my-students/${sid}` : "/my-students", {
+                  replace: true,
+                  state: sid ? { studentName: name } : undefined,
+                });
               }}
             >
               完成

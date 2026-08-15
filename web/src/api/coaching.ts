@@ -184,6 +184,39 @@ export const getStudentVocabRecordAsTeacher = async (
   return get<VocabTestRecordDTO>(`/teacher/coaching/students/${studentId}/vocab-records/${recordId}`)
 }
 
+export type StudentWordBookItem = {
+  id: number
+  name: string
+  wordCount: number
+}
+
+/** 老师查看学员已分配词库 */
+export const listStudentWordBooksAsTeacher = async (
+  studentId: number
+): Promise<ApiResponse<{ list: StudentWordBookItem[] }>> => {
+  return get<{ list: StudentWordBookItem[] }>(
+    `/teacher/coaching/students/${studentId}/wordbooks`
+  )
+}
+
+/** 老师为学员添加词库 */
+export const addStudentWordBookAsTeacher = async (
+  studentId: number,
+  wordBookId: number
+): Promise<ApiResponse<StudentWordBookItem>> => {
+  return post<StudentWordBookItem>(`/teacher/coaching/students/${studentId}/wordbooks`, {
+    wordBookId,
+  })
+}
+
+/** 老师移除学员词库 */
+export const removeStudentWordBookAsTeacher = async (
+  studentId: number,
+  wordBookId: number
+): Promise<ApiResponse<{ studentId: number; wordBookId: number }>> => {
+  return del(`/teacher/coaching/students/${studentId}/wordbooks/${wordBookId}`)
+}
+
 export const getStudentCoachingSessionAsTeacher = async (
   studentId: number,
   sessionId: number
