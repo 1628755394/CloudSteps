@@ -41,7 +41,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
 
@@ -132,7 +132,7 @@ func main() {
 	}
 
 	// 连接数据库
-	db, err := utils.InitDatabase(io.Discard, config.GlobalConfig.Database.Driver, config.GlobalConfig.Database.DSN)
+	db, err := common.InitDatabase(io.Discard, config.GlobalConfig.Database.Driver, config.GlobalConfig.Database.DSN)
 	if err != nil {
 		log.Fatalf("连接数据库失败: %v", err)
 	}

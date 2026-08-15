@@ -13,6 +13,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/CloudStepsGo/pkg/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/common"
 	"go.uber.org/zap"
 
 	"gorm.io/gorm"
@@ -80,7 +81,7 @@ func SetupDatabase(logWriter io.Writer, opts *Options) (*gorm.DB, error) {
 func initDBConn(logWriter io.Writer) (*gorm.DB, error) {
 	dbDriver := config.GlobalConfig.Database.Driver
 	dsn := config.GlobalConfig.Database.DSN
-	return utils.InitDatabase(logWriter, dbDriver, dsn)
+	return common.InitDatabase(logWriter, dbDriver, dsn)
 }
 
 // RunInitSQL executes SQL statements from a local .sql file segment by segment (split by semicolon ;), idempotent scripts should use IF NOT EXISTS in SQL for protection
@@ -133,7 +134,7 @@ func RunMigrations(db *gorm.DB) error {
 	if db == nil {
 		return errors.New("db is nil")
 	}
-	if err := utils.MakeMigrates(db, []any{
+	if err := common.MakeMigrates(db, []any{
 		&utils.Config{},
 		&models.AccountLock{},
 		&models.UserDevice{},
