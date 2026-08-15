@@ -17,13 +17,16 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
   const [captcha, setCaptcha] = useState<CaptchaResponse | null>(null);
   const [value, setValue] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [jigsawOffset, setJigsawOffset] = useState(0);
+  const [rotateAngle, setRotateAngle] = useState(0);
   const jigsawDragRef = useRef<HTMLDivElement>(null);
   const dragStartXRef = useRef(0);
-  const jigsawOffsetRef = useRef(0);
 
   const refresh = useCallback(async () => {
     setError(null);
     setValue(null);
+    setJigsawOffset(0);
+    setRotateAngle(0);
     onChange(null);
     try {
       const res = await getCaptcha();
@@ -111,21 +114,19 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
     const bg = (data.background as string) || "";
     const piece = (data.piece as string) || "";
     const pieceSize = (data.pieceSize as number) || 40;
-    const [offset, setOffset] = useState(0);
 
     const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-      dragStartXRef.current = e.clientX - offset;
+      dragStartXRef.current = e.clientX - jigsawOffset;
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     };
     const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.buttons !== 1) return;
       const raw = e.clientX - dragStartXRef.current;
       const clamped = Math.max(0, Math.min(raw, width - pieceSize));
-      setOffset(clamped);
+      setJigsawOffset(clamped);
     };
     const onPointerUp = () => {
-      jigsawOffsetRef.current = offset;
-      reportValue(offset);
+      reportValue(jigsawOffset);
     };
 
     return (
@@ -138,7 +139,7 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             className="absolute top-0 cursor-grab active:cursor-grabbing touch-none"
-            style={{ left: offset, width: pieceSize, height }}
+            style={{ left: jigsawOffset, width: pieceSize, height }}
           >
             {piece ? <img src={piece} alt="jigsaw-piece" className="w-full h-full" draggable={false} /> : null}
           </div>
@@ -156,7 +157,6 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
     const data = captcha?.data;
     if (!data) return null;
     const img = (data.image as string) || "";
-    const [angle, setAngle] = useState(0);
 
     return (
       <div className="space-y-2">
@@ -166,7 +166,7 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
               src={img}
               alt="rotate-captcha"
               className="rounded-xl border border-input"
-              style={{ transform: `rotate(${angle}deg)`, transition: "transform 0.1s" }}
+              style={{ transform: `rotate(${rotateAngle}deg)`, transition: "transform 0.1s" }}
             />
           ) : (
             <div className="w-32 h-32 bg-muted rounded-xl" />
@@ -176,15 +176,15 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
           type="range"
           min={0}
           max={360}
-          value={angle}
+          value={rotateAngle}
           onChange={(e) => {
             const a = Number(e.target.value);
-            setAngle(a);
+            setRotateAngle(a);
             reportValue(a);
           }}
           className="w-full"
         />
-        <div className="text-xs text-muted-foreground text-center">拖动滑块旋转图片到正确方向 ({angle}°)</div>
+        <div className="text-xs text-muted-foreground text-center">拖动滑块旋转图片到正确方向 ({rotateAngle}°)</div>
         <button type="button" onClick={refresh} className="text-xs text-muted-foreground hover:text-foreground">
           换一张
         </button>
