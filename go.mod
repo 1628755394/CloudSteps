@@ -7,6 +7,7 @@ require (
 	github.com/LingByte/ling-base/captcha v0.2.0
 	github.com/LingByte/ling-base/common v0.2.0
 	github.com/LingByte/ling-base/common/random v0.1.0
+	github.com/LingByte/ling-base/common/response/gin v0.1.0
 	github.com/LingByte/ling-base/i18n v0.1.0
 	github.com/LingByte/ling-base/i18n/gin v0.1.0
 	github.com/LingByte/ling-base/notification/email v0.1.0
@@ -53,6 +54,7 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/LingByte/ling-base/common/idgen v0.1.0 // indirect
+	github.com/LingByte/ling-base/common/response v0.1.0 // indirect
 	github.com/LingByte/ling-base/constants v0.1.0 // indirect
 	github.com/LingByte/ling-base/notification v0.1.0 // indirect
 	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82 // indirect

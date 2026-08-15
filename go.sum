@@ -28,6 +28,10 @@ github.com/LingByte/ling-base/common/idgen v0.1.0 h1:phZYlAcsBOUkqE7KQ2tx05R6pLa
 github.com/LingByte/ling-base/common/idgen v0.1.0/go.mod h1:l6qlmKfTYYi7YhtdjjcMPMpRC6wT+W0scsmcGEq39sk=
 github.com/LingByte/ling-base/common/random v0.1.0 h1:drcy5T8otCadWE8xS7MM/o7jaTRIFisi4gY6MIjX/qY=
 github.com/LingByte/ling-base/common/random v0.1.0/go.mod h1:O6s6P8a3Or0uDOCvq+ofIvrVSSqUppMAc4IZtbjxgCo=
+github.com/LingByte/ling-base/common/response v0.1.0 h1:tXTHl8IfFYvERYWUL1Leh85N98v77u5WvGLbSpeYrNg=
+github.com/LingByte/ling-base/common/response v0.1.0/go.mod h1:MgLRPQiqt5cYHyPuXcFKhPCThzcHYxrZL/SWEyT2bhk=
+github.com/LingByte/ling-base/common/response/gin v0.1.0 h1:G+MGBf00BNctoi2AiFg48/lf8tOe44DRPczUbpbG1rc=
+github.com/LingByte/ling-base/common/response/gin v0.1.0/go.mod h1:Pg2JU0eSl6TuILiZwTCEc9jtAaGo4NzPIn4hXuy/pjE=
 github.com/LingByte/ling-base/constants v0.1.0 h1:xGVVvIEJXHmCM03ANL6uPuqk2MK3y87LzesLfXgmLQs=
 github.com/LingByte/ling-base/constants v0.1.0/go.mod h1:LYfNMki0Qfbcj2sr502VKtlZmUMXiinhK8/DXx2YtkY=
 github.com/LingByte/ling-base/i18n v0.1.0 h1:Bm4dsVuWbb5FYHHBU9gnNM1Od/MUeu417qZFb1vQY2s=

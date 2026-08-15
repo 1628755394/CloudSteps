@@ -115,7 +115,7 @@ func TestShouldBindJSON(t *testing.T) {
 	assert.Equal(t, 200, w.Code)
 	var result map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &result)
-	assert.Equal(t, float64(500), result["code"])
+	assert.Equal(t, float64(2000), result["code"])
 }
 
 func TestShouldBindQuery(t *testing.T) {
@@ -142,7 +142,7 @@ func TestShouldBindQuery(t *testing.T) {
 	assert.Equal(t, 200, w.Code)
 	var result map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &result)
-	assert.Equal(t, float64(500), result["code"])
+	assert.Equal(t, float64(2000), result["code"])
 }
 
 func TestShouldBindForm(t *testing.T) {
@@ -170,7 +170,7 @@ func TestShouldBindForm(t *testing.T) {
 	assert.Equal(t, 200, w.Code)
 	var result map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &result)
-	assert.Equal(t, float64(500), result["code"])
+	assert.Equal(t, float64(2000), result["code"])
 }
 
 func TestValidateStruct_WithLocale(t *testing.T) {
