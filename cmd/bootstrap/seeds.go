@@ -7,7 +7,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	lbconfig "github.com/LingByte/ling-base/common/config"
 	"gorm.io/gorm"
 )
 
@@ -122,7 +122,7 @@ func (s *SeedService) seedUsers() error {
 }
 
 func (s *SeedService) seedConfigs() error {
-	defaults := []utils.Config{
+	defaults := []lbconfig.ConfigItem{
 		{Key: constants.KEY_SITE_NAME, Desc: "Site Name", Autoload: true, Public: true, Format: "text", Value: func() string {
 			if config.GlobalConfig.Server.Name != "" {
 				return config.GlobalConfig.Server.Name
@@ -137,7 +137,7 @@ func (s *SeedService) seedConfigs() error {
 		}()},
 	}
 	for _, cfg := range defaults {
-		var existingConfig utils.Config
+		var existingConfig lbconfig.ConfigItem
 		result := s.db.Where("`key` = ?", cfg.Key).First(&existingConfig)
 
 		if result.Error != nil {

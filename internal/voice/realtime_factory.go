@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/common"
 	"github.com/LingByte/ling-base/logger"
 	"github.com/LingByte/lingllm/realtime"
 	_ "github.com/LingByte/lingllm/realtime/aliyunomni"
@@ -136,9 +136,9 @@ func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent f
 		return nil, 0, 0, err
 	}
 
-	inSR := int(utils.GetIntEnvWithDefault("REALTIME_INPUT_SR", 16000))
-	outSR := int(utils.GetIntEnvWithDefault("REALTIME_OUTPUT_SR", 24000))
-	voice := strings.TrimSpace(utils.GetEnv("REALTIME_VOICE"))
+	inSR := int(common.GetIntEnvWithDefault("REALTIME_INPUT_SR", 16000))
+	outSR := int(common.GetIntEnvWithDefault("REALTIME_OUTPUT_SR", 24000))
+	voice := strings.TrimSpace(common.GetEnv("REALTIME_VOICE"))
 	if voice == "" {
 		voice = "Cherry"
 	}
@@ -344,7 +344,7 @@ func buildSystemPromptWithExpression(basePrompt string, expressions string) stri
 }
 
 func defaultSystemPrompt() string {
-	prompt := strings.TrimSpace(utils.GetEnv("REALTIME_SYSTEM_PROMPT"))
+	prompt := strings.TrimSpace(common.GetEnv("REALTIME_SYSTEM_PROMPT"))
 	if prompt != "" {
 		return prompt
 	}

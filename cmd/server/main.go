@@ -18,8 +18,10 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/CloudStepsGo/pkg/utils/backup"
 	"github.com/LingByte/ling-base/bootstrap"
+	"github.com/LingByte/ling-base/cache/lru"
 	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
+	lbconfig "github.com/LingByte/ling-base/common/config"
 	"github.com/LingByte/ling-base/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -31,10 +33,10 @@ type CloudStepsGoApp struct {
 	handlers *handlers.Handlers
 }
 
-func NewCloudStepsGoApp(db *gorm.DB) *CloudStepsGoApp {
+func NewCloudStepsGoApp(db *gorm.DB, cache *lru.Cache[string, any], configStore *lbconfig.Store) *CloudStepsGoApp {
 	return &CloudStepsGoApp{
 		db:       db,
-		handlers: handlers.NewHandlers(db),
+		handlers: handlers.NewHandlers(db, cache, configStore),
 	}
 }
 
@@ -85,7 +87,8 @@ func main() {
 	}
 
 	// 7.5. Initialize global config store (DB-backed)
-	if err := utils.InitConfigStore(db); err != nil {
+	configStore, err := lbconfig.NewStoreWithDB(db)
+	if err != nil {
 		logger.Error("config store init failed", zap.Error(err))
 		return
 	}
@@ -113,37 +116,39 @@ func main() {
 	logger.Info("checked config -- db-driver: ", zap.String("db-driver", DBDriver), zap.String("dsn", DSN))
 	logger.Info("checked config -- mode: ", zap.String("mode", config.GlobalConfig.Server.Mode))
 
-	utils.InitGlobalCache(1024, 5*time.Minute)
+	// Initialize global LRU cache
+	globalCache, err := lru.New[string, any](1024, lru.WithDefaultTTL(5*time.Minute))
+	if err != nil {
+		logger.Error("cache init failed", zap.Error(err))
+		return
+	}
 
 	// Initialize global registration guard
-	utils.InitGlobalRegistrationGuard(logger.Lg)
-
-	// Initialize global distributed lock
-	utils.InitGlobalDistributedLock()
+	utils.InitGlobalRegistrationGuard(logger.Lg, globalCache)
 
 	// Initialize global captcha manager
 	captcha.InitGlobalManager(captcha.DefaultConfig()) // Use memory storage, can be replaced with Redis storage
 
 	// Initialize global login security manager
-	utils.InitGlobalLoginSecurityManager(logger.Lg)
+	utils.InitGlobalLoginSecurityManager(logger.Lg, globalCache)
 
 	// Initialize global intelligent risk control manager
 	utils.InitGlobalIntelligentRiskControl(logger.Lg)
 
 	//// 11. New App
-	app := NewCloudStepsGoApp(db)
+	app := NewCloudStepsGoApp(db, globalCache, configStore)
 
 	// 11.5. Initialize SIP Server (if enabled)
 	// Check if SIP server should be enabled via environment variable
-	sipEnabled := utils.GetBoolEnv("SIP_ENABLED")
+	sipEnabled := common.GetBoolEnv("SIP_ENABLED")
 	if sipEnabled {
-		sipPortInt64 := utils.GetIntEnv("SIP_PORT")
+		sipPortInt64 := common.GetIntEnv("SIP_PORT")
 		if sipPortInt64 == 0 {
 			sipPortInt64 = 5060 // Default SIP port
 		}
 		sipPort := int(sipPortInt64)
 
-		rtpPortInt64 := utils.GetIntEnv("SIP_RTP_PORT")
+		rtpPortInt64 := common.GetIntEnv("SIP_RTP_PORT")
 		if rtpPortInt64 == 0 {
 			rtpPortInt64 = 10000 // Default RTP port
 		}
@@ -198,9 +203,9 @@ func main() {
 
 	// 16. use middleware
 	// Cookie Register
-	secret := utils.GetEnv(constants.ENV_SESSION_SECRET)
+	secret := common.GetEnv(constants.ENV_SESSION_SECRET)
 	if secret != "" {
-		expireDays := utils.GetIntEnv(constants.ENV_SESSION_EXPIRE_DAYS)
+		expireDays := common.GetIntEnv(constants.ENV_SESSION_EXPIRE_DAYS)
 		if expireDays <= 0 {
 			expireDays = 7
 		}
@@ -216,7 +221,7 @@ func main() {
 	r.Use(middleware.LoggerMiddleware(zap.L()))
 
 	// Static service for uploaded files
-	uploadDir := utils.GetEnv("UPLOAD_DIR")
+	uploadDir := common.GetEnv("UPLOAD_DIR")
 	if uploadDir == "" {
 		uploadDir = "./uploads"
 	}
@@ -234,7 +239,7 @@ func main() {
 	listeners.InitSystemListeners()
 
 	// 20. Start Search Indexer (if enabled)
-	searchEnabled := utils.GetBoolValue(constants.KEY_SEARCH_ENABLED)
+	searchEnabled := configStore.GetBoolValue(constants.KEY_SEARCH_ENABLED)
 	if !searchEnabled && config.GlobalConfig != nil {
 		searchEnabled = config.GlobalConfig.Features.SearchEnabled
 	}

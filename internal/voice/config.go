@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/common"
 )
 
 // ReadyStatus describes whether realtime voice can start.
@@ -18,7 +18,7 @@ type ReadyStatus struct {
 
 // LoadRealtimeConfig resolves realtime credentials from env (multiple fallbacks).
 func LoadRealtimeConfig() (map[string]any, error) {
-	raw := strings.TrimSpace(utils.GetEnv("REALTIME_CONFIG_JSON"))
+	raw := strings.TrimSpace(common.GetEnv("REALTIME_CONFIG_JSON"))
 	if raw != "" {
 		out := map[string]any{}
 		if err := json.Unmarshal([]byte(raw), &out); err != nil {
@@ -29,36 +29,36 @@ func LoadRealtimeConfig() (map[string]any, error) {
 	}
 
 	// Flat env vars
-	provider := strings.TrimSpace(utils.GetEnv("REALTIME_PROVIDER"))
+	provider := strings.TrimSpace(common.GetEnv("REALTIME_PROVIDER"))
 	if provider == "" {
 		provider = "aliyun_omni"
 	}
 
 	cfg := map[string]any{"provider": provider}
 
-	if appID := strings.TrimSpace(utils.GetEnv("REALTIME_APP_ID")); appID != "" {
+	if appID := strings.TrimSpace(common.GetEnv("REALTIME_APP_ID")); appID != "" {
 		cfg["provider"] = "volcengine_dialogue"
 		cfg["appId"] = appID
-		if ak := strings.TrimSpace(utils.GetEnv("REALTIME_ACCESS_KEY")); ak != "" {
+		if ak := strings.TrimSpace(common.GetEnv("REALTIME_ACCESS_KEY")); ak != "" {
 			cfg["accessKey"] = ak
 		}
 	}
 
 	apiKey := firstNonEmpty(
-		utils.GetEnv("REALTIME_API_KEY"),
-		utils.GetEnv("DASHSCOPE_API_KEY"),
-		utils.GetEnv("LLM_API_KEY"),
-		utils.GetEnv("OPENAI_API_KEY"),
+		common.GetEnv("REALTIME_API_KEY"),
+		common.GetEnv("DASHSCOPE_API_KEY"),
+		common.GetEnv("LLM_API_KEY"),
+		common.GetEnv("OPENAI_API_KEY"),
 	)
 	if apiKey != "" {
 		cfg["api_key"] = apiKey
 	}
 
-	if model := strings.TrimSpace(utils.GetEnv("REALTIME_MODEL")); model != "" {
+	if model := strings.TrimSpace(common.GetEnv("REALTIME_MODEL")); model != "" {
 		cfg["model"] = model
 	}
 
-	if baseURL := strings.TrimSpace(utils.GetEnv("REALTIME_BASE_URL")); baseURL != "" {
+	if baseURL := strings.TrimSpace(common.GetEnv("REALTIME_BASE_URL")); baseURL != "" {
 		cfg["base_url"] = baseURL
 	}
 
@@ -95,7 +95,7 @@ func mergeAPIKeyFallbacks(cfg map[string]any) {
 	if cfg == nil {
 		return
 	}
-	if v := strings.TrimSpace(utils.GetEnv("OPENAI_API_KEY")); v != "" {
+	if v := strings.TrimSpace(common.GetEnv("OPENAI_API_KEY")); v != "" {
 		if existing := stringField(cfg, "api_key"); existing == "" {
 			cfg["api_key"] = v
 		}

@@ -1,23 +1,23 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/LingByte/ling-base/cache/lru"
 	"go.uber.org/zap/zaptest"
 	"gorm.io/gorm"
 )
 
 func setupTestLoginSecurityManager(t *testing.T) (*LoginSecurityManager, func()) {
 	logger := zaptest.NewLogger(t)
-	lsm := NewLoginSecurityManager(logger)
-
-	// 初始化缓存用于测试
-	InitGlobalCache(1000, 1*time.Hour)
+	cache, _ := lru.New[string, any](1000, lru.WithDefaultTTL(1*time.Hour))
+	lsm := NewLoginSecurityManager(logger, cache)
 
 	cleanup := func() {
-		GlobalCache = nil
+		cache.Close()
 	}
 
 	return lsm, cleanup
@@ -25,7 +25,8 @@ func setupTestLoginSecurityManager(t *testing.T) (*LoginSecurityManager, func())
 
 func TestNewLoginSecurityManager(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	lsm := NewLoginSecurityManager(logger)
+	cache, _ := lru.New[string, any](1000, lru.WithDefaultTTL(1*time.Hour))
+	lsm := NewLoginSecurityManager(logger, cache)
 
 	if lsm == nil {
 		t.Fatal("NewLoginSecurityManager returned nil")
@@ -94,7 +95,8 @@ func TestLoginSecurityManager_RecordFailedLogin(t *testing.T) {
 
 	// 验证失败计数已增加
 	key := fmt.Sprintf("login:failed:%s", "test@example.com")
-	count, ok := GlobalCache.Get(key)
+	count, errCache := lsm.cache.Get(context.Background(), key)
+	ok := errCache == nil
 	if !ok {
 		t.Fatal("Failed login count not recorded")
 	}
@@ -142,7 +144,8 @@ func TestLoginSecurityManager_ClearFailedLoginCount(t *testing.T) {
 
 	// 验证计数已清除
 	key := fmt.Sprintf("login:failed:%s", email)
-	_, ok := GlobalCache.Get(key)
+	_, errCache := lsm.cache.Get(context.Background(), key)
+	ok := errCache == nil
 	if ok {
 		t.Fatal("Failed login count should be cleared")
 	}
@@ -151,7 +154,7 @@ func TestLoginSecurityManager_ClearFailedLoginCount(t *testing.T) {
 func TestLoginSecurityManager_CheckIPRateLimit_NoCache(t *testing.T) {
 	lsm, cleanup := setupTestLoginSecurityManager(t)
 	defer cleanup()
-	GlobalCache = nil // 清除缓存
+	lsm.cache.Clear(context.Background()) // 清除缓存
 
 	err := lsm.CheckIPRateLimit("192.168.1.1")
 	if err != nil {
@@ -392,7 +395,8 @@ func TestParseUserAgent(t *testing.T) {
 
 func TestInitGlobalLoginSecurityManager(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	InitGlobalLoginSecurityManager(logger)
+	cache, _ := lru.New[string, any](1000, lru.WithDefaultTTL(1*time.Hour))
+	InitGlobalLoginSecurityManager(logger, cache)
 
 	if GlobalLoginSecurityManager == nil {
 		t.Fatal("GlobalLoginSecurityManager should be initialized")

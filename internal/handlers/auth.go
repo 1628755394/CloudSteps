@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -23,6 +24,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
+	lbconfig "github.com/LingByte/ling-base/common/config"
 	"github.com/LingByte/ling-base/common/random"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/logger"
@@ -99,7 +101,7 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 func (h *Handlers) handleUserSignupPage(c *gin.Context) {
 	ctx := CloudStepsGo.GetRenderPageContext(c)
 	ctx["SignupText"] = "Sign Up Now"
-	ctx["Site.SignupApi"] = utils.GetValue(constants.KEY_SITE_SIGNUP_API)
+	ctx["Site.SignupApi"] = h.configStore.GetValue(constants.KEY_SITE_SIGNUP_API)
 	c.HTML(http.StatusOK, "signup.html", ctx)
 }
 
@@ -238,8 +240,8 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	}
 
 	// 从缓存中获取验证码
-	cachedCode, exists := utils.GlobalCache.Get(form.Username)
-	if !exists || cachedCode != form.Code {
+	cachedCode, errCache := h.cache.Get(context.Background(), form.Username)
+	if errCache != nil || cachedCode != form.Code {
 		if utils.GlobalLoginSecurityManager != nil {
 			recordFunc := func(db *gorm.DB, username string, userID uint, ipAddress string, failedCount int) error {
 				_, err := models.CreateOrUpdateAccountLockByUsername(db, username, userID, ipAddress, failedCount)
@@ -252,7 +254,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	}
 
 	// 清除已用验证码
-	utils.GlobalCache.Remove(form.Username)
+	h.cache.Delete(context.Background(), form.Username)
 
 	// 6. 检查用户是否允许登录（激活、启用等）
 	err = models.CheckUserAllowLogin(db, user)
@@ -374,7 +376,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 
 	// 如果需要 Token，生成 AuthToken
 	if form.AuthToken {
-		val := utils.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED)
+		val := h.configStore.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED)
 		expired, _ := time.ParseDuration(val)
 		if expired < 24*time.Hour {
 			expired = 24 * time.Hour
@@ -667,7 +669,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	}
 
 	// 生成认证Token
-	val := utils.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
+	val := h.configStore.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
 	expired, err := time.ParseDuration(val)
 	if err != nil {
 		logger.Warn("Failed to parse auth token expired duration, using default 7 days", zap.Error(err))
@@ -744,7 +746,7 @@ func (h *Handlers) handleUserSignin(c *gin.Context) {
 	models.Login(c, user)
 
 	if form.Remember {
-		val := utils.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
+		val := h.configStore.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
 		expired, err := time.ParseDuration(val)
 		if err != nil {
 			// 7 days
@@ -848,18 +850,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 		}
 	}
 
-	// 4. 获取并发注册锁
-	lockAcquired, err := utils.AcquireRegistrationLock(form.Username)
-	if err != nil || !lockAcquired {
-		if utils.GlobalRegistrationGuard != nil {
-			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "registration in progress")
-		}
-		CloudStepsGo.AbortWithJSONError(c, http.StatusConflict, errors.New("registration in progress for this email, please try again later"))
-		return
-	}
-	defer utils.ReleaseRegistrationLock(form.Username)
-
-	// 5. 注册防护检查
+	// 4. 注册防护检查
 	if utils.GlobalRegistrationGuard != nil {
 		if err := utils.GlobalRegistrationGuard.CheckRegistrationAllowed(clientIP, form.Username, form.Password); err != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
@@ -1005,18 +996,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		}
 	}
 
-	// 3. 获取并发注册锁
-	lockAcquired, err := utils.AcquireRegistrationLock(form.Username)
-	if err != nil || !lockAcquired {
-		if utils.GlobalRegistrationGuard != nil {
-			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "registration in progress")
-		}
-		CloudStepsGo.AbortWithJSONError(c, http.StatusConflict, errors.New("registration in progress for this email, please try again later"))
-		return
-	}
-	defer utils.ReleaseRegistrationLock(form.Username)
-
-	// 4. 注册防护检查
+	// 3. 注册防护检查
 	if utils.GlobalRegistrationGuard != nil {
 		if err := utils.GlobalRegistrationGuard.CheckRegistrationAllowed(clientIP, form.Username, form.Password); err != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
@@ -1034,7 +1014,8 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		return
 	}
 	// 从缓存中获取验证码（假设你使用的是 util.GlobalCache）
-	cachedCode, ok := utils.GlobalCache.Get(form.Username)
+	cachedCode, errCache := h.cache.Get(context.Background(), form.Username)
+	ok := errCache == nil
 	if !ok || cachedCode != form.Code {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid verification code")
@@ -1044,7 +1025,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	}
 
 	// 清除已用验证码
-	utils.GlobalCache.Remove(form.Username)
+	h.cache.Delete(context.Background(), form.Username)
 
 	// 处理加密密码：如果是加密格式，提取原始密码哈希
 	passwordToStore := form.Password
@@ -1082,7 +1063,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		logger.Warn("update user fields fail id:", zap.Uint("userId", user.ID), zap.Any("vals", vals), zap.Error(err))
 	}
 	common.Sig().Emit(constants.SigUserCreate, user, db)
-	sendHashMail(db, user, constants.SigUserVerifyEmail, constants.KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent())
+	sendHashMail(db, user, constants.SigUserVerifyEmail, constants.KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent(), h.configStore)
 	response.SuccessMsg(c, "signup success", user)
 }
 
@@ -1307,14 +1288,15 @@ func (h *Handlers) handleChangePasswordByEmail(c *gin.Context) {
 	}
 
 	// 从缓存中获取验证码
-	cachedCode, ok := utils.GlobalCache.Get(user.Username)
+	cachedCode, errCache := h.cache.Get(context.Background(), user.Username)
+	ok := errCache == nil
 	if !ok || cachedCode != form.UsernameCode {
 		response.Fail(c, "用户名验证码无效或已过期", errors.New("invalid or expired username code"))
 		return
 	}
 
 	// 清除已用验证码
-	utils.GlobalCache.Remove(user.Username)
+	h.cache.Delete(context.Background(), user.Username)
 
 	// 设置新密码（不验证旧密码）
 	err := models.SetPassword(h.db, user, form.NewPassword)
@@ -1470,8 +1452,8 @@ func (h *Handlers) handleGetSalt(c *gin.Context) {
 
 	// 将盐和时间戳存储到缓存中，用于验证
 	key := fmt.Sprintf("password_salt:%s", salt)
-	if utils.GlobalCache != nil {
-		utils.GlobalCache.Add(key, timestamp)
+	if h.cache != nil {
+		h.cache.Set(context.Background(), key, timestamp, 0)
 	}
 
 	response.SuccessMsg(c, "success", gin.H{
@@ -1673,8 +1655,8 @@ func isDefaultAvatar(avatarURL string) bool {
 		strings.Contains(avatarURL, "gravatar")
 }
 
-func sendHashMail(db *gorm.DB, user *models.User, signame, expireKey, defaultExpired, clientIp, useragent string) {
-	d, err := time.ParseDuration(utils.GetValue(expireKey))
+func sendHashMail(db *gorm.DB, user *models.User, signame, expireKey, defaultExpired, clientIp, useragent string, configStore *lbconfig.Store) {
+	d, err := time.ParseDuration(configStore.GetValue(expireKey))
 	if err != nil {
 		d, _ = time.ParseDuration(defaultExpired)
 	}
@@ -1686,16 +1668,16 @@ func sendHashMail(db *gorm.DB, user *models.User, signame, expireKey, defaultExp
 }
 
 // handleSendEmailCode Send Email Code
-func (h *Handlers) handleSendEmailCode(context *gin.Context) {
+func (h *Handlers) handleSendEmailCode(c *gin.Context) {
 	var req models.SendEmailVerifyEmail
-	if err := context.BindJSON(&req); err != nil {
-		CloudStepsGo.AbortWithJSONError(context, http.StatusBadRequest, err)
+	if err := c.BindJSON(&req); err != nil {
+		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
-	req.UserAgent = context.Request.UserAgent()
-	req.ClientIp = context.ClientIP()
+	req.UserAgent = c.Request.UserAgent()
+	req.ClientIp = c.ClientIP()
 	text := utils.RandNumberText(6)
-	utils.GlobalCache.Add(req.Email, text)
+	h.cache.Set(context.Background(), req.Email, text, 0)
 	go func() {
 		// Use IP address for tracking since no user context
 		mailNotif := appnotifier.NewMailNotificationWithIP(appnotifier.MailConfig{
@@ -1710,11 +1692,11 @@ func (h *Handlers) handleSendEmailCode(context *gin.Context) {
 		}, h.db, req.ClientIp)
 		err := mailNotif.SendVerificationCode(req.Email, text)
 		if err != nil {
-			CloudStepsGo.AbortWithJSONError(context, http.StatusBadRequest, err)
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
 			return
 		}
 	}()
-	response.SuccessMsg(context, "success", "Send Email Successful, Must be verified within the valid time [5 minutes]")
+	response.SuccessMsg(c, "success", "Send Email Successful, Must be verified within the valid time [5 minutes]")
 	return
 }
 

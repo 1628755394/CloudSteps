@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LingByte/ling-base/cache/lru"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -19,16 +21,18 @@ type LoginSecurityManager struct {
 	maxPasswordLogins    int           // 密码登录最大次数（默认25次）
 	ipRateLimitPerMinute int           // IP每分钟登录次数限制
 	logger               *zap.Logger
+	cache                *lru.Cache[string, any]
 }
 
 // NewLoginSecurityManager 创建登录安全管理器
-func NewLoginSecurityManager(logger *zap.Logger) *LoginSecurityManager {
+func NewLoginSecurityManager(logger *zap.Logger, cache *lru.Cache[string, any]) *LoginSecurityManager {
 	return &LoginSecurityManager{
 		maxFailedAttempts:    7,
 		lockDuration:         30 * time.Minute,
 		maxPasswordLogins:    25,
 		ipRateLimitPerMinute: 7, // 每个IP每分钟最多7次登录尝试
 		logger:               logger,
+		cache:                cache,
 	}
 }
 
@@ -36,8 +40,8 @@ func NewLoginSecurityManager(logger *zap.Logger) *LoginSecurityManager {
 var GlobalLoginSecurityManager *LoginSecurityManager
 
 // InitGlobalLoginSecurityManager 初始化全局登录安全管理器
-func InitGlobalLoginSecurityManager(logger *zap.Logger) {
-	GlobalLoginSecurityManager = NewLoginSecurityManager(logger)
+func InitGlobalLoginSecurityManager(logger *zap.Logger, cache *lru.Cache[string, any]) {
+	GlobalLoginSecurityManager = NewLoginSecurityManager(logger, cache)
 }
 
 // AccountLockInfo 账号锁定信息
@@ -82,8 +86,8 @@ func (lsm *LoginSecurityManager) RecordFailedLogin(db *gorm.DB, email string, us
 	// 获取当前失败次数
 	key := fmt.Sprintf("login:failed:%s", email)
 	var failedCount int
-	if GlobalCache != nil {
-		if val, ok := GlobalCache.Get(key); ok {
+	if lsm.cache != nil {
+		if val, err := lsm.cache.Get(context.Background(), key); err == nil {
 			if c, ok := val.(int); ok {
 				failedCount = c
 			}
@@ -91,8 +95,8 @@ func (lsm *LoginSecurityManager) RecordFailedLogin(db *gorm.DB, email string, us
 	}
 
 	failedCount++
-	if GlobalCache != nil {
-		GlobalCache.Add(key, failedCount)
+	if lsm.cache != nil {
+		lsm.cache.Set(context.Background(), key, failedCount, 0)
 	}
 
 	// 如果达到最大失败次数，锁定账号
@@ -116,20 +120,20 @@ func (lsm *LoginSecurityManager) RecordFailedLogin(db *gorm.DB, email string, us
 // ClearFailedLoginCount 清除失败登录计数（登录成功时调用）
 func (lsm *LoginSecurityManager) ClearFailedLoginCount(email string) {
 	key := fmt.Sprintf("login:failed:%s", email)
-	if GlobalCache != nil {
-		GlobalCache.Remove(key)
+	if lsm.cache != nil {
+		lsm.cache.Delete(context.Background(), key)
 	}
 }
 
 // CheckIPRateLimit 检查IP登录限流
 func (lsm *LoginSecurityManager) CheckIPRateLimit(ip string) error {
-	if GlobalCache == nil {
+	if lsm.cache == nil {
 		return nil
 	}
 
 	key := fmt.Sprintf("login:ip:%s", ip)
 	var count int
-	if val, ok := GlobalCache.Get(key); ok {
+	if val, err := lsm.cache.Get(context.Background(), key); err == nil {
 		if c, ok := val.(int); ok {
 			count = c
 		}
@@ -144,7 +148,7 @@ func (lsm *LoginSecurityManager) CheckIPRateLimit(ip string) error {
 
 	// 增加计数
 	count++
-	GlobalCache.Add(key, count)
+	lsm.cache.Set(context.Background(), key, count, 0)
 
 	return nil
 }

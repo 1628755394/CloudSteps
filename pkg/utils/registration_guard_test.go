@@ -1,22 +1,22 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/LingByte/ling-base/cache/lru"
 	"go.uber.org/zap/zaptest"
 )
 
 func setupTestRegistrationGuard(t *testing.T) (*RegistrationGuard, func()) {
 	logger := zaptest.NewLogger(t)
-	rg := NewRegistrationGuard(logger)
-
-	// 初始化缓存用于测试
-	InitGlobalCache(1000, 1*time.Hour)
+	cache, _ := lru.New[string, any](1000, lru.WithDefaultTTL(1*time.Hour))
+	rg := NewRegistrationGuard(logger, cache)
 
 	cleanup := func() {
-		GlobalCache = nil
+		cache.Close()
 	}
 
 	return rg, cleanup
@@ -24,7 +24,8 @@ func setupTestRegistrationGuard(t *testing.T) (*RegistrationGuard, func()) {
 
 func TestNewRegistrationGuard(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	rg := NewRegistrationGuard(logger)
+	cache, _ := lru.New[string, any](1000, lru.WithDefaultTTL(1*time.Hour))
+	rg := NewRegistrationGuard(logger, cache)
 
 	if rg == nil {
 		t.Fatal("NewRegistrationGuard returned nil")
@@ -70,7 +71,7 @@ func TestRegistrationGuard_AddIPToBlacklist_InvalidCIDR(t *testing.T) {
 func TestRegistrationGuard_CheckIPRateLimit_NoCache(t *testing.T) {
 	rg, cleanup := setupTestRegistrationGuard(t)
 	defer cleanup()
-	GlobalCache = nil // 清除缓存
+	rg.cache.Clear(context.Background()) // 清除缓存
 
 	err := rg.CheckIPRateLimit("192.168.1.1")
 	if err != nil {
@@ -115,7 +116,8 @@ func TestRegistrationGuard_RecordRegistrationAttempt_Success(t *testing.T) {
 
 	// 验证记录已增加
 	key := fmt.Sprintf("reg:ip:%s", ip)
-	count, ok := GlobalCache.Get(key)
+	count, errCache := rg.cache.Get(context.Background(), key)
+	ok := errCache == nil
 	if !ok {
 		t.Fatal("Registration attempt not recorded")
 	}
@@ -135,7 +137,8 @@ func TestRegistrationGuard_RecordRegistrationAttempt_Failure(t *testing.T) {
 
 	// 验证失败记录已增加
 	failedKey := fmt.Sprintf("reg:failed:ip:%s", ip)
-	failedCount, ok := GlobalCache.Get(failedKey)
+	failedCount, errCache := rg.cache.Get(context.Background(), failedKey)
+	ok := errCache == nil
 	if !ok {
 		t.Fatal("Failed registration attempt not recorded")
 	}
@@ -147,7 +150,7 @@ func TestRegistrationGuard_RecordRegistrationAttempt_Failure(t *testing.T) {
 func TestRegistrationGuard_CheckFailedAttempts_NoCache(t *testing.T) {
 	rg, cleanup := setupTestRegistrationGuard(t)
 	defer cleanup()
-	GlobalCache = nil // 清除缓存
+	rg.cache.Clear(context.Background()) // 清除缓存
 
 	err := rg.CheckFailedAttempts("192.168.1.1")
 	if err != nil {
@@ -312,7 +315,8 @@ func TestRegistrationGuard_CheckRegistrationAllowed(t *testing.T) {
 
 func TestInitGlobalRegistrationGuard(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	InitGlobalRegistrationGuard(logger)
+	cache, _ := lru.New[string, any](1000, lru.WithDefaultTTL(1*time.Hour))
+	InitGlobalRegistrationGuard(logger, cache)
 
 	if GlobalRegistrationGuard == nil {
 		t.Fatal("GlobalRegistrationGuard should be initialized")

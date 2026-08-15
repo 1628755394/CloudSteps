@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LingByte/ling-base/cache/lru"
 	"go.uber.org/zap"
 )
 
@@ -35,6 +37,7 @@ type RegistrationGuard struct {
 
 	// 日志记录
 	logger *zap.Logger
+	cache  *lru.Cache[string, any]
 }
 
 // RegistrationAttempt 注册尝试记录
@@ -47,7 +50,7 @@ type RegistrationAttempt struct {
 }
 
 // NewRegistrationGuard 创建注册防护服务实例
-func NewRegistrationGuard(logger *zap.Logger) *RegistrationGuard {
+func NewRegistrationGuard(logger *zap.Logger, cache *lru.Cache[string, any]) *RegistrationGuard {
 	rg := &RegistrationGuard{
 		maxRegistrationsPerIP:  3, // 每个IP每小时最多3次注册
 		ipRateLimitWindow:      1 * time.Hour,
@@ -62,6 +65,7 @@ func NewRegistrationGuard(logger *zap.Logger) *RegistrationGuard {
 		requireSpecialChar:     false,
 		ipBlacklist:            []*net.IPNet{},
 		logger:                 logger,
+		cache:                  cache,
 	}
 
 	// 初始化IP黑名单（可以加载已知的恶意IP段）
@@ -103,13 +107,13 @@ func (rg *RegistrationGuard) AddIPToBlacklist(cidr string) error {
 var GlobalRegistrationGuard *RegistrationGuard
 
 // InitGlobalRegistrationGuard 初始化全局注册防护服务
-func InitGlobalRegistrationGuard(logger *zap.Logger) {
-	GlobalRegistrationGuard = NewRegistrationGuard(logger)
+func InitGlobalRegistrationGuard(logger *zap.Logger, cache *lru.Cache[string, any]) {
+	GlobalRegistrationGuard = NewRegistrationGuard(logger, cache)
 }
 
 // CheckIPRateLimit 检查IP注册限流
 func (rg *RegistrationGuard) CheckIPRateLimit(ip string) error {
-	if GlobalCache == nil {
+	if rg.cache == nil {
 		// 如果缓存未初始化，跳过限流检查
 		return nil
 	}
@@ -117,7 +121,7 @@ func (rg *RegistrationGuard) CheckIPRateLimit(ip string) error {
 	// 获取IP的注册次数
 	key := fmt.Sprintf("reg:ip:%s", ip)
 	var count int
-	if val, ok := GlobalCache.Get(key); ok {
+	if val, err := rg.cache.Get(context.Background(), key); err == nil {
 		if c, ok := val.(int); ok {
 			count = c
 		}
@@ -137,7 +141,7 @@ func (rg *RegistrationGuard) CheckIPRateLimit(ip string) error {
 
 // RecordRegistrationAttempt 记录注册尝试
 func (rg *RegistrationGuard) RecordRegistrationAttempt(ip string, email string, success bool, reason string) {
-	if GlobalCache == nil {
+	if rg.cache == nil {
 		// 如果缓存未初始化，只记录日志
 		if success {
 			rg.logger.Info("Registration attempt recorded (cache not initialized)",
@@ -157,13 +161,13 @@ func (rg *RegistrationGuard) RecordRegistrationAttempt(ip string, email string, 
 	if success {
 		key := fmt.Sprintf("reg:ip:%s", ip)
 		var count int
-		if val, ok := GlobalCache.Get(key); ok {
+		if val, err := rg.cache.Get(context.Background(), key); err == nil {
 			if c, ok := val.(int); ok {
 				count = c
 			}
 		}
 		count++
-		GlobalCache.Add(key, count)
+		rg.cache.Set(context.Background(), key, count, 0)
 		rg.logger.Info("Registration attempt recorded",
 			zap.String("ip", ip),
 			zap.String("email", maskEmail(email)),
@@ -172,13 +176,13 @@ func (rg *RegistrationGuard) RecordRegistrationAttempt(ip string, email string, 
 		// 记录失败尝试
 		failedKey := fmt.Sprintf("reg:failed:ip:%s", ip)
 		var failedCount int
-		if val, ok := GlobalCache.Get(failedKey); ok {
+		if val, err := rg.cache.Get(context.Background(), failedKey); err == nil {
 			if c, ok := val.(int); ok {
 				failedCount = c
 			}
 		}
 		failedCount++
-		GlobalCache.Add(failedKey, failedCount)
+		rg.cache.Set(context.Background(), failedKey, failedCount, 0)
 
 		rg.logger.Warn("Failed registration attempt",
 			zap.String("ip", ip),
@@ -189,14 +193,14 @@ func (rg *RegistrationGuard) RecordRegistrationAttempt(ip string, email string, 
 
 // CheckFailedAttempts 检查失败尝试次数
 func (rg *RegistrationGuard) CheckFailedAttempts(ip string) error {
-	if GlobalCache == nil {
+	if rg.cache == nil {
 		// 如果缓存未初始化，跳过检查
 		return nil
 	}
 
 	failedKey := fmt.Sprintf("reg:failed:ip:%s", ip)
 	var failedCount int
-	if val, ok := GlobalCache.Get(failedKey); ok {
+	if val, err := rg.cache.Get(context.Background(), failedKey); err == nil {
 		if c, ok := val.(int); ok {
 			failedCount = c
 		}

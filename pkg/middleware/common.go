@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/common"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-contrib/sessions/memstore"
@@ -62,7 +62,7 @@ func WithCookieSession(secret string, maxAge int) gin.HandlerFunc {
 }
 
 func GetCarrotSessionField() string {
-	v := utils.GetEnv(constants.ENV_SESSION_FIELD)
+	v := common.GetEnv(constants.ENV_SESSION_FIELD)
 	if v == "" {
 		return "CloudStepsGo"
 	}

@@ -9,8 +9,8 @@ import (
 	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/ling-base/common"
+	lbconfig "github.com/LingByte/ling-base/common/config"
 	"github.com/LingByte/ling-base/logger"
 	"go.uber.org/zap"
 
@@ -88,7 +88,7 @@ func RunMigrations(db *gorm.DB) error {
 		return errors.New("db is nil")
 	}
 	if err := common.MakeMigrates(db, []any{
-		&utils.Config{},
+		&lbconfig.ConfigItem{},
 		&models.AccountLock{},
 		&models.UserDevice{},
 		&models.LoginHistory{},

@@ -15,7 +15,7 @@ import (
 	"strconv"
 
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	lbconfig "github.com/LingByte/ling-base/common/config"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
 )
@@ -118,34 +118,43 @@ func (ef EmbedFile) Stat() (fs.FileInfo, error) {
 }
 
 func GetRenderPageContext(c *gin.Context) map[string]any {
-	utils.LoadAutoloads()
+	cfg, _ := c.MustGet(constants.ConfigField).(*lbconfig.Store)
+	getValue := func(key string) string {
+		if cfg != nil {
+			return cfg.GetValue(key)
+		}
+		return ""
+	}
+	if cfg != nil {
+		_ = cfg.LoadAutoloads()
+	}
 	loginNext := c.Query("next")
 	if loginNext == "" {
-		loginNext = utils.GetValue(constants.KEY_SITE_LOGIN_NEXT)
+		loginNext = getValue(constants.KEY_SITE_LOGIN_NEXT)
 	}
 
 	return map[string]any{
 		"LoginNext":    loginNext,
-		"RegisterNext": utils.GetValue(constants.KEY_SITE_SIGNIN_URL),
+		"RegisterNext": getValue(constants.KEY_SITE_SIGNIN_URL),
 		"Site": map[string]any{
-			"Url":                  utils.GetValue(constants.KEY_SITE_URL),
-			"Name":                 utils.GetValue(constants.KEY_SITE_NAME),
-			"Admin":                utils.GetValue(constants.KEY_SITE_ADMIN),
-			"Keywords":             utils.GetValue(constants.KEY_SITE_KEYWORDS),
-			"Description":          utils.GetValue(constants.KEY_SITE_DESCRIPTION),
-			"GA":                   utils.GetValue(constants.KEY_SITE_GA),
-			"LogoUrl":              utils.GetValue(constants.KEY_SITE_LOGO_URL),
-			"FaviconUrl":           utils.GetValue(constants.KEY_SITE_FAVICON_URL),
-			"TermsUrl":             utils.GetValue(constants.KEY_SITE_TERMS_URL),
-			"PrivacyUrl":           utils.GetValue(constants.KEY_SITE_PRIVACY_URL),
-			"SigninUrl":            utils.GetValue(constants.KEY_SITE_SIGNIN_URL),
-			"SignupUrl":            utils.GetValue(constants.KEY_SITE_SIGNUP_URL),
-			"LogoutUrl":            utils.GetValue(constants.KEY_SITE_LOGOUT_URL),
-			"ResetPasswordUrl":     utils.GetValue(constants.KEY_SITE_RESET_PASSWORD_URL),
-			"SigninApi":            utils.GetValue(constants.KEY_SITE_SIGNIN_API),
-			"SignupApi":            utils.GetValue(constants.KEY_SITE_SIGNUP_API),
-			"ResetPasswordDoneApi": utils.GetValue(constants.KEY_SITE_RESET_PASSWORD_DONE_API),
-			"UserIdType":           utils.GetValue(constants.KEY_SITE_USER_ID_TYPE),
+			"Url":                  getValue(constants.KEY_SITE_URL),
+			"Name":                 getValue(constants.KEY_SITE_NAME),
+			"Admin":                getValue(constants.KEY_SITE_ADMIN),
+			"Keywords":             getValue(constants.KEY_SITE_KEYWORDS),
+			"Description":          getValue(constants.KEY_SITE_DESCRIPTION),
+			"GA":                   getValue(constants.KEY_SITE_GA),
+			"LogoUrl":              getValue(constants.KEY_SITE_LOGO_URL),
+			"FaviconUrl":           getValue(constants.KEY_SITE_FAVICON_URL),
+			"TermsUrl":             getValue(constants.KEY_SITE_TERMS_URL),
+			"PrivacyUrl":           getValue(constants.KEY_SITE_PRIVACY_URL),
+			"SigninUrl":            getValue(constants.KEY_SITE_SIGNIN_URL),
+			"SignupUrl":            getValue(constants.KEY_SITE_SIGNUP_URL),
+			"LogoutUrl":            getValue(constants.KEY_SITE_LOGOUT_URL),
+			"ResetPasswordUrl":     getValue(constants.KEY_SITE_RESET_PASSWORD_URL),
+			"SigninApi":            getValue(constants.KEY_SITE_SIGNIN_API),
+			"SignupApi":            getValue(constants.KEY_SITE_SIGNUP_API),
+			"ResetPasswordDoneApi": getValue(constants.KEY_SITE_RESET_PASSWORD_DONE_API),
+			"UserIdType":           getValue(constants.KEY_SITE_USER_ID_TYPE),
 		},
 	}
 }
