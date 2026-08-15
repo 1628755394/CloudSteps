@@ -16,7 +16,6 @@ import (
 	CloudStepsGo "github.com/LingByte/CloudStepsGo"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/cache"
-	"github.com/LingByte/CloudStepsGo/pkg/captcha"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
@@ -25,6 +24,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
 	"github.com/LingByte/ling-base/common/random"
 	"github.com/gin-gonic/gin"
@@ -192,14 +192,14 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	}
 
 	// 3. 图形验证码验证
-	if captcha.GlobalCaptchaManager != nil {
-		if form.CaptchaID == "" || form.CaptchaCode == "" {
+	if captcha.GlobalManager != nil {
+		if form.CaptchaID == "" || form.CaptchaType == "" {
 			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("captcha is required"))
 			return
 		}
 
-		valid, err := captcha.GlobalCaptchaManager.Verify(form.CaptchaID, form.CaptchaCode)
-		if err != nil || !valid {
+		err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
+		if err != nil {
 			if utils.GlobalLoginSecurityManager != nil {
 				recordFunc := func(db *gorm.DB, username string, userID uint, ipAddress string, failedCount int) error {
 					_, err := models.CreateOrUpdateAccountLockByUsername(db, username, userID, ipAddress, failedCount)
@@ -523,15 +523,15 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 		}
 
 		// 6. 图形验证码验证（密码登录需要）
-		if captcha.GlobalCaptchaManager != nil {
-			if form.CaptchaID == "" || form.CaptchaCode == "" {
+		if captcha.GlobalManager != nil {
+			if form.CaptchaID == "" || form.CaptchaType == "" {
 				logger.Warn("Login failed: captcha is required", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
 				response.Fail(c, "请输入图形验证码", nil)
 				return
 			}
 
-			valid, err := captcha.GlobalCaptchaManager.Verify(form.CaptchaID, form.CaptchaCode)
-			if err != nil || !valid {
+			err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
+			if err != nil {
 				logger.Warn("Login failed: invalid captcha code", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP), zap.String("captchaID", form.CaptchaID), zap.Error(err))
 				if utils.GlobalLoginSecurityManager != nil {
 					recordFunc := func(db *gorm.DB, email string, userID uint, ipAddress string, failedCount int) error {
@@ -830,8 +830,8 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	}
 
 	// 3. 图形验证码验证
-	if captcha.GlobalCaptchaManager != nil {
-		if form.CaptchaID == "" || form.CaptchaCode == "" {
+	if captcha.GlobalManager != nil {
+		if form.CaptchaID == "" || form.CaptchaType == "" {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "captcha required")
 			}
@@ -839,8 +839,8 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 			return
 		}
 
-		valid, err := captcha.GlobalCaptchaManager.Verify(form.CaptchaID, form.CaptchaCode)
-		if err != nil || !valid {
+		err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
+		if err != nil {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid captcha")
 			}
@@ -987,8 +987,8 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	}
 
 	// 2. 图形验证码验证
-	if captcha.GlobalCaptchaManager != nil {
-		if form.CaptchaID == "" || form.CaptchaCode == "" {
+	if captcha.GlobalManager != nil {
+		if form.CaptchaID == "" || form.CaptchaType == "" {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "captcha required")
 			}
@@ -996,8 +996,8 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 			return
 		}
 
-		valid, err := captcha.GlobalCaptchaManager.Verify(form.CaptchaID, form.CaptchaCode)
-		if err != nil || !valid {
+		err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
+		if err != nil {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid captcha")
 			}
@@ -1711,52 +1711,34 @@ func (h *Handlers) handleSendEmailCode(context *gin.Context) {
 	return
 }
 
-// handleGetCaptcha 获取图形验证码
+// handleGetCaptcha 获取验证码（随机类型）
 func (h *Handlers) handleGetCaptcha(c *gin.Context) {
-	if captcha.GlobalCaptchaManager == nil {
-		response.Fail(c, "Captcha service not available", errors.New("captcha service not initialized"))
-		return
-	}
-
-	capt, err := captcha.GlobalCaptchaManager.Generate()
+	mgr := captcha.EnsureGlobalManager()
+	capt, err := mgr.GenerateRandom()
 	if err != nil {
 		response.Fail(c, "Failed to generate captcha", err)
 		return
 	}
 	response.Success(c, "Captcha generated", gin.H{
-		"id":    capt.ID,
-		"image": capt.Image,
+		"id":   capt.ID,
+		"type": capt.Type,
+		"data": capt.Data,
 	})
 }
 
-// handleVerifyCaptcha 验证图形验证码
+// handleVerifyCaptcha 验证验证码
 func (h *Handlers) handleVerifyCaptcha(c *gin.Context) {
-	var req struct {
-		ID   string `json:"id" binding:"required"`
-		Code string `json:"code" binding:"required"`
-	}
-
+	var req captcha.Payload
 	if err := c.BindJSON(&req); err != nil {
 		response.Fail(c, "Invalid request", err)
 		return
 	}
 
-	if captcha.GlobalCaptchaManager == nil {
-		response.Fail(c, "Captcha service not available", errors.New("captcha service not initialized"))
+	if err := captcha.ValidatePayload(req.ID, string(req.Type), req.Value); err != nil {
+		response.Fail(c, "Invalid captcha", err)
 		return
 	}
-
-	valid, err := captcha.GlobalCaptchaManager.Verify(req.ID, req.Code)
-	if err != nil {
-		response.Fail(c, "Failed to verify captcha", err)
-		return
-	}
-
-	if valid {
-		response.Success(c, "Captcha verified", gin.H{"valid": true})
-	} else {
-		response.Fail(c, "Invalid captcha code", errors.New("invalid captcha code"))
-	}
+	response.Success(c, "Captcha verified", gin.H{"valid": true})
 }
 
 // handleGetUserActivity 获取用户活动记录

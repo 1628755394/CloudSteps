@@ -5,7 +5,7 @@ import { getApiBaseURL } from '@/config/apiConfig'
 
 export interface CaptchaData {
   id: string
-  type: 'image' | 'click'
+  type: 'image' | 'click' | 'math' | 'jigsaw' | 'rotate'
   data: any
   expires: string
 }
@@ -24,10 +24,21 @@ const Captcha = ({ onVerify, onError }: CaptchaProps) => {
   
   // Image captcha
   const [imageCode, setImageCode] = useState('')
-  
+
   // Click captcha
   const [clickedPositions, setClickedPositions] = useState<Array<{ x: number; y: number }>>([])
   const clickImageRef = useRef<HTMLImageElement>(null)
+
+  // Math captcha
+  const [mathAnswer, setMathAnswer] = useState('')
+
+  // Jigsaw captcha
+  const [jigsawOffset, setJigsawOffset] = useState(0)
+  const jigsawDragRef = useRef<HTMLDivElement>(null)
+  const jigsawDragStartXRef = useRef(0)
+
+  // Rotate captcha
+  const [rotateAngle, setRotateAngle] = useState(0)
 
   // Load captcha
   const loadCaptcha = async () => {
@@ -39,34 +50,21 @@ const Captcha = ({ onVerify, onError }: CaptchaProps) => {
       )
       
       if (response.code === 200 && response.data) {
-        // 后端返回扁平结构 { id, image }，适配成组件期望的 { id, type, data: { image } }
         const raw = response.data as any
-        let adapted: CaptchaData
-        if (raw.data?.image !== undefined) {
-          // 已经是嵌套结构
-          adapted = raw as CaptchaData
-        } else {
-          adapted = {
-            id: raw.id,
-            type: raw.type || 'image',
-            data: { image: raw.image },
-            expires: raw.expires || '',
-          }
-        }
-
-        // 清理重复的 base64 前缀
-        if (adapted.data?.image && typeof adapted.data.image === 'string') {
-          let imgData = adapted.data.image
-          while (imgData.includes('data:image/png;base64,data:image/png;base64,')) {
-            imgData = imgData.replace('data:image/png;base64,data:image/png;base64,', 'data:image/png;base64,')
-          }
-          adapted.data.image = imgData
+        const adapted: CaptchaData = {
+          id: raw.id,
+          type: raw.type || 'image',
+          data: raw.data || {},
+          expires: raw.expires || '',
         }
 
         setCaptcha(adapted)
         // Reset states based on type
         setImageCode('')
         setClickedPositions([])
+        setMathAnswer('')
+        setJigsawOffset(0)
+        setRotateAngle(0)
         setVerified(false)
       } else {
         throw new Error(response.msg || 'Failed to load captcha')
@@ -270,6 +268,160 @@ const Captcha = ({ onVerify, onError }: CaptchaProps) => {
                 </div>
               )}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Math Captcha */}
+      {captcha.type === 'math' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-sm font-mono">
+              {captcha.data?.question}
+            </span>
+            <button
+              type="button"
+              onClick={loadCaptcha}
+              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" />
+              换一题
+            </button>
+          </div>
+          {verified ? (
+            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+              <span className="text-sm text-green-600 dark:text-green-400">验证成功</span>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={mathAnswer}
+                onChange={(e) => setMathAnswer(e.target.value)}
+                placeholder="请输入答案"
+                autoFocus
+                className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && mathAnswer.trim()) {
+                    verifyCaptcha(Number(mathAnswer))
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => mathAnswer.trim() && verifyCaptcha(Number(mathAnswer))}
+                className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+              >
+                确认
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Jigsaw Captcha */}
+      {captcha.type === 'jigsaw' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              拖动拼图块到缺口
+            </label>
+            <button
+              type="button"
+              onClick={loadCaptcha}
+              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" />
+              换一张
+            </button>
+          </div>
+          {verified ? (
+            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+              <span className="text-sm text-green-600 dark:text-green-400">验证成功</span>
+            </div>
+          ) : (
+            <>
+              <div
+                className="relative rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 select-none"
+                style={{ width: captcha.data?.width || 300, height: captcha.data?.height || 150 }}
+              >
+                {captcha.data?.background && (
+                  <img src={captcha.data.background} alt="jigsaw bg" className="w-full h-full" />
+                )}
+                <div
+                  ref={jigsawDragRef}
+                  onPointerDown={(e) => {
+                    jigsawDragStartXRef.current = e.clientX - jigsawOffset
+                    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+                  }}
+                  onPointerMove={(e) => {
+                    if (e.buttons !== 1) return
+                    const raw = e.clientX - jigsawDragStartXRef.current
+                    const max = (captcha.data?.width || 300) - (captcha.data?.pieceSize || 40)
+                    setJigsawOffset(Math.max(0, Math.min(raw, max)))
+                  }}
+                  onPointerUp={() => verifyCaptcha(jigsawOffset)}
+                  className="absolute top-0 cursor-grab active:cursor-grabbing touch-none"
+                  style={{ left: jigsawOffset, width: captcha.data?.pieceSize || 40, height: captcha.data?.height || 150 }}
+                >
+                  {captcha.data?.piece && (
+                    <img src={captcha.data.piece} alt="piece" className="w-full h-full" draggable={false} />
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Rotate Captcha */}
+      {captcha.type === 'rotate' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              旋转图片到正确方向 ({rotateAngle}°)
+            </label>
+            <button
+              type="button"
+              onClick={loadCaptcha}
+              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" />
+              换一张
+            </button>
+          </div>
+          {verified ? (
+            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+              <span className="text-sm text-green-600 dark:text-green-400">验证成功</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex justify-center">
+                {captcha.data?.image && (
+                  <img
+                    src={captcha.data.image}
+                    alt="rotate captcha"
+                    className="rounded-lg border border-slate-200 dark:border-slate-700"
+                    style={{ transform: `rotate(${rotateAngle}deg)`, transition: 'transform 0.1s' }}
+                  />
+                )}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={360}
+                value={rotateAngle}
+                onChange={(e) => setRotateAngle(Number(e.target.value))}
+                className="w-full"
+              />
+              <button
+                type="button"
+                onClick={() => verifyCaptcha(rotateAngle)}
+                className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+              >
+                确认
+              </button>
+            </>
           )}
         </div>
       )}

@@ -1,7 +1,6 @@
 package models
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -15,7 +14,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
-	"github.com/LingByte/CloudStepsGo/pkg/metrics"
+	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -50,8 +49,7 @@ type LoginForm struct {
 	Remember      bool   `json:"remember,omitempty"`
 	AuthToken     string `json:"token,omitempty"`
 	TwoFactorCode string `json:"twoFactorCode,omitempty"` // 两步验证码
-	CaptchaID     string `json:"captchaId,omitempty"`     // 图形验证码ID
-	CaptchaCode   string `json:"captchaCode,omitempty"`   // 图形验证码
+	captcha.CaptchaFields
 }
 
 type UserOperatorForm struct {
@@ -62,21 +60,19 @@ type UserOperatorForm struct {
 	Password    string `json:"password"`
 	AuthToken   bool   `json:"AuthToken,omitempty"`
 	Timezone    string `json:"timezone,omitempty"`
-	CaptchaID   string `json:"captchaId,omitempty"`
-	CaptchaCode string `json:"captchaCode,omitempty"`
+	captcha.CaptchaFields
 }
 
 type RegisterUserForm struct {
-	Username         string `json:"username" binding:"required"`
-	Password         string `json:"password" binding:"required"`
-	DisplayName      string `json:"displayName"`
-	FirstName        string `json:"firstName"`
-	LastName         string `json:"lastName"`
-	Locale           string `json:"locale"`
-	Timezone         string `json:"timezone"`
-	Source           string `json:"source"`
-	CaptchaID        string `json:"captchaId"`
-	CaptchaCode      string `json:"captchaCode"`
+	Username    string `json:"username" binding:"required"`
+	Password    string `json:"password" binding:"required"`
+	DisplayName string `json:"displayName"`
+	FirstName   string `json:"firstName"`
+	LastName    string `json:"lastName"`
+	Locale      string `json:"locale"`
+	Timezone    string `json:"timezone"`
+	Source      string `json:"source"`
+	captcha.CaptchaFields
 	MouseTrack       string `json:"mouseTrack"`
 	FormFillTime     int64  `json:"formFillTime"`
 	KeystrokePattern string `json:"keystrokePattern"`
@@ -330,17 +326,8 @@ func VerifyEncryptedPassword(encryptedPassword, storedPasswordHash string) bool 
 
 func GetUserByUID(db *gorm.DB, userID uint) (*User, error) {
 	var val User
-	start := time.Now()
 	// users 表无 enabled 列，使用 is_deleted 与主键查询（与全库软删约定一致）
 	result := db.Where("id = ? AND is_deleted = ?", userID, SoftDeleteStatusActive).Take(&val)
-	duration := time.Since(start)
-
-	// Record database query metrics (if monitoring system is available)
-	if monitor := metrics.GetGlobalMonitor(); monitor != nil {
-		monitor.RecordSQLQuery(context.Background(), "SELECT * FROM users WHERE id = ? AND is_deleted = ?",
-			[]interface{}{userID, SoftDeleteStatusActive}, constants.USER_TABLE_NAME, "SELECT", duration, 1, result.Error)
-	}
-
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -349,16 +336,7 @@ func GetUserByUID(db *gorm.DB, userID uint) (*User, error) {
 
 func GetUserByUsername(db *gorm.DB, username string) (user *User, err error) {
 	var val User
-	start := time.Now()
 	result := db.Table(constants.USER_TABLE_NAME).Where("username", username).Take(&val)
-	duration := time.Since(start)
-
-	// Record database query metrics (if monitoring system is available)
-	if monitor := metrics.GetGlobalMonitor(); monitor != nil {
-		monitor.RecordSQLQuery(context.Background(), "SELECT * FROM users WHERE username = ?",
-			[]interface{}{username}, constants.USER_TABLE_NAME, "SELECT", duration, 1, result.Error)
-	}
-
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -402,25 +380,11 @@ func CreateUser(db *gorm.DB, username, password string) (*User, error) {
 		Role:     RoleTeacher, // Explicitly set default role
 	}
 
-	start := time.Now()
 	result := db.Create(&user)
-	duration := time.Since(start)
-	if monitor := metrics.GetGlobalMonitor(); monitor != nil {
-		monitor.RecordSQLQuery(context.Background(), "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-			[]interface{}{username, user.Password, RoleTeacher}, constants.USER_TABLE_NAME, "INSERT", duration, 1, result.Error)
-	}
 	return &user, result.Error
 }
 func UpdateUserFields(db *gorm.DB, user *User, vals map[string]any) error {
-	start := time.Now()
-	result := db.Model(user).Updates(vals)
-	duration := time.Since(start)
-	if monitor := metrics.GetGlobalMonitor(); monitor != nil {
-		monitor.RecordSQLQuery(context.Background(), "UPDATE users SET ... WHERE id = ?",
-			[]interface{}{user.ID}, constants.USER_TABLE_NAME, "UPDATE", duration, 1, result.Error)
-	}
-
-	return result.Error
+	return db.Model(user).Updates(vals).Error
 }
 
 func SetLastLogin(db *gorm.DB, user *User, lastIp string) error {
@@ -432,15 +396,7 @@ func SetLastLogin(db *gorm.DB, user *User, lastIp string) error {
 	user.LastLogin = &now
 	user.LastLoginIP = lastIp
 
-	start := time.Now()
-	result := db.Model(user).Updates(vals)
-	duration := time.Since(start)
-	if monitor := metrics.GetGlobalMonitor(); monitor != nil {
-		monitor.RecordSQLQuery(context.Background(), "UPDATE users SET LastLoginIP = ?, LastLogin = ? WHERE id = ?",
-			[]interface{}{lastIp, &now, user.ID}, constants.USER_TABLE_NAME, "UPDATE", duration, 1, result.Error)
-	}
-
-	return result.Error
+	return db.Model(user).Updates(vals).Error
 }
 
 func EncodeHashToken(user *User, timestamp int64, useLastlogin bool) (hash string) {

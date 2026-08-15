@@ -38,7 +38,7 @@ require (
 	github.com/volcengine/ve-tos-golang-sdk/v2 v2.9.8
 	github.com/xuri/excelize/v2 v2.10.1
 	go.uber.org/zap v1.27.1
-	golang.org/x/image v0.38.0
+	golang.org/x/image v0.45.0
 	golang.org/x/net v0.57.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.2
@@ -54,6 +54,7 @@ require (
 	cloud.google.com/go/texttospeech v1.21.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
+	github.com/LingByte/ling-base/captcha v0.2.0 // indirect
 	github.com/LingByte/ling-base/common/idgen v0.1.0 // indirect
 	github.com/LingByte/ling-base/constants v0.1.0 // indirect
 	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82 // indirect

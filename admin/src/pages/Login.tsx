@@ -36,14 +36,9 @@ const Login = () => {
         password,
         captchaId: cId,
         captchaType: cType,
+        captchaValue: cData,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         remember: true,
-      }
-
-      if (cType === 'image') {
-        loginData.captchaCode = cData || ''
-      } else {
-        loginData.captchaData = cData
       }
 
       if (requiresTwoFactor && twoFactorCode) {

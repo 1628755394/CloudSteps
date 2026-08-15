@@ -13,14 +13,13 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/internal/task"
 	"github.com/LingByte/CloudStepsGo/pkg/cache"
-	"github.com/LingByte/CloudStepsGo/pkg/captcha"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
-	"github.com/LingByte/CloudStepsGo/pkg/metrics"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/CloudStepsGo/pkg/utils/backup"
+	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -122,7 +121,7 @@ func main() {
 	utils.InitGlobalDistributedLock()
 
 	// Initialize global captcha manager
-	captcha.InitGlobalCaptchaManager(nil) // Use memory storage, can be replaced with Redis storage
+	captcha.InitGlobalManager(captcha.DefaultConfig()) // Use memory storage, can be replaced with Redis storage
 
 	// Initialize global login security manager
 	utils.InitGlobalLoginSecurityManager(logger.Lg)
@@ -166,56 +165,7 @@ func main() {
 		logger.Info("SIP server is disabled (set SIP_ENABLED=true to enable)")
 	}
 
-	// 12. Initialize Monitoring System
-	maxSpansEnv := utils.GetIntEnv("METRICS_MAX_SPANS")
-	maxQueriesEnv := utils.GetIntEnv("METRICS_MAX_QUERIES")
-	maxStatsEnv := utils.GetIntEnv("METRICS_MAX_STATS")
-
-	maxSpans := int(maxSpansEnv)
-	if maxSpans == 0 {
-		maxSpans = 500 // Default 500 (originally 10000), reducing 95% memory usage
-	}
-
-	maxQueries := int(maxQueriesEnv)
-	if maxQueries == 0 {
-		maxQueries = 500 // Default 500 (originally 10000), reducing 95% memory usage
-	}
-
-	maxStats := int(maxStatsEnv)
-	if maxStats == 0 {
-		maxStats = 100 // Default 100 (originally 1000), reducing 90% memory usage
-	}
-
-	// Tracing feature consumes the most memory, disabled by default
-	enableTracing := utils.GetBoolEnv("METRICS_ENABLE_TRACING")
-	enableSQLAnalysis := utils.GetBoolEnv("METRICS_ENABLE_SQL_ANALYSIS")
-	if !enableSQLAnalysis && utils.GetEnv("METRICS_ENABLE_SQL_ANALYSIS") == "" {
-		enableSQLAnalysis = true // Enable SQL analysis by default
-	}
-	enableSystemMonitor := utils.GetBoolEnv("METRICS_ENABLE_SYSTEM_MONITOR")
-	if !enableSystemMonitor && utils.GetEnv("METRICS_ENABLE_SYSTEM_MONITOR") == "" {
-		enableSystemMonitor = true // Enable system monitoring by default
-	}
-
-	monitor := metrics.NewMonitor(&metrics.MonitorConfig{
-		EnableMetrics:       true,
-		EnableTracing:       enableTracing,
-		MaxSpans:            maxSpans,
-		EnableSQLAnalysis:   enableSQLAnalysis,
-		MaxQueries:          maxQueries,
-		SlowThreshold:       100 * time.Millisecond,
-		EnableSystemMonitor: enableSystemMonitor,
-		MaxStats:            maxStats,
-		MonitorInterval:     30 * time.Second,
-	})
-
-	// 13. Set Global Monitor
-	metrics.SetGlobalMonitor(monitor)
-
-	monitor.Start()
-	defer monitor.Stop()
-
-	// 13.5. Initialize Global Middleware Manager
+	// 12. Initialize Global Middleware Manager
 	middleware.InitGlobalMiddlewareManager(config.GlobalConfig.Middleware)
 	logger.Info("Global middleware manager initialized with config",
 		zap.Bool("rateLimit", config.GlobalConfig.Middleware.EnableRateLimit),
@@ -246,9 +196,6 @@ func main() {
 	r.MaxMultipartMemory = 32 << 20 // 32 MB
 
 	// 16. use middleware
-	// Monitoring Middleware
-	r.Use(metrics.MonitorMiddleware(monitor))
-
 	// Cookie Register
 	secret := utils.GetEnv(constants.ENV_SESSION_SECRET)
 	if secret != "" {
@@ -281,24 +228,6 @@ func main() {
 	}
 	// 18. Register Routes
 	app.RegisterRoutes(r)
-
-	// 18.6. Register Metrics Monitor Routes
-	// Get API prefix from config (default: /api)
-	apiPrefix = config.GlobalConfig.Server.APIPrefix
-	if apiPrefix == "" {
-		apiPrefix = "/api"
-	}
-	// Get monitor prefix from config (default: /metrics)
-	monitorPrefix := config.GlobalConfig.Server.MonitorPrefix
-	if monitorPrefix == "" {
-		monitorPrefix = "/metrics"
-	}
-	// Combine API prefix with monitor prefix: /api/metrics
-	fullMonitorPrefix := apiPrefix + monitorPrefix
-	monitorGroup := r.Group(fullMonitorPrefix)
-	monitorAPI := metrics.NewMonitorAPI(monitor)
-	monitorAPI.RegisterRoutes(monitorGroup)
-	logger.Info("Metrics monitor routes registered", zap.String("prefix", fullMonitorPrefix))
 
 	// 19. Initialize System Listener
 	listeners.InitSystemListeners()

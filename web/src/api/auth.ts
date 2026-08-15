@@ -1,7 +1,14 @@
 import { post, get, put, ApiResponse } from '../utils/request'
 
+// 验证码字段（嵌入各表单）
+export interface CaptchaFields {
+  captchaId?: string
+  captchaType?: string
+  captchaValue?: any
+}
+
 // 用户注册表单类型
-export interface RegisterUserForm {
+export interface RegisterUserForm extends CaptchaFields {
   /** 账号（用户名），兼容旧字段 email */
   username?: string
   email?: string
@@ -12,12 +19,10 @@ export interface RegisterUserForm {
   locale?: string
   timezone?: string
   source?: string
-  captchaId?: string
-  captchaCode?: string
 }
 
 // 邮箱验证码注册表单类型
-export interface EmailRegisterForm {
+export interface EmailRegisterForm extends CaptchaFields {
   email: string
   password: string
   userName: string
@@ -28,14 +33,13 @@ export interface EmailRegisterForm {
   locale?: string
   timezone?: string
   source?: string
-  captchaId?: string
-  captchaCode?: string
 }
 
 // 验证码响应类型
 export interface CaptchaResponse {
   id: string
-  image: string
+  type: string
+  data: Record<string, any>
 }
 
 // 发送邮箱验证码请求类型
@@ -53,26 +57,22 @@ export interface LoginForm {
 }
 
 // 密码登录表单类型
-export interface PasswordLoginForm {
+export interface PasswordLoginForm extends CaptchaFields {
   email: string
   password: string
   timezone?: string
   remember?: boolean
   authToken?: boolean
   twoFactorCode?: string
-  captchaId?: string
-  captchaCode?: string
 }
 
 // 邮箱验证码登录表单类型
-export interface EmailCodeLoginForm {
+export interface EmailCodeLoginForm extends CaptchaFields {
   email: string
   code: string
   timezone?: string
   remember?: boolean
   authToken?: boolean
-  captchaId?: string
-  captchaCode?: string
 }
 
 // 登录响应数据类型
@@ -226,7 +226,8 @@ export const registerUser = async (data: RegisterUserForm): Promise<ApiResponse<
     displayName: data.displayName || username,
     timezone: data.timezone,
     captchaId: data.captchaId,
-    captchaCode: data.captchaCode,
+    captchaType: data.captchaType,
+    captchaValue: data.captchaValue,
     source: data.source || 'web',
   })
 }
@@ -333,14 +334,14 @@ export const logoutUser = async (next?: string): Promise<ApiResponse<null>> => {
   return get<null>('/auth/logout', { params })
 }
 
-// 获取图形验证码
+// 获取验证码（随机类型）
 export const getCaptcha = async (): Promise<ApiResponse<CaptchaResponse>> => {
   return get<CaptchaResponse>('/auth/captcha')
 }
 
-// 验证图形验证码
-export const verifyCaptcha = async (id: string, code: string): Promise<ApiResponse<{ valid: boolean }>> => {
-  return post<{ valid: boolean }>('/auth/captcha/verify', { id, code })
+// 验证验证码
+export const verifyCaptcha = async (payload: CaptchaFields): Promise<ApiResponse<{ valid: boolean }>> => {
+  return post<{ valid: boolean }>('/auth/captcha/verify', payload)
 }
 
 // 忘记密码 - 发送重置密码邮件

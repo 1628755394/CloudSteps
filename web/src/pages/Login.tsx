@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { CloudButton } from "../components/cloudsteps";
-import { getCaptcha, loginWithPassword, registerUser, type User } from "../api/auth";
+import CaptchaWidget from "../components/CaptchaWidget";
+import { loginWithPassword, registerUser, type CaptchaFields, type User } from "../api/auth";
 import { useAuthStore } from "../stores/authStore";
 
 const fieldClass =
@@ -18,12 +19,11 @@ export default function Login() {
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
-  const [captchaId, setCaptchaId] = useState<string | null>(null);
-  const [captchaImage, setCaptchaImage] = useState<string | null>(null);
-  const [captchaCode, setCaptchaCode] = useState("");
+  const [captchaFields, setCaptchaFields] = useState<CaptchaFields | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const lastSubmitTsRef = useRef(0);
+  const captchaKeyRef = useRef(0);
 
   const isSubmitting = isLoading || submitting;
 
@@ -32,20 +32,9 @@ export default function Login() {
     return params.get("next") || "/";
   }, [location.search]);
 
-  const refreshCaptcha = async () => {
-    try {
-      const res = await getCaptcha();
-      if (res.code !== 200) return;
-      setCaptchaId(res.data?.id ?? null);
-      setCaptchaImage(res.data?.image ?? null);
-      setCaptchaCode("");
-    } catch {
-      // ignore
-    }
-  };
-
-  useEffect(() => {
-    refreshCaptcha();
+  const refreshCaptcha = useCallback(() => {
+    captchaKeyRef.current += 1;
+    setCaptchaFields(null);
   }, []);
 
   useEffect(() => {
@@ -102,8 +91,8 @@ export default function Login() {
         return;
       }
     }
-    if (!captchaId || !captchaCode.trim()) {
-      setErrorText("请输入验证码");
+    if (!captchaFields?.captchaId || captchaFields.captchaValue == null || captchaFields.captchaValue === "") {
+      setErrorText("请完成验证码");
       return;
     }
 
@@ -115,8 +104,9 @@ export default function Login() {
           password,
           displayName: account.trim(),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          captchaId: captchaId ?? undefined,
-          captchaCode: captchaCode || undefined,
+          captchaId: captchaFields.captchaId,
+          captchaType: captchaFields.captchaType,
+          captchaValue: captchaFields.captchaValue,
         });
         if (reg.code !== 200) {
           setErrorText(reg.msg || "注册失败");
@@ -129,8 +119,6 @@ export default function Login() {
           password,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           authToken: true,
-          captchaId: undefined,
-          captchaCode: undefined,
         });
         // 验证码已在注册时消费，再拉一次验证码后重试登录一次
         if (loginRes.code !== 200) {
@@ -160,8 +148,9 @@ export default function Login() {
         password,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         authToken: true,
-        captchaId: captchaId ?? undefined,
-        captchaCode: captchaCode || undefined,
+        captchaId: captchaFields.captchaId,
+        captchaType: captchaFields.captchaType,
+        captchaValue: captchaFields.captchaValue,
       });
       if (res.code !== 200) {
         setErrorText(res.msg || "登录失败");
@@ -268,32 +257,7 @@ export default function Login() {
 
           <div>
             <label className="text-sm text-charcoal font-medium mb-1.5 block">验证码</label>
-            <div className="flex items-center gap-3">
-              <input
-                value={captchaCode}
-                onChange={(e) => setCaptchaCode(e.target.value)}
-                placeholder="请输入验证码"
-                className={`flex-1 ${fieldClass}`}
-              />
-              <CloudButton
-                type="button"
-                variant="outline"
-                onClick={refreshCaptcha}
-                disabled={isSubmitting}
-                className="h-[46px] w-[120px] overflow-hidden flex items-center justify-center p-0"
-                aria-label="刷新验证码"
-              >
-                {captchaImage ? (
-                  <img
-                    src={captchaImage}
-                    alt="captcha"
-                    className="h-full w-full object-contain"
-                  />
-                ) : (
-                  <span className="text-xs text-muted-foreground">加载中...</span>
-                )}
-              </CloudButton>
-            </div>
+            <CaptchaWidget key={captchaKeyRef.current} onChange={setCaptchaFields} />
           </div>
 
           {errorText ? (
