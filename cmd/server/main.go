@@ -21,6 +21,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/CloudStepsGo/pkg/utils/backup"
+	common "github.com/LingByte/ling-base/common"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -308,7 +309,7 @@ func main() {
 		searchEnabled = config.GlobalConfig.Features.SearchEnabled
 	}
 	// 21. Emit system initialization signal
-	utils.Sig().Emit(models.SigInitSystemConfig, nil)
+	common.Sig().Emit(models.SigInitSystemConfig, nil)
 
 	// 22. Start HTTP/HTTPS Server
 	httpServer := &http.Server{
