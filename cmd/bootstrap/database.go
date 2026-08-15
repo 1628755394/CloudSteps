@@ -1,10 +1,8 @@
 package bootstrap
 
 import (
-	"bufio"
 	"errors"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
@@ -44,7 +42,7 @@ func SetupDatabase(logWriter io.Writer, opts *Options) (*gorm.DB, error) {
 
 	// 2) Optional: execute initialization SQL
 	if opts.InitSQLPath != "" {
-		if err := RunInitSQL(db, opts.InitSQLPath); err != nil {
+		if err := common.RunInitSQL(db, opts.InitSQLPath); err != nil {
 			logger.Error("run init sql failed", zap.String("path", opts.InitSQLPath), zap.Error(err))
 			return nil, err
 		}
@@ -82,51 +80,6 @@ func initDBConn(logWriter io.Writer) (*gorm.DB, error) {
 	dbDriver := config.GlobalConfig.Database.Driver
 	dsn := config.GlobalConfig.Database.DSN
 	return common.InitDatabase(logWriter, dbDriver, dsn)
-}
-
-// RunInitSQL executes SQL statements from a local .sql file segment by segment (split by semicolon ;), idempotent scripts should use IF NOT EXISTS in SQL for protection
-func RunInitSQL(db *gorm.DB, sqlFilePath string) error {
-	f, err := os.Open(sqlFilePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	var (
-		sb      strings.Builder
-		scanner = bufio.NewScanner(f)
-	)
-	// Relax token limit (long lines)
-	buf := make([]byte, 0, 1024*1024)
-	scanner.Buffer(buf, 1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		trim := strings.TrimSpace(line)
-		// Ignore comment lines (starting with --) and empty lines
-		if trim == "" || strings.HasPrefix(trim, "--") || strings.HasPrefix(trim, "#") {
-			continue
-		}
-		sb.WriteString(line)
-		sb.WriteString("\n")
-		// Use ; as statement terminator (simple splitting, suitable for most scenarios)
-		if strings.HasSuffix(trim, ";") {
-			stmt := strings.TrimSpace(sb.String())
-			sb.Reset()
-			if stmt != "" {
-				if err := db.Exec(stmt).Error; err != nil {
-					return err
-				}
-			}
-		}
-	}
-	// Handle remaining content at end of file without semicolon
-	rest := strings.TrimSpace(sb.String())
-	if rest != "" {
-		if err := db.Exec(rest).Error; err != nil {
-			return err
-		}
-	}
-	return scanner.Err()
 }
 
 // RunMigrations executes entity migration
