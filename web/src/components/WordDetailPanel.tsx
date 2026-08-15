@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Volume2, X } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import { getWordDetail, type WordDetail } from "../api/wordbooks";
-import { formatTranslation, formatTranslationShort } from "../utils/wordFormat";
+import { formatTranslation, formatTranslationShort, withPartOfSpeech } from "../utils/wordFormat";
 import { playWordAudio } from "../utils/audioPlayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
 
@@ -154,10 +154,10 @@ export function WordDetailPanel({
   const word = detail?.word || wordText || "";
   const phonetic = detail?.phoneticUk || detail?.phoneticUs || detail?.phonetic || "";
   const shortMeaning = detail
-    ? `${detail.partOfSpeech ? `${detail.partOfSpeech}. ` : ""}${formatTranslationShort(detail.translation)}`
+    ? withPartOfSpeech(detail.partOfSpeech, formatTranslationShort(detail.translation))
     : "";
   const fullMeaning = detail
-    ? `${detail.partOfSpeech ? `${detail.partOfSpeech}. ` : ""}${formatTranslation(detail.translation)}`
+    ? withPartOfSpeech(detail.partOfSpeech, formatTranslation(detail.translation))
     : "";
   const showFullInline = active === "translation";
 
@@ -204,6 +204,11 @@ export function WordDetailPanel({
               <ExtContent active={active} detail={detail} parsed={parsed} />
             </div>
           )}
+          {active === "translation" && (
+            <div className="pt-2 border-t border-[#F1F5F9] max-h-[36vh] overflow-y-auto">
+              <p className={`${PRACTICE_TRANS_CLASS} leading-relaxed`}>{fullMeaning}</p>
+            </div>
+          )}
         </>
       )}
     </>
@@ -214,33 +219,8 @@ export function WordDetailPanel({
   }
 
   if (variant === "inline") {
-    return (
-      <div className="w-full pt-2 mt-2 border-t border-[#F1F5F9]">
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="w-5 h-5 animate-spin text-[#4ECDC4]" />
-          </div>
-        ) : error ? (
-          <p className="text-center text-sm text-muted-foreground py-2">加载失败</p>
-        ) : detail ? (
-          <>
-            {phonetic && (
-              <p className="text-sm text-[#718096] font-mono mb-1">
-                /{phonetic.replace(/^\[|\]$/g, "").replace(/^\//, "").replace(/\/$/, "")}/
-              </p>
-            )}
-            {(detail.partOfSpeech || detail.translation) && (
-              <p className={`${PRACTICE_TRANS_CLASS} mb-2`}>
-                {showFullInline ? fullMeaning : shortMeaning}
-              </p>
-            )}
-            {tagsBlock}
-          </>
-        ) : (
-          <p className="text-center text-sm text-muted-foreground py-2">暂无数据</p>
-        )}
-      </div>
-    );
+    // inline 只出拓展标签，音标/释义由父级卡片展示，避免拓展开关后重复叠两层
+    return <div className="w-full pt-2 mt-2 border-t border-[#F1F5F9]">{tagsBlock}</div>;
   }
 
   return (
