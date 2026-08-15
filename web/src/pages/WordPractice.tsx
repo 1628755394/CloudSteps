@@ -9,7 +9,7 @@ import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
-import { playFirstWordAudio, playWordAudio, parseAudioUrls } from "../utils/audioPlayer";
+import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
@@ -47,14 +47,15 @@ export default function WordPractice() {
 
   const handlePlayNextAudio = (word: PracticeWord) => {
     if (!word.audioUrl) return;
-    abortRef.current?.();
-    setPlayingId(word.id);
-    const abort = playWordAudio(word.audioUrl, 300, () => setPlayingId(null));
-    abortRef.current = abort;
     const urls = parseAudioUrls(word.audioUrl);
     if (urls.length === 0) return;
+    abortRef.current?.();
+    setPlayingId(word.id);
     const prev = audioIndexMap.get(word.id) ?? 0;
-    const next = prev >= urls.length ? 1 : prev + 1;
+    const index = prev % urls.length;
+    const abort = playAudioAtIndex(word.audioUrl, index, () => setPlayingId(null));
+    abortRef.current = abort;
+    const next = prev + 1;
     setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
 
