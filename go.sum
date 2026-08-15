@@ -22,10 +22,14 @@ github.com/LingByte/ling-base v0.2.0 h1:tnd8VfWzJ87vFuekhGIaaNagy0/wNGEtDjJXJfam
 github.com/LingByte/ling-base v0.2.0/go.mod h1:hvY3juLG2VXXLILEUZq4dVRRIKcWRLNTKJECuHcu4m4=
 github.com/LingByte/ling-base/bootstrap v0.1.0 h1:bNbvNwYL8EExkcIANFUbe+JSi5fY8o3bXmsy62Qo/tU=
 github.com/LingByte/ling-base/bootstrap v0.1.0/go.mod h1:n5ia6BK1bO7iQNNG91+8CymFHyV/F49rOiYAmwU5KWw=
+github.com/LingByte/ling-base/cache v0.1.0 h1:xPwpCGQd7PDvQnSxeTEOI+dk6IbKWjRU6LxX/WoQo5c=
+github.com/LingByte/ling-base/cache v0.1.0/go.mod h1:wFMCOaZdQA3G4oa7fxQWw9DPL5Qu+We3fW8HNogN7t8=
 github.com/LingByte/ling-base/captcha v0.2.0 h1:SOqdM3N7bRWpd82gcG9EkL+8+LMkxqDQvOhXirdCPWo=
 github.com/LingByte/ling-base/captcha v0.2.0/go.mod h1:zwPT/zI0IcCq+g9420N2UyEZrYt5yb9bSuk3jeefDT0=
 github.com/LingByte/ling-base/common v0.3.0 h1:KACwvDspAoKNQuo7KtqoK8qHOnbXHGp1rV923vubLA8=
 github.com/LingByte/ling-base/common v0.3.0/go.mod h1:j3kI9bvU0xaP0dMiZ1+a2STnyqJcb1w7Oy/dKMn0HA0=
+github.com/LingByte/ling-base/common/config v0.1.0 h1:ZjwPdsYw4Dy4HGySQCCXDMLfLiwjao1PnWe1dIKaxGw=
+github.com/LingByte/ling-base/common/config v0.1.0/go.mod h1:MVQE25l8KQ2YsBdFqsXh0nHYqUVA8RKYaFxpzdZDl9k=
 github.com/LingByte/ling-base/common/idgen v0.1.0 h1:phZYlAcsBOUkqE7KQ2tx05R6pLaMWpBHl1OAiHDJOUk=
 github.com/LingByte/ling-base/common/idgen v0.1.0/go.mod h1:l6qlmKfTYYi7YhtdjjcMPMpRC6wT+W0scsmcGEq39sk=
 github.com/LingByte/ling-base/common/random v0.1.0 h1:drcy5T8otCadWE8xS7MM/o7jaTRIFisi4gY6MIjX/qY=

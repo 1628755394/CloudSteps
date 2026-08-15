@@ -84,6 +84,12 @@ func main() {
 		return
 	}
 
+	// 7.5. Initialize global config store (DB-backed)
+	if err := utils.InitConfigStore(db); err != nil {
+		logger.Error("config store init failed", zap.Error(err))
+		return
+	}
+
 	// 8. Load Base Configs
 	var addr = config.GlobalConfig.Server.Addr
 	if addr == "" {
@@ -228,7 +234,7 @@ func main() {
 	listeners.InitSystemListeners()
 
 	// 20. Start Search Indexer (if enabled)
-	searchEnabled := utils.GetBoolValue(db, constants.KEY_SEARCH_ENABLED)
+	searchEnabled := utils.GetBoolValue(constants.KEY_SEARCH_ENABLED)
 	if !searchEnabled && config.GlobalConfig != nil {
 		searchEnabled = config.GlobalConfig.Features.SearchEnabled
 	}

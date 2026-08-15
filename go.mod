@@ -5,8 +5,10 @@ go 1.26.2
 require (
 	github.com/LingByte/ling-base v0.2.0
 	github.com/LingByte/ling-base/bootstrap v0.1.0
+	github.com/LingByte/ling-base/cache v0.1.0
 	github.com/LingByte/ling-base/captcha v0.2.0
 	github.com/LingByte/ling-base/common v0.3.0
+	github.com/LingByte/ling-base/common/config v0.1.0
 	github.com/LingByte/ling-base/common/random v0.1.0
 	github.com/LingByte/ling-base/common/response/gin v0.1.0
 	github.com/LingByte/ling-base/i18n v0.1.0
@@ -30,11 +32,9 @@ require (
 	github.com/glebarez/sqlite v1.11.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/csrf v1.7.3
-	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/mssola/user_agent v0.6.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sashabaranov/go-openai v1.41.2
-	github.com/sirupsen/logrus v1.9.4
 	github.com/stretchr/testify v1.11.1
 	github.com/xuri/excelize/v2 v2.10.1
 	go.uber.org/zap v1.28.0
@@ -124,6 +124,7 @@ require (
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gorilla/sessions v1.4.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f // indirect
 	github.com/hraban/opus v0.0.0-20251117090126-c76ea7e21bf3 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -162,6 +163,7 @@ require (
 	github.com/richardlehane/mscfb v1.0.6 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/rs/xid v1.6.0 // indirect
+	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/tencentcloud/tencentcloud-speech-sdk-go v1.0.25 // indirect
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.75 // indirect

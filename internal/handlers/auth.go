@@ -99,7 +99,7 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 func (h *Handlers) handleUserSignupPage(c *gin.Context) {
 	ctx := CloudStepsGo.GetRenderPageContext(c)
 	ctx["SignupText"] = "Sign Up Now"
-	ctx["Site.SignupApi"] = utils.GetValue(h.db, constants.KEY_SITE_SIGNUP_API)
+	ctx["Site.SignupApi"] = utils.GetValue(constants.KEY_SITE_SIGNUP_API)
 	c.HTML(http.StatusOK, "signup.html", ctx)
 }
 
@@ -374,7 +374,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 
 	// 如果需要 Token，生成 AuthToken
 	if form.AuthToken {
-		val := utils.GetValue(db, constants.KEY_AUTH_TOKEN_EXPIRED)
+		val := utils.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED)
 		expired, _ := time.ParseDuration(val)
 		if expired < 24*time.Hour {
 			expired = 24 * time.Hour
@@ -667,7 +667,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	}
 
 	// 生成认证Token
-	val := utils.GetValue(db, constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
+	val := utils.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
 	expired, err := time.ParseDuration(val)
 	if err != nil {
 		logger.Warn("Failed to parse auth token expired duration, using default 7 days", zap.Error(err))
@@ -744,7 +744,7 @@ func (h *Handlers) handleUserSignin(c *gin.Context) {
 	models.Login(c, user)
 
 	if form.Remember {
-		val := utils.GetValue(db, constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
+		val := utils.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
 		expired, err := time.ParseDuration(val)
 		if err != nil {
 			// 7 days
@@ -1674,7 +1674,7 @@ func isDefaultAvatar(avatarURL string) bool {
 }
 
 func sendHashMail(db *gorm.DB, user *models.User, signame, expireKey, defaultExpired, clientIp, useragent string) {
-	d, err := time.ParseDuration(utils.GetValue(db, expireKey))
+	d, err := time.ParseDuration(utils.GetValue(expireKey))
 	if err != nil {
 		d, _ = time.ParseDuration(defaultExpired)
 	}
