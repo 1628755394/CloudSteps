@@ -338,18 +338,18 @@ export default function TrainingRecords() {
 
       const headers =
         exportContent === "both"
-          ? ["音标", "中文", "英文"]
+          ? ["英文", "音标", "中文"]
           : exportContent === "zh"
-            ? ["音标", "中文"]
-            : ["音标", "英文"];
+            ? ["英文", "中文"]
+            : ["英文", "音标"];
 
       const tableRows: Array<Array<string | number>> = words.map((w) => {
         const phonetic = pickPhonetic(w);
         const zh = formatTranslation(w.translation) || "";
         const en = w.word || "";
-        if (exportContent === "both") return [phonetic, zh, en];
-        if (exportContent === "zh") return [phonetic, zh];
-        return [phonetic, en];
+        if (exportContent === "both") return [en, phonetic, zh];
+        if (exportContent === "zh") return [en, zh];
+        return [en, phonetic];
       });
 
       const who = selectedStudentName || "学员";

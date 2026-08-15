@@ -1,8 +1,9 @@
-import { Pause, Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pause, Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticePauseMenu } from "../components/PracticePauseMenu";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
@@ -11,6 +12,7 @@ import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkVie
 import { playFirstWordAudio, playWordAudio, parseAudioUrls } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState } from "../utils/wordReveal";
+import { getReviewReturnPath } from "../utils/reviewPractice";
 
 type PracticeWord = {
   id: number;
@@ -58,20 +60,9 @@ export default function WordPractice() {
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
 
-  useEffect(() => {
-    if (mode === "review") {
-      const wordBookId = sessionStorage.getItem("lb_review_wordbook_id");
-      if (wordBookId) {
-        navigate(`/review-word-list?wordBookId=${wordBookId}`, { replace: true });
-      } else {
-        navigate("/anti-forgetting", { replace: true });
-      }
-    }
-  }, [mode, navigate]);
-
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate(mode === "review" ? "/anti-forgetting" : "/pre-training-check");
+    else navigate(mode === "review" ? getReviewReturnPath("/review-check") : "/pre-training-check");
   };
 
   const batchIdx = useMemo(() => {
@@ -80,7 +71,17 @@ export default function WordPractice() {
   }, [mode]);
 
   const totalBatches = useMemo(() => {
-    if (mode === "review") return 1;
+    const wordsKey = mode === "review" ? "lb_review_words" : "lb_study_words";
+    if (mode === "review") {
+      try {
+        const raw = sessionStorage.getItem(wordsKey) || "[]";
+        const arr = JSON.parse(raw);
+        const total = Array.isArray(arr) ? arr.length : 0;
+        return Math.max(1, Math.ceil(total / 5));
+      } catch {
+        return 1;
+      }
+    }
     const stored = Number(sessionStorage.getItem("lb_study_total_batches") || 0);
     if (stored > 0) return stored;
     try {
@@ -183,6 +184,9 @@ export default function WordPractice() {
     if (idx !== activeIndex) return;
 
     if (sequence.length === 0) return;
+    setWords((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, count: w.count + 1 } : w))
+    );
     if (frameIdx >= sequence.length - 1) {
       return;
     }
@@ -230,8 +234,13 @@ export default function WordPractice() {
     );
   };
 
-  if (mode === "review") {
-    return null;
+  if (words.length === 0 && mode === "review") {
+    return (
+      <FlowPageShell>
+        <TopBar title="开始复习" onBack={handleBack} />
+        <p className="text-center text-[#718096] py-16 px-4">暂无复习单词，请返回重新勾选</p>
+      </FlowPageShell>
+    );
   }
 
   const cardWord = words[Math.min(Math.max(0, cardIndex), Math.max(0, words.length - 1))];
@@ -283,17 +292,18 @@ export default function WordPractice() {
                 <ChevronLeft size={22} />
               </CloudButton>
               <div
-                className={`flex-1 min-h-[220px] bg-white border rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                className={`flex-1 bg-white border rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${
                   !manualReadMode && words.findIndex((w) => w.id === cardWord.id) === currentIndex
                     ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/10"
                     : "border-[#E2E8F0]"
                 }`}
+                style={{ minHeight: "max(8rem, calc(var(--practice-word-size) * 6))" }}
                 onClick={() => handleWordTap(cardWord)}
               >
                 <p className="text-xs text-[#718096] mb-4">
                   {cardIndex + 1} / {words.length}
                 </p>
-                <div className={`${PRACTICE_WORD_CLASS} !font-bold text-center break-all`}>{cardWord.word}</div>
+                <div className={`${PRACTICE_WORD_CLASS} text-center break-all`}>{cardWord.word}</div>
                 {renderReveal(cardWord)}
               </div>
               <CloudButton
@@ -322,12 +332,12 @@ export default function WordPractice() {
                 <CloudButton
                   variant={words.findIndex((w) => w.id === cardWord.id) === activeIndex ? "mint" : "ghost"}
                   size="iconRound"
-                  className={`size-12 text-lg font-bold ${
+                  className={`size-12 ${
                     words.findIndex((w) => w.id === cardWord.id) !== activeIndex ? "text-[#A0AEC0]" : ""
                   }`}
                   onClick={() => handleCountClick(cardWord.id)}
                 >
-                  ✓
+                  <Check size={20} />
                 </CloudButton>
               </div>
             )}
@@ -374,10 +384,10 @@ export default function WordPractice() {
                       <CloudButton
                         variant={index === activeIndex ? "mint" : "ghost"}
                         size="iconRound"
-                        className={`size-12 text-lg font-bold ${index !== activeIndex ? "text-[#A0AEC0]" : ""}`}
+                        className={`size-12 ${index !== activeIndex ? "text-[#A0AEC0]" : ""}`}
                         onClick={() => handleCountClick(word.id)}
                       >
-                        ✓
+                        <Check size={20} />
                       </CloudButton>
                     </div>
                   )}
@@ -436,32 +446,11 @@ export default function WordPractice() {
         </div>
       </div>
 
-      {showPauseMenu && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50"
-          onClick={() => setShowPauseMenu(false)}
-        >
-          <div className="absolute top-20 right-4 bg-white rounded-xl shadow-lg overflow-hidden">
-            <CloudButton
-              variant="ghost"
-              className="w-full justify-start rounded-none px-6 py-3 h-auto"
-              onClick={() => {
-                setShowPauseMenu(false);
-                navigate("/word-training");
-              }}
-            >
-              返回主页
-            </CloudButton>
-            <CloudButton
-              variant="ghost"
-              className="w-full justify-start rounded-none px-6 py-3 h-auto"
-              onClick={() => setShowPauseMenu(false)}
-            >
-              继续练习
-            </CloudButton>
-          </div>
-        </div>
-      )}
+      <PracticePauseMenu
+        open={showPauseMenu}
+        onClose={() => setShowPauseMenu(false)}
+        continueLabel="继续练习"
+      />
     </FlowPageShell>
   );
 }
