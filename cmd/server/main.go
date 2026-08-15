@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/bootstrap"
+	"github.com/LingByte/CloudStepsGo/cmd/bootstrap"
 	"github.com/LingByte/CloudStepsGo/internal/handlers"
 	"github.com/LingByte/CloudStepsGo/internal/listeners"
 	"github.com/LingByte/CloudStepsGo/internal/models"

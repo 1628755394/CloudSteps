@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/LingByte/CloudStepsGo/internal/bootstrap"
+	"github.com/LingByte/CloudStepsGo/cmd/bootstrap"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/ling-base/logger"
 )
