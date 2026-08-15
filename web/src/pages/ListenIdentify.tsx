@@ -1,12 +1,16 @@
 import { CloudButton } from "../components/cloudsteps";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticePauseMenu } from "../components/PracticePauseMenu";
 import { TopBar } from "../components/TopBar";
-import { Pause, ArrowRight, Volume2 } from "lucide-react";
+import { WordDetailPanel } from "../components/WordDetailPanel";
+import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
+import { Pause, ArrowRight, Volume2, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { playFirstWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
+import { getReviewReturnPath } from "../utils/reviewPractice";
 
 type ListenWord = {
   id: number;
@@ -24,18 +28,12 @@ export default function ListenIdentify() {
   const [words, setWords] = useState<ListenWord[]>([]);
   const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<WordViewMode>("list");
+  const [cardIndex, setCardIndex] = useState(0);
+  const [detailMode, setDetailMode] = useState(false);
+  const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
-
-  useEffect(() => {
-    if (mode !== "review") return;
-    const wordBookId = sessionStorage.getItem("lb_review_wordbook_id");
-    if (wordBookId) {
-      navigate(`/review-word-list?wordBookId=${wordBookId}`, { replace: true });
-    } else {
-      navigate("/anti-forgetting", { replace: true });
-    }
-  }, [mode, navigate]);
 
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
@@ -43,7 +41,16 @@ export default function ListenIdentify() {
   }, [mode]);
 
   const totalBatches = useMemo(() => {
-    if (mode === "review") return 1;
+    if (mode === "review") {
+      try {
+        const raw = sessionStorage.getItem("lb_review_words") || "[]";
+        const arr = JSON.parse(raw);
+        const total = Array.isArray(arr) ? arr.length : 0;
+        return Math.max(1, Math.ceil(total / 5));
+      } catch {
+        return 1;
+      }
+    }
     const stored = Number(sessionStorage.getItem("lb_study_total_batches") || 0);
     if (stored > 0) return stored;
     try {
@@ -62,7 +69,7 @@ export default function ListenIdentify() {
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate(mode === "review" ? "/anti-forgetting" : "/word-practice");
+    else navigate(mode === "review" ? getReviewReturnPath("/anti-forgetting") : "/word-practice");
   };
 
   useEffect(() => {
@@ -83,6 +90,7 @@ export default function ListenIdentify() {
         state: "idle",
       }));
       setWords(mapped);
+      setCardIndex(0);
     } catch {
       // ignore
     }
@@ -96,10 +104,20 @@ export default function ListenIdentify() {
     abortRef.current = abort;
   };
 
-  const handleCardClick = (id: number) => {
+  const handleCardClick = (word: ListenWord) => {
+    if (detailMode) {
+      if (word.state === "idle") {
+        handlePlayFirstAudio(word);
+        setWords((prev) => prev.map((w) => (w.id === word.id ? { ...w, state: "played" } : w)));
+      }
+      setDetailWord((prev) =>
+        prev?.id === word.id ? null : { id: word.id, word: word.word }
+      );
+      return;
+    }
     setWords((prev) =>
       prev.map((w) => {
-        if (w.id !== id) return w;
+        if (w.id !== word.id) return w;
         if (w.state === "idle") {
           handlePlayFirstAudio(w);
           return { ...w, state: "played" };
@@ -112,7 +130,97 @@ export default function ListenIdentify() {
     );
   };
 
-  const allRevealed = words.length > 0 && words.every((w) => w.state === "revealed");
+  const handleShuffle = () => {
+    const shuffled = [...words].sort(() => Math.random() - 0.5);
+    setWords(shuffled);
+    setCardIndex(0);
+  };
+
+  const meaningText = (w: ListenWord) =>
+    fullMeaning ? w.translation || w.translationShort : w.translationShort || w.translation;
+
+  const renderRevealed = (w: ListenWord) => (
+    <>
+      <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{w.word}</div>
+      {w.phonetic ? (
+        <div className="text-sm text-[#718096] font-mono mb-0.5">{w.phonetic}</div>
+      ) : null}
+      <div className={PRACTICE_TRANS_CLASS}>{meaningText(w)}</div>
+      {(w.translation || w.translationShort) && (
+        <button
+          type="button"
+          className="text-xs text-[#4ECDC4] hover:underline mt-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            setFullMeaning((v) => !v);
+          }}
+        >
+          {fullMeaning ? "简译" : "全部意思"}
+        </button>
+      )}
+    </>
+  );
+
+  const renderWordCard = (w: ListenWord, opts?: { centered?: boolean }) => {
+    const showAnswer = w.state === "revealed";
+    return (
+      <div
+        onClick={() => handleCardClick(w)}
+        className={`bg-white rounded-xl p-4 shadow-sm transition-all cursor-pointer select-none ${
+          opts?.centered ? "w-full" : ""
+        } ${
+          w.state === "revealed"
+            ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
+            : w.state === "played"
+            ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/10"
+            : ""
+        }`}
+      >
+        <div className={`flex items-center gap-3 ${opts?.centered ? "flex-col text-center" : ""}`}>
+          <div
+            className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+              w.state === "revealed"
+                ? "bg-[#66BB6A]/15"
+                : w.state === "played"
+                ? "bg-[#4ECDC4]/15"
+                : "bg-gray-100"
+            }`}
+          >
+            <Volume2
+              size={20}
+              className={
+                w.state === "revealed"
+                  ? "text-[#66BB6A]"
+                  : w.state === "played"
+                  ? "text-[#4ECDC4]"
+                  : "text-[#718096]"
+              }
+            />
+          </div>
+          <div className={opts?.centered ? "w-full" : ""}>
+            {!showAnswer && (
+              <div className="text-sm text-[#718096]">
+                {w.state === "idle" ? "点击播放" : "再点显示答案"}
+              </div>
+            )}
+            {showAnswer && renderRevealed(w)}
+          </div>
+        </div>
+        {detailMode && detailWord?.id === w.id && (
+          <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+            <WordDetailPanel
+              wordId={w.id}
+              wordText={w.word}
+              variant="inline"
+              onClose={() => setDetailWord(null)}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const cardWord = words[Math.min(Math.max(0, cardIndex), Math.max(0, words.length - 1))];
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -145,106 +253,89 @@ export default function ListenIdentify() {
       />
 
       <div className="px-4 mt-6 max-w-2xl mx-auto w-full pb-28">
-        {/* 组信息 */}
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
-        {/* 单词列表 */}
-        <div className="space-y-3 mb-6">
-          {words.map((w) => {
-            const showAnswer = w.state === "revealed";
-            return (
-              <div
-                key={w.id}
-                onClick={() => handleCardClick(w.id)}
-                className={`bg-white rounded-xl p-4 shadow-sm transition-all cursor-pointer select-none ${
-                  w.state === "revealed"
-                    ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
-                    : w.state === "played"
-                    ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/10"
-                    : ""
-                }`}
+        {viewMode === "card" && cardWord ? (
+          <div className="flex flex-col items-center gap-5 py-2">
+            <div className="flex items-center gap-3 w-full">
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                disabled={cardIndex <= 0}
+                onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
+                className="shrink-0 bg-muted disabled:opacity-40"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      w.state === "revealed" ? "bg-[#66BB6A]/15" : w.state === "played" ? "bg-[#4ECDC4]/15" : "bg-gray-100"
-                    }`}>
-                      <Volume2 size={20} className={w.state === "revealed" ? "text-[#66BB6A]" : w.state === "played" ? "text-[#4ECDC4]" : "text-[#718096]"} />
-                    </div>
-                    <div>
-                      {!showAnswer && (
-                        <div className="text-sm text-[#718096]">
-                          {w.state === "idle" ? "点击播放" : "再点显示答案"}
-                        </div>
-                      )}
-                      {showAnswer && (
-                        <>
-                          <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{w.word}</div>
-                          {w.phonetic ? (
-                            <div className="text-sm text-[#718096] font-mono mb-0.5">{w.phonetic}</div>
-                          ) : null}
-                          <div className={PRACTICE_TRANS_CLASS}>
-                            {fullMeaning
-                              ? w.translation || w.translationShort
-                              : w.translationShort || w.translation}
-                          </div>
-                          {(w.translation || w.translationShort) && (
-                            <button
-                              type="button"
-                              className="text-xs text-[#4ECDC4] hover:underline mt-1"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setFullMeaning((v) => !v);
-                              }}
-                            >
-                              {fullMeaning ? "简译" : "全部意思"}
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <ChevronLeft size={22} />
+              </CloudButton>
+              <div
+                className="flex-1"
+                style={{ minHeight: "max(8rem, calc(var(--practice-word-size) * 6))" }}
+              >
+                {renderWordCard(cardWord, { centered: true })}
               </div>
-            );
-          })}
-        </div>
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                disabled={cardIndex >= words.length - 1}
+                onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
+                className="shrink-0 bg-muted disabled:opacity-40"
+              >
+                <ChevronRight size={22} />
+              </CloudButton>
+            </div>
+            <p className="text-xs text-[#718096]">
+              {cardIndex + 1} / {words.length}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3 mb-6">
+            {words.map((w) => (
+              <div key={w.id}>{renderWordCard(w)}</div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* 底部工具栏 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-2xl mx-auto w-full flex items-center justify-between">
-          <div className="text-sm text-[#718096]">全部完成后进入快闪</div>
-          <CloudButton variant="brand" size="iconRound" className="size-12" onClick={() => navigate("/flash-review")}>
+        <div className="max-w-2xl mx-auto w-full flex items-center justify-between gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
+              <Shuffle size={16} />
+              乱序
+            </CloudButton>
+            <CloudButton
+              variant={detailMode ? "brand" : "outline"}
+              size="pill"
+              onClick={() => {
+                setDetailMode((v) => {
+                  if (v) setDetailWord(null);
+                  return !v;
+                });
+              }}
+            >
+              <BookOpen size={16} />
+              拓展
+            </CloudButton>
+          </div>
+          <CloudButton
+            variant="brand"
+            size="iconRound"
+            className="size-12 shrink-0"
+            onClick={() => navigate("/flash-review")}
+          >
             <ArrowRight size={24} />
           </CloudButton>
         </div>
       </div>
 
-      {/* 暂停菜单 */}
-      {showPauseMenu && (
-        <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowPauseMenu(false)}>
-          <div className="absolute top-20 right-4 bg-white rounded-xl shadow-lg overflow-hidden">
-            <CloudButton
-              variant="ghost"
-              className="w-full justify-start rounded-none px-6 py-3 h-auto"
-              onClick={() => {
-                setShowPauseMenu(false);
-                navigate("/word-training");
-              }}
-            >
-              返回主页
-            </CloudButton>
-            <CloudButton
-              variant="ghost"
-              className="w-full justify-start rounded-none px-6 py-3 h-auto"
-              onClick={() => setShowPauseMenu(false)}
-            >
-              继续练习
-            </CloudButton>
-          </div>
-        </div>
-      )}
+      <PracticePauseMenu
+        open={showPauseMenu}
+        onClose={() => setShowPauseMenu(false)}
+        continueLabel="继续练习"
+      />
     </div>
   );
 }
