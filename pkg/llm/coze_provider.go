@@ -11,7 +11,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	common "github.com/LingByte/ling-base/common"
 	"github.com/coze-dev/coze-go"
 	"go.uber.org/zap"
 )
@@ -298,7 +298,7 @@ func (p *CozeProvider) QueryWithOptions(text string, options QueryOptions) (stri
 		ChatType:         options.ChatType,
 	}
 
-	utils.Sig().Emit(constants.LLMUsage, usageInfo, text, finalResponse)
+	common.Sig().Emit(constants.LLMUsage, usageInfo, text, finalResponse)
 
 	return finalResponse, nil
 }
@@ -549,7 +549,7 @@ func (p *CozeProvider) QueryStream(text string, options QueryOptions, callback f
 		ChatType:         options.ChatType,
 	}
 
-	utils.Sig().Emit(constants.LLMUsage, usageInfo, text, fullResponse)
+	common.Sig().Emit(constants.LLMUsage, usageInfo, text, fullResponse)
 
 	return fullResponse, nil
 }

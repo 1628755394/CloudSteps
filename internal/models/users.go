@@ -16,7 +16,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	"github.com/LingByte/CloudStepsGo/pkg/metrics"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	common "github.com/LingByte/ling-base/common"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -171,7 +171,7 @@ func Login(c *gin.Context, user *User) {
 	session := sessions.Default(c)
 	session.Set(constants.UserField, user.ID)
 	session.Save()
-	utils.Sig().Emit(constants.SigUserLogin, user, db)
+	common.Sig().Emit(constants.SigUserLogin, user, db)
 }
 
 func Logout(c *gin.Context, user *User) {
@@ -179,7 +179,7 @@ func Logout(c *gin.Context, user *User) {
 	session := sessions.Default(c)
 	session.Delete(constants.UserField)
 	session.Save()
-	utils.Sig().Emit(constants.SigUserLogout, user, c)
+	common.Sig().Emit(constants.SigUserLogout, user, c)
 }
 
 func AuthRequired(c *gin.Context) {

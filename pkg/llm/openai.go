@@ -10,7 +10,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	common "github.com/LingByte/ling-base/common"
 	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
 	"go.uber.org/zap"
@@ -558,7 +558,7 @@ func (h *LLMHandler) QueryWithOptions(text string, options QueryOptions) (string
 		ChatType:     options.ChatType,
 	}
 
-	utils.Sig().Emit(constants.LLMUsage, usageInfo, text, finalResponse)
+	common.Sig().Emit(constants.LLMUsage, usageInfo, text, finalResponse)
 
 	return finalResponse, nil
 }
@@ -915,7 +915,7 @@ func (h *LLMHandler) QueryStream(text string, options QueryOptions, callback fun
 			ChatType:     options.ChatType,
 		}
 
-		utils.Sig().Emit(constants.LLMUsage, usageInfo, text, fullResponse+finalResponse)
+		common.Sig().Emit(constants.LLMUsage, usageInfo, text, fullResponse+finalResponse)
 
 		// Stream the final response through callback
 		if callback != nil {
@@ -990,7 +990,7 @@ func (h *LLMHandler) QueryStream(text string, options QueryOptions, callback fun
 			ChatType:     options.ChatType,
 		}
 
-		utils.Sig().Emit(constants.LLMUsage, usageInfo, text, fullResponse)
+		common.Sig().Emit(constants.LLMUsage, usageInfo, text, fullResponse)
 	}
 
 	logger.Info("LLM stream completed",

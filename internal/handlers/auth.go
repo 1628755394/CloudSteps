@@ -25,6 +25,8 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	common "github.com/LingByte/ling-base/common"
+	"github.com/LingByte/ling-base/common/random"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -331,7 +333,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 			"isSuspicious": isSuspicious,
 			"loginTime":    time.Now().Format("2006-01-02 15:04:05"),
 		}
-		utils.Sig().Emit(constants.SigUserNewDeviceLogin, user, deviceInfo, db)
+		common.Sig().Emit(constants.SigUserNewDeviceLogin, user, deviceInfo, db)
 	}
 
 	// 14. 邮箱验证码登录成功后，重置密码登录限制
@@ -641,7 +643,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 			zap.String("email", user.Username),
 			zap.String("deviceID", deviceID),
 			zap.Bool("isSuspicious", isSuspicious))
-		utils.Sig().Emit(constants.SigUserNewDeviceLogin, user, "", db)
+		common.Sig().Emit(constants.SigUserNewDeviceLogin, user, "", db)
 	}
 
 	// 15. 清除失败登录计数
@@ -929,7 +931,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 		logger.Warn("update user fields fail id:", zap.Uint("userId", user.ID), zap.Any("vals", vals), zap.Error(err))
 	}
 
-	utils.Sig().Emit(constants.SigUserCreate, user, c, db)
+	common.Sig().Emit(constants.SigUserCreate, user, c, db)
 
 	r := gin.H{
 		"email": user.Username,
@@ -1080,7 +1082,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	if err != nil {
 		logger.Warn("update user fields fail id:", zap.Uint("userId", user.ID), zap.Any("vals", vals), zap.Error(err))
 	}
-	utils.Sig().Emit(constants.SigUserCreate, user, db)
+	common.Sig().Emit(constants.SigUserCreate, user, db)
 	sendHashMail(db, user, constants.SigUserVerifyEmail, constants.KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent())
 	response.Success(c, "signup success", user)
 }
@@ -1383,7 +1385,7 @@ func (h *Handlers) handleResetPassword(c *gin.Context) {
 	}
 
 	// 发射密码重置信号
-	utils.Sig().Emit(constants.SigUserResetPassword, user, token, c.ClientIP(), c.Request.UserAgent(), h.db)
+	common.Sig().Emit(constants.SigUserResetPassword, user, token, c.ClientIP(), c.Request.UserAgent(), h.db)
 
 	response.Success(c, "If the email exists, a reset link has been sent", nil)
 }
@@ -1464,7 +1466,7 @@ func (h *Handlers) handleVerifyPhone(c *gin.Context) {
 // handleGetSalt 获取随机盐（用于密码加密）
 func (h *Handlers) handleGetSalt(c *gin.Context) {
 	// 生成随机盐（32字符）
-	salt := utils.GenerateRandomString(32)
+	salt := random.Base64URLString(32)
 	timestamp := time.Now().Unix()
 	expiresIn := int64(300) // 5分钟有效期
 
@@ -1682,7 +1684,7 @@ func sendHashMail(db *gorm.DB, user *models.User, signame, expireKey, defaultExp
 	hash := models.EncodeHashToken(user, n.Unix(), true)
 
 	// 发送信号，让监听器处理邮件发送
-	utils.Sig().Emit(signame, user, hash, clientIp, useragent, db)
+	common.Sig().Emit(signame, user, hash, clientIp, useragent, db)
 }
 
 // handleSendEmailCode Send Email Code

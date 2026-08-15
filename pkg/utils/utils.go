@@ -1,5 +1,4 @@
 // Package utils - misc utilities.
-// Snowflake ID generation is re-exported from ling-base/common/idgen.
 // CloudSteps-specific helpers (RandText, SafeCall, StructAsMap, etc.) remain here.
 package utils
 
@@ -16,20 +15,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
-	"github.com/LingByte/ling-base/common/idgen"
 	"go.uber.org/zap"
-)
-
-// Snowflake type alias — delegates to ling-base/common/idgen.
-type Snowflake = idgen.Snowflake
-
-var SnowflakeUtil *Snowflake
-
-// Re-export snowflake functions from ling-base/common/idgen.
-var (
-	NewSnowflake      = idgen.NewSnowflake
-	SnowflakeNext     = idgen.SnowflakeNext
-	SnowflakeNextUint = idgen.SnowflakeNextUint
 )
 
 var letterRunes = []rune("0123456789abcdefghijklmnopqrstuvwxyz")
@@ -37,7 +23,6 @@ var numberRunes = []rune("0123456789")
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
-	SnowflakeUtil, _ = NewSnowflake()
 }
 
 func randRunes(n int, source []rune) string {

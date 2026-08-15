@@ -5,7 +5,6 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -170,130 +169,9 @@ func TestGenerateSecureToken_URLSafeLength(t *testing.T) {
 	}
 }
 
-// ---------- Snowflake: New / NextID ----------
-
-func withEnv(key, val string, fn func()) {
-	old := os.Getenv(key)
-	_ = os.Setenv(key, val)
-	defer os.Setenv(key, old)
-	fn()
-}
-
-func TestNewSnowflake_OK_DefaultMachineID(t *testing.T) {
-	// Invalid values will fallback to default, which is within valid range
-	withEnv("MACHINE_ID", "not-an-int", func() {
-		sf, err := NewSnowflake()
-		if err != nil {
-			t.Fatalf("NewSnowflake with fallback id error: %v", err)
-		}
-		// Verify it works by generating an ID
-		if id := sf.NextID(); id == 0 {
-			t.Fatal("NextID returned 0")
-		}
-	})
-}
-
-func TestNewSnowflake_ErrOutOfRange(t *testing.T) {
-	// <0
-	withEnv("MACHINE_ID", "-1", func() {
-		if _, err := NewSnowflake(); err == nil {
-			t.Fatalf("NewSnowflake expected error for id=-1")
-		}
-	})
-	// > max (1024 should be out of range for 10-bit machine ID)
-	withEnv("MACHINE_ID", "1024", func() {
-		if _, err := NewSnowflake(); err == nil {
-			t.Fatalf("NewSnowflake expected error for id>max")
-		}
-	})
-}
-
-func TestSnowflake_NextID_Monotonic(t *testing.T) {
-	sf, err := NewSnowflake()
-	if err != nil {
-		t.Fatalf("NewSnowflake error: %v", err)
-	}
-
-	const N = 2000
-	ids := make([]int64, N)
-	for i := 0; i < N; i++ {
-		ids[i] = sf.NextID()
-		if ids[i] == 0 {
-			t.Fatalf("NextID returned 0 unexpectedly")
-		}
-		if i > 0 && ids[i] <= ids[i-1] {
-			t.Fatalf("IDs not strictly increasing: %d <= %d at %d", ids[i], ids[i-1], i)
-		}
-	}
-}
-
-func TestSnowflake_NextID_GeneratesUniqueIDs(t *testing.T) {
-	sf, err := NewSnowflake()
-	if err != nil {
-		t.Fatalf("NewSnowflake error: %v", err)
-	}
-
-	const N = 5000
-	seen := make(map[int64]bool, N)
-	for i := 0; i < N; i++ {
-		id := sf.NextID()
-		if id == 0 {
-			t.Fatalf("NextID returned 0 at iteration %d", i)
-		}
-		if seen[id] {
-			t.Fatalf("duplicate ID %d at iteration %d", id, i)
-		}
-		seen[id] = true
-	}
-}
-
-// ---------- Concurrency smoke (optional, to ensure lock paths are covered more thoroughly) ----------
-
-func TestSnowflake_Concurrent(t *testing.T) {
-	sf, err := NewSnowflake()
-	if err != nil {
-		t.Fatalf("NewSnowflake error: %v", err)
-	}
-
-	const goroutines = 16
-	const perG = 512
-	var wg sync.WaitGroup
-	out := make(chan int64, goroutines*perG)
-
-	wg.Add(goroutines)
-	for g := 0; g < goroutines; g++ {
-		go func() {
-			defer wg.Done()
-			for i := 0; i < perG; i++ {
-				out <- sf.NextID()
-			}
-		}()
-	}
-	wg.Wait()
-	close(out)
-
-	seen := make(map[int64]bool)
-	count := 0
-	for id := range out {
-		if id == 0 {
-			t.Fatalf("concurrent NextID produced 0")
-		}
-		// Check for duplicates
-		if seen[id] {
-			t.Fatalf("concurrent NextID produced duplicate id: %d", id)
-		}
-		seen[id] = true
-		count++
-
-		// Note: Due to the nature of snowflake algorithm and potential timestamp overflow,
-		// we don't check for negative values as they can occur with large timestamps.
-		// The important thing is uniqueness and non-zero values.
-	}
-
-	if count != goroutines*perG {
-		t.Fatalf("Expected %d IDs, got %d", goroutines*perG, count)
-	}
-}
+// Note: Snowflake tests have been removed because the Snowflake implementation
+// is now owned by ling-base/common/idgen. ling-base's own test suite covers
+// the Snowflake algorithm.
 
 // ---------- WriteFile / ReadFile ----------
 
