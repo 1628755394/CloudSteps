@@ -3,7 +3,7 @@ package task
 import (
 	"time"
 
-	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
+	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/ling-base/logger"
 	"github.com/robfig/cron/v3"
@@ -61,7 +61,7 @@ func CleanUnreadEmails(db *gorm.DB) error {
 	for _, userID := range userIDs {
 		// Delete notifications unread for more than seven days for this user
 		result := db.Where("user_id = ? AND `read` = ? AND created_at < ?", userID, false, sevenDaysAgo).
-			Delete(&appnotifier.InternalNotification{})
+			Delete(&models.InternalNotification{})
 
 		if result.Error != nil {
 			logger.Warn("Failed to clean emails for user", zap.Uint("userID", userID), zap.Error(result.Error))

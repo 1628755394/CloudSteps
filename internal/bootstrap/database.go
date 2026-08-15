@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/ling-base/common"
@@ -112,7 +111,8 @@ func RunMigrations(db *gorm.DB) error {
 		&models.GrammarLesson{},
 		&models.GrammarQuestion{},
 		&models.GrammarRecord{},
-		&appnotifier.InternalNotification{},
+		&models.InternalNotification{},
+		&models.MailLog{},
 		&models.StudentTeacherCoachingQuota{},
 		&models.TeacherCoachingUsagePeriod{},
 		&models.CoachingAppointment{},

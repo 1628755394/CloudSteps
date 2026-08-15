@@ -19,7 +19,7 @@ import (
 	lbbootstrap "github.com/LingByte/ling-base/bootstrap"
 	"github.com/LingByte/ling-base/cache/lru"
 	"github.com/LingByte/ling-base/captcha"
-	common "github.com/LingByte/ling-base/common"
+	"github.com/LingByte/ling-base/common"
 	lbconfig "github.com/LingByte/ling-base/common/config"
 	"github.com/LingByte/ling-base/logger"
 	"github.com/gin-gonic/gin"
@@ -133,26 +133,6 @@ func main() {
 
 	// 11. New App
 	cloudApp := NewCloudStepsGoApp(db, globalCache, configStore)
-
-	// 11.5. Initialize SIP Server (if enabled)
-	sipEnabled := common.GetBoolEnv("SIP_ENABLED")
-	if sipEnabled {
-		sipPortInt64 := common.GetIntEnv("SIP_PORT")
-		if sipPortInt64 == 0 {
-			sipPortInt64 = 5060 // Default SIP port
-		}
-		sipPort := int(sipPortInt64)
-
-		rtpPortInt64 := common.GetIntEnv("SIP_RTP_PORT")
-		if rtpPortInt64 == 0 {
-			rtpPortInt64 = 10000 // Default RTP port
-		}
-		rtpPort := int(rtpPortInt64)
-
-		logger.Info("SIP server initialized", zap.Int("sip_port", sipPort), zap.Int("rtp_port", rtpPort))
-	} else {
-		logger.Info("SIP server is disabled (set SIP_ENABLED=true to enable)")
-	}
 
 	// 12. Initialize Global Middleware Manager
 	middleware.InitGlobalMiddlewareManager(config.GlobalConfig.Middleware)

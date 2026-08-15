@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	htmlTemplate "html/template"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -16,7 +17,6 @@ import (
 
 	CloudStepsGo "github.com/LingByte/CloudStepsGo"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
@@ -28,6 +28,7 @@ import (
 	"github.com/LingByte/ling-base/common/random"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/notification/email"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -1655,6 +1656,47 @@ func isDefaultAvatar(avatarURL string) bool {
 		strings.Contains(avatarURL, "gravatar")
 }
 
+// buildMailProviders constructs ling-base email providers from CloudSteps mail config.
+func buildMailProviders(cfg config.MailConfig) []email.MailProvider {
+	switch cfg.Provider {
+	case "sendcloud":
+		p, err := email.NewSendCloudProvider(email.SendCloudConfig{
+			APIUser: cfg.APIUser,
+			APIKey:  cfg.APIKey,
+			From:    cfg.From,
+		})
+		if err != nil {
+			return nil
+		}
+		return []email.MailProvider{p}
+	case "smtp":
+		return []email.MailProvider{
+			email.NewSMTPProvider(email.SMTPConfig{
+				Host:     cfg.Host,
+				Port:     int(cfg.Port),
+				Username: cfg.Username,
+				Password: cfg.Password,
+				From:     cfg.From,
+			}),
+		}
+	default:
+		return nil
+	}
+}
+
+// renderEmailTemplate renders an embedded HTML template with data.
+func renderEmailTemplate(templateStr string, data interface{}) (string, error) {
+	tmpl, err := htmlTemplate.New("email").Parse(templateStr)
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
 func sendHashMail(db *gorm.DB, user *models.User, signame, expireKey, defaultExpired, clientIp, useragent string, configStore *lbconfig.Store) {
 	d, err := time.ParseDuration(configStore.GetValue(expireKey))
 	if err != nil {
@@ -1679,22 +1721,22 @@ func (h *Handlers) handleSendEmailCode(c *gin.Context) {
 	text := utils.RandNumberText(6)
 	h.cache.Set(context.Background(), req.Email, text, 0)
 	go func() {
-		// Use IP address for tracking since no user context
-		mailNotif := appnotifier.NewMailNotificationWithIP(appnotifier.MailConfig{
-			Provider: config.GlobalConfig.Services.Mail.Provider,
-			Host:     config.GlobalConfig.Services.Mail.Host,
-			Port:     config.GlobalConfig.Services.Mail.Port,
-			Username: config.GlobalConfig.Services.Mail.Username,
-			Password: config.GlobalConfig.Services.Mail.Password,
-			APIUser:  config.GlobalConfig.Services.Mail.APIUser,
-			APIKey:   config.GlobalConfig.Services.Mail.APIKey,
-			From:     config.GlobalConfig.Services.Mail.From,
-		}, h.db, req.ClientIp)
-		err := mailNotif.SendVerificationCode(req.Email, text)
+		providers := buildMailProviders(config.GlobalConfig.Services.Mail)
+		if len(providers) == 0 {
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("no mail provider configured"))
+			return
+		}
+		mailer := email.NewMailer(providers)
+		htmlBody, err := renderEmailTemplate(CloudStepsGo.VerificationHTML, map[string]string{"Code": text})
 		if err != nil {
 			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
 			return
 		}
+		if err := mailer.Send(context.Background(), req.Email, "您的 CloudStepsGo 验证码", htmlBody); err != nil {
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+			return
+		}
+		_ = models.CreateMailLog(h.db, 0, req.Email, "您的 CloudStepsGo 验证码", "", req.ClientIp)
 	}()
 	response.SuccessMsg(c, "success", "Send Email Successful, Must be verified within the valid time [5 minutes]")
 	return

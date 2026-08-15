@@ -3,11 +3,12 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
 	response "github.com/LingByte/ling-base/common/response/gin"
+	"github.com/LingByte/ling-base/notification/inbox"
 	"github.com/gin-gonic/gin"
 )
 
@@ -33,6 +34,8 @@ func (h *Handlers) registerNotificationRoutes(r *gin.RouterGroup) {
 	}
 }
 
+func uintToStr(id uint) string { return strconv.FormatUint(uint64(id), 10) }
+
 // GetUnReadNotificationCount get user unread notification count
 func (h *Handlers) handleUnReadNotificationCount(c *gin.Context) {
 	user := models.CurrentUser(c)
@@ -42,12 +45,13 @@ func (h *Handlers) handleUnReadNotificationCount(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	unreadNotificationCount, err := appnotifier.NewInternalNotificationService(h.db).GetUnreadNotificationsCount(users.ID)
+	store := inbox.NewGormStore(h.db)
+	count, err := store.UnreadCount(uintToStr(users.ID))
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "success", unreadNotificationCount)
+	response.SuccessMsg(c, "success", count)
 }
 
 // ListNotifications list user notifications
@@ -82,26 +86,22 @@ func (h *Handlers) handleListNotifications(c *gin.Context) {
 		end, _ = time.Parse(layout, endStr)
 	}
 
-	service := appnotifier.NewInternalNotificationService(h.db)
-	notifications, total, totalUnread, totalRead, err := service.GetPaginatedNotifications(
-		user.ID,
-		pageInt,
-		sizeInt,
-		filterBy,
-		title,
-		content,
-		start,
-		end,
+	store := inbox.NewGormStore(h.db)
+	res, err := store.List(
+		uintToStr(user.ID),
+		pageInt, sizeInt,
+		filterBy, title, content,
+		start, end,
 	)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
 	response.SuccessMsg(c, "success", gin.H{
-		"list":        notifications,
-		"total":       total,
-		"totalUnread": totalUnread,
-		"totalRead":   totalRead,
+		"list":        res.List,
+		"total":       res.Total,
+		"totalUnread": res.TotalUnread,
+		"totalRead":   res.TotalRead,
 		"page":        pageInt,
 		"size":        sizeInt,
 	})
@@ -113,8 +113,8 @@ func (h *Handlers) handleAllNotifications(c *gin.Context) {
 	if user == nil {
 		response.Fail(c, "User is not logged in.", nil)
 	}
-	err := appnotifier.NewInternalNotificationService(h.db).MarkAllAsRead(user.ID)
-	if err != nil {
+	store := inbox.NewGormStore(h.db)
+	if err := store.MarkAllRead(uintToStr(user.ID)); err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -138,15 +138,13 @@ func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
 		return
 	}
 
-	_, err = appnotifier.NewInternalNotificationService(h.db).GetOne(user.ID, notificationID)
-	if err != nil {
+	store := inbox.NewGormStore(h.db)
+	if _, err := store.GetByID(uintToStr(user.ID), uintToStr(notificationID)); err != nil {
 		response.Fail(c, "You don't have permission to flag this message.", nil)
 		return
 	}
 
-	// Call service layer to mark as read
-	err = appnotifier.NewInternalNotificationService(h.db).MarkAsRead(notificationID)
-	if err != nil {
+	if err := store.MarkRead("", uintToStr(notificationID)); err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -166,8 +164,8 @@ func (h *Handlers) handleDeleteNotification(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
-	err = appnotifier.NewInternalNotificationService(h.db).Delete(user.ID, notificationID)
-	if err != nil {
+	store := inbox.NewGormStore(h.db)
+	if err := store.Delete(uintToStr(user.ID), uintToStr(notificationID)); err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -196,8 +194,12 @@ func (h *Handlers) handleBatchDeleteNotifications(c *gin.Context) {
 		return
 	}
 
-	service := appnotifier.NewInternalNotificationService(h.db)
-	deletedCount, err := service.BatchDelete(user.ID, request.IDs)
+	ids := make([]string, 0, len(request.IDs))
+	for _, id := range request.IDs {
+		ids = append(ids, uintToStr(id))
+	}
+	store := inbox.NewGormStore(h.db)
+	deletedCount, err := store.BatchDelete(uintToStr(user.ID), ids)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
@@ -235,11 +237,25 @@ func (h *Handlers) handleGetAllNotificationIds(c *gin.Context) {
 		end, _ = time.Parse(layout, endStr)
 	}
 
-	service := appnotifier.NewInternalNotificationService(h.db)
-	ids, err := service.GetAllNotificationIds(user.ID, filterBy, title, content, start, end)
+	store := inbox.NewGormStore(h.db)
+	res, err := store.List(
+		uintToStr(user.ID),
+		1, 1<<31-1,
+		filterBy, title, content,
+		start, end,
+	)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
+	}
+
+	ids := make([]uint, 0, len(res.List))
+	for _, msg := range res.List {
+		id, err := strconv.ParseUint(msg.ID, 10, 64)
+		if err != nil {
+			continue
+		}
+		ids = append(ids, uint(id))
 	}
 
 	response.SuccessMsg(c, "success", gin.H{

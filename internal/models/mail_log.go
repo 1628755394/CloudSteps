@@ -1,12 +1,17 @@
-package notification
+package models
 
 import (
 	"time"
 
+	"github.com/LingByte/ling-base/notification/inbox"
 	"gorm.io/gorm"
 )
 
-// MailLog email log record (CloudSteps-specific gorm model).
+// InternalNotification is a gorm-registered alias for the ling-base
+// inbox.GormMessage so AutoMigrate calls and legacy table rows keep working.
+type InternalNotification = inbox.GormMessage
+
+// MailLog email log record.
 type MailLog struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	UserID    uint      `gorm:"index" json:"user_id"`
@@ -24,12 +29,9 @@ type MailLog struct {
 // TableName specifies the table name.
 func (MailLog) TableName() string { return "mail_logs" }
 
-func createMailLog(db *gorm.DB, userID uint, toEmail, subject, messageID string) error {
-	return createMailLogWithIP(db, userID, toEmail, subject, messageID, "")
-}
-
-func createMailLogWithIP(db *gorm.DB, userID uint, toEmail, subject, messageID, ipAddress string) error {
-	log := &MailLog{
+// CreateMailLog inserts a mail-log record.
+func CreateMailLog(db *gorm.DB, userID uint, toEmail, subject, messageID, ipAddress string) error {
+	return db.Create(&MailLog{
 		UserID:    userID,
 		ToEmail:   toEmail,
 		Subject:   subject,
@@ -37,8 +39,7 @@ func createMailLogWithIP(db *gorm.DB, userID uint, toEmail, subject, messageID, 
 		MessageID: messageID,
 		IPAddress: ipAddress,
 		SentAt:    time.Now(),
-	}
-	return db.Create(log).Error
+	}).Error
 }
 
 // UpdateMailLogStatus updates the status of a mail log.
@@ -51,38 +52,11 @@ func UpdateMailLogStatus(db *gorm.DB, messageID, status, errorMsg string) error 
 		}).Error
 }
 
-// GetMailLogByMessageID gets mail log by message ID.
-func GetMailLogByMessageID(db *gorm.DB, messageID string) (*MailLog, error) {
-	var log MailLog
-	if err := db.Where("message_id = ?", messageID).First(&log).Error; err != nil {
-		return nil, err
-	}
-	return &log, nil
-}
-
 // GetMailLogs gets mail logs with pagination.
 func GetMailLogs(db *gorm.DB, userID uint, page, pageSize int) ([]MailLog, int64, error) {
 	var logs []MailLog
 	var total int64
 	query := db.Where("user_id = ?", userID)
-	if err := query.Model(&MailLog{}).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&logs).Error; err != nil {
-		return nil, 0, err
-	}
-	return logs, total, nil
-}
-
-// GetMailLogsWithStatus gets mail logs with pagination and status filter.
-func GetMailLogsWithStatus(db *gorm.DB, userID uint, page, pageSize int, status string) ([]MailLog, int64, error) {
-	var logs []MailLog
-	var total int64
-	query := db.Where("user_id = ?", userID)
-	if status != "" && status != "all" {
-		query = query.Where("status = ?", status)
-	}
 	if err := query.Model(&MailLog{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
