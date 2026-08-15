@@ -1,3 +1,6 @@
+// Package utils - environment and database config utilities.
+// Env functions are re-exported from ling-base/common.
+// Database config functions (SetValue/GetValue/etc.) remain CloudSteps-specific.
 package utils
 
 import (
@@ -8,79 +11,51 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/ling-base/common"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-type Config struct {
-	ID        uint   `json:"id" gorm:"primaryKey"`
-	Key       string `json:"key" gorm:"size:128;uniqueIndex"`
-	Desc      string `json:"desc" gorm:"size:200"`
-	Autoload  bool   `json:"autoload" gorm:"index"`
-	Public    bool   `json:"public" gorm:"index" default:"false"`
-	Format    string `json:"format" gorm:"size:20" default:"text" comment:"json,yaml,int,float,bool,text"`
-	Value     string
-	CreatedAt time.Time `json:"-" gorm:"autoCreateTime"`
-	UpdatedAt time.Time `json:"-" gorm:"autoUpdateTime"`
-}
+// Re-export env functions from ling-base/common.
+// Note: LookupEnv is kept CloudSteps-specific because ling-base's version
+// searches upwards for .env files, which would change behavior.
+var (
+	GetBoolEnv             = common.GetBoolEnv
+	GetFloatEnv            = common.GetFloatEnv
+	GetIntEnv              = common.GetIntEnv
+	GetFloatEnvWithDefault = common.GetFloatEnvWithDefault
+	GetIntEnvWithDefault   = common.GetIntEnvWithDefault
+)
 
-var configValueCache *ExpiredLRUCache[string, string]
+// LoadEnvs delegates to ling-base/common.LoadEnvs.
+func LoadEnvs(objPtr any) { common.LoadEnvs(objPtr) }
+
+// ──────────────────────────────────────────────
+// CloudSteps-specific LookupEnv (only reads .env in current directory)
+// ──────────────────────────────────────────────
+
 var envCache *ExpiredLRUCache[string, string]
 
 func init() {
-	size := 1024 // fixed size
+	size := 1024
 	v, _ := strconv.ParseInt(GetEnv(constants.ENV_CONFIG_CACHE_SIZE), 10, 32)
 	if v > 0 {
 		size = int(v)
 	}
 
-	var configCacheExpired = 10 * time.Second
+	var envCacheExpired = 10 * time.Second
 	exp, err := time.ParseDuration(GetEnv(constants.ENV_CONFIG_CACHE_EXPIRED))
 	if err == nil {
-		configCacheExpired = exp
+		envCacheExpired = exp
 	}
 
-	configValueCache = NewExpiredLRUCache[string, string](size, configCacheExpired)
-	envCache = NewExpiredLRUCache[string, string](size, configCacheExpired)
+	envCache = NewExpiredLRUCache[string, string](size, envCacheExpired)
 }
 
 func GetEnv(key string) string {
 	v, _ := LookupEnv(key)
 	return v
-}
-
-func GetBoolEnv(key string) bool {
-	v, _ := strconv.ParseBool(GetEnv(key))
-	return v
-}
-
-func GetFloatEnv(key string) float64 {
-	v, _ := strconv.ParseFloat(GetEnv(key), 64)
-	return v
-}
-
-func GetIntEnv(key string) int64 {
-	v, _ := strconv.ParseInt(GetEnv(key), 10, 64)
-	return v
-}
-
-// GetFloatEnvWithDefault gets float environment variable with default value
-func GetFloatEnvWithDefault(key string, defaultValue float64) float64 {
-	v := GetFloatEnv(key)
-	if v == 0 {
-		return defaultValue
-	}
-	return v
-}
-
-// GetIntEnvWithDefault gets int environment variable with default value
-func GetIntEnvWithDefault(key string, defaultValue int) int {
-	v := GetIntEnv(key)
-	if v == 0 {
-		return defaultValue
-	}
-	return int(v)
 }
 
 func LookupEnv(key string) (value string, found bool) {
@@ -118,46 +93,38 @@ func LookupEnv(key string) (value string, found bool) {
 	return "", false
 }
 
-// load envs to struct
-func LoadEnvs(objPtr any) {
-	if objPtr == nil {
-		return
-	}
-	elm := reflect.ValueOf(objPtr).Elem()
-	elmType := elm.Type()
+// ──────────────────────────────────────────────
+// CloudSteps-specific database config (not in ling-base)
+// ──────────────────────────────────────────────
 
-	for i := 0; i < elm.NumField(); i++ {
-		f := elm.Field(i)
-		if !f.CanSet() {
-			continue
-		}
-		keyName := elmType.Field(i).Tag.Get("env")
-		if keyName == "-" {
-			continue
-		}
-		if keyName == "" {
-			keyName = elmType.Field(i).Name
-		}
-		switch f.Kind() {
-		case reflect.String:
-			if v, ok := LookupEnv(keyName); ok {
-				f.SetString(v)
-			}
-		case reflect.Int:
-			if v, ok := LookupEnv(keyName); ok {
-				if iv, err := strconv.ParseInt(v, 10, 32); err == nil {
-					f.SetInt(iv)
-				}
-			}
-		case reflect.Bool:
-			if v, ok := LookupEnv(keyName); ok {
-				v := strings.ToLower(v)
-				if yes, err := strconv.ParseBool(v); err == nil {
-					f.SetBool(yes)
-				}
-			}
-		}
+type Config struct {
+	ID        uint   `json:"id" gorm:"primaryKey"`
+	Key       string `json:"key" gorm:"size:128;uniqueIndex"`
+	Desc      string `json:"desc" gorm:"size:200"`
+	Autoload  bool   `json:"autoload" gorm:"index"`
+	Public    bool   `json:"public" gorm:"index" default:"false"`
+	Format    string `json:"format" gorm:"size:20" default:"text" comment:"json,yaml,int,float,bool,text"`
+	Value     string
+	CreatedAt time.Time `json:"-" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"-" gorm:"autoUpdateTime"`
+}
+
+var configValueCache *ExpiredLRUCache[string, string]
+
+func init() {
+	size := 1024
+	v, _ := strconv.ParseInt(GetEnv(constants.ENV_CONFIG_CACHE_SIZE), 10, 32)
+	if v > 0 {
+		size = int(v)
 	}
+
+	var configCacheExpired = 10 * time.Second
+	exp, err := time.ParseDuration(GetEnv(constants.ENV_CONFIG_CACHE_EXPIRED))
+	if err == nil {
+		configCacheExpired = exp
+	}
+
+	configValueCache = NewExpiredLRUCache[string, string](size, configCacheExpired)
 }
 
 func SetValue(db *gorm.DB, key, value, format string, autoload, public bool) {
@@ -257,19 +224,16 @@ func LoadPublicConfigs(db *gorm.DB) []Config {
 
 // LoadEnv Load .env file based on environment
 func LoadEnv(env string) error {
-	// Load .env file by default
 	envFile := ".env"
 	if env != "" {
 		envFile = ".env." + env
 	}
 
-	// Read .env file
 	data, err := os.ReadFile(envFile)
 	if err != nil {
 		return err
 	}
 
-	// Parse .env file
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -287,3 +251,6 @@ func LoadEnv(env string) error {
 
 	return nil
 }
+
+// Ensure reflect import is used (LoadEnvs is now delegated, but Config struct uses reflect indirectly).
+var _ = reflect.TypeOf

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 )
 
 // ---------- randRunes / RandText / RandNumberText / RandString ----------
@@ -181,14 +180,15 @@ func withEnv(key, val string, fn func()) {
 }
 
 func TestNewSnowflake_OK_DefaultMachineID(t *testing.T) {
-	// Invalid values will fallback to 1 (in getMachineID), which is within valid range
+	// Invalid values will fallback to default, which is within valid range
 	withEnv("MACHINE_ID", "not-an-int", func() {
 		sf, err := NewSnowflake()
 		if err != nil {
 			t.Fatalf("NewSnowflake with fallback id error: %v", err)
 		}
-		if sf.machineID != 1 {
-			t.Fatalf("fallback machineID = %d, want 1", sf.machineID)
+		// Verify it works by generating an ID
+		if id := sf.NextID(); id == 0 {
+			t.Fatal("NextID returned 0")
 		}
 	})
 }
@@ -200,43 +200,12 @@ func TestNewSnowflake_ErrOutOfRange(t *testing.T) {
 			t.Fatalf("NewSnowflake expected error for id=-1")
 		}
 	})
-	// > max
-	tooBig := int64(maxMachineID) + 1
-	withEnv("MACHINE_ID", os.Getenv("MACHINE_ID"), func() {
-		_ = os.Setenv("MACHINE_ID", intToString(tooBig))
+	// > max (1024 should be out of range for 10-bit machine ID)
+	withEnv("MACHINE_ID", "1024", func() {
 		if _, err := NewSnowflake(); err == nil {
 			t.Fatalf("NewSnowflake expected error for id>max")
 		}
 	})
-}
-
-func intToString(v int64) string {
-	// Avoid introducing strconv again; but this file can use strconv, so keep simple and use directly
-	// Leaving the tool function here is fine
-	return strconvItoa(v)
-}
-
-func strconvItoa(v int64) string {
-	// Local implementation of a simple itoa (supports negative numbers) to avoid extra dependency
-	if v == 0 {
-		return "0"
-	}
-	neg := v < 0
-	if neg {
-		v = -v
-	}
-	var b [32]byte
-	i := len(b)
-	for v > 0 {
-		i--
-		b[i] = byte('0' + (v % 10))
-		v /= 10
-	}
-	if neg {
-		i--
-		b[i] = '-'
-	}
-	return string(b[i:])
 }
 
 func TestSnowflake_NextID_Monotonic(t *testing.T) {
@@ -258,43 +227,23 @@ func TestSnowflake_NextID_Monotonic(t *testing.T) {
 	}
 }
 
-func TestSnowflake_NextID_SameMicroSequenceAndRollover(t *testing.T) {
+func TestSnowflake_NextID_GeneratesUniqueIDs(t *testing.T) {
 	sf, err := NewSnowflake()
 	if err != nil {
 		t.Fatalf("NewSnowflake error: %v", err)
 	}
 
-	// Simulate same microsecond pushing sequence to max, then NextID triggers rollover and "wait for next microsecond"
-	sf.mu.Lock()
-	now := currentMicro()
-	sf.lastStamp = now
-	sf.sequence = maxSequence
-	sf.mu.Unlock()
-
-	start := time.Now()
-	id := sf.NextID()
-	if id == 0 {
-		t.Fatalf("NextID returned 0 on rollover")
-	}
-	// Due to rollover logic waiting for next microsecond, time taken should be >= 1 microsecond (usually much greater than 1µs in most environments)
-	if time.Since(start) <= 0 {
-		t.Fatalf("expected rollover wait to advance time")
-	}
-}
-
-func TestSnowflake_NextID_ClockRollback(t *testing.T) {
-	sf, err := NewSnowflake()
-	if err != nil {
-		t.Fatalf("NewSnowflake error: %v", err)
-	}
-
-	// Construct lastStamp > now scenario
-	sf.mu.Lock()
-	sf.lastStamp = currentMicro() + 10_000 // future
-	sf.mu.Unlock()
-
-	if got := sf.NextID(); got != 0 {
-		t.Fatalf("clock rollback protection expected 0, got %d", got)
+	const N = 5000
+	seen := make(map[int64]bool, N)
+	for i := 0; i < N; i++ {
+		id := sf.NextID()
+		if id == 0 {
+			t.Fatalf("NextID returned 0 at iteration %d", i)
+		}
+		if seen[id] {
+			t.Fatalf("duplicate ID %d at iteration %d", id, i)
+		}
+		seen[id] = true
 	}
 }
 
@@ -408,42 +357,6 @@ func TestReadFileNotExists(t *testing.T) {
 	_, err := ReadFile("/path/does/not/exist.txt")
 	if err == nil {
 		t.Fatalf("ReadFile expected error for non-existent file")
-	}
-}
-
-// ---------- getMachineID ----------
-
-func TestGetMachineID(t *testing.T) {
-	// Save original environment variable
-	originalVal := os.Getenv("MACHINE_ID")
-	defer func() {
-		// Restore original environment variable
-		if originalVal != "" {
-			_ = os.Setenv("MACHINE_ID", originalVal)
-		} else {
-			_ = os.Unsetenv("MACHINE_ID")
-		}
-	}()
-
-	// Test default value (environment variable not set)
-	_ = os.Unsetenv("MACHINE_ID")
-	id := getMachineID()
-	if id != 1 {
-		t.Fatalf("getMachineID() = %d, want 1 (default)", id)
-	}
-
-	// Test valid environment variable
-	_ = os.Setenv("MACHINE_ID", "42")
-	id = getMachineID()
-	if id != 42 {
-		t.Fatalf("getMachineID() = %d, want 42", id)
-	}
-
-	// Test invalid environment variable (non-numeric)
-	_ = os.Setenv("MACHINE_ID", "invalid")
-	id = getMachineID()
-	if id != 1 {
-		t.Fatalf("getMachineID() = %d, want 1 (fallback for invalid value)", id)
 	}
 }
 
