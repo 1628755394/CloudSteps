@@ -14,12 +14,16 @@ import {
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 
-import { completeReviewSession, startReviewSession } from "../api/review";
+import { startReviewSession } from "../api/review";
 import { nextWordTapState } from "../utils/wordReveal";
+import { beginReviewPractice, type ReviewPracticeWord } from "../utils/reviewPractice";
 
 type ReviewWord = {
   id: number;
   word: string;
+  phonetic?: string;
+  phoneticUk?: string;
+  phoneticUs?: string;
   translation?: string;
   audioUrl?: string;
   showTranslation?: boolean;
@@ -29,7 +33,7 @@ type ReviewWord = {
 
 type StartReviewData = {
   sessionId?: number;
-  words?: Array<{ id: number; word: string }>;
+  words?: ReviewPracticeWord[];
   finished?: boolean;
 };
 
@@ -43,7 +47,7 @@ export default function ReviewCheck() {
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate("/anti-forgetting");
+    else navigate("/word-training");
   };
 
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
@@ -79,7 +83,18 @@ export default function ReviewCheck() {
         const sid = Number(data?.sessionId || 0);
         const ws = Array.isArray(data?.words) ? data!.words! : [];
         setSessionId(sid);
-        setWords(ws.map((w) => ({ id: w.id, word: w.word, status: null })));
+        setWords(
+          ws.map((w) => ({
+            id: Number(w.id),
+            word: String(w.word || ""),
+            phonetic: w.phonetic ? String(w.phonetic) : undefined,
+            phoneticUk: w.phoneticUk ? String(w.phoneticUk) : undefined,
+            phoneticUs: w.phoneticUs ? String(w.phoneticUs) : undefined,
+            translation: w.translation ? String(w.translation) : undefined,
+            audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
+            status: null,
+          }))
+        );
         if (ws.length === 0 && !data?.finished) {
           setEmptyMessage(res.msg || "暂无可复习内容");
         }
@@ -154,28 +169,37 @@ export default function ReviewCheck() {
   const handleSubmit = () => {
     if (submitting) return;
     if (markedWords.length === 0) {
-      setHint("请至少为一个单词选择 ✓ 或 × 后再完成复习");
+      setHint("请至少为一个单词选择 ✓ 或 × 后再开始学习");
+      return;
+    }
+    if (!sessionId) {
+      setHint("复习会话未就绪，请返回重进");
       return;
     }
     setHint(null);
-    (async () => {
-      setSubmitting(true);
-      try {
-        if (sessionId) {
-          await completeReviewSession(
-            sessionId,
-            markedWords.map((w) => ({ wordId: w.id, remembered: w.status === "correct" }))
-          );
-        }
-        sessionStorage.removeItem("lb_review_batch_idx");
-        sessionStorage.removeItem("lb_review_results");
-        navigate("/anti-forgetting", { replace: true });
-      } catch {
-        setHint("提交失败，请稍后重试");
-      } finally {
-        setSubmitting(false);
-      }
-    })();
+    setSubmitting(true);
+    try {
+      // 与课前检测一致：勾选后进入练习链路；最终对错在组内/训后检测提交
+      const practiceWords: ReviewPracticeWord[] = markedWords.map((w) => ({
+        id: w.id,
+        word: w.word,
+        phonetic: w.phonetic,
+        phoneticUk: w.phoneticUk,
+        phoneticUs: w.phoneticUs,
+        translation: w.translation,
+        audioUrl: w.audioUrl,
+      }));
+      beginReviewPractice({
+        sessionId,
+        wordBookId,
+        words: practiceWords,
+        returnPath: "/word-training",
+      });
+      navigate("/word-practice", { replace: true });
+    } catch {
+      setHint("无法开始学习，请稍后重试");
+      setSubmitting(false);
+    }
   };
 
   const correctCount = words.filter((word) => word.status === "correct").length;
@@ -240,9 +264,9 @@ export default function ReviewCheck() {
               variant="brand"
               size="pill"
               className="w-full max-w-xs mx-auto"
-              onClick={() => navigate("/anti-forgetting")}
+              onClick={handleBack}
             >
-              返回抗遗忘
+              返回
             </CloudButton>
           </div>
         )}
@@ -365,9 +389,9 @@ export default function ReviewCheck() {
             onClick={handleSubmit}
             disabled={submitting}
             loading={submitting}
-            loadingText="提交中…"
+            loadingText="准备中…"
           >
-            完成复习
+            开始学习
             {markedWords.length > 0 ? ` (${markedWords.length})` : ""}
           </CloudButton>
           {hint && (
@@ -375,7 +399,7 @@ export default function ReviewCheck() {
           )}
           {!hint && markedWords.length === 0 && (
             <p className="text-center text-xs text-[#A0AEC0] mt-2">
-              选几个交几个，未选的词今天仍可继续复习
+              先勾选要复习的词，再进入跟课前检测一样的练习流程
             </p>
           )}
           </div>

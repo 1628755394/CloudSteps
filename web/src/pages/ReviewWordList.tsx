@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router";
 import { Volume2, Check, X } from "lucide-react";
-import { completeReviewSession } from "../api/review";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getReviewToday, startReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
@@ -20,6 +19,7 @@ import {
   type WordViewMode,
 } from "../components/WordMarkView";
 import { nextWordTapState } from "../utils/wordReveal";
+import { beginReviewPractice, type ReviewPracticeWord } from "../utils/reviewPractice";
 
 type ReviewWordItem = {
   id: number;
@@ -181,7 +181,7 @@ export default function ReviewWordList() {
       return;
     }
     if (markedCount === 0) {
-      setHint("请至少为一个单词选择 ✓ 或 × 后再完成复习");
+      setHint("请至少为一个单词选择 ✓ 或 × 后再开始学习");
       return;
     }
     setHint(null);
@@ -197,18 +197,36 @@ export default function ReviewWordList() {
           return;
         }
 
-        const results = markedWords.map((w) => ({
-          wordId: w.id,
-          remembered: w.status === "correct",
-        }));
-        await completeReviewSession(sid, results);
+        const sessionWords = Array.isArray(res.data?.words) ? res.data!.words! : [];
+        const byId = new Map(
+          sessionWords.map((w: ReviewPracticeWord) => [Number(w.id), w] as const)
+        );
+        const practiceWords: ReviewPracticeWord[] = markedWords.map((w) => {
+          const full = byId.get(w.id);
+          return {
+            id: w.id,
+            word: w.word,
+            phonetic: full?.phonetic ? String(full.phonetic) : undefined,
+            phoneticUk: full?.phoneticUk ? String(full.phoneticUk) : undefined,
+            phoneticUs: full?.phoneticUs ? String(full.phoneticUs) : undefined,
+            translation: full?.translation
+              ? String(full.translation)
+              : w.translation,
+            audioUrl: full?.audioUrl
+              ? String(full.audioUrl)
+              : w.audioUrl,
+          };
+        });
 
-        sessionStorage.removeItem("lb_review_batch_idx");
-        sessionStorage.removeItem("lb_review_results");
-        navigate("/anti-forgetting", { replace: true });
+        beginReviewPractice({
+          sessionId: sid,
+          wordBookId,
+          words: practiceWords,
+          returnPath: "/anti-forgetting",
+        });
+        navigate("/word-practice", { replace: true });
       } catch {
-        setHint("提交失败，请稍后重试");
-      } finally {
+        setHint("无法开始学习，请稍后重试");
         setSubmitting(false);
       }
     })();
@@ -365,10 +383,10 @@ export default function ReviewWordList() {
             onClick={handleSubmit}
             disabled={submitting}
             loading={submitting}
-            loadingText="提交中…"
+            loadingText="准备中…"
             className={`w-full ${markedCount === 0 && words.length > 0 ? "opacity-80" : ""}`}
           >
-            完成复习
+            开始学习
             {markedCount > 0 ? ` (${markedCount})` : ""}
           </CloudButton>
           {hint && (
@@ -376,7 +394,7 @@ export default function ReviewWordList() {
           )}
           {!hint && markedCount === 0 && words.length > 0 && (
             <p className="text-center text-xs text-[#A0AEC0]">
-              点右侧 ✓ / × 标记；选几个交几个，未选的词今天仍可继续复习
+              先勾选要复习的词，再进入跟课前检测一样的练习流程
             </p>
           )}
         </div>

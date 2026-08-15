@@ -1,6 +1,6 @@
 import { Lightbulb, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudSelect } from "../components/cloudsteps/arco";
 import { FlowPageShell } from "../components/PageTransition";
@@ -10,6 +10,8 @@ import { useAuthStore } from "../stores/authStore";
 import {
   listAllTeacherCoachingQuotas,
   getTeacherCoachingWeek,
+  listStudentWordBooksAsTeacher,
+  type StudentWordBookItem,
   type TeacherCoachingQuotaRow,
 } from "../api/coaching";
 import {
@@ -68,6 +70,8 @@ export default function WordTraining() {
   const initialPick = resolvePick(initialBooks);
 
   const [wordBooks, setWordBooks] = useState<CachedWordBook[]>(initialBooks);
+  const [studentWordBooks, setStudentWordBooks] = useState<StudentWordBookItem[]>([]);
+  const userPickedByStudent = useRef<Record<string, number>>({});
   const [selectedWordBookId, setSelectedWordBookId] = useState<number>(initialPick?.id || 0);
   const [memoryData, setMemoryData] = useState<LighthouseDay[]>(() => {
     const id = initialPick?.id || 0;
@@ -104,13 +108,16 @@ export default function WordTraining() {
     setTodayNewLearned(Number(data.todayNewLearned ?? 0));
   };
 
-  const pickWordBook = (wb: { id: number; name: string }) => {
+  const pickWordBook = (wb: { id: number; name: string }, opts?: { fromUser?: boolean }) => {
     const cached = getCachedLighthouse(wb.id);
     if (cached) applyLighthouse(cached);
     setSelectedWordBookId(wb.id);
     sessionStorage.setItem("lb_wordbook_id", String(wb.id));
     sessionStorage.setItem("lb_wordbook_name", wb.name);
     revalidateLighthouse(wb.id);
+    if (opts?.fromUser && studentId) {
+      userPickedByStudent.current[studentId] = wb.id;
+    }
   };
 
   useEffect(() => {
@@ -188,6 +195,50 @@ export default function WordTraining() {
     };
   }, []);
 
+  // 教练选学员时：拉取学员词库，优先展示；仅一本则自动选中（除非该学员已手动选过）
+  useEffect(() => {
+    if (!isCoach || !studentId) {
+      setStudentWordBooks([]);
+      return;
+    }
+    let mounted = true;
+    const sid = Number(studentId);
+    (async () => {
+      try {
+        const res = await listStudentWordBooksAsTeacher(sid);
+        if (!mounted) return;
+        const list = res.code === 200 && Array.isArray(res.data?.list) ? res.data.list : [];
+        setStudentWordBooks(list);
+
+        const manualId = userPickedByStudent.current[studentId];
+        if (manualId) {
+          const fromAssigned = list.find((b) => b.id === manualId);
+          const fromGlobal =
+            fromAssigned ||
+            (getCachedWordBooks() || []).find((b) => b.id === manualId) ||
+            wordBooks.find((b) => b.id === manualId);
+          if (fromAssigned) {
+            pickWordBook({ id: fromAssigned.id, name: fromAssigned.name });
+            return;
+          }
+          if (fromGlobal) {
+            pickWordBook({ id: fromGlobal.id, name: fromGlobal.name });
+            return;
+          }
+        }
+        if (list.length === 1) {
+          pickWordBook({ id: list[0].id, name: list[0].name });
+        }
+      } catch {
+        if (mounted) setStudentWordBooks([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to student change
+  }, [isCoach, studentId]);
+
   useEffect(() => {
     let mounted = true;
     if (!selectedWordBookId) return;
@@ -215,10 +266,27 @@ export default function WordTraining() {
     };
   }, [selectedWordBookId]);
 
-  const wordBookOptions = wordBooks.map((w) => ({
-    label: w.name,
-    value: String(w.id),
-  }));
+  const wordBookOptions = useMemo(() => {
+    const assignedIds = new Set(studentWordBooks.map((b) => b.id));
+    const assigned = studentWordBooks.map((b) => ({
+      label: `学员词库 · ${b.name}`,
+      value: String(b.id),
+    }));
+    const rest = wordBooks
+      .filter((w) => !assignedIds.has(w.id))
+      .map((w) => ({
+        label: w.name,
+        value: String(w.id),
+      }));
+    // 学员词库可能不在全局缓存里，补全名称查找
+    return [...assigned, ...rest];
+  }, [studentWordBooks, wordBooks]);
+
+  const findWordBookName = (id: number) => {
+    const fromStudent = studentWordBooks.find((b) => b.id === id);
+    if (fromStudent) return fromStudent.name;
+    return wordBooks.find((x) => x.id === id)?.name || "";
+  };
 
   const studentOptions = useMemo(
     () =>
@@ -238,12 +306,12 @@ export default function WordTraining() {
           value={selectedWordBookId ? String(selectedWordBookId) : undefined}
           onChange={(v) => {
             const id = Number(v);
-            const wb = wordBooks.find((x) => x.id === id);
-            if (wb) pickWordBook(wb);
+            const name = findWordBookName(id);
+            if (id && name) pickWordBook({ id, name }, { fromUser: true });
           }}
           options={wordBookOptions}
-          placeholder={wordBooks.length ? "选择词库" : "加载词库中…"}
-          disabled={!wordBooks.length}
+          placeholder={wordBooks.length || studentWordBooks.length ? "选择词库" : "加载词库中…"}
+          disabled={!wordBooks.length && !studentWordBooks.length}
           showSearch
           allowClear={false}
           sheetTitle="选择词库"

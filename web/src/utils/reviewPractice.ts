@@ -1,0 +1,52 @@
+/** 抗遗忘 / 训前复习：勾选后进入与课前检测相同的练习链路 */
+
+export type ReviewPracticeWord = {
+  id: number;
+  word: string;
+  phonetic?: string;
+  phoneticUk?: string;
+  phoneticUs?: string;
+  translation?: string;
+  audioUrl?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * 将已选复习词写入 session，并进入单词练习 → 听音 → 快闪 → 组内检测。
+ * @param returnPath 复习结束后回跳路径（如 /anti-forgetting、/word-training）
+ */
+export function beginReviewPractice(opts: {
+  sessionId: number;
+  wordBookId: number;
+  words: ReviewPracticeWord[];
+  returnPath: string;
+}) {
+  const { sessionId, wordBookId, words, returnPath } = opts;
+  if (!sessionId || words.length === 0) {
+    throw new Error("复习会话或单词为空");
+  }
+  sessionStorage.setItem("lb_mode", "review");
+  sessionStorage.setItem("lb_review_session_id", String(sessionId));
+  sessionStorage.setItem("lb_review_wordbook_id", String(wordBookId));
+  sessionStorage.setItem("lb_review_words", JSON.stringify(words));
+  sessionStorage.setItem("lb_review_batch_idx", "0");
+  sessionStorage.setItem("lb_review_return", returnPath);
+  sessionStorage.removeItem("lb_review_results");
+  sessionStorage.removeItem("lb_study_check_phase");
+  sessionStorage.removeItem("lb_study_retry_words");
+  sessionStorage.removeItem("lb_study_pending_action");
+  sessionStorage.removeItem("lb_study_recheck_words");
+  sessionStorage.removeItem("lb_study_recheck_from");
+}
+
+export function getReviewReturnPath(fallback = "/anti-forgetting") {
+  return sessionStorage.getItem("lb_review_return") || fallback;
+}
+
+export function clearReviewPracticeSession() {
+  sessionStorage.removeItem("lb_review_batch_idx");
+  sessionStorage.removeItem("lb_review_results");
+  sessionStorage.removeItem("lb_review_words");
+  sessionStorage.removeItem("lb_review_session_id");
+  sessionStorage.removeItem("lb_review_return");
+}
