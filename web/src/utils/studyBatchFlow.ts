@@ -75,7 +75,7 @@ export function getCheckPhaseLabel(
   if (phase === "final") {
     return {
       title: "训后检测",
-      hint: `训练已全部完成 · 共 ${totalBatches} 个小批 · 请勾选掌握情况`,
+      hint: "",
     };
   }
   const { startBatch, endBatch } = getMilestoneCheckBatchRange(batchIdx, totalBatches);

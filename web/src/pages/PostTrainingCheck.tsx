@@ -1,8 +1,9 @@
-import { Volume2, Check, X, BookOpen } from "lucide-react";
+import { Volume2, Check, X, BookOpen, Shuffle, Pause } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticePauseMenu } from "../components/PracticePauseMenu";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
@@ -32,6 +33,7 @@ import {
   STUDY_RECHECK_WORDS_KEY,
   type StudyCheckPhase,
 } from "../utils/studyBatchFlow";
+import { clearReviewPracticeSession, getReviewReturnPath } from "../utils/reviewPractice";
 
 type CheckWord = {
   id: number;
@@ -76,6 +78,7 @@ export default function PostTrainingCheck() {
   const navigate = useNavigate();
   const [words, setWords] = useState<CheckWord[]>([]);
   const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
@@ -142,12 +145,7 @@ export default function PostTrainingCheck() {
 
   const handleBack = () => {
     if (mode === "review") {
-      const wordBookId = sessionStorage.getItem("lb_review_wordbook_id");
-      if (wordBookId) {
-        navigate(`/review-word-list?wordBookId=${wordBookId}`);
-        return;
-      }
-      navigate("/material-selection", { replace: true });
+      navigate(getReviewReturnPath("/anti-forgetting"));
       return;
     }
     if (window.history.length > 1) navigate(-1);
@@ -234,6 +232,11 @@ export default function PostTrainingCheck() {
     );
   };
 
+  const handleShuffle = () => {
+    setWords((prev) => [...prev].sort(() => Math.random() - 0.5));
+    setCardIndex(0);
+  };
+
   const appendMilestoneResults = (results: { wordId: number; remembered: boolean }[]) => {
     try {
       const raw = sessionStorage.getItem("lb_study_batch_results") || "[]";
@@ -276,6 +279,7 @@ export default function PostTrainingCheck() {
 
   const wrongWords = useMemo(() => words.filter((w) => w.status === "wrong"), [words]);
   const allMarked = useMemo(() => words.length > 0 && words.every((w) => w.status !== null), [words]);
+  const unmarkedCount = useMemo(() => words.filter((w) => w.status === null).length, [words]);
 
   const submitLabel = useMemo(() => {
     if (mode === "review") return "完成复习";
@@ -360,9 +364,9 @@ export default function PostTrainingCheck() {
           if (res.code !== 200) {
             throw new Error(res.msg || "提交失败");
           }
-          sessionStorage.removeItem("lb_review_batch_idx");
-          sessionStorage.removeItem("lb_review_results");
-          navigate("/material-selection", { replace: true });
+          const returnPath = getReviewReturnPath("/anti-forgetting");
+          clearReviewPracticeSession();
+          navigate(returnPath, { replace: true });
           return;
         }
 
@@ -441,6 +445,14 @@ export default function PostTrainingCheck() {
               onClick={() => setAnnotationOpen((v) => !v)}
             />
             <PracticeFontSettingsButton />
+            <CloudButton
+              type="button"
+              variant="ghost"
+              size="iconRound"
+              onClick={() => setShowPauseMenu((v) => !v)}
+            >
+              <Pause size={18} className="text-[#2D3748]" />
+            </CloudButton>
           </div>
         }
       />
@@ -452,7 +464,7 @@ export default function PostTrainingCheck() {
       />
 
       <div className="px-4 mt-4 pb-36 max-w-2xl mx-auto w-full">
-        {mode === "study" && (
+        {mode === "study" && phaseLabels.hint && (
           <p className="text-center text-sm text-[#718096] mb-4">{phaseLabels.hint}</p>
         )}
         <WordMarkStatsBar
@@ -565,6 +577,10 @@ export default function PostTrainingCheck() {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
+              <Shuffle size={16} />
+              乱序
+            </CloudButton>
             <CloudButton
               variant={detailMode ? "brand" : "outline"}
               size="pill"
@@ -610,12 +626,17 @@ export default function PostTrainingCheck() {
           {submitLabel}
         </CloudButton>
         {!allMarked && words.length > 0 && (
-          <p className="text-center text-xs text-[#A0AEC0] mt-2">
-            请为每个单词选择 ✓ 或 × 后再提交
+          <p className="text-center text-sm text-[#FF6B6B] mt-2 font-medium">
+            还有 {unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交
           </p>
         )}
         </div>
       </div>
+
+      <PracticePauseMenu
+        open={showPauseMenu}
+        onClose={() => setShowPauseMenu(false)}
+      />
     </FlowPageShell>
   );
 }
