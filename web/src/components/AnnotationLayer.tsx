@@ -6,11 +6,13 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
+  ArrowLeftRight,
   ArrowUpLeft,
   Circle,
   Eraser,
   Highlighter,
   Pencil,
+  Plus,
   Redo2,
   Square,
   Trash2,
@@ -22,6 +24,8 @@ import {
 } from "lucide-react";
 
 type Tool = "pen" | "eraser" | "highlighter" | "select" | "circle" | "rect" | "text";
+type BrushMode = "fountain" | "pencil";
+type DockSide = "left" | "right";
 
 type Stroke = {
   tool: Tool;
@@ -29,15 +33,68 @@ type Stroke = {
   width: number;
   points: Array<{ x: number; y: number }>;
   text?: string;
+  brush?: BrushMode;
 };
 
 const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#a855f7", "#111827", "#ffffff"];
+const CUSTOM_COLORS_KEY = "lb_anno_custom_colors";
+const LAST_COLOR_KEY = "lb_anno_last_color";
+const DOCK_SIDE_KEY = "lb_anno_dock_side";
+const MAX_CUSTOM_COLORS = 8;
 
 type AnnotationLayerProps = {
   storageKey: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
+
+function loadCustomColors(): string[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_COLORS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((c): c is string => typeof c === "string").slice(0, MAX_CUSTOM_COLORS);
+  } catch {
+    return [];
+  }
+}
+
+function loadLastColor(): string {
+  try {
+    const c = localStorage.getItem(LAST_COLOR_KEY);
+    if (c && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(c)) return c;
+  } catch {
+    // ignore
+  }
+  return "#111827";
+}
+
+function loadDockSide(): DockSide {
+  try {
+    const s = localStorage.getItem(DOCK_SIDE_KEY);
+    if (s === "left" || s === "right") return s;
+  } catch {
+    // ignore
+  }
+  return "right";
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const full =
+    h.length === 3
+      ? h
+          .split("")
+          .map((ch) => ch + ch)
+          .join("")
+      : h.slice(0, 6);
+  if (full.length !== 6) return hex;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   if (s.tool === "text" && s.text && s.points[0]) {
@@ -59,6 +116,8 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
     ctx.globalCompositeOperation = "source-over";
     ctx.strokeStyle = s.color;
     ctx.lineWidth = s.width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.beginPath();
     ctx.ellipse(cx, cy, Math.max(rx, 0.5), Math.max(ry, 0.5), 0, 0, Math.PI * 2);
     ctx.stroke();
@@ -71,6 +130,8 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
     ctx.globalCompositeOperation = "source-over";
     ctx.strokeStyle = s.color;
     ctx.lineWidth = s.width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.strokeRect(
       Math.min(a.x, b.x),
       Math.min(a.y, b.y),
@@ -81,8 +142,15 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   }
 
   if (s.points.length < 2) return;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+
+  if (s.tool === "highlighter") {
+    ctx.lineCap = "butt";
+    ctx.lineJoin = "miter";
+  } else {
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+  }
+
   ctx.lineWidth = s.width;
   if (s.tool === "eraser") {
     ctx.globalCompositeOperation = "destination-out";
@@ -90,6 +158,9 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   } else if (s.tool === "highlighter") {
     ctx.globalCompositeOperation = "source-over";
     ctx.strokeStyle = s.color.length === 7 ? `${s.color}66` : s.color;
+  } else if (s.tool === "pen" && s.brush === "pencil") {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = hexToRgba(s.color, 0.55);
   } else {
     ctx.globalCompositeOperation = "source-over";
     ctx.strokeStyle = s.color;
@@ -103,18 +174,58 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
 }
 
 /**
- * 批注层：可描画/擦除/形状/文字，关闭后保留，再次打开恢复
+ * 批注层：可描画/擦除/图形/文字，关闭后保留，再次打开恢复
  */
 export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [tool, setTool] = useState<Tool>("pen");
-  const [color, setColor] = useState("#111827");
+  const [brushMode, setBrushMode] = useState<BrushMode>("fountain");
+  const [color, setColor] = useState(loadLastColor);
+  const [customColors, setCustomColors] = useState<string[]>(loadCustomColors);
   const [width, setWidth] = useState(4);
   const [collapsed, setCollapsed] = useState(false);
+  const [dockSide, setDockSide] = useState<DockSide>(loadDockSide);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [redoStack, setRedoStack] = useState<Stroke[]>([]);
   const drawingRef = useRef(false);
   const currentRef = useRef<Stroke | null>(null);
+
+  const selectColor = useCallback((c: string) => {
+    setColor(c);
+    try {
+      localStorage.setItem(LAST_COLOR_KEY, c);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const saveCustomColor = useCallback(() => {
+    const normalized = color.toLowerCase();
+    setCustomColors((prev) => {
+      const next = [normalized, ...prev.filter((c) => c.toLowerCase() !== normalized)].slice(
+        0,
+        MAX_CUSTOM_COLORS
+      );
+      try {
+        localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, [color]);
+
+  const toggleDockSide = useCallback(() => {
+    setDockSide((prev) => {
+      const next: DockSide = prev === "right" ? "left" : "right";
+      try {
+        localStorage.setItem(DOCK_SIDE_KEY, next);
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
 
   const redraw = useCallback((list: Stroke[]) => {
     const canvas = canvasRef.current;
@@ -202,11 +313,18 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     e.currentTarget.setPointerCapture(e.pointerId);
     drawingRef.current = true;
     const p = getPos(e);
+    let strokeWidth = width;
+    if (tool === "highlighter") {
+      strokeWidth = Math.max(width * 3, 12);
+    } else if (tool === "pen" && brushMode === "pencil") {
+      strokeWidth = Math.max(1, width * 0.65);
+    }
     currentRef.current = {
       tool,
       color,
-      width: tool === "highlighter" ? Math.max(width * 3, 12) : width,
+      width: strokeWidth,
       points: [p],
+      ...(tool === "pen" ? { brush: brushMode } : {}),
     };
     setRedoStack([]);
   };
@@ -283,6 +401,31 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     </button>
   );
 
+  const brushChip = (
+    id: BrushMode | "highlighter",
+    label: string,
+    active: boolean,
+    onClick: () => void
+  ) => (
+    <button
+      key={id}
+      type="button"
+      onClick={onClick}
+      className={`flex-1 h-8 rounded-lg text-xs border ${
+        active
+          ? "border-primary bg-primary-soft text-primary"
+          : "border-border text-charcoal hover:bg-muted"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  const isRight = dockSide === "right";
+  const collapsedTranslate = isRight
+    ? "translate-x-[calc(100%-1.25rem)]"
+    : "-translate-x-[calc(100%-1.25rem)]";
+
   return (
     <>
       <canvas
@@ -297,30 +440,51 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
       />
 
       <div
-        className={`fixed z-[80] top-16 right-3 transition-transform ${
-          collapsed ? "translate-x-[calc(100%-1.25rem)]" : ""
-        }`}
+        className={`fixed z-[80] top-16 transition-transform ${
+          isRight ? "right-3" : "left-3"
+        } ${collapsed ? collapsedTranslate : ""}`}
       >
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
-          className="absolute -left-5 top-1/2 -translate-y-1/2 w-5 h-10 rounded-l-md bg-card border border-border border-r-0 flex items-center justify-center text-muted-foreground"
+          className={`absolute top-1/2 -translate-y-1/2 w-5 h-10 bg-card border border-border flex items-center justify-center text-muted-foreground ${
+            isRight
+              ? "-left-5 rounded-l-md border-r-0"
+              : "-right-5 rounded-r-md border-l-0"
+          }`}
           aria-label={collapsed ? "展开画笔工具" : "收起画笔工具"}
         >
-          {collapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+          {isRight ? (
+            collapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />
+          ) : collapsed ? (
+            <ChevronRight size={14} />
+          ) : (
+            <ChevronLeft size={14} />
+          )}
         </button>
 
         <div className="w-[260px] rounded-xl border border-border bg-card shadow-lg overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 border-b border-border">
             <span className="text-sm font-semibold text-foreground">画笔工具</span>
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-              aria-label="关闭批注"
-            >
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={toggleDockSide}
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                aria-label={isRight ? "停靠到左侧" : "停靠到右侧"}
+                title={isRight ? "停靠左侧" : "停靠右侧"}
+              >
+                <ArrowLeftRight size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground"
+                aria-label="关闭批注"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           <div className="p-3 space-y-3">
@@ -362,20 +526,74 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
             </div>
 
             <div>
+              <div className="text-[11px] text-muted-foreground mb-1.5">笔刷</div>
+              <div className="flex gap-1.5">
+                {brushChip("fountain", "钢笔", tool === "pen" && brushMode === "fountain", () => {
+                  setTool("pen");
+                  setBrushMode("fountain");
+                })}
+                {brushChip("pencil", "铅笔", tool === "pen" && brushMode === "pencil", () => {
+                  setTool("pen");
+                  setBrushMode("pencil");
+                })}
+                {brushChip("highlighter", "荧光笔", tool === "highlighter", () => {
+                  setTool("highlighter");
+                })}
+              </div>
+            </div>
+
+            <div>
               <div className="text-[11px] text-muted-foreground mb-1.5">颜色</div>
               <div className="flex flex-wrap gap-1.5">
                 {COLORS.map((c) => (
                   <button
                     key={c}
                     type="button"
-                    onClick={() => setColor(c)}
+                    onClick={() => selectColor(c)}
                     className={`w-6 h-6 rounded-full border-2 ${
-                      color === c ? "border-primary scale-110" : "border-border"
+                      color.toLowerCase() === c.toLowerCase() ? "border-primary scale-110" : "border-border"
                     }`}
                     style={{ backgroundColor: c }}
                     aria-label={c}
                   />
                 ))}
+              </div>
+              {customColors.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {customColors.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => selectColor(c)}
+                      className={`w-6 h-6 rounded-full border-2 ${
+                        color.toLowerCase() === c.toLowerCase()
+                          ? "border-primary scale-110"
+                          : "border-border"
+                      }`}
+                      style={{ backgroundColor: c }}
+                      aria-label={`自定义 ${c}`}
+                    />
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="color"
+                  value={color.length === 7 ? color : "#111827"}
+                  onChange={(e) => selectColor(e.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border border-border bg-transparent p-0.5"
+                  title="自定义颜色"
+                  aria-label="自定义颜色"
+                />
+                <button
+                  type="button"
+                  onClick={saveCustomColor}
+                  className="h-8 px-2 rounded-lg border border-border text-xs text-charcoal hover:bg-muted inline-flex items-center gap-1"
+                  title="保存当前颜色"
+                >
+                  <Plus size={12} />
+                  保存
+                </button>
               </div>
             </div>
 

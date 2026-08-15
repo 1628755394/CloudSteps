@@ -87,10 +87,14 @@ export const useClassTimerStore = create<ClassTimerState>()(
         if (!endsAt || !startedAt || remindEveryMin <= 0) return false;
         const now = Date.now();
         if (now >= endsAt) return false;
-        const intervalMs = remindEveryMin * 60_000;
-        const last = lastIntervalRemindAt ?? startedAt;
-        if (now - last < intervalMs) return false;
-        if (endsAt - now < intervalMs / 2) return false;
+        // 仅在「最后 N 分钟」提醒一次（进入该窗口后触发一次）
+        const windowMs = remindEveryMin * 60_000;
+        const remaining = endsAt - now;
+        if (remaining > windowMs) return false;
+        // 已提醒过（lastIntervalRemindAt 被标为 endsAt 哨兵）则不再弹
+        if (lastIntervalRemindAt != null && lastIntervalRemindAt >= endsAt - windowMs) {
+          return false;
+        }
         set({ lastIntervalRemindAt: now });
         return true;
       },

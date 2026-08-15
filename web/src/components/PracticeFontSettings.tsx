@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Settings, Type, Check, Minus, Plus } from "lucide-react";
+import { Settings, Type, Check, Minus, Plus, Bold } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 
 const STORAGE_KEY = "lb_practice_display";
@@ -7,19 +7,21 @@ const STORAGE_KEY = "lb_practice_display";
 export type PracticeFontFamily =
   | "sans"
   | "nunito"
-  | "lexend"
-  | "hand"
-  | "kaiti"
   | "serif"
-  | "mono";
+  | "italic"
+  | "italian";
 
 type PracticeDisplaySettings = {
   /** 单词字号，单位 px */
   wordSizePx: number;
   fontFamily: PracticeFontFamily;
+  bold: boolean;
 };
 
-const FAMILY_PRESETS: Record<PracticeFontFamily, { label: string; value: string }> = {
+const FAMILY_PRESETS: Record<
+  PracticeFontFamily,
+  { label: string; value: string; style?: "italic" | "normal" }
+> = {
   sans: {
     label: "默认",
     value:
@@ -29,26 +31,19 @@ const FAMILY_PRESETS: Record<PracticeFontFamily, { label: string; value: string 
     label: "圆润",
     value: 'Nunito, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
   },
-  lexend: {
-    label: "英文清晰",
-    value: 'Lexend, "Plus Jakarta Sans", "PingFang SC", sans-serif',
-  },
-  hand: {
-    label: "英文手写",
-    value: '"Patrick Hand", "Segoe Print", "Comic Sans MS", cursive',
-  },
-  kaiti: {
-    label: "楷体",
-    value: 'KaiTi, "STKaiti", "Kaiti SC", "Noto Serif SC", serif',
-  },
   serif: {
     label: "衬线",
     value: 'Georgia, "Songti SC", "Noto Serif SC", "STSong", serif',
   },
-  mono: {
-    label: "等宽",
-    value:
-      '"Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  italic: {
+    label: "斜体",
+    value: '"Palatino Linotype", Palatino, "Times New Roman", serif',
+    style: "italic",
+  },
+  italian: {
+    label: "意大利体",
+    value: '"Brush Script MT", "Segoe Script", "Apple Chancery", cursive',
+    style: "italic",
   },
 };
 
@@ -61,6 +56,7 @@ const WORD_SIZE_DEFAULT = 26;
 const DEFAULTS: PracticeDisplaySettings = {
   wordSizePx: WORD_SIZE_DEFAULT,
   fontFamily: "sans",
+  bold: false,
 };
 
 /** 释义相对单词略小 */
@@ -82,6 +78,13 @@ function migrateLegacySize(raw: unknown): number | null {
   return null;
 }
 
+function migrateFontFamily(raw: unknown): PracticeFontFamily {
+  if (typeof raw === "string" && raw in FAMILY_PRESETS) {
+    return raw as PracticeFontFamily;
+  }
+  return DEFAULTS.fontFamily;
+}
+
 function readSettings(): PracticeDisplaySettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -90,12 +93,9 @@ function readSettings(): PracticeDisplaySettings {
     const fromPx = migrateLegacySize(parsed.wordSizePx);
     const fromLegacy = migrateLegacySize(parsed.fontSize);
     const wordSizePx = fromPx ?? fromLegacy ?? DEFAULTS.wordSizePx;
-    const fontFamily =
-      typeof parsed.fontFamily === "string" &&
-      FAMILY_PRESETS[parsed.fontFamily as PracticeFontFamily]
-        ? (parsed.fontFamily as PracticeFontFamily)
-        : DEFAULTS.fontFamily;
-    return { wordSizePx: clampWordSize(wordSizePx), fontFamily };
+    const fontFamily = migrateFontFamily(parsed.fontFamily);
+    const bold = typeof parsed.bold === "boolean" ? parsed.bold : DEFAULTS.bold;
+    return { wordSizePx: clampWordSize(wordSizePx), fontFamily, bold };
   } catch {
     return { ...DEFAULTS };
   }
@@ -108,6 +108,11 @@ function applyCssVars(settings: PracticeDisplaySettings) {
   root.style.setProperty("--practice-word-size", `${wordPx}px`);
   root.style.setProperty("--practice-trans-size", `${translationSizePx(wordPx)}px`);
   root.style.setProperty("--practice-font-family", family.value);
+  root.style.setProperty("--practice-font-weight", settings.bold ? "700" : "500");
+  root.style.setProperty(
+    "--practice-font-style",
+    family.style === "italic" ? "italic" : "normal"
+  );
 }
 
 // 尽早应用已保存偏好（默认字号偏大）
@@ -117,7 +122,7 @@ if (typeof document !== "undefined") {
 
 /** 单词展示样式：练习页统一挂这个 class */
 export const PRACTICE_WORD_CLASS =
-  "practice-word font-medium text-[#2D3748] [font-family:var(--practice-font-family)] [font-size:var(--practice-word-size)]";
+  "practice-word text-[#2D3748] [font-family:var(--practice-font-family)] [font-size:var(--practice-word-size)] [font-weight:var(--practice-font-weight)] [font-style:var(--practice-font-style)]";
 
 export const PRACTICE_TRANS_CLASS =
   "practice-translation text-[#718096] [font-family:var(--practice-font-family)] [font-size:var(--practice-trans-size)]";
@@ -140,6 +145,7 @@ export function PracticeFontSettingsButton() {
       const next: PracticeDisplaySettings = {
         wordSizePx: clampWordSize(patch.wordSizePx ?? prev.wordSizePx),
         fontFamily: patch.fontFamily ?? prev.fontFamily,
+        bold: patch.bold ?? prev.bold,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       applyCssVars(next);
@@ -150,6 +156,8 @@ export function PracticeFontSettingsButton() {
   const bump = (delta: number) => {
     update({ wordSizePx: settings.wordSizePx + delta });
   };
+
+  const previewFamily = FAMILY_PRESETS[settings.fontFamily];
 
   return (
     <div className="relative">
@@ -238,11 +246,30 @@ export function PracticeFontSettingsButton() {
               <span className="text-[10px] text-[#A0AEC0]">{WORD_SIZE_MAX}px</span>
             </div>
 
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] text-[#A0AEC0]">加粗</span>
+              <button
+                type="button"
+                aria-label="加粗"
+                aria-pressed={settings.bold}
+                onClick={() => update({ bold: !settings.bold })}
+                className={`size-8 rounded-lg border flex items-center justify-center transition-colors ${
+                  settings.bold
+                    ? "border-primary bg-primary-soft text-primary"
+                    : "border-[#E2E8F0] text-[#2D3748] hover:border-primary/40"
+                }`}
+              >
+                <Bold size={14} />
+              </button>
+            </div>
+
             <p
               className="mb-3 rounded-lg bg-[#F7F9FC] px-2.5 py-2 text-center text-[#2D3748] truncate"
               style={{
                 fontSize: settings.wordSizePx,
-                fontFamily: FAMILY_PRESETS[settings.fontFamily].value,
+                fontFamily: previewFamily.value,
+                fontWeight: settings.bold ? 700 : 500,
+                fontStyle: previewFamily.style === "italic" ? "italic" : "normal",
                 lineHeight: 1.2,
               }}
             >
@@ -261,7 +288,10 @@ export function PracticeFontSettingsButton() {
                       ? "border-primary bg-primary-soft text-primary"
                       : "border-[#E2E8F0] text-[#2D3748] hover:border-primary/40"
                   }`}
-                  style={{ fontFamily: FAMILY_PRESETS[id].value }}
+                  style={{
+                    fontFamily: FAMILY_PRESETS[id].value,
+                    fontStyle: FAMILY_PRESETS[id].style === "italic" ? "italic" : "normal",
+                  }}
                 >
                   <span>{FAMILY_PRESETS[id].label}</span>
                   {settings.fontFamily === id && <Check size={14} />}

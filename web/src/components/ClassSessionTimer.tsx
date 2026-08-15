@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clock, X } from "lucide-react";
+import { Clock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -64,7 +64,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
   const [durationMin, setDurationMin] = useState(storeDuration || 45);
   const [custom, setCustom] = useState("");
   const [remindEveryMin, setRemindEveryMin] = useState(
-    REMIND_PRESETS.includes(storeRemind) ? storeRemind : 10
+    REMIND_PRESETS.includes(storeRemind) ? storeRemind : 5
   );
   const [starting, setStarting] = useState(false);
   const [studentName, setStudentName] = useState(() => getTrainingStudent()?.name || "");
@@ -73,7 +73,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
     if (!open) return;
     setDurationMin(storeDuration || 45);
     setCustom("");
-    setRemindEveryMin(REMIND_PRESETS.includes(storeRemind) ? storeRemind : 10);
+    setRemindEveryMin(REMIND_PRESETS.includes(storeRemind) ? storeRemind : 5);
     setStudentName(getTrainingStudent()?.name || "");
   }, [open, storeDuration, storeRemind]);
 
@@ -93,7 +93,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm rounded-2xl">
+      <DialogContent className="max-w-sm rounded-2xl" hideClose>
         <DialogHeader>
           <DialogTitle>上课定时</DialogTitle>
           <DialogDescription>
@@ -101,7 +101,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
               ? studentName
                 ? `当前学员：${studentName}（无排课练习时时长计入该学员）`
                 : "请先在首页选择学员，再开始定时"
-              : "选择课时长与中途提醒"}
+              : "选择课时长与最后提醒"}
           </DialogDescription>
         </DialogHeader>
 
@@ -146,7 +146,9 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
           </div>
 
           <div>
-            <p className="text-sm font-medium text-foreground mb-2">中途提醒</p>
+            <p className="text-sm font-medium text-foreground mb-2">
+              最后提醒（剩余多少分钟时提醒一次）
+            </p>
             <div className="flex flex-wrap gap-2">
               {REMIND_PRESETS.map((m) => (
                 <button
@@ -159,10 +161,13 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
                       : "bg-card text-muted-foreground border-border hover:border-primary/40"
                   }`}
                 >
-                  每 {m} 分
+                  {m} 分
                 </button>
               ))}
             </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              将在最后 {remindEveryMin} 分钟提醒一次
+            </p>
           </div>
 
           {endsAt && (
@@ -219,7 +224,9 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
                     billing: billingLink,
                   });
                   onOpenChange(false);
-                  showToast.success(`已开始 ${mins} 分钟定时，每 ${remindEveryMin} 分钟提醒`);
+                  showToast.success(
+                    `已开始 ${mins} 分钟定时，最后 ${remindEveryMin} 分钟提醒一次`
+                  );
                 } finally {
                   setStarting(false);
                 }
@@ -285,7 +292,7 @@ export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
 }
 
 /**
- * 全站上课定时：浮动倒计时（无顶栏入口的页面）+ 到点 / 中途提醒
+ * 全站上课定时：浮动倒计时（无顶栏入口的页面）+ 到点 / 最后提醒
  */
 export function ClassSessionTimer() {
   const endsAt = useClassTimerStore((s) => s.endsAt);
@@ -320,9 +327,7 @@ export function ClassSessionTimer() {
       if (ms > 0 && state.takeIntervalRemind()) {
         setIntervalOpen(true);
         playBeep(660, 0.18);
-        showToast.info(
-          `中途提醒：已过 ${state.remindEveryMin} 分钟，剩余 ${formatCountdown(ms)}`
-        );
+        showToast.info(`最后 ${state.remindEveryMin} 分钟提醒，剩余 ${formatCountdown(ms)}`);
       }
 
       if (ms <= 0 && !state.endedNotified) {
@@ -332,8 +337,9 @@ export function ClassSessionTimer() {
         playBeep(880, 0.25);
         showToast.warning("上课时间到");
         void finishPracticeBilling(state.billing);
-        // 保留 billing 直到用户关闭弹窗；结算已做完，避免重复结算
-        useClassTimerStore.setState({ billing: state.billing ? { ...state.billing, owned: false } : null });
+        useClassTimerStore.setState({
+          billing: state.billing ? { ...state.billing, owned: false } : null,
+        });
       }
     };
     tick();
@@ -355,25 +361,17 @@ export function ClassSessionTimer() {
             <Clock size={14} />
             {formatCountdown(left)}
           </button>
-          <button
-            type="button"
-            aria-label="结束定时"
-            onClick={() => void settleAndStop()}
-            className="size-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/55"
-          >
-            <X size={14} />
-          </button>
         </div>
       )}
 
       <ClassTimerSetupDialog open={setupOpen} onOpenChange={setSetupOpen} wordCount={wordCount} />
 
       <Dialog open={intervalOpen} onOpenChange={setIntervalOpen}>
-        <DialogContent className="max-w-sm rounded-2xl">
+        <DialogContent className="max-w-sm rounded-2xl" hideClose>
           <DialogHeader>
-            <DialogTitle>中途提醒</DialogTitle>
+            <DialogTitle>最后提醒</DialogTitle>
             <DialogDescription>
-              已过去约 {remindEveryMin} 分钟，剩余 {formatCountdown(left)}
+              进入最后 {remindEveryMin} 分钟，剩余 {formatCountdown(left)}
               {billing?.studentName ? ` · ${billing.studentName}` : ""}
               {wordCount > 0 ? ` · 本节约 ${wordCount} 词` : ""}。
             </DialogDescription>
@@ -393,7 +391,7 @@ export function ClassSessionTimer() {
           if (!o) useClassTimerStore.getState().stop();
         }}
       >
-        <DialogContent className="max-w-sm rounded-2xl">
+        <DialogContent className="max-w-sm rounded-2xl" hideClose>
           <DialogHeader>
             <DialogTitle>上课时间到</DialogTitle>
             <DialogDescription>
