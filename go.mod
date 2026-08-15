@@ -4,11 +4,9 @@ go 1.26.2
 
 require (
 	github.com/LingByte/ling-base/common v0.2.0
-	github.com/LingByte/ling-base/common/idgen v0.1.0
 	github.com/LingByte/ling-base/common/random v0.1.0
 	github.com/LingByte/ling-base/i18n v0.1.0
 	github.com/LingByte/ling-base/i18n/gin v0.1.0
-	github.com/LingByte/ling-base/i18n/mymemory v0.1.0
 	github.com/LingByte/lingllm v1.2.0
 	github.com/LingByte/lingstorage-sdk-go v0.0.0-20260113030255-ff9d0501909c
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
@@ -35,7 +33,6 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/sirupsen/logrus v1.9.4
-	github.com/spf13/cast v1.10.0
 	github.com/stretchr/testify v1.11.1
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.75
 	github.com/volcengine/ve-tos-golang-sdk/v2 v2.9.8
@@ -57,7 +54,8 @@ require (
 	cloud.google.com/go/texttospeech v1.21.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
-	github.com/LingByte/ling-base/constants v0.0.0-00010101000000-000000000000 // indirect
+	github.com/LingByte/ling-base/common/idgen v0.1.0 // indirect
+	github.com/LingByte/ling-base/constants v0.1.0 // indirect
 	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.16 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.35 // indirect
@@ -145,6 +143,7 @@ require (
 	github.com/richardlehane/mscfb v1.0.6 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/rs/xid v1.6.0 // indirect
+	github.com/spf13/cast v1.10.0 // indirect
 	github.com/tencentcloud/tencentcloud-speech-sdk-go v1.0.25 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect
@@ -187,14 +186,4 @@ require (
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect
 	modernc.org/sqlite v1.23.1 // indirect
-)
-
-replace (
-	github.com/LingByte/ling-base/common => ../../ling-base/common
-	github.com/LingByte/ling-base/common/idgen => ../../ling-base/common/idgen
-	github.com/LingByte/ling-base/common/random => ../../ling-base/common/random
-	github.com/LingByte/ling-base/constants => ../../ling-base/constants
-	github.com/LingByte/ling-base/i18n => ../../ling-base/i18n
-	github.com/LingByte/ling-base/i18n/gin => ../../ling-base/i18n/gin
-	github.com/LingByte/ling-base/i18n/mymemory => ../../ling-base/i18n/mymemory
 )
