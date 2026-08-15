@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudMonthPicker } from "../components/cloudsteps/arco";
+import { VocabTestResultView } from "../components/VocabTestResultView";
 import {
   getStudentCoachingSessionAsTeacher,
   getStudentStudySessionAsTeacher,
@@ -249,8 +250,8 @@ export default function StudentTrainingRecords() {
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => navigate("/my-students")}
-          aria-label="返回学员管理"
+          onClick={() => navigate(`/my-students/${studentId}`)}
+          aria-label="返回学员详情"
           className="shrink-0"
         >
           <ChevronLeft size={20} />
@@ -398,38 +399,17 @@ export default function StudentTrainingRecords() {
               {detailLoading ? (
                 <div className="text-[#718096]">加载中…</div>
               ) : detailKind === "vocab_test" && detailVocab ? (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl bg-[#F7F9FC] p-3">
-                      <div className="text-xs text-[#718096]">记录 ID</div>
-                      <div className="text-sm font-semibold text-[#2D3748] mt-1">#{detailVocab.id}</div>
-                    </div>
-                    <div className="rounded-xl bg-[#F7F9FC] p-3">
-                      <div className="text-xs text-[#718096]">完成时间</div>
-                      <div className="text-sm font-semibold text-[#2D3748] mt-1">
-                        {formatDateTime(detailVocab.completedAt || detailVocab.createdAt)}
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-[#F7F9FC] p-3">
-                      <div className="text-xs text-[#718096]">测评等级</div>
-                      <div className="text-sm font-semibold text-[#2D3748] mt-1">
-                        {detailVocab.estimatedLevel}
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-[#F7F9FC] p-3">
-                      <div className="text-xs text-[#718096]">估算词汇量</div>
-                      <div className="text-sm font-semibold text-[#2D3748] mt-1">
-                        {detailVocab.estimatedVocab}
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-[#F7F9FC] p-3">
-                      <div className="text-xs text-[#718096]">正确题数</div>
-                      <div className="text-sm font-semibold text-[#2D3748] mt-1">
-                        {detailVocab.correctCount}/{detailVocab.questionCount}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 rounded-2xl border border-[#E2E8F0] overflow-hidden">
+                <div className="space-y-4">
+                  <VocabTestResultView
+                    compact
+                    result={{
+                      level: detailVocab.estimatedLevel,
+                      estimatedVocab: detailVocab.estimatedVocab,
+                      correctCount: detailVocab.correctCount,
+                      totalCount: detailVocab.questionCount,
+                    }}
+                  />
+                  <div className="rounded-2xl border border-[#E2E8F0] overflow-hidden bg-white">
                     <div className="px-4 py-3 bg-white border-b border-[#E2E8F0] text-sm font-semibold text-[#2D3748]">
                       答题明细
                     </div>
@@ -457,7 +437,7 @@ export default function StudentTrainingRecords() {
                       )}
                     </div>
                   </div>
-                </>
+                </div>
               ) : detailKind === "coaching_session" && detailCoaching ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">

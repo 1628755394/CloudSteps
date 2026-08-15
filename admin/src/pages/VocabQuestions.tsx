@@ -57,6 +57,9 @@ export default function VocabQuestions() {
   const batchLockRef = useRef(false)
   const [purgingAudio, setPurgingAudio] = useState(false)
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false)
+  const [purgingAllAudio, setPurgingAllAudio] = useState(false)
+  const [showPurgeAllConfirm, setShowPurgeAllConfirm] = useState(false)
+  const [purgeAllProgress, setPurgeAllProgress] = useState<{ processed: number; total: number } | null>(null)
 
   const handleGenerateAudio = async () => {
     if (!form.word?.trim()) {
@@ -198,6 +201,95 @@ export default function VocabQuestions() {
     }
   }
 
+  const runPurgeAllAudio = async () => {
+    if (purgingAllAudio) return
+    setPurgingAllAudio(true)
+    try {
+      const res = await post<{
+        status?: string
+        started?: boolean
+        total?: number
+        cleared?: number
+        processed?: number
+        objectsAttempted?: number
+        objectsFailed?: number
+        error?: string
+      }>(`${getApiBaseURL()}/vocab/questions/purge-all-audio`)
+      if (res.code !== 200) {
+        showAlert(res.msg || '启动清除失败', 'error')
+        setPurgingAllAudio(false)
+        return
+      }
+      setShowPurgeAllConfirm(false)
+      if (res.data?.status === 'done' && (res.data?.total ?? 0) === 0) {
+        showAlert('没有需要清除的音频', 'info')
+        setPurgingAllAudio(false)
+        return
+      }
+      showAlert(res.msg || '已在后台开始清除，完成后会自动刷新', 'info')
+      await pollPurgeAllAudioStatus()
+    } catch (e: any) {
+      showAlert(e?.msg || e?.message || '启动清除失败', 'error')
+      setPurgingAllAudio(false)
+    }
+  }
+
+  const pollPurgeAllAudioStatus = async () => {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    for (;;) {
+      try {
+        const res = await get<{
+          status?: string
+          total?: number
+          processed?: number
+          cleared?: number
+          objectsAttempted?: number
+          objectsFailed?: number
+          error?: string
+        }>(`${getApiBaseURL()}/vocab/questions/purge-all-audio`)
+        if (res.code !== 200) {
+          showAlert(res.msg || '查询清除进度失败', 'error')
+          setPurgingAllAudio(false)
+          setPurgeAllProgress(null)
+          return
+        }
+        const data = res.data || {}
+        const status = data.status || 'idle'
+        if (status === 'running') {
+          setPurgingAllAudio(true)
+          setPurgeAllProgress({
+            processed: data.processed ?? 0,
+            total: data.total ?? 0,
+          })
+          await sleep(1500)
+          continue
+        }
+        setPurgeAllProgress(null)
+        setPurgingAllAudio(false)
+        if (status === 'failed') {
+          showAlert(data.error || '清除失败', 'error')
+          return
+        }
+        if (status === 'done') {
+          const cleared = data.cleared ?? 0
+          const attempted = data.objectsAttempted ?? 0
+          const failed = data.objectsFailed ?? 0
+          showAlert(
+            `清除完成：题目 ${cleared} 条（对象删除 ${attempted}，失败 ${failed}）`,
+            failed > 0 ? 'warning' : 'success'
+          )
+          fetchList()
+        }
+        return
+      } catch (e: any) {
+        showAlert(e?.msg || e?.message || '查询清除进度失败', 'error')
+        setPurgingAllAudio(false)
+        setPurgeAllProgress(null)
+        return
+      }
+    }
+  }
+
   // 导入
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showImportModal, setShowImportModal] = useState(false)
@@ -230,6 +322,30 @@ export default function VocabQuestions() {
   }, [page, pageSize, level, keyword])
 
   useEffect(() => { fetchList() }, [fetchList])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await get<{ status?: string; processed?: number; total?: number }>(
+          `${getApiBaseURL()}/vocab/questions/purge-all-audio`
+        )
+        if (cancelled || res.code !== 200) return
+        if (res.data?.status === 'running') {
+          setPurgingAllAudio(true)
+          setPurgeAllProgress({
+            processed: res.data.processed ?? 0,
+            total: res.data.total ?? 0,
+          })
+          await pollPurgeAllAudioStatus()
+        }
+      } catch {
+        // ignore
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const openCreate = () => { setEditing(null); setForm(emptyForm()); setOptionsArr(['', '', '', '']); setModalOpen(true) }
 
@@ -379,9 +495,18 @@ export default function VocabQuestions() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">词汇测评题库</h1>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <button onClick={() => setShowPurgeConfirm(true)} disabled={loading || purgingAudio}
+            <button onClick={() => setShowPurgeConfirm(true)} disabled={loading || purgingAudio || purgingAllAudio}
               className="flex items-center gap-2 px-3 py-2 border border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300 rounded-lg text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50">
               <VolumeX className="w-4 h-4" /> {purgingAudio ? '检测中...' : '检测音频是否可用'}
+            </button>
+            <button onClick={() => setShowPurgeAllConfirm(true)} disabled={loading || purgingAudio || purgingAllAudio}
+              className="flex items-center gap-2 px-3 py-2 border border-red-300 dark:border-red-600 text-red-600 dark:text-red-300 rounded-lg text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50">
+              {purgingAllAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {purgingAllAudio
+                ? (purgeAllProgress
+                  ? `清除中 (${purgeAllProgress.processed}/${purgeAllProgress.total})`
+                  : '清除中...')
+                : '清除全部音频'}
             </button>
             <button
               onClick={handleBatchAudio}
@@ -674,11 +799,25 @@ export default function VocabQuestions() {
         }}
         onConfirm={runPurgeBadAudio}
         title="检测音频是否可用"
-        message="将检测所有已填写音频的题目，无法正常访问的音频链接会被清空。是否继续？"
+        message="将检测所有已填写音频的题目，无法正常访问的音频会先从对象存储删除再清空链接。是否继续？"
         confirmText="开始检测"
         cancelText="取消"
         variant="warning"
         loading={purgingAudio}
+      />
+
+      <ConfirmDialog
+        isOpen={showPurgeAllConfirm}
+        onClose={() => {
+          if (!purgingAllAudio) setShowPurgeAllConfirm(false)
+        }}
+        onConfirm={runPurgeAllAudio}
+        title="清除全部音频"
+        message="将在后台异步删除题库中全部音频文件（对象存储 Delete），并清空 audio_url。题目本身不会删除。此操作不可恢复，是否继续？"
+        confirmText="后台清除"
+        cancelText="取消"
+        variant="danger"
+        loading={purgingAllAudio}
       />
 
     </AdminLayout>

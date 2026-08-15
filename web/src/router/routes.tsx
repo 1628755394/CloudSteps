@@ -38,6 +38,7 @@ import { RouteErrorBoundary } from "../components/RouteErrorBoundary";
 import { PublicOnly, RequireAuth, RequireRole } from "../components/AuthGuard";
 import MyStudents from "../pages/MyStudents";
 import CreateStudent from "../pages/CreateStudent";
+import StudentDetail from "../pages/StudentDetail";
 import StudentTrainingRecords from "../pages/StudentTrainingRecords";
 import WordBooks from "../pages/WordBooks";
 import WordBookWords from "../pages/WordBookWords";
@@ -77,6 +78,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRole roles={["user", "teacher", "admin"]}>
             <StudentTrainingRecords />
+          </RequireRole>
+        ),
+      },
+      {
+        path: "my-students/:studentId",
+        element: (
+          <RequireRole roles={["user", "teacher", "admin"]}>
+            <StudentDetail />
           </RequireRole>
         ),
       },
