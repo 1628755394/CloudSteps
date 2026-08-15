@@ -6,6 +6,9 @@ require (
 	github.com/LingByte/ling-base/common v0.0.0-00010101000000-000000000000
 	github.com/LingByte/ling-base/common/idgen v0.0.0-00010101000000-000000000000
 	github.com/LingByte/ling-base/common/random v0.0.0-00010101000000-000000000000
+	github.com/LingByte/ling-base/i18n v0.0.0
+	github.com/LingByte/ling-base/i18n/gin v0.0.0-00010101000000-000000000000
+	github.com/LingByte/ling-base/i18n/mymemory v0.0.0-00010101000000-000000000000
 	github.com/LingByte/lingllm v1.2.0
 	github.com/LingByte/lingstorage-sdk-go v0.0.0-20260113030255-ff9d0501909c
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
@@ -39,7 +42,7 @@ require (
 	github.com/xuri/excelize/v2 v2.10.1
 	go.uber.org/zap v1.27.1
 	golang.org/x/image v0.38.0
-	golang.org/x/net v0.55.0
+	golang.org/x/net v0.57.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.2
 )
@@ -162,7 +165,7 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.22.0 // indirect
-	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
@@ -191,4 +194,7 @@ replace (
 	github.com/LingByte/ling-base/common/idgen => ../../ling-base/common/idgen
 	github.com/LingByte/ling-base/common/random => ../../ling-base/common/random
 	github.com/LingByte/ling-base/constants => ../../ling-base/constants
+	github.com/LingByte/ling-base/i18n => ../../ling-base/i18n
+	github.com/LingByte/ling-base/i18n/gin => ../../ling-base/i18n/gin
+	github.com/LingByte/ling-base/i18n/mymemory => ../../ling-base/i18n/mymemory
 )

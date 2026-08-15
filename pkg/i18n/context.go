@@ -1,27 +1,23 @@
+// Package i18n - context helpers re-exported from ling-base/i18n.
 package i18n
 
 import (
 	"context"
+
+	basei18n "github.com/LingByte/ling-base/i18n"
 )
 
-type contextKey string
-
-const localeKey contextKey = "locale"
-
-// WithLocale adds locale to context
+// WithLocale adds locale to context (delegated to ling-base).
 func WithLocale(ctx context.Context, locale Locale) context.Context {
-	return context.WithValue(ctx, localeKey, locale)
+	return basei18n.WithLocale(ctx, locale)
 }
 
-// GetLocaleFromContext gets locale from context
+// GetLocaleFromContext gets locale from context (delegated to ling-base).
 func GetLocaleFromContext(ctx context.Context) Locale {
-	if locale, ok := ctx.Value(localeKey).(Locale); ok {
-		return locale
-	}
-	return DefaultLocale
+	return basei18n.GetLocaleFromContext(ctx)
 }
 
-// SetLocale sets locale in context
+// SetLocale sets locale in context (delegated to ling-base).
 func SetLocale(ctx context.Context, locale Locale) context.Context {
-	return WithLocale(ctx, locale)
+	return basei18n.SetLocale(ctx, locale)
 }

@@ -21,8 +21,8 @@ func TestNewManager(t *testing.T) {
 	if manager == nil {
 		t.Fatal("expected non-nil manager")
 	}
-	if manager.defaultLocale != DefaultLocale {
-		t.Errorf("expected default locale %s, got %s", DefaultLocale, manager.defaultLocale)
+	if manager.GetDefaultLocale() != DefaultLocale {
+		t.Errorf("expected default locale %s, got %s", DefaultLocale, manager.GetDefaultLocale())
 	}
 }
 
@@ -33,11 +33,11 @@ func TestNewManager_WithConfig(t *testing.T) {
 		FallbackLocale:   "en",
 	}
 	manager := NewManager(config)
-	if manager.defaultLocale != "zh-CN" {
-		t.Errorf("expected default locale zh-CN, got %s", manager.defaultLocale)
+	if manager.GetDefaultLocale() != "zh-CN" {
+		t.Errorf("expected default locale zh-CN, got %s", manager.GetDefaultLocale())
 	}
-	if len(manager.supportedLocales) != 3 {
-		t.Errorf("expected 3 supported locales, got %d", len(manager.supportedLocales))
+	if len(manager.GetSupportedLocales()) != 3 {
+		t.Errorf("expected 3 supported locales, got %d", len(manager.GetSupportedLocales()))
 	}
 }
 

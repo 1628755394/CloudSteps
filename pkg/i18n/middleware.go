@@ -1,102 +1,33 @@
+// Package i18n - gin middleware re-exported from ling-base/i18n/gin.
 package i18n
 
 import (
+	basegin "github.com/LingByte/ling-base/i18n/gin"
 	"github.com/gin-gonic/gin"
 )
 
-// Middleware creates a Gin middleware for i18n
+// Middleware creates a Gin middleware for i18n (delegated to ling-base).
 func Middleware(manager *Manager) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Try to get locale from query parameter
-		locale := c.Query("locale")
-		if locale == "" {
-			// Try to get from header
-			locale = c.GetHeader("Accept-Language")
-		}
-		if locale == "" {
-			// Try to get from cookie
-			cookie, err := c.Cookie("locale")
-			if err == nil {
-				locale = cookie
-			}
-		}
-
-		// Detect locale
-		var detectedLocale Locale
-		if locale != "" {
-			detectedLocale = manager.ParseAcceptLanguage(locale)
-		} else {
-			detectedLocale = manager.GetDefaultLocale()
-		}
-
-		// Set locale in context
-		c.Set("locale", detectedLocale)
-		c.Set("i18n", manager)
-
-		// Add to request context
-		c.Request = c.Request.WithContext(WithLocale(c.Request.Context(), detectedLocale))
-
-		c.Next()
-	}
+	return basegin.Middleware(manager)
 }
 
-// GetLocaleFromGin gets locale from Gin context
+// GetLocaleFromGin gets locale from Gin context.
+// CloudSteps-specific alias for ling-base's gin.GetLocale.
 func GetLocaleFromGin(c *gin.Context) Locale {
-	if locale, ok := c.Get("locale"); ok {
-		if l, ok := locale.(Locale); ok {
-			return l
-		}
-	}
-	return DefaultLocale
+	return basegin.GetLocale(c)
 }
 
-// T translates a key in Gin context
+// T translates a key in Gin context (delegated to ling-base).
 func T(c *gin.Context, key string, args ...interface{}) string {
-	locale := GetLocaleFromGin(c)
-	if manager, ok := c.Get("i18n"); ok {
-		if m, ok := manager.(*Manager); ok {
-			return m.T(locale, key, args...)
-		}
-	}
-	return key
+	return basegin.T(c, key, args...)
 }
 
-// ResponseJSON sends a localized JSON response
+// ResponseJSON sends a localized JSON response (delegated to ling-base).
 func ResponseJSON(c *gin.Context, code int, key string, data interface{}) {
-	locale := GetLocaleFromGin(c)
-	var message string
-	if manager, ok := c.Get("i18n"); ok {
-		if m, ok := manager.(*Manager); ok {
-			message = m.T(locale, key)
-		}
-	}
-	if message == "" {
-		message = key
-	}
-
-	c.JSON(code, gin.H{
-		"message": message,
-		"data":    data,
-		"locale":  locale,
-	})
+	basegin.ResponseJSON(c, code, key, data)
 }
 
-// ErrorJSON sends a localized error JSON response
+// ErrorJSON sends a localized error JSON response (delegated to ling-base).
 func ErrorJSON(c *gin.Context, code int, key string, err error) {
-	locale := GetLocaleFromGin(c)
-	var message string
-	if manager, ok := c.Get("i18n"); ok {
-		if m, ok := manager.(*Manager); ok {
-			message = m.T(locale, key)
-		}
-	}
-	if message == "" {
-		message = key
-	}
-
-	c.JSON(code, gin.H{
-		"error":  message,
-		"detail": err.Error(),
-		"locale": locale,
-	})
+	basegin.ErrorJSON(c, code, key, err)
 }

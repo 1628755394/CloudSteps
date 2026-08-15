@@ -92,58 +92,8 @@ func TestFormatter_FormatRelativeTime(t *testing.T) {
 	}
 }
 
-func TestFormatter_GetNumberFormat(t *testing.T) {
-	formatterEN := NewFormatter("en")
-	format := formatterEN.getNumberFormat()
-	if format.DecimalSeparator != "." {
-		t.Error("expected . as decimal separator for en")
-	}
-
-	formatterDE := NewFormatter("de")
-	formatDE := formatterDE.getNumberFormat()
-	if formatDE.DecimalSeparator != "," {
-		t.Error("expected , as decimal separator for de")
-	}
-}
-
-func TestFormatter_GetCurrencyFormat(t *testing.T) {
-	formatterEN := NewFormatter("en")
-	format := formatterEN.getCurrencyFormat()
-	if format.Symbol != "$" {
-		t.Errorf("expected $, got %s", format.Symbol)
-	}
-
-	formatterCN := NewFormatter("zh-CN")
-	formatCN := formatterCN.getCurrencyFormat()
-	if formatCN.Symbol != "¥" {
-		t.Errorf("expected ¥, got %s", formatCN.Symbol)
-	}
-}
-
-func TestFormatter_GetDateFormat(t *testing.T) {
-	formatterEN := NewFormatter("en-US")
-	format := formatterEN.getDateFormat()
-	if format == "" {
-		t.Error("expected non-empty date format")
-	}
-
-	formatterCN := NewFormatter("zh-CN")
-	formatCN := formatterCN.getDateFormat()
-	if formatCN != "YYYY-MM-DD" {
-		t.Errorf("expected YYYY-MM-DD, got %s", formatCN)
-	}
-}
-
-func TestFormatter_AddThousandSeparators(t *testing.T) {
-	formatter := NewFormatter("en")
-
-	result := formatter.addThousandSeparators("1234567", ",", ".")
-	if result != "1,234,567" {
-		t.Errorf("expected '1,234,567', got '%s'", result)
-	}
-
-	result = formatter.addThousandSeparators("1234.56", ",", ".")
-	if result != "1,234.56" {
-		t.Errorf("expected '1,234.56', got '%s'", result)
-	}
-}
+// Note: Tests for internal methods (getNumberFormat, getCurrencyFormat,
+// getDateFormat, addThousandSeparators) have been removed because those
+// methods are now unexported in ling-base. The public API tests above
+// (FormatNumber, FormatCurrency, FormatDate, FormatRelativeTime) provide
+// equivalent coverage through the public interface.
