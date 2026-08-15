@@ -20,6 +20,8 @@ github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/LingByte/ling-base v0.2.0 h1:tnd8VfWzJ87vFuekhGIaaNagy0/wNGEtDjJXJfamn2g=
 github.com/LingByte/ling-base v0.2.0/go.mod h1:hvY3juLG2VXXLILEUZq4dVRRIKcWRLNTKJECuHcu4m4=
+github.com/LingByte/ling-base/bootstrap v0.1.0 h1:bNbvNwYL8EExkcIANFUbe+JSi5fY8o3bXmsy62Qo/tU=
+github.com/LingByte/ling-base/bootstrap v0.1.0/go.mod h1:n5ia6BK1bO7iQNNG91+8CymFHyV/F49rOiYAmwU5KWw=
 github.com/LingByte/ling-base/captcha v0.2.0 h1:SOqdM3N7bRWpd82gcG9EkL+8+LMkxqDQvOhXirdCPWo=
 github.com/LingByte/ling-base/captcha v0.2.0/go.mod h1:zwPT/zI0IcCq+g9420N2UyEZrYt5yb9bSuk3jeefDT0=
 github.com/LingByte/ling-base/common v0.2.0 h1:0aaRch4mxNruY5+Pg1xXLRWLEf7ihlmqKJwdHj7lf3o=
@@ -34,6 +36,10 @@ github.com/LingByte/ling-base/common/response/gin v0.1.0 h1:G+MGBf00BNctoi2AiFg4
 github.com/LingByte/ling-base/common/response/gin v0.1.0/go.mod h1:Pg2JU0eSl6TuILiZwTCEc9jtAaGo4NzPIn4hXuy/pjE=
 github.com/LingByte/ling-base/constants v0.1.0 h1:xGVVvIEJXHmCM03ANL6uPuqk2MK3y87LzesLfXgmLQs=
 github.com/LingByte/ling-base/constants v0.1.0/go.mod h1:LYfNMki0Qfbcj2sr502VKtlZmUMXiinhK8/DXx2YtkY=
+github.com/LingByte/ling-base/eventbus v0.1.0 h1:KkCbKk1IXfElGUjnH2OquwQ8cBFDiKkRygdsBCaC75c=
+github.com/LingByte/ling-base/eventbus v0.1.0/go.mod h1:XC3zpS1kuyS88vYT9yKAfA53ttmHTYCmGHTM57Or+Zw=
+github.com/LingByte/ling-base/eventbus/memory v0.1.0 h1:6QvEn4VXrLm8fE99F5i23UwbbK2UvvjWo/N2JfZZfEk=
+github.com/LingByte/ling-base/eventbus/memory v0.1.0/go.mod h1:XNC5snfSNXe+3Joi18LPjukZQcFB0y+y+xFyYomGb9M=
 github.com/LingByte/ling-base/i18n v0.1.0 h1:Bm4dsVuWbb5FYHHBU9gnNM1Od/MUeu417qZFb1vQY2s=
 github.com/LingByte/ling-base/i18n v0.1.0/go.mod h1:fvCvlqdDfArMOWwk6Wy8BRhsCnvJAUUfIqEuPz0jj1E=
 github.com/LingByte/ling-base/i18n/gin v0.1.0 h1:HRmgLe0sI/8KPB7aiRPN12wwG2VYOIPogGeICeHeF2o=
@@ -64,6 +70,8 @@ github.com/LingByte/ling-base/stores/s3 v0.1.0 h1:iMNYJHyZKileKwHYsrIG2ZQ7frkemV
 github.com/LingByte/ling-base/stores/s3 v0.1.0/go.mod h1:jt9cvYvZmdufPRlHU5bUp33ho3fStJW90ti06lrbWgU=
 github.com/LingByte/ling-base/stores/tos v0.1.0 h1:pzGe0U9exINWg//hOMJKHrAclesphEelm5Ar7/5B/xI=
 github.com/LingByte/ling-base/stores/tos v0.1.0/go.mod h1:98xvDVnQpUA+dooHAnqxxlC317PGFJ7ZoYK71O6URPY=
+github.com/LingByte/ling-base/version v0.1.0 h1:/5YAc3Rm4BS3/zNM0uvGeWA4aYj3jNDtWffAaeGSFx8=
+github.com/LingByte/ling-base/version v0.1.0/go.mod h1:qCTolpNUJyAcrXDZKmADX29AcolXfRKUiip0LnZ+HpA=
 github.com/LingByte/lingllm v1.2.0 h1:DP+5PLCS676y2Q1pmjmXMd25B7YxhXOPI3oEltfGbRs=
 github.com/LingByte/lingllm v1.2.0/go.mod h1:Ofd86MF1cdPflPlj3wmiIIwkBfiVuj3TEhofGaGhfwc=
 github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82 h1:7dONQ3WNZ1zy960TmkxJPuwoolZwL7xKtpcM04MBnt4=

@@ -4,6 +4,7 @@ go 1.26.2
 
 require (
 	github.com/LingByte/ling-base v0.2.0
+	github.com/LingByte/ling-base/bootstrap v0.1.0
 	github.com/LingByte/ling-base/captcha v0.2.0
 	github.com/LingByte/ling-base/common v0.2.0
 	github.com/LingByte/ling-base/common/random v0.1.0
@@ -56,7 +57,10 @@ require (
 	github.com/LingByte/ling-base/common/idgen v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/response v0.1.0 // indirect
 	github.com/LingByte/ling-base/constants v0.1.0 // indirect
+	github.com/LingByte/ling-base/eventbus v0.1.0 // indirect
+	github.com/LingByte/ling-base/eventbus/memory v0.1.0 // indirect
 	github.com/LingByte/ling-base/notification v0.1.0 // indirect
+	github.com/LingByte/ling-base/version v0.1.0 // indirect
 	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82 // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible // indirect
 	github.com/aws/aws-sdk-go-v2 v1.43.5 // indirect

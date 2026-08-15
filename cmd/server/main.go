@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/cmd/bootstrap"
+	csbootstrap "github.com/LingByte/CloudStepsGo/cmd/bootstrap"
 	"github.com/LingByte/CloudStepsGo/internal/handlers"
 	"github.com/LingByte/CloudStepsGo/internal/listeners"
 	"github.com/LingByte/CloudStepsGo/internal/models"
@@ -17,6 +17,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/CloudStepsGo/pkg/utils/backup"
+	"github.com/LingByte/ling-base/bootstrap"
 	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
 	"github.com/LingByte/ling-base/logger"
@@ -73,7 +74,7 @@ func main() {
 	}
 
 	// 7. Load Data Source
-	db, err := bootstrap.SetupDatabase(os.Stdout, &bootstrap.Options{
+	db, err := csbootstrap.SetupDatabase(os.Stdout, &csbootstrap.Options{
 		InitSQLPath: *initSQL, // Can be specified via --init-sql
 		AutoMigrate: *init,    // Whether to migrate entities
 		SeedNonProd: *seed,    // Non-production default configuration

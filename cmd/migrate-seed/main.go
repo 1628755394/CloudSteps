@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/LingByte/CloudStepsGo/cmd/bootstrap"
+	csbootstrap "github.com/LingByte/CloudStepsGo/cmd/bootstrap"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/ling-base/logger"
 )
@@ -18,7 +18,7 @@ func main() {
 		panic(err)
 	}
 
-	db, err := bootstrap.SetupDatabase(os.Stdout, &bootstrap.Options{
+	db, err := csbootstrap.SetupDatabase(os.Stdout, &csbootstrap.Options{
 		AutoMigrate: true,
 		SeedNonProd: true,
 	})
