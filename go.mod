@@ -3,7 +3,7 @@ module github.com/LingByte/CloudStepsGo
 go 1.26.2
 
 require (
-	github.com/LingByte/ling-base/common v0.1.0
+	github.com/LingByte/ling-base/common v0.2.0
 	github.com/LingByte/ling-base/common/idgen v0.1.0
 	github.com/LingByte/ling-base/common/random v0.1.0
 	github.com/LingByte/ling-base/i18n v0.1.0
