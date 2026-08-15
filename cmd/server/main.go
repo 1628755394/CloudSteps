@@ -16,7 +16,6 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
-	"github.com/LingByte/CloudStepsGo/pkg/utils/backup"
 	"github.com/LingByte/ling-base/bootstrap"
 	"github.com/LingByte/ling-base/cache/lru"
 	"github.com/LingByte/ling-base/captcha"
@@ -183,10 +182,6 @@ func main() {
 	// Start Email Cleaner Task
 	task.StartEmailCleaner(db)
 	task.StartCoachingAutoEnd(db)
-	// Start Backup Data
-	if config.GlobalConfig.Features.BackupEnabled {
-		backup.StartBackupScheduler()
-	}
 
 	// 15. Initialize Gin Routing
 	gin.SetMode(gin.ReleaseMode)

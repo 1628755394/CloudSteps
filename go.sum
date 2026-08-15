@@ -28,8 +28,6 @@ github.com/LingByte/ling-base/captcha v0.2.0 h1:SOqdM3N7bRWpd82gcG9EkL+8+LMkxqDQ
 github.com/LingByte/ling-base/captcha v0.2.0/go.mod h1:zwPT/zI0IcCq+g9420N2UyEZrYt5yb9bSuk3jeefDT0=
 github.com/LingByte/ling-base/common v0.3.0 h1:KACwvDspAoKNQuo7KtqoK8qHOnbXHGp1rV923vubLA8=
 github.com/LingByte/ling-base/common v0.3.0/go.mod h1:j3kI9bvU0xaP0dMiZ1+a2STnyqJcb1w7Oy/dKMn0HA0=
-github.com/LingByte/ling-base/common/config v0.1.0 h1:ZjwPdsYw4Dy4HGySQCCXDMLfLiwjao1PnWe1dIKaxGw=
-github.com/LingByte/ling-base/common/config v0.1.0/go.mod h1:MVQE25l8KQ2YsBdFqsXh0nHYqUVA8RKYaFxpzdZDl9k=
 github.com/LingByte/ling-base/common/config v0.1.1 h1:DsFp8gxWiqg2YiXV4BVE4DWXayMH3iAOYZq0q/BmtPE=
 github.com/LingByte/ling-base/common/config v0.1.1/go.mod h1:tNGkMMvQOmNsq2MOJ2owgUm92j81E36Zl55X3yj21oo=
 github.com/LingByte/ling-base/common/idgen v0.1.0 h1:phZYlAcsBOUkqE7KQ2tx05R6pLaMWpBHl1OAiHDJOUk=
@@ -46,10 +44,6 @@ github.com/LingByte/ling-base/eventbus v0.1.0 h1:KkCbKk1IXfElGUjnH2OquwQ8cBFDiKk
 github.com/LingByte/ling-base/eventbus v0.1.0/go.mod h1:XC3zpS1kuyS88vYT9yKAfA53ttmHTYCmGHTM57Or+Zw=
 github.com/LingByte/ling-base/eventbus/memory v0.1.0 h1:6QvEn4VXrLm8fE99F5i23UwbbK2UvvjWo/N2JfZZfEk=
 github.com/LingByte/ling-base/eventbus/memory v0.1.0/go.mod h1:XNC5snfSNXe+3Joi18LPjukZQcFB0y+y+xFyYomGb9M=
-github.com/LingByte/ling-base/i18n v0.1.0 h1:Bm4dsVuWbb5FYHHBU9gnNM1Od/MUeu417qZFb1vQY2s=
-github.com/LingByte/ling-base/i18n v0.1.0/go.mod h1:fvCvlqdDfArMOWwk6Wy8BRhsCnvJAUUfIqEuPz0jj1E=
-github.com/LingByte/ling-base/i18n/gin v0.1.0 h1:HRmgLe0sI/8KPB7aiRPN12wwG2VYOIPogGeICeHeF2o=
-github.com/LingByte/ling-base/i18n/gin v0.1.0/go.mod h1:1VsgABwH949YbTSAiT/2QCtWMFJ1OBP1Ad6wItoVDTI=
 github.com/LingByte/ling-base/notification v0.1.0 h1:E47TRx4OfKa2G1ysAehoTGXkMhN/yLoQfO/OUkK/Amk=
 github.com/LingByte/ling-base/notification v0.1.0/go.mod h1:U6/5vaE3B+bVKlpqJvSQ4P4hpB8LxXZbXglNtxpLrEI=
 github.com/LingByte/ling-base/notification/email v0.1.0 h1:ye7tJ3fb67rDuIzqJZR4FvMBvZ6wEKceYYP2l5ntbXA=

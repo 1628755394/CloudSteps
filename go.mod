@@ -11,8 +11,6 @@ require (
 	github.com/LingByte/ling-base/common/config v0.1.1
 	github.com/LingByte/ling-base/common/random v0.1.0
 	github.com/LingByte/ling-base/common/response/gin v0.1.0
-	github.com/LingByte/ling-base/i18n v0.1.0
-	github.com/LingByte/ling-base/i18n/gin v0.1.0
 	github.com/LingByte/ling-base/notification/email v0.1.0
 	github.com/LingByte/ling-base/notification/inbox v0.1.0
 	github.com/LingByte/ling-base/stores v0.1.0
