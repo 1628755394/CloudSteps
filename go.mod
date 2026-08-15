@@ -3,12 +3,12 @@ module github.com/LingByte/CloudStepsGo
 go 1.26.2
 
 require (
-	github.com/LingByte/ling-base/common v0.0.0-00010101000000-000000000000
-	github.com/LingByte/ling-base/common/idgen v0.0.0-00010101000000-000000000000
-	github.com/LingByte/ling-base/common/random v0.0.0-00010101000000-000000000000
-	github.com/LingByte/ling-base/i18n v0.0.0
-	github.com/LingByte/ling-base/i18n/gin v0.0.0-00010101000000-000000000000
-	github.com/LingByte/ling-base/i18n/mymemory v0.0.0-00010101000000-000000000000
+	github.com/LingByte/ling-base/common v0.1.0
+	github.com/LingByte/ling-base/common/idgen v0.1.0
+	github.com/LingByte/ling-base/common/random v0.1.0
+	github.com/LingByte/ling-base/i18n v0.1.0
+	github.com/LingByte/ling-base/i18n/gin v0.1.0
+	github.com/LingByte/ling-base/i18n/mymemory v0.1.0
 	github.com/LingByte/lingllm v1.2.0
 	github.com/LingByte/lingstorage-sdk-go v0.0.0-20260113030255-ff9d0501909c
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
