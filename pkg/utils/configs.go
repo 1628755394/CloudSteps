@@ -4,7 +4,6 @@
 package utils
 
 import (
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -18,9 +17,9 @@ import (
 )
 
 // Re-export env functions from ling-base/common.
-// Note: LookupEnv is kept CloudSteps-specific because ling-base's version
-// searches upwards for .env files, which would change behavior.
 var (
+	GetEnv                 = common.GetEnv
+	LookupEnv              = common.LookupEnv
 	GetBoolEnv             = common.GetBoolEnv
 	GetFloatEnv            = common.GetFloatEnv
 	GetIntEnv              = common.GetIntEnv
@@ -31,67 +30,8 @@ var (
 // LoadEnvs delegates to ling-base/common.LoadEnvs.
 func LoadEnvs(objPtr any) { common.LoadEnvs(objPtr) }
 
-// ──────────────────────────────────────────────
-// CloudSteps-specific LookupEnv (only reads .env in current directory)
-// ──────────────────────────────────────────────
-
-var envCache *ExpiredLRUCache[string, string]
-
-func init() {
-	size := 1024
-	v, _ := strconv.ParseInt(GetEnv(constants.ENV_CONFIG_CACHE_SIZE), 10, 32)
-	if v > 0 {
-		size = int(v)
-	}
-
-	var envCacheExpired = 10 * time.Second
-	exp, err := time.ParseDuration(GetEnv(constants.ENV_CONFIG_CACHE_EXPIRED))
-	if err == nil {
-		envCacheExpired = exp
-	}
-
-	envCache = NewExpiredLRUCache[string, string](size, envCacheExpired)
-}
-
-func GetEnv(key string) string {
-	v, _ := LookupEnv(key)
-	return v
-}
-
-func LookupEnv(key string) (value string, found bool) {
-	key = strings.ToUpper(key)
-	if v, ok := os.LookupEnv(key); ok {
-		if envCache != nil {
-			envCache.Add(key, v)
-		}
-		return v, true
-	}
-	if envCache != nil {
-		if v, ok := envCache.Get(key); ok {
-			return v, true
-		}
-	}
-	data, err := os.ReadFile(".env")
-	if err == nil {
-		lines := strings.Split(string(data), "\n")
-		for i := 0; i < len(lines); i++ {
-			v := strings.TrimSpace(lines[i])
-			if v == "" || v[0] == '#' || !strings.Contains(v, "=") {
-				continue
-			}
-			vs := strings.SplitN(v, "=", 2)
-			k, vv := strings.ToUpper(strings.TrimSpace(vs[0])), strings.TrimSpace(vs[1])
-
-			if envCache != nil {
-				envCache.Add(k, vv)
-			}
-			if k == key {
-				return vv, true
-			}
-		}
-	}
-	return "", false
-}
+// LoadEnv delegates to ling-base/common.LoadEnv.
+func LoadEnv(env string) error { return common.LoadEnv(env) }
 
 // ──────────────────────────────────────────────
 // CloudSteps-specific database config (not in ling-base)
@@ -220,36 +160,6 @@ func LoadPublicConfigs(db *gorm.DB) []Config {
 		configValueCache.Add(v.Key, v.Value)
 	}
 	return configs
-}
-
-// LoadEnv Load .env file based on environment
-func LoadEnv(env string) error {
-	envFile := ".env"
-	if env != "" {
-		envFile = ".env." + env
-	}
-
-	data, err := os.ReadFile(envFile)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-		os.Setenv(key, value)
-	}
-
-	return nil
 }
 
 // Ensure reflect import is used (LoadEnvs is now delegated, but Config struct uses reflect indirectly).

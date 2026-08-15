@@ -15,7 +15,6 @@ import (
 
 	CloudStepsGo "github.com/LingByte/CloudStepsGo"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/cache"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
@@ -1149,7 +1148,6 @@ func (h *Handlers) handleUserUpdate(c *gin.Context) {
 	if err := models.UpdateProfileComplete(h.db, updatedUser); err != nil {
 		logger.Warn("Failed to update profile complete", zap.Error(err))
 	}
-	cache.Delete(c, constants.CacheKeyUserByID+strconv.Itoa(int(user.ID)))
 	response.Success(c, "update user success", updatedUser)
 }
 

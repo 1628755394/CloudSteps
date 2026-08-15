@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/cache"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	"github.com/LingByte/CloudStepsGo/pkg/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/common"
 	"github.com/LingByte/lingstorage-sdk-go"
 )
 
@@ -20,7 +20,6 @@ type Config struct {
 	Server       ServerConfig       `mapstructure:"server"`
 	Database     DatabaseConfig     `mapstructure:"database"`
 	Log          logger.LogConfig   `mapstructure:"log"`
-	Cache        cache.Config       `mapstructure:"cache"`
 	Auth         AuthConfig         `mapstructure:"auth"`
 	Services     ServicesConfig     `mapstructure:"services"`
 	Integrations IntegrationsConfig `mapstructure:"integrations"`
@@ -41,7 +40,6 @@ type ServerConfig struct {
 	APIPrefix     string `env:"API_PREFIX"`
 	AdminPrefix   string `env:"ADMIN_PREFIX"`
 	AuthPrefix    string `env:"AUTH_PREFIX"`
-	MonitorPrefix string `env:"MONITOR_PREFIX"`
 	SSLEnabled    bool   `env:"SSL_ENABLED"`
 	SSLCertFile   string `env:"SSL_CERT_FILE"`
 	SSLKeyFile    string `env:"SSL_KEY_FILE"`
@@ -256,7 +254,7 @@ var GlobalStore *lingstorage.Client
 func Load() error {
 	// 1. Load .env file based on environment (don't error if it doesn't exist, use default values)
 	env := os.Getenv("APP_ENV")
-	err := utils.LoadEnv(env)
+	err := common.LoadEnv(env)
 	if err != nil {
 		// Only log when .env file doesn't exist, don't affect startup
 		log.Printf("Note: .env file not found or failed to load: %v (using default values)", err)
@@ -264,7 +262,7 @@ func Load() error {
 
 	// 2. Load global configuration
 	GlobalConfig = &Config{
-		MachineID: utils.GetIntEnv("MACHINE_ID"),
+		MachineID: common.GetIntEnv("MACHINE_ID"),
 		Server: ServerConfig{
 			Name:          getStringOrDefault("SERVER_NAME", ""),
 			Desc:          getStringOrDefault("SERVER_DESC", ""),
@@ -277,7 +275,6 @@ func Load() error {
 			APIPrefix:     getStringOrDefault("API_PREFIX", "/api"),
 			AdminPrefix:   getStringOrDefault("ADMIN_PREFIX", "/admin"),
 			AuthPrefix:    getStringOrDefault("AUTH_PREFIX", "/auth"),
-			MonitorPrefix: getStringOrDefault("MONITOR_PREFIX", "/metrics"),
 			SSLEnabled:    getBoolOrDefault("SSL_ENABLED", false),
 			SSLCertFile:   getStringOrDefault("SSL_CERT_FILE", ""),
 			SSLKeyFile:    getStringOrDefault("SSL_KEY_FILE", ""),
@@ -294,7 +291,6 @@ func Load() error {
 			MaxBackups: getIntOrDefault("LOG_MAX_BACKUPS", 5),
 			Daily:      getBoolOrDefault("LOG_DAILY", true),
 		},
-		Cache: loadCacheConfig(),
 		Auth: AuthConfig{
 			Header:           getStringOrDefault("AUTH_HEADER", "Authorization"),
 			SessionSecret:    getStringOrDefault("SESSION_SECRET", generateDefaultSessionSecret()),
@@ -468,7 +464,7 @@ func (c *Config) Validate() error {
 
 // getStringOrDefault gets environment variable value, returns default if empty
 func getStringOrDefault(key, defaultValue string) string {
-	value := utils.GetEnv(key)
+	value := common.GetEnv(key)
 	if value == "" {
 		return defaultValue
 	}
@@ -477,16 +473,16 @@ func getStringOrDefault(key, defaultValue string) string {
 
 // getBoolOrDefault gets boolean environment variable value, returns default if empty
 func getBoolOrDefault(key string, defaultValue bool) bool {
-	value := utils.GetEnv(key)
+	value := common.GetEnv(key)
 	if value == "" {
 		return defaultValue
 	}
-	return utils.GetBoolEnv(key)
+	return common.GetBoolEnv(key)
 }
 
 // getIntOrDefault gets integer environment variable value, returns default if empty
 func getIntOrDefault(key string, defaultValue int) int {
-	value := utils.GetIntEnv(key)
+	value := common.GetIntEnv(key)
 	if value == 0 {
 		return defaultValue
 	}
@@ -495,7 +491,7 @@ func getIntOrDefault(key string, defaultValue int) int {
 
 // getFloatOrDefault gets float environment variable value, returns default if empty
 func getFloatOrDefault(key string, defaultValue float64) float64 {
-	value := utils.GetEnv(key)
+	value := common.GetEnv(key)
 	if value == "" {
 		return defaultValue
 	}
@@ -520,59 +516,10 @@ func parseDuration(s string, defaultVal time.Duration) time.Duration {
 
 // generateDefaultSessionSecret generates default session secret (for development only)
 func generateDefaultSessionSecret() string {
-	if secret := utils.GetEnv("SESSION_SECRET"); secret != "" {
+	if secret := common.GetEnv("SESSION_SECRET"); secret != "" {
 		return secret
 	}
 	return "default-secret-key-change-in-production-" + utils.RandText(16)
-}
-
-// loadCacheConfig loads cache configuration with all default values
-func loadCacheConfig() cache.Config {
-	cacheType := utils.GetEnv("CACHE_TYPE")
-	if cacheType == "" {
-		cacheType = "local"
-	}
-	redisAddr := utils.GetEnv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379"
-	}
-	redisDB := int(utils.GetIntEnv("REDIS_DB"))
-	if redisDB == 0 {
-		redisDB = 0
-	}
-	redisPoolSize := int(utils.GetIntEnv("REDIS_POOL_SIZE"))
-	if redisPoolSize == 0 {
-		redisPoolSize = 10
-	}
-	redisMinIdleConns := int(utils.GetIntEnv("REDIS_MIN_IDLE_CONNS"))
-	if redisMinIdleConns == 0 {
-		redisMinIdleConns = 5
-	}
-	localMaxSize := int(utils.GetIntEnv("LOCAL_CACHE_MAX_SIZE"))
-	if localMaxSize == 0 {
-		localMaxSize = 1000
-	}
-	localDefaultExpiration := parseDuration(utils.GetEnv("LOCAL_CACHE_DEFAULT_EXPIRATION"), 5*time.Minute)
-	localCleanupInterval := parseDuration(utils.GetEnv("LOCAL_CACHE_CLEANUP_INTERVAL"), 10*time.Minute)
-	return cache.Config{
-		Type: cacheType,
-		Redis: cache.RedisConfig{
-			Addr:         redisAddr,
-			Password:     utils.GetEnv("REDIS_PASSWORD"),
-			DB:           redisDB,
-			PoolSize:     redisPoolSize,
-			MinIdleConns: redisMinIdleConns,
-			DialTimeout:  parseDuration(utils.GetEnv("REDIS_DIAL_TIMEOUT"), 5*time.Second),
-			ReadTimeout:  parseDuration(utils.GetEnv("REDIS_READ_TIMEOUT"), 3*time.Second),
-			WriteTimeout: parseDuration(utils.GetEnv("REDIS_WRITE_TIMEOUT"), 3*time.Second),
-			IdleTimeout:  parseDuration(utils.GetEnv("REDIS_IDLE_TIMEOUT"), 5*time.Minute),
-		},
-		Local: cache.LocalConfig{
-			MaxSize:           localMaxSize,
-			DefaultExpiration: localDefaultExpiration,
-			CleanupInterval:   localCleanupInterval,
-		},
-	}
 }
 
 // loadMiddlewareConfig loads middleware configuration

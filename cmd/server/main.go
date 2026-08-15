@@ -12,7 +12,6 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/listeners"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/internal/task"
-	"github.com/LingByte/CloudStepsGo/pkg/cache"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
@@ -107,11 +106,6 @@ func main() {
 	logger.Info("checked config -- db-driver: ", zap.String("db-driver", DBDriver), zap.String("dsn", DSN))
 	logger.Info("checked config -- mode: ", zap.String("mode", config.GlobalConfig.Server.Mode))
 
-	// 9. Load Global Cache (new cache system)
-	if err := cache.InitGlobalCache(config.GlobalConfig.Cache); err != nil {
-		logger.Error("failed to initialize cache", zap.Error(err))
-		logger.Info("falling back to default local cache")
-	}
 	utils.InitGlobalCache(1024, 5*time.Minute)
 
 	// Initialize global registration guard

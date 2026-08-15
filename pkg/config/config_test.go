@@ -3,10 +3,16 @@ package config
 import (
 	"os"
 	"testing"
+
+	common "github.com/LingByte/ling-base/common"
 )
 
 // 为了避免不同用例间互相污染，统一用 t.Setenv 设置环境变量
 func setAllEnvs(t *testing.T) {
+	// Clear ling-base env cache so .env file values from project root
+	// don't leak into test assertions (common.LookupEnv searches upwards).
+	common.PurgeEnvCacheForTest()
+
 	t.Setenv("MACHINE_ID", "7")
 	t.Setenv("DB_DRIVER", "postgres")
 	t.Setenv("DSN", "host=127.0.0.1 user=u dbname=d sslmode=disable")
@@ -28,7 +34,13 @@ func setAllEnvs(t *testing.T) {
 	t.Setenv("LOG_MAX_AGE", "14")
 	t.Setenv("LOG_MAX_BACKUPS", "7")
 
-	// 邮件
+	// 邮件 — 显式清空可能从项目根目录 .env 文件中泄漏的变量
+	// common.LookupEnv 会向上搜索 .env 文件，需要显式覆盖
+	t.Setenv("MAIL_PROVIDER", "")
+	t.Setenv("MAIL_HOST", "")
+	t.Setenv("SMTP_HOST", "")
+	t.Setenv("MAIL_FROM_EMAIL", "")
+	t.Setenv("MAIL_FROM", "")
 	t.Setenv("SENDCLOUD_API_USER", "CloudStepsGo")
 	t.Setenv("SENDCLOUD_API_KEY", "14b6e48501c452407421917c943be0c3")
 	t.Setenv("SENDCLOUD_FROM_EMAIL", "19511899044@163.com")
@@ -43,7 +55,6 @@ func setAllEnvs(t *testing.T) {
 	t.Setenv("SEARCH_PATH", "/var/search")
 	t.Setenv("SEARCH_BATCH_SIZE", "500")
 
-	t.Setenv("MONITOR_PREFIX", "/monitor")
 	t.Setenv("LANGUAGE_ENABLED", "true")
 	t.Setenv("API_SECRET_KEY", "api-secret")
 
@@ -125,9 +136,8 @@ func TestLoad_WithExplicitAppEnv(t *testing.T) {
 	}
 
 	// 其他
-	if GlobalConfig.Server.MonitorPrefix != "/monitor" ||
-		GlobalConfig.Auth.APISecretKey != "api-secret" {
-		t.Fatalf("monitor/lang/api mismatch: %+v", *GlobalConfig)
+	if GlobalConfig.Auth.APISecretKey != "api-secret" {
+		t.Fatalf("api secret mismatch: %+v", *GlobalConfig)
 	}
 }
 
