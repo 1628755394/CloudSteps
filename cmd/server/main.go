@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"log"
 	"net/http"
 	"os"
 	"time"
 
-	csbootstrap "github.com/LingByte/CloudStepsGo/cmd/bootstrap"
+	"github.com/LingByte/CloudStepsGo/internal/bootstrap"
 	"github.com/LingByte/CloudStepsGo/internal/handlers"
 	"github.com/LingByte/CloudStepsGo/internal/listeners"
 	"github.com/LingByte/CloudStepsGo/internal/models"
@@ -16,7 +16,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
-	"github.com/LingByte/ling-base/bootstrap"
+	lbbootstrap "github.com/LingByte/ling-base/bootstrap"
 	"github.com/LingByte/ling-base/cache/lru"
 	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
@@ -45,7 +45,6 @@ func (app *CloudStepsGoApp) RegisterRoutes(r *gin.Engine) {
 }
 
 func main() {
-
 	// 1. Parse Command Line Parameters
 	init := flag.Bool("init", false, "initialize database")
 	seed := flag.Bool("seed", false, "seed database")
@@ -64,18 +63,19 @@ func main() {
 	}
 
 	// 4. Load Log Configuration
-	err := logger.Init(&config.GlobalConfig.Log, config.GlobalConfig.Server.Mode)
-	if err != nil {
+	if err := logger.Init(&config.GlobalConfig.Log, config.GlobalConfig.Server.Mode); err != nil {
 		panic(err)
 	}
 
-	// 5. Print Banner
-	if err := bootstrap.PrintBannerFromFile("banner.txt", config.GlobalConfig.Server.Name); err != nil {
-		log.Fatalf("unload banner: %v", err)
-	}
+	// 5. Create ling-base Application (banner + profile + lifecycle + shutdown)
+	app := lbbootstrap.New(config.GlobalConfig.Server.Name,
+		lbbootstrap.WithProfile(config.GlobalConfig.Server.Mode),
+		lbbootstrap.WithBannerFile("banner.txt"),
+		lbbootstrap.WithShutdownTimeout(30*time.Second),
+	)
 
 	// 7. Load Data Source
-	db, err := csbootstrap.SetupDatabase(os.Stdout, &csbootstrap.Options{
+	db, err := bootstrap.SetupDatabase(os.Stdout, &bootstrap.Options{
 		InitSQLPath: *initSQL, // Can be specified via --init-sql
 		AutoMigrate: *init,    // Whether to migrate entities
 		SeedNonProd: *seed,    // Non-production default configuration
@@ -93,23 +93,20 @@ func main() {
 	}
 
 	// 8. Load Base Configs
-	var addr = config.GlobalConfig.Server.Addr
+	addr := config.GlobalConfig.Server.Addr
 	if addr == "" {
 		addr = ":7072"
 	}
 
-	var DBDriver = config.GlobalConfig.Database.Driver
+	DBDriver := config.GlobalConfig.Database.Driver
 	if DBDriver == "" {
 		DBDriver = "sqlite"
 	}
 
-	var DSN = config.GlobalConfig.Database.DSN
+	DSN := config.GlobalConfig.Database.DSN
 	if DSN == "" {
 		DSN = "file::memory:?cache=shared"
 	}
-	flag.StringVar(&addr, "addr", addr, "HTTP Serve address")
-	flag.StringVar(&DBDriver, "db-driver", DBDriver, "database driver")
-	flag.StringVar(&DSN, "dsn", DSN, "database source name")
 
 	logger.Info("checked config -- addr: ", zap.String("addr", addr))
 	logger.Info("checked config -- db-driver: ", zap.String("db-driver", DBDriver), zap.String("dsn", DSN))
@@ -134,11 +131,10 @@ func main() {
 	// Initialize global intelligent risk control manager
 	utils.InitGlobalIntelligentRiskControl(logger.Lg)
 
-	//// 11. New App
-	app := NewCloudStepsGoApp(db, globalCache, configStore)
+	// 11. New App
+	cloudApp := NewCloudStepsGoApp(db, globalCache, configStore)
 
 	// 11.5. Initialize SIP Server (if enabled)
-	// Check if SIP server should be enabled via environment variable
 	sipEnabled := common.GetBoolEnv("SIP_ENABLED")
 	if sipEnabled {
 		sipPortInt64 := common.GetIntEnv("SIP_PORT")
@@ -152,18 +148,6 @@ func main() {
 			rtpPortInt64 = 10000 // Default RTP port
 		}
 		rtpPort := int(rtpPortInt64)
-
-		//sipServer := sip.NewSipServer(rtpPort)
-		//sipServer.SetDBConfig(db)
-
-		// Set SIP server to handlers (wrap to match interface)
-		//app.handlers.SetSipServer(sipServer)
-
-		// Start SIP server in background (pass empty targetURI to avoid auto-call)
-		go func() {
-			// Only start if explicitly enabled
-			// sipServer.Start(sipPort, "") // Start SIP server
-		}()
 
 		logger.Info("SIP server initialized", zap.Int("sip_port", sipPort), zap.Int("rtp_port", rtpPort))
 	} else {
@@ -179,7 +163,6 @@ func main() {
 		zap.Bool("operationLog", config.GlobalConfig.Middleware.EnableOperationLog))
 
 	// 15. Start Timed task
-	// Start Email Cleaner Task
 	task.StartEmailCleaner(db)
 	task.StartCoachingAutoEnd(db)
 
@@ -223,12 +206,9 @@ func main() {
 	// 注册 /uploads（主路径）并保留 /media 兼容历史
 	r.Static("/uploads", uploadDir)
 	r.Static("/media", uploadDir)
-	apiPrefix := config.GlobalConfig.Server.APIPrefix
-	if apiPrefix == "" {
-		apiPrefix = "/api"
-	}
+
 	// 18. Register Routes
-	app.RegisterRoutes(r)
+	cloudApp.RegisterRoutes(r)
 
 	// 19. Initialize System Listener
 	listeners.InitSystemListeners()
@@ -250,28 +230,48 @@ func main() {
 		IdleTimeout:    120 * time.Second,
 		MaxHeaderBytes: 1 << 20, // 1MB
 	}
-	if config.GlobalConfig.Server.SSLEnabled && listeners.IsSSLEnabled() {
-		tlsConfig, err := listeners.GetTLSConfig()
-		if err != nil {
-			logger.Error("failed to get TLS config", zap.Error(err))
-			return
+
+	// Register graceful shutdown hook for HTTP server
+	app.AddShutdownHook("http-server", func(ctx context.Context) error {
+		logger.Info("shutting down HTTP server...")
+		if err := httpServer.Shutdown(ctx); err != nil {
+			logger.Error("HTTP server shutdown error", zap.Error(err))
+			return err
 		}
-		if tlsConfig != nil {
-			httpServer.TLSConfig = tlsConfig
-			logger.Info("Starting HTTPS server", zap.String("addr", addr))
-			if err := httpServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-				logger.Error("HTTPS server run failed", zap.Error(err))
+		logger.Info("HTTP server stopped gracefully")
+		return nil
+	})
+
+	// Start HTTP server in background
+	go func() {
+		if config.GlobalConfig.Server.SSLEnabled && listeners.IsSSLEnabled() {
+			tlsConfig, err := listeners.GetTLSConfig()
+			if err != nil {
+				logger.Error("failed to get TLS config", zap.Error(err))
+				return
+			}
+			if tlsConfig != nil {
+				httpServer.TLSConfig = tlsConfig
+				logger.Info("Starting HTTPS server", zap.String("addr", addr))
+				if err := httpServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+					logger.Error("HTTPS server run failed", zap.Error(err))
+				}
+			} else {
+				logger.Warn("SSL enabled but TLS config is nil, falling back to HTTP")
+				if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					logger.Error("HTTP server run failed", zap.Error(err))
+				}
 			}
 		} else {
-			logger.Warn("SSL enabled but TLS config is nil, falling back to HTTP")
+			logger.Info("Starting HTTP server", zap.String("addr", addr))
 			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				logger.Error("HTTP server run failed", zap.Error(err))
 			}
 		}
-	} else {
-		logger.Info("Starting HTTP server", zap.String("addr", addr))
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("HTTP server run failed", zap.Error(err))
-		}
+	}()
+
+	// 23. Run application (blocks until shutdown signal)
+	if err := app.Run(); err != nil {
+		logger.Error("application run failed", zap.Error(err))
 	}
 }
