@@ -15,8 +15,8 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -43,6 +43,8 @@ func (h *Handlers) registerVocabTestRoutes(r *gin.RouterGroup) {
 		admin.DELETE("/questions/:id", h.handleDeleteQuestion)
 		admin.POST("/questions/batch", h.handleBatchCreateQuestions)
 		admin.POST("/questions/purge-bad-audio", h.handlePurgeBadAudio)
+		admin.POST("/questions/purge-all-audio", h.handlePurgeAllAudio)
+		admin.GET("/questions/purge-all-audio", h.handlePurgeAllAudioStatus)
 	}
 }
 
@@ -150,7 +152,7 @@ func (h *Handlers) handleVocabTestStart(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"questions": allQuestions,
 		"total":     len(allQuestions),
 		"mode":      "batch", // 批量模式：前端一次拿到所有题，本地作答后统一提交
@@ -275,7 +277,7 @@ func (h *Handlers) handleVocabTestNext(c *gin.Context) {
 				if currentLevel == "" {
 					currentLevel = "A1"
 				}
-				response.Success(c, "success", gin.H{
+				response.SuccessMsg(c, "success", gin.H{
 					"question":               next,
 					"currentDifficultyScore": nextScore,
 					"currentLevel":           currentLevel,
@@ -285,10 +287,10 @@ func (h *Handlers) handleVocabTestNext(c *gin.Context) {
 			}
 		}
 
-		response.Success(c, "测试完成", gin.H{"finished": true})
+		response.SuccessMsg(c, "测试完成", gin.H{"finished": true})
 		return
 	}
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"question":               next,
 		"currentDifficultyScore": nextScore,
 		"currentLevel":           currentLevel,
@@ -426,7 +428,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 		}
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"level":            estimatedLevel,
 		"estimatedVocab":   estimatedVocab,
 		"correctCount":     correctCount,
@@ -453,7 +455,7 @@ func (h *Handlers) handleVocabTestResult(c *gin.Context) {
 	db.Where("level = ? AND is_active = ?", record.EstimatedLevel, true).
 		Order("sort_order ASC").Limit(5).Find(&recommendedBooks)
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"record":           record,
 		"recommendedBooks": recommendedBooks,
 	})
@@ -481,7 +483,7 @@ func (h *Handlers) handleCreateQuestion(c *gin.Context) {
 		return
 	}
 	invalidateVocabPoolCache()
-	response.Success(c, "success", q)
+	response.SuccessMsg(c, "success", q)
 }
 
 // handleListQuestions GET /vocab/questions?level=B1&page=1&pageSize=20&word=hi&withoutAudio=1
@@ -530,7 +532,7 @@ func (h *Handlers) handleListQuestions(c *gin.Context) {
 	q.Order("level ASC, difficulty_score ASC").
 		Offset((page - 1) * size).Limit(size).Find(&questions)
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"total":     total,
 		"page":      page,
 		"size":      size,
@@ -564,7 +566,7 @@ func (h *Handlers) handleUpdateQuestion(c *gin.Context) {
 		return
 	}
 	invalidateVocabPoolCache()
-	response.Success(c, "success", q)
+	response.SuccessMsg(c, "success", q)
 }
 
 // handleDeleteQuestion DELETE /vocab-test/admin/questions/:id
@@ -577,11 +579,11 @@ func (h *Handlers) handleDeleteQuestion(c *gin.Context) {
 		return
 	}
 	invalidateVocabPoolCache()
-	response.Success(c, "success", nil)
+	response.SuccessMsg(c, "success", nil)
 }
 
 // handlePurgeBadAudio POST /vocab/questions/purge-bad-audio
-// 检测题目音频是否可访问；无法返回正常音频的清空 audio_url。
+// 检测题目音频是否可访问；无法返回正常音频的先删对象存储再清空 audio_url。
 func (h *Handlers) handlePurgeBadAudio(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 
@@ -596,12 +598,17 @@ func (h *Handlers) handlePurgeBadAudio(c *gin.Context) {
 	client := &http.Client{Timeout: 8 * time.Second}
 	checked := 0
 	cleared := 0
+	objectsAttempted := 0
+	objectsFailed := 0
 	clearedWords := make([]string, 0)
 	for _, q := range questions {
 		checked++
 		if vocabAudioURLUsable(client, q.AudioURL) {
 			continue
 		}
+		a, f := stores.DeleteObjectURLs(q.AudioURL)
+		objectsAttempted += a
+		objectsFailed += f
 		if err := db.Model(&models.VocabTestQuestion{}).
 			Where("id = ?", q.ID).
 			Update("audio_url", "").Error; err != nil {
@@ -615,10 +622,12 @@ func (h *Handlers) handlePurgeBadAudio(c *gin.Context) {
 	if cleared > 0 {
 		invalidateVocabPoolCache()
 	}
-	response.Success(c, "success", gin.H{
-		"checked":      checked,
-		"cleared":      cleared,
-		"clearedWords": clearedWords,
+	response.SuccessMsg(c, "success", gin.H{
+		"checked":          checked,
+		"cleared":          cleared,
+		"clearedWords":     clearedWords,
+		"objectsAttempted": objectsAttempted,
+		"objectsFailed":    objectsFailed,
 	})
 }
 
@@ -762,7 +771,7 @@ func (h *Handlers) handleBatchCreateQuestions(c *gin.Context) {
 		return
 	}
 	invalidateVocabPoolCache()
-	response.Success(c, "success", gin.H{"created": len(body.Questions)})
+	response.SuccessMsg(c, "success", gin.H{"created": len(body.Questions)})
 }
 
 // estimateLevel 根据各等级正确率估算用户等级和词汇量
@@ -1129,7 +1138,7 @@ func (h *Handlers) handleVocabTestRecords(c *gin.Context) {
 		Offset((page - 1) * pageSize).Limit(pageSize).
 		Find(&records)
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     records,
 		"total":    total,
 		"page":     page,
@@ -1153,5 +1162,5 @@ func (h *Handlers) handleVocabTestRecordDetail(c *gin.Context) {
 		response.Fail(c, "记录不存在", err)
 		return
 	}
-	response.Success(c, "success", record)
+	response.SuccessMsg(c, "success", record)
 }

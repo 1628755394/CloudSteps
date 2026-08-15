@@ -10,16 +10,16 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/CloudStepsGo/pkg/tts"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 )
 
 type ttsRequest struct {
 	Text  string `json:"text"`
-	Voice string `json:"voice"`
-	Lang  string `json:"lang"`
+	Voice string `json:"voice"` // 腾讯云 VoiceType 数字字符串，如 "1005"
+	Lang  string `json:"lang"`  // 仅作缓存区分，可选
 }
 
 func (h *Handlers) registerTTSRoutes(r *gin.RouterGroup) {
@@ -30,7 +30,7 @@ func (h *Handlers) registerTTSRoutes(r *gin.RouterGroup) {
 	}
 }
 
-// handleAdminTTS 使用与 cmd/tts-gen 相同的 DashScope Qwen-TTS 合成语音并写入对象存储。
+// handleAdminTTS 使用腾讯云 TTS 合成语音并写入对象存储。
 // POST /api/admin/tts  body: { text, voice?, lang? }  → { url }
 func (h *Handlers) handleAdminTTS(c *gin.Context) {
 	var req ttsRequest
@@ -49,16 +49,11 @@ func (h *Handlers) handleAdminTTS(c *gin.Context) {
 	}
 
 	opt := tts.DefaultOptions()
-	opt.APIKey = tts.ResolveAPIKey("")
 	if v := strings.TrimSpace(req.Voice); v != "" {
 		opt.Voice = v
 	}
 	if v := strings.TrimSpace(req.Lang); v != "" {
 		opt.Lang = v
-	}
-	// 管理端词表多为英文单词/中英混读
-	if opt.Lang == tts.DefaultLang {
-		opt.Lang = "Auto"
 	}
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 60*time.Second)
@@ -75,7 +70,7 @@ func (h *Handlers) handleAdminTTS(c *gin.Context) {
 		return
 	}
 
-	sum := sha1.Sum([]byte(text + "|" + opt.Voice + "|" + opt.Lang))
+	sum := sha1.Sum([]byte(fmt.Sprintf("%s|%d|%s", text, opt.VoiceType, opt.Lang)))
 	hash := hex.EncodeToString(sum[:8])
 	key := fmt.Sprintf("tts/%s_%d.wav", hash, time.Now().UnixMilli())
 
@@ -86,5 +81,5 @@ func (h *Handlers) handleAdminTTS(c *gin.Context) {
 	}
 
 	url := store.PublicURL(key)
-	response.Success(c, "ok", gin.H{"url": url})
+	response.SuccessMsg(c, "ok", gin.H{"url": url})
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -25,13 +25,13 @@ func (h *Handlers) handleStudyLighthouse(c *gin.Context) {
 	wordBookID, _ := strconv.Atoi(c.Query("wordBookId"))
 	cacheKey := lighthouseCacheKey(user.ID, wordBookID)
 	if cached, ok := getCachedLighthouse(cacheKey); ok {
-		response.Success(c, "success", cached)
+		response.SuccessMsg(c, "success", cached)
 		return
 	}
 
 	payload := computeStudyLighthouse(db, user.ID, wordBookID)
 	setCachedLighthouse(cacheKey, payload)
-	response.Success(c, "success", payload)
+	response.SuccessMsg(c, "success", payload)
 }
 
 // handleStudyLighthouseWords GET /study/lighthouse/words?wordBookId=N&step=01|pending|mastered
@@ -90,7 +90,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	countSQL := "SELECT COUNT(*) FROM user_word_states uws WHERE " + stateWhere
 	_ = db.Raw(countSQL, stateArgs...).Scan(&total).Error
 	if total == 0 {
-		response.Success(c, "success", gin.H{"words": []models.WordLite{}, "total": 0})
+		response.SuccessMsg(c, "success", gin.H{"words": []models.WordLite{}, "total": 0})
 		return
 	}
 
@@ -111,7 +111,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"words": words,
 		"total": total,
 	})
@@ -161,7 +161,7 @@ func (h *Handlers) handleStudyWords(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,
@@ -220,12 +220,12 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 		states := make([]models.UserWordState, 0, len(body.KnownIDs))
 		for _, wid := range body.KnownIDs {
 			states = append(states, models.UserWordState{
-				UserID:        user.ID,
-				WordID:        wid,
-				WordBookID:    body.WordBookID,
-				ScreenResult:  "known",
-				ScreenAt:      &now,
-				LearnStatus:   "learned",
+				UserID:         user.ID,
+				WordID:         wid,
+				WordBookID:     body.WordBookID,
+				ScreenResult:   "known",
+				ScreenAt:       &now,
+				LearnStatus:    "learned",
 				FirstLearnedAt: &now,
 			})
 		}
@@ -292,7 +292,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 	}
 
 	if len(selectedIDs) == 0 {
-		response.Success(c, "今日无待背单词", gin.H{"finished": true})
+		response.SuccessMsg(c, "今日无待背单词", gin.H{"finished": true})
 		return
 	}
 
@@ -327,7 +327,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 	var words []models.WordLite
 	_ = db.Where("id IN ?", selectedIDs).Find(&words).Error
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"sessionId": session.ID,
 		"words":     words,
 	})
@@ -431,7 +431,7 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 		Where("user_id = ? AND word_book_id = ? AND screen_result = ? AND learn_status = ?", user.ID, session.WordBookID, "unknown", "pending").
 		Count(&remainCount).Error
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"correctCount": correctCount,
 		"totalCount":   len(body.Results),
 		"hasMore":      remainCount > 0,
@@ -476,7 +476,7 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 		_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"session": session,
 		"words":   words,
 	})
@@ -484,7 +484,8 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 
 // handleStudySessionsList GET /study/sessions
 // query: page, pageSize, sessionType, studentId(老师查学员), date / dateFrom / dateTo (YYYY-MM-DD),
-//        wordBookId, status(completed|in_progress), groupBy(bookDay=按词库+日聚合)
+//
+//	wordBookId, status(completed|in_progress), groupBy(bookDay=按词库+日聚合)
 func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	user := models.CurrentUser(c)
@@ -637,7 +638,7 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 			})
 		}
 
-		response.Success(c, "success", gin.H{
+		response.SuccessMsg(c, "success", gin.H{
 			"list":     list,
 			"total":    total,
 			"page":     page,
@@ -688,7 +689,7 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 		})
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -766,7 +767,7 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 		return
 	}
 	if len(sessionIDs) == 0 {
-		response.Success(c, "success", gin.H{"words": []any{}, "total": 0})
+		response.SuccessMsg(c, "success", gin.H{"words": []any{}, "total": 0})
 		return
 	}
 
@@ -795,7 +796,7 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"words": rows,
 		"total": len(rows),
 	})

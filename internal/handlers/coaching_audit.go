@@ -8,7 +8,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -57,16 +57,16 @@ func coachingWriteCoachingAudit(db *gorm.DB, c *gin.Context, action, targetType 
 		}
 	}
 	row := models.CoachingAuditLog{
-		ActorID:         u.ID,
-		ActorUsername:   u.Username,
-		ActorRole:       u.Role,
-		Action:          action,
-		TargetType:      targetType,
-		TargetID:        targetID,
-		AppointmentID:   appointmentID,
-		Summary:         summary,
-		DetailJSON:      detailJSON,
-		IP:              c.ClientIP(),
+		ActorID:       u.ID,
+		ActorUsername: u.Username,
+		ActorRole:     u.Role,
+		Action:        action,
+		TargetType:    targetType,
+		TargetID:      targetID,
+		AppointmentID: appointmentID,
+		Summary:       summary,
+		DetailJSON:    detailJSON,
+		IP:            c.ClientIP(),
 	}
 	_ = db.Create(&row).Error
 }
@@ -79,15 +79,15 @@ func coachingWriteCoachingAuditSystem(db *gorm.DB, action, targetType string, ta
 		}
 	}
 	row := models.CoachingAuditLog{
-		ActorID:         0,
-		ActorUsername:   "system",
-		ActorRole:       "system",
-		Action:          action,
-		TargetType:      targetType,
-		TargetID:        targetID,
-		AppointmentID:   appointmentID,
-		Summary:         summary,
-		DetailJSON:      detailJSON,
+		ActorID:       0,
+		ActorUsername: "system",
+		ActorRole:     "system",
+		Action:        action,
+		TargetType:    targetType,
+		TargetID:      targetID,
+		AppointmentID: appointmentID,
+		Summary:       summary,
+		DetailJSON:    detailJSON,
 	}
 	_ = db.Create(&row).Error
 }
@@ -152,7 +152,7 @@ func (h *Handlers) coachingAdminListAuditLogs(c *gin.Context) {
 		}
 		out = append(out, item)
 	}
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"list": out, "total": total, "page": page, "pageSize": pageSize,
 	})
 }

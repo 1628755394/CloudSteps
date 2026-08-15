@@ -11,7 +11,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -21,25 +21,25 @@ const studentActivityMergeCap = 3000
 // coachingTeacherQuotaItem 老师端学员额度 + 活动摘要
 type coachingTeacherQuotaItem struct {
 	models.StudentTeacherCoachingQuota
-	VocabTestCount         int64 `json:"vocabTestCount"`
-	CoachingSessionCount   int64 `json:"coachingSessionCount"`
-	StudySessionCount      int64 `json:"studySessionCount"`
-	LatestVocabLevel       string     `json:"latestVocabLevel,omitempty"`
-	LatestVocabTestAt      *time.Time `json:"latestVocabTestAt,omitempty"`
-	LatestEstimatedVocab   int        `json:"latestEstimatedVocab,omitempty"`
+	VocabTestCount       int64      `json:"vocabTestCount"`
+	CoachingSessionCount int64      `json:"coachingSessionCount"`
+	StudySessionCount    int64      `json:"studySessionCount"`
+	LatestVocabLevel     string     `json:"latestVocabLevel,omitempty"`
+	LatestVocabTestAt    *time.Time `json:"latestVocabTestAt,omitempty"`
+	LatestEstimatedVocab int        `json:"latestEstimatedVocab,omitempty"`
 }
 
 // studentActivityListItem 学员活动时间线（词汇测评 + 陪练完课 + 单词训练会话）
 type studentActivityListItem struct {
-	Kind            string    `json:"kind"` // vocab_test | coaching_session | study_session
-	ID              uint      `json:"id"`
-	Time            time.Time `json:"time"`
-	Title           string    `json:"title"`
-	Summary         string    `json:"summary"`
-	WordBookName    string    `json:"wordBookName,omitempty"`
+	Kind            string                        `json:"kind"` // vocab_test | coaching_session | study_session
+	ID              uint                          `json:"id"`
+	Time            time.Time                     `json:"time"`
+	Title           string                        `json:"title"`
+	Summary         string                        `json:"summary"`
+	WordBookName    string                        `json:"wordBookName,omitempty"`
 	VocabTest       *models.VocabTestRecord       `json:"vocabTest,omitempty"`
-	CoachingSession *models.CoachingSessionRecord   `json:"coachingSession,omitempty"`
-	StudySession    *models.StudySession            `json:"studySession,omitempty"`
+	CoachingSession *models.CoachingSessionRecord `json:"coachingSession,omitempty"`
+	StudySession    *models.StudySession          `json:"studySession,omitempty"`
 }
 
 func coachingCoachingTeacherID(c *gin.Context) uint {
@@ -403,7 +403,7 @@ func (h *Handlers) coachingTeacherStudentVocabRecords(c *gin.Context) {
 		nextCursor = fmt.Sprintf("%s|%s|%d", last.Time.UTC().Format(time.RFC3339Nano), last.Kind, last.ID)
 	}
 
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"list":       page,
 		"nextCursor": nextCursor,
 		"hasMore":    hasMore,
@@ -447,7 +447,7 @@ func (h *Handlers) coachingTeacherStudentVocabRecordDetail(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "记录不存在"})
 		return
 	}
-	response.Success(c, "ok", record)
+	response.SuccessMsg(c, "ok", record)
 }
 
 func (h *Handlers) coachingTeacherStudentCoachingSessionDetail(c *gin.Context) {
@@ -479,7 +479,7 @@ func (h *Handlers) coachingTeacherStudentCoachingSessionDetail(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "记录不存在"})
 		return
 	}
-	response.Success(c, "ok", rec)
+	response.SuccessMsg(c, "ok", rec)
 }
 
 func (h *Handlers) coachingTeacherStudentStudySessionDetail(c *gin.Context) {
@@ -514,5 +514,5 @@ func (h *Handlers) coachingTeacherStudentStudySessionDetail(c *gin.Context) {
 	if rec.WordBookID > 0 && db.Select("name").Where("id = ?", rec.WordBookID).First(&wb).Error == nil {
 		wbName = wb.Name
 	}
-	response.Success(c, "ok", gin.H{"session": rec, "wordBookName": wbName})
+	response.SuccessMsg(c, "ok", gin.H{"session": rec, "wordBookName": wbName})
 }

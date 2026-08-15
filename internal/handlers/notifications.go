@@ -7,7 +7,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,7 +39,7 @@ func (h *Handlers) handleUnReadNotificationCount(c *gin.Context) {
 
 	users, err := models.GetUserByUsername(h.db, user.Username)
 	if err != nil {
-		response.AbortWithStatus(c, http.StatusUnauthorized)
+		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 	unreadNotificationCount, err := appnotifier.NewInternalNotificationService(h.db).GetUnreadNotificationsCount(users.ID)
@@ -47,7 +47,7 @@ func (h *Handlers) handleUnReadNotificationCount(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.Success(c, "success", unreadNotificationCount)
+	response.SuccessMsg(c, "success", unreadNotificationCount)
 }
 
 // ListNotifications list user notifications
@@ -97,7 +97,7 @@ func (h *Handlers) handleListNotifications(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":        notifications,
 		"total":       total,
 		"totalUnread": totalUnread,
@@ -118,7 +118,7 @@ func (h *Handlers) handleAllNotifications(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.Success(c, "already mark all notifications", nil)
+	response.SuccessMsg(c, "already mark all notifications", nil)
 }
 
 // handleMarkNotificationAsRead marks specified notification as read
@@ -134,7 +134,7 @@ func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
 	var notificationID uint
 	_, err := fmt.Sscanf(idStr, "%d", &notificationID)
 	if err != nil {
-		response.AbortWithStatus(c, http.StatusBadRequest)
+		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
@@ -151,7 +151,7 @@ func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "Notification marked as read", nil)
+	response.SuccessMsg(c, "Notification marked as read", nil)
 }
 
 func (h *Handlers) handleDeleteNotification(c *gin.Context) {
@@ -171,7 +171,7 @@ func (h *Handlers) handleDeleteNotification(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.Success(c, "Notification deleted", nil)
+	response.SuccessMsg(c, "Notification deleted", nil)
 }
 
 // handleBatchDeleteNotifications batch deletes notifications
@@ -203,7 +203,7 @@ func (h *Handlers) handleBatchDeleteNotifications(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "Notifications deleted successfully", gin.H{
+	response.SuccessMsg(c, "Notifications deleted successfully", gin.H{
 		"deletedCount":   deletedCount,
 		"totalRequested": len(request.IDs),
 	})
@@ -242,7 +242,7 @@ func (h *Handlers) handleGetAllNotificationIds(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"ids": ids,
 	})
 }

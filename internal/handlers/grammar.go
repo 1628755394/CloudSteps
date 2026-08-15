@@ -9,7 +9,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -155,7 +155,7 @@ func (h *Handlers) handleGrammarListLessons(c *gin.Context) {
 		items = append(items, item)
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     items,
 		"total":    total,
 		"page":     page,
@@ -195,7 +195,7 @@ func (h *Handlers) handleGrammarGetLesson(c *gin.Context) {
 		})
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"id":               lesson.ID,
 		"title":            lesson.Title,
 		"topic":            lesson.Topic,
@@ -314,7 +314,7 @@ func (h *Handlers) handleGrammarSubmit(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"recordId":      record.ID,
 		"lessonId":      lesson.ID,
 		"title":         lesson.Title,
@@ -390,7 +390,7 @@ func (h *Handlers) handleGrammarListRecords(c *gin.Context) {
 		})
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -426,7 +426,7 @@ func (h *Handlers) handleGrammarGetRecord(c *gin.Context) {
 	var details []grammarAnswerItem
 	_ = json.Unmarshal([]byte(record.Answers), &details)
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"id":            record.ID,
 		"lessonId":      record.LessonID,
 		"title":         lesson.Title,
@@ -463,7 +463,7 @@ func (h *Handlers) handleAdminGrammarListLessons(c *gin.Context) {
 	q.Count(&total)
 	var list []models.GrammarLesson
 	q.Order("sort_order ASC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list)
-	response.Success(c, "success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
+	response.SuccessMsg(c, "success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handlers) handleAdminGrammarGetLesson(c *gin.Context) {
@@ -489,7 +489,7 @@ func (h *Handlers) handleAdminGrammarGetLesson(c *gin.Context) {
 			"sortOrder":   q.SortOrder,
 		})
 	}
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"lesson":    lesson,
 		"examples":  parseGrammarExamples(lesson.Examples),
 		"questions": qs,
@@ -583,7 +583,7 @@ func (h *Handlers) handleAdminGrammarCreateLesson(c *gin.Context) {
 		response.Fail(c, "创建失败", err)
 		return
 	}
-	response.Success(c, "创建成功", gin.H{"id": lesson.ID})
+	response.SuccessMsg(c, "创建成功", gin.H{"id": lesson.ID})
 }
 
 func (h *Handlers) handleAdminGrammarUpdateLesson(c *gin.Context) {
@@ -598,15 +598,15 @@ func (h *Handlers) handleAdminGrammarUpdateLesson(c *gin.Context) {
 	}
 
 	var body struct {
-		Title            *string           `json:"title"`
-		Topic            *string           `json:"topic"`
-		Level            *string           `json:"level"`
-		Explanation      *string           `json:"explanation"`
-		Examples         []grammarExample  `json:"examples"`
-		Summary          *string           `json:"summary"`
-		Status           *string           `json:"status"`
-		EstimatedMinutes *int              `json:"estimatedMinutes"`
-		SortOrder        *int              `json:"sortOrder"`
+		Title            *string          `json:"title"`
+		Topic            *string          `json:"topic"`
+		Level            *string          `json:"level"`
+		Explanation      *string          `json:"explanation"`
+		Examples         []grammarExample `json:"examples"`
+		Summary          *string          `json:"summary"`
+		Status           *string          `json:"status"`
+		EstimatedMinutes *int             `json:"estimatedMinutes"`
+		SortOrder        *int             `json:"sortOrder"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
@@ -648,7 +648,7 @@ func (h *Handlers) handleAdminGrammarUpdateLesson(c *gin.Context) {
 		response.Fail(c, "更新失败", err)
 		return
 	}
-	response.Success(c, "更新成功", lesson)
+	response.SuccessMsg(c, "更新成功", lesson)
 }
 
 func (h *Handlers) handleAdminGrammarDeleteLesson(c *gin.Context) {
@@ -673,5 +673,5 @@ func (h *Handlers) handleAdminGrammarDeleteLesson(c *gin.Context) {
 	db.Model(&models.GrammarQuestion{}).
 		Where("lesson_id = ? AND is_deleted = ?", lesson.ID, models.SoftDeleteStatusActive).
 		Updates(map[string]any{"is_deleted": models.SoftDeleteStatusDeleted, "update_by": op})
-	response.Success(c, "删除成功", nil)
+	response.SuccessMsg(c, "删除成功", nil)
 }

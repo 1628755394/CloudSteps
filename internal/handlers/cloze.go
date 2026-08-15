@@ -10,7 +10,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -133,7 +133,7 @@ func (h *Handlers) handleClozeListPassages(c *gin.Context) {
 		items = append(items, item)
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     items,
 		"total":    total,
 		"page":     page,
@@ -172,7 +172,7 @@ func (h *Handlers) handleClozeGetPassage(c *gin.Context) {
 		})
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"id":               passage.ID,
 		"title":            passage.Title,
 		"level":            passage.Level,
@@ -290,7 +290,7 @@ func (h *Handlers) handleClozeSubmit(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"recordId":     record.ID,
 		"passageId":    passage.ID,
 		"title":        passage.Title,
@@ -362,7 +362,7 @@ func (h *Handlers) handleClozeListRecords(c *gin.Context) {
 		})
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -398,7 +398,7 @@ func (h *Handlers) handleClozeGetRecord(c *gin.Context) {
 	var details []clozeAnswerItem
 	_ = json.Unmarshal([]byte(record.Answers), &details)
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"id":           record.ID,
 		"passageId":    record.PassageID,
 		"title":        passage.Title,
@@ -435,7 +435,7 @@ func (h *Handlers) handleAdminClozeListPassages(c *gin.Context) {
 	q.Count(&total)
 	var list []models.ClozePassage
 	q.Order("sort_order ASC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list)
-	response.Success(c, "success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
+	response.SuccessMsg(c, "success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handlers) handleAdminClozeGetPassage(c *gin.Context) {
@@ -460,7 +460,7 @@ func (h *Handlers) handleAdminClozeGetPassage(c *gin.Context) {
 			"explanation": b.Explanation,
 		})
 	}
-	response.Success(c, "success", gin.H{"passage": passage, "blanks": bs})
+	response.SuccessMsg(c, "success", gin.H{"passage": passage, "blanks": bs})
 }
 
 func (h *Handlers) handleAdminClozeCreatePassage(c *gin.Context) {
@@ -543,7 +543,7 @@ func (h *Handlers) handleAdminClozeCreatePassage(c *gin.Context) {
 		response.Fail(c, "创建失败", err)
 		return
 	}
-	response.Success(c, "创建成功", gin.H{"id": passage.ID})
+	response.SuccessMsg(c, "创建成功", gin.H{"id": passage.ID})
 }
 
 func (h *Handlers) handleAdminClozeUpdatePassage(c *gin.Context) {
@@ -600,7 +600,7 @@ func (h *Handlers) handleAdminClozeUpdatePassage(c *gin.Context) {
 		response.Fail(c, "更新失败", err)
 		return
 	}
-	response.Success(c, "更新成功", passage)
+	response.SuccessMsg(c, "更新成功", passage)
 }
 
 func (h *Handlers) handleAdminClozeDeletePassage(c *gin.Context) {
@@ -625,5 +625,5 @@ func (h *Handlers) handleAdminClozeDeletePassage(c *gin.Context) {
 	db.Model(&models.ClozeBlank{}).
 		Where("passage_id = ? AND is_deleted = ?", passage.ID, models.SoftDeleteStatusActive).
 		Updates(map[string]any{"is_deleted": models.SoftDeleteStatusDeleted, "update_by": op})
-	response.Success(c, "删除成功", nil)
+	response.SuccessMsg(c, "删除成功", nil)
 }

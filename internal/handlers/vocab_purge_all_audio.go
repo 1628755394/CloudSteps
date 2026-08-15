@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -107,7 +107,7 @@ func (j *purgeAllAudioJob) markFailed(errMsg string) {
 func (h *Handlers) handlePurgeAllAudio(c *gin.Context) {
 	snap := vocabPurgeAllAudioJob.snapshot()
 	if snap["status"] == purgeAllAudioRunning {
-		response.Success(c, "任务进行中", snap)
+		response.SuccessMsg(c, "任务进行中", snap)
 		return
 	}
 
@@ -119,7 +119,7 @@ func (h *Handlers) handlePurgeAllAudio(c *gin.Context) {
 		return
 	}
 	if total == 0 {
-		response.Success(c, "无需清除", gin.H{
+		response.SuccessMsg(c, "无需清除", gin.H{
 			"status":  purgeAllAudioDone,
 			"total":   0,
 			"cleared": 0,
@@ -129,7 +129,7 @@ func (h *Handlers) handlePurgeAllAudio(c *gin.Context) {
 	}
 
 	if !vocabPurgeAllAudioJob.tryStart(int(total)) {
-		response.Success(c, "任务进行中", vocabPurgeAllAudioJob.snapshot())
+		response.SuccessMsg(c, "任务进行中", vocabPurgeAllAudioJob.snapshot())
 		return
 	}
 
@@ -138,12 +138,12 @@ func (h *Handlers) handlePurgeAllAudio(c *gin.Context) {
 
 	out := vocabPurgeAllAudioJob.snapshot()
 	out["started"] = true
-	response.Success(c, "已在后台开始清除", out)
+	response.SuccessMsg(c, "已在后台开始清除", out)
 }
 
 // handlePurgeAllAudioStatus GET /vocab/questions/purge-all-audio
 func (h *Handlers) handlePurgeAllAudioStatus(c *gin.Context) {
-	response.Success(c, "success", vocabPurgeAllAudioJob.snapshot())
+	response.SuccessMsg(c, "success", vocabPurgeAllAudioJob.snapshot())
 }
 
 func runPurgeAllAudioJob(db *gorm.DB) {

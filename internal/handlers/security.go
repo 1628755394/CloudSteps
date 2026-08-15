@@ -8,7 +8,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -76,7 +76,7 @@ func (h *Handlers) handleAdminListOperationLogs(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"logs":      logs,
 		"total":     total,
 		"page":      page,
@@ -98,7 +98,7 @@ func (h *Handlers) handleAdminGetOperationLog(c *gin.Context) {
 		response.Fail(c, "日志不存在", err)
 		return
 	}
-	response.Success(c, "ok", gin.H{"log": log})
+	response.SuccessMsg(c, "ok", gin.H{"log": log})
 }
 
 // GET /auth/login-history
@@ -137,7 +137,7 @@ func (h *Handlers) handleAdminListLoginHistory(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"histories": histories,
 		"total":     total,
 		"page":      page,
@@ -159,5 +159,5 @@ func (h *Handlers) handleAdminGetLoginHistory(c *gin.Context) {
 		response.Fail(c, "记录不存在", err)
 		return
 	}
-	response.Success(c, "ok", gin.H{"history": history})
+	response.SuccessMsg(c, "ok", gin.H{"history": history})
 }

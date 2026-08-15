@@ -13,7 +13,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/voice"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/logger"
 	"github.com/LingByte/lingllm/protocol/voice/xiaozhi"
 	"github.com/gin-gonic/gin"
@@ -133,7 +133,7 @@ func (h *Handlers) handleVoiceReady(c *gin.Context) {
 	if voice.GetLastInitError() != "" && !status.Ready {
 		status.Hint = voice.GetLastInitError()
 	}
-	response.Success(c, "ok", status)
+	response.SuccessMsg(c, "ok", status)
 }
 
 func (h *Handlers) handleListScenarios(c *gin.Context) {
@@ -143,7 +143,7 @@ func (h *Handlers) handleListScenarios(c *gin.Context) {
 		response.Fail(c, "获取场景列表失败", nil)
 		return
 	}
-	response.Success(c, "ok", scenarios)
+	response.SuccessMsg(c, "ok", scenarios)
 }
 
 type startSessionReq struct {
@@ -199,7 +199,7 @@ func (h *Handlers) handleStartScenarioSession(c *gin.Context) {
 	wsPath := fmt.Sprintf("%s/voice/CloudStepsGo/v1/?device-id=%s", apiPrefix, deviceID)
 
 	voiceReady := voice.CheckReady()
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"sessionId":  sess.ID,
 		"deviceId":   deviceID,
 		"wsPath":     wsPath,
@@ -225,7 +225,7 @@ func (h *Handlers) handleGetScenarioSession(c *gin.Context) {
 		return
 	}
 	sess.Turns = voice.DedupeTurns(sess.Turns)
-	response.Success(c, "ok", sessionWithDetail(sess))
+	response.SuccessMsg(c, "ok", sessionWithDetail(sess))
 }
 
 func (h *Handlers) handleCompleteScenarioSession(c *gin.Context) {
@@ -244,7 +244,7 @@ func (h *Handlers) handleCompleteScenarioSession(c *gin.Context) {
 		return
 	}
 	if sess.Status == models.ScenarioSessionStatusCompleted {
-		response.Success(c, "ok", sessionWithDetail(sess))
+		response.SuccessMsg(c, "ok", sessionWithDetail(sess))
 		return
 	}
 
@@ -289,7 +289,7 @@ func (h *Handlers) handleCompleteScenarioSession(c *gin.Context) {
 
 	h.ensureRealtimeFactory().UnregisterSession(sess.ID)
 	resp := sessionWithDetail(sess)
-	response.Success(c, "ok", resp)
+	response.SuccessMsg(c, "ok", resp)
 }
 
 func sessionWithDetail(sess models.ScenarioDialogueSession) gin.H {
@@ -359,7 +359,7 @@ func (h *Handlers) handleScenarioDialogueStats(c *gin.Context) {
 		result.AvgAccuracyScore /= n
 		result.AvgPronunciation /= n
 	}
-	response.Success(c, "ok", result)
+	response.SuccessMsg(c, "ok", result)
 }
 
 func replaceSessionTurns(db *gorm.DB, sessionID uint, turns []models.ScenarioDialogueTurn) {
@@ -405,7 +405,7 @@ func (h *Handlers) handleActivateScenarioSession(c *gin.Context) {
 	}
 	markScenarioSessionActive(db, uint(id))
 	_ = db.Where("id = ?", id).First(&sess)
-	response.Success(c, "ok", sess)
+	response.SuccessMsg(c, "ok", sess)
 }
 
 func (h *Handlers) handleAppendScenarioTurn(c *gin.Context) {
@@ -440,7 +440,7 @@ func (h *Handlers) handleAppendScenarioTurn(c *gin.Context) {
 		response.Fail(c, "记录对话失败", nil)
 		return
 	}
-	response.Success(c, "ok", nil)
+	response.SuccessMsg(c, "ok", nil)
 }
 
 func markScenarioSessionActive(db *gorm.DB, sessionID uint) {
@@ -542,7 +542,7 @@ func (h *Handlers) handleAdminListScenarios(c *gin.Context) {
 		response.Fail(c, "获取场景列表失败", nil)
 		return
 	}
-	response.Success(c, "ok", scenarios)
+	response.SuccessMsg(c, "ok", scenarios)
 }
 
 type adminCreateScenarioReq struct {
@@ -582,7 +582,7 @@ func (h *Handlers) handleAdminCreateScenario(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "创建成功", scenario)
+	response.SuccessMsg(c, "创建成功", scenario)
 }
 
 func (h *Handlers) handleAdminUpdateScenario(c *gin.Context) {
@@ -620,7 +620,7 @@ func (h *Handlers) handleAdminUpdateScenario(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "更新成功", scenario)
+	response.SuccessMsg(c, "更新成功", scenario)
 }
 
 func (h *Handlers) handleAdminDeleteScenario(c *gin.Context) {
@@ -636,7 +636,7 @@ func (h *Handlers) handleAdminDeleteScenario(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "删除成功", nil)
+	response.SuccessMsg(c, "删除成功", nil)
 }
 
 func (h *Handlers) handleAdminToggleScenario(c *gin.Context) {
@@ -659,5 +659,5 @@ func (h *Handlers) handleAdminToggleScenario(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "更新成功", scenario)
+	response.SuccessMsg(c, "更新成功", scenario)
 }

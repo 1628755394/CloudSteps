@@ -7,7 +7,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -84,11 +84,11 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 	queueItems := make([]models.ReviewQueue, 0, len(body.WordIDs))
 	for _, wid := range body.WordIDs {
 		states = append(states, models.UserWordState{
-			UserID:        user.ID,
-			WordID:        wid,
-			WordBookID:    body.WordBookID,
-			LearnStatus:   "learned",
-			ReviewStage:   0,
+			UserID:         user.ID,
+			WordID:         wid,
+			WordBookID:     body.WordBookID,
+			LearnStatus:    "learned",
+			ReviewStage:    0,
 			FirstLearnedAt: &now,
 			NextReviewAt:   &now,
 		})
@@ -118,7 +118,7 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{"queued": len(body.WordIDs)})
+	response.SuccessMsg(c, "success", gin.H{"queued": len(body.WordIDs)})
 }
 
 // handleReviewDue GET /review/due?wordBookId=1&limit=20
@@ -185,7 +185,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 		}
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"total": len(sorted),
 		"words": sorted,
 	})
@@ -294,5 +294,5 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 	}
 
 	invalidateLighthouseCacheForUser(user.ID)
-	response.Success(c, "success", gin.H{"submitted": len(body.Results)})
+	response.SuccessMsg(c, "success", gin.H{"submitted": len(body.Results)})
 }

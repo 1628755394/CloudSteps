@@ -9,7 +9,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -99,7 +99,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 		}
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"total": len(sorted),
 		"words": sorted,
 		"date":  dayStart.Format("2006-01-02"),
@@ -136,7 +136,7 @@ func (h *Handlers) handleReviewBooks(c *gin.Context) {
 		response.Fail(c, "查询失败", err)
 		return
 	}
-	response.Success(c, "success", stats)
+	response.SuccessMsg(c, "success", stats)
 }
 
 // handleReviewBooksByDate GET /review/books-by-date?date=2006-01-02&timeZone=Asia/Shanghai
@@ -211,7 +211,7 @@ func (h *Handlers) handleReviewBooksByDate(c *gin.Context) {
 		response.Fail(c, "查询失败", err)
 		return
 	}
-	response.Success(c, "success", stats)
+	response.SuccessMsg(c, "success", stats)
 }
 
 // handleReviewCurve GET /review/curve
@@ -225,7 +225,7 @@ func (h *Handlers) handleReviewCurve(c *gin.Context) {
 
 	type stageCount struct {
 		ReviewStage int   `gorm:"column:review_stage"`
-		Count      int64 `gorm:"column:cnt"`
+		Count       int64 `gorm:"column:cnt"`
 	}
 	var rows []stageCount
 	_ = db.Model(&models.UserWordState{}).
@@ -254,7 +254,7 @@ func (h *Handlers) handleReviewCurve(c *gin.Context) {
 		stages = append(stages, gin.H{"index": i, "days": days, "label": label, "count": countMap[i]})
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"stages":   stages,
 		"mastered": mastered,
 	})
@@ -344,7 +344,7 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 	}
 
 	if len(wordIDs) == 0 {
-		response.Success(c, "今日无待复习单词", gin.H{"finished": true})
+		response.SuccessMsg(c, "今日无待复习单词", gin.H{"finished": true})
 		return
 	}
 
@@ -370,7 +370,7 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 	}
 	_ = db.Create(&sw).Error
 
-	response.Success(c, "success", gin.H{"sessionId": session.ID, "words": words})
+	response.SuccessMsg(c, "success", gin.H{"sessionId": session.ID, "words": words})
 }
 
 // handleReviewSessionComplete POST /review/session/:id/complete
@@ -531,7 +531,7 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 	_ = db.Model(&session).Updates(map[string]any{"status": "completed", "completed_at": &now, "correct_count": correct}).Error
 	invalidateLighthouseCacheForUser(user.ID)
 
-	response.Success(c, "success", gin.H{"correctCount": correct, "totalCount": len(body.Results)})
+	response.SuccessMsg(c, "success", gin.H{"correctCount": correct, "totalCount": len(body.Results)})
 }
 
 // handleReviewSessionGet GET /review/session/:id
@@ -562,5 +562,5 @@ func (h *Handlers) handleReviewSessionGet(c *gin.Context) {
 		_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 	}
 
-	response.Success(c, "success", gin.H{"session": session, "words": words})
+	response.SuccessMsg(c, "success", gin.H{"session": session, "words": words})
 }

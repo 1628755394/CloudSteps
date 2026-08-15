@@ -19,12 +19,12 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
 	"github.com/LingByte/ling-base/common/random"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -126,14 +126,14 @@ func (h *Handlers) handleUserLogout(c *gin.Context) {
 		c.Redirect(http.StatusFound, next)
 		return
 	}
-	response.Success(c, "Logout Success", nil)
+	response.SuccessMsg(c, "Logout Success", nil)
 }
 
 // handleUserInfo handle user info
 func (h *Handlers) handleUserInfo(c *gin.Context) {
 	user := models.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatus(c, http.StatusUnauthorized)
+		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 	withToken := c.Query("with_token")
@@ -147,7 +147,7 @@ func (h *Handlers) handleUserInfo(c *gin.Context) {
 		}
 	}
 	models.FillProfileComplete(user)
-	response.Success(c, "success", user)
+	response.SuccessMsg(c, "success", user)
 }
 
 // handleUserSigninByUsername handle user signin by username
@@ -398,7 +398,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 		responseData["message"] = "Login from new location or untrusted device detected. Please verify your identity."
 	}
 
-	response.Success(c, "login success", responseData)
+	response.SuccessMsg(c, "login success", responseData)
 }
 
 // handleUserSignin handle user signin
@@ -693,7 +693,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	}
 
 	logger.Info("Login successful", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
-	response.Success(c, "login successful", responseData)
+	response.SuccessMsg(c, "login successful", responseData)
 }
 
 // handleUserSignin handle user signin
@@ -1083,7 +1083,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	}
 	common.Sig().Emit(constants.SigUserCreate, user, db)
 	sendHashMail(db, user, constants.SigUserVerifyEmail, constants.KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent())
-	response.Success(c, "signup success", user)
+	response.SuccessMsg(c, "signup success", user)
 }
 
 // handleUserUpdate Update User Info
@@ -1148,7 +1148,7 @@ func (h *Handlers) handleUserUpdate(c *gin.Context) {
 	if err := models.UpdateProfileComplete(h.db, updatedUser); err != nil {
 		logger.Warn("Failed to update profile complete", zap.Error(err))
 	}
-	response.Success(c, "update user success", updatedUser)
+	response.SuccessMsg(c, "update user success", updatedUser)
 }
 
 // handleUserUpdate Update User Info
@@ -1178,7 +1178,7 @@ func (h *Handlers) handleUserUpdateBasicInfo(c *gin.Context) {
 		response.Fail(c, "update user failed", err)
 		return
 	}
-	response.Success(c, "handle update user success", nil)
+	response.SuccessMsg(c, "handle update user success", nil)
 }
 
 func (h *Handlers) handleUserUpdatePreferences(c *gin.Context) {
@@ -1199,7 +1199,7 @@ func (h *Handlers) handleUserUpdatePreferences(c *gin.Context) {
 		vals["auto_clean_unread_emails"] = *preferences.AutoCleanUnreadEmails
 	}
 	if len(vals) == 0 {
-		response.Success(c, "No preferences changed", nil)
+		response.SuccessMsg(c, "No preferences changed", nil)
 		return
 	}
 
@@ -1208,7 +1208,7 @@ func (h *Handlers) handleUserUpdatePreferences(c *gin.Context) {
 		response.Fail(c, "update user failed", err)
 		return
 	}
-	response.Success(c, "Update user preferences successfully", nil)
+	response.SuccessMsg(c, "Update user preferences successfully", nil)
 }
 
 // handleChangePassword 修改密码
@@ -1264,7 +1264,7 @@ func (h *Handlers) handleChangePassword(c *gin.Context) {
 
 	// 修改密码成功后强制下线，要求重新登录
 	models.Logout(c, user)
-	response.Success(c, "Password changed successfully", map[string]any{"logout": true})
+	response.SuccessMsg(c, "Password changed successfully", map[string]any{"logout": true})
 }
 
 // handleChangePasswordByUsername 通过用户名验证码修改密码
@@ -1337,7 +1337,7 @@ func (h *Handlers) handleChangePasswordByEmail(c *gin.Context) {
 
 	// 修改密码成功后强制下线，要求重新登录
 	models.Logout(c, user)
-	response.Success(c, "密码修改成功", map[string]any{"logout": true})
+	response.SuccessMsg(c, "密码修改成功", map[string]any{"logout": true})
 }
 
 // handleGetUserDevices 获取用户的登录设备列表
@@ -1354,7 +1354,7 @@ func (h *Handlers) handleGetUserDevices(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "获取设备列表成功", gin.H{
+	response.SuccessMsg(c, "获取设备列表成功", gin.H{
 		"devices": devices,
 	})
 }
@@ -1372,7 +1372,7 @@ func (h *Handlers) handleResetPassword(c *gin.Context) {
 
 	user, err := models.GetUserByUsername(h.db, form.Username)
 	if err != nil {
-		response.Success(c, "If the username exists, a reset link has been sent", nil)
+		response.SuccessMsg(c, "If the username exists, a reset link has been sent", nil)
 		return
 	}
 
@@ -1385,7 +1385,7 @@ func (h *Handlers) handleResetPassword(c *gin.Context) {
 	// 发射密码重置信号
 	common.Sig().Emit(constants.SigUserResetPassword, user, token, c.ClientIP(), c.Request.UserAgent(), h.db)
 
-	response.Success(c, "If the email exists, a reset link has been sent", nil)
+	response.SuccessMsg(c, "If the email exists, a reset link has been sent", nil)
 }
 
 // handleResetPasswordConfirm 确认重置密码
@@ -1412,7 +1412,7 @@ func (h *Handlers) handleResetPasswordConfirm(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "Password reset successfully", nil)
+	response.SuccessMsg(c, "Password reset successfully", nil)
 }
 
 // handleVerifyEmail 验证邮箱 - 已移除邮箱功能
@@ -1458,7 +1458,7 @@ func (h *Handlers) handleVerifyPhone(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "Phone verified successfully", nil)
+	response.SuccessMsg(c, "Phone verified successfully", nil)
 }
 
 // handleGetSalt 获取随机盐（用于密码加密）
@@ -1474,7 +1474,7 @@ func (h *Handlers) handleGetSalt(c *gin.Context) {
 		utils.GlobalCache.Add(key, timestamp)
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"salt":      salt,
 		"timestamp": timestamp,
 		"expiresIn": expiresIn,
@@ -1509,7 +1509,7 @@ func (h *Handlers) handleSendPhoneVerification(c *gin.Context) {
 	// 目前只是记录日志
 	logger.Info("Phone verification code", zap.String("phone", user.Phone), zap.String("code", token))
 
-	response.Success(c, "Verification code sent", nil)
+	response.SuccessMsg(c, "Verification code sent", nil)
 }
 
 // handleUpdateNotificationSettings 更新通知设置
@@ -1533,7 +1533,7 @@ func (h *Handlers) handleUpdateNotificationSettings(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "Notification settings updated successfully", nil)
+	response.SuccessMsg(c, "Notification settings updated successfully", nil)
 }
 
 // handleUpdateUserPreferences 更新用户偏好设置
@@ -1563,7 +1563,7 @@ func (h *Handlers) handleUpdateUserPreferences(c *gin.Context) {
 		logger.Warn("Failed to update profile complete", zap.Error(err))
 	}
 
-	response.Success(c, "Preferences updated successfully", nil)
+	response.SuccessMsg(c, "Preferences updated successfully", nil)
 }
 
 // handleGetUserStats 获取用户统计信息
@@ -1582,7 +1582,7 @@ func (h *Handlers) handleGetUserStats(c *gin.Context) {
 		"createdAt":          user.CreatedAt,
 	}
 
-	response.Success(c, "User stats retrieved successfully", stats)
+	response.SuccessMsg(c, "User stats retrieved successfully", stats)
 }
 
 // handleUploadAvatar 处理用户头像上传（服务端校验大小并统一压缩为 JPEG）
@@ -1648,7 +1648,7 @@ func (h *Handlers) handleUploadAvatar(c *gin.Context) {
 		logger.Warn("Failed to update profile complete", zap.Error(err))
 	}
 
-	response.Success(c, "头像上传成功", gin.H{
+	response.SuccessMsg(c, "头像上传成功", gin.H{
 		"avatar": avatarRelativePath,
 		"width":  processed.Width,
 		"height": processed.Height,
@@ -1714,7 +1714,7 @@ func (h *Handlers) handleSendEmailCode(context *gin.Context) {
 			return
 		}
 	}()
-	response.Success(context, "success", "Send Email Successful, Must be verified within the valid time [5 minutes]")
+	response.SuccessMsg(context, "success", "Send Email Successful, Must be verified within the valid time [5 minutes]")
 	return
 }
 
@@ -1726,7 +1726,7 @@ func (h *Handlers) handleGetCaptcha(c *gin.Context) {
 		response.Fail(c, "Failed to generate captcha", err)
 		return
 	}
-	response.Success(c, "Captcha generated", gin.H{
+	response.SuccessMsg(c, "Captcha generated", gin.H{
 		"id":   capt.ID,
 		"type": capt.Type,
 		"data": capt.Data,
@@ -1745,7 +1745,7 @@ func (h *Handlers) handleVerifyCaptcha(c *gin.Context) {
 		response.Fail(c, "Invalid captcha", err)
 		return
 	}
-	response.Success(c, "Captcha verified", gin.H{"valid": true})
+	response.SuccessMsg(c, "Captcha verified", gin.H{"valid": true})
 }
 
 // handleGetUserActivity 获取用户活动记录
@@ -1817,7 +1817,7 @@ func (h *Handlers) handleGetUserActivity(c *gin.Context) {
 		}
 	}
 
-	response.Success(c, "Activities retrieved", gin.H{
+	response.SuccessMsg(c, "Activities retrieved", gin.H{
 		"activities": activityList,
 		"pagination": gin.H{
 			"page":       pageInt,
@@ -1894,7 +1894,7 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 		items = append(items, serializeUser(&u))
 	}
 
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"users":    items,
 		"total":    total,
 		"page":     page,
@@ -1916,7 +1916,7 @@ func (h *Handlers) handleAdminGetUser(c *gin.Context) {
 		response.Fail(c, "用户不存在", err)
 		return
 	}
-	response.Success(c, "ok", serializeUser(&user))
+	response.SuccessMsg(c, "ok", serializeUser(&user))
 }
 
 // POST /users
@@ -1973,7 +1973,7 @@ func (h *Handlers) handleAdminCreateUser(c *gin.Context) {
 		response.Fail(c, "创建失败", err)
 		return
 	}
-	response.Success(c, "创建成功", serializeUser(&user))
+	response.SuccessMsg(c, "创建成功", serializeUser(&user))
 }
 
 // PUT /users/:id
@@ -2029,7 +2029,7 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 	}
 
 	if len(updates) == 0 {
-		response.Success(c, "无变更", serializeUser(&user))
+		response.SuccessMsg(c, "无变更", serializeUser(&user))
 		return
 	}
 
@@ -2039,7 +2039,7 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 	}
 
 	db.First(&user, id)
-	response.Success(c, "更新成功", serializeUser(&user))
+	response.SuccessMsg(c, "更新成功", serializeUser(&user))
 }
 
 // DELETE /users/:id
@@ -2067,7 +2067,7 @@ func (h *Handlers) handleAdminDeleteUser(c *gin.Context) {
 		response.Fail(c, "删除失败", err)
 		return
 	}
-	response.Success(c, "删除成功", nil)
+	response.SuccessMsg(c, "删除成功", nil)
 }
 
 // serializeUser 序列化用户信息（不含密码）

@@ -10,7 +10,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -162,7 +162,7 @@ func (h *Handlers) handleReadingListPassages(c *gin.Context) {
 		items = append(items, item)
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     items,
 		"total":    total,
 		"page":     page,
@@ -202,7 +202,7 @@ func (h *Handlers) handleReadingGetPassage(c *gin.Context) {
 		})
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"id":               passage.ID,
 		"title":            passage.Title,
 		"level":            passage.Level,
@@ -325,7 +325,7 @@ func (h *Handlers) handleReadingSubmit(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"recordId":      record.ID,
 		"passageId":     passage.ID,
 		"title":         passage.Title,
@@ -397,7 +397,7 @@ func (h *Handlers) handleReadingListRecords(c *gin.Context) {
 		})
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -433,7 +433,7 @@ func (h *Handlers) handleReadingGetRecord(c *gin.Context) {
 	var details []readingAnswerItem
 	_ = json.Unmarshal([]byte(record.Answers), &details)
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"id":            record.ID,
 		"passageId":     record.PassageID,
 		"title":         passage.Title,
@@ -471,7 +471,7 @@ func (h *Handlers) handleAdminListPassages(c *gin.Context) {
 	var list []models.ReadingPassage
 	q.Order("sort_order ASC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list)
 
-	response.Success(c, "success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
+	response.SuccessMsg(c, "success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handlers) handleAdminGetPassage(c *gin.Context) {
@@ -497,7 +497,7 @@ func (h *Handlers) handleAdminGetPassage(c *gin.Context) {
 			"sortOrder":   q.SortOrder,
 		})
 	}
-	response.Success(c, "success", gin.H{"passage": passage, "questions": qs})
+	response.SuccessMsg(c, "success", gin.H{"passage": passage, "questions": qs})
 }
 
 func (h *Handlers) handleAdminCreatePassage(c *gin.Context) {
@@ -584,7 +584,7 @@ func (h *Handlers) handleAdminCreatePassage(c *gin.Context) {
 		response.Fail(c, "创建失败", err)
 		return
 	}
-	response.Success(c, "创建成功", gin.H{"id": passage.ID})
+	response.SuccessMsg(c, "创建成功", gin.H{"id": passage.ID})
 }
 
 func (h *Handlers) handleAdminUpdatePassage(c *gin.Context) {
@@ -641,7 +641,7 @@ func (h *Handlers) handleAdminUpdatePassage(c *gin.Context) {
 		response.Fail(c, "更新失败", err)
 		return
 	}
-	response.Success(c, "更新成功", passage)
+	response.SuccessMsg(c, "更新成功", passage)
 }
 
 func (h *Handlers) handleAdminDeletePassage(c *gin.Context) {
@@ -666,7 +666,7 @@ func (h *Handlers) handleAdminDeletePassage(c *gin.Context) {
 	db.Model(&models.ReadingQuestion{}).
 		Where("passage_id = ? AND is_deleted = ?", passage.ID, models.SoftDeleteStatusActive).
 		Updates(map[string]any{"is_deleted": models.SoftDeleteStatusDeleted, "update_by": op})
-	response.Success(c, "删除成功", nil)
+	response.SuccessMsg(c, "删除成功", nil)
 }
 
 func (h *Handlers) handleAdminUpsertQuestions(c *gin.Context) {
@@ -681,7 +681,7 @@ func (h *Handlers) handleAdminUpsertQuestions(c *gin.Context) {
 	}
 
 	var body struct {
-		Replace bool `json:"replace"`
+		Replace   bool `json:"replace"`
 		Questions []struct {
 			Stem        string          `json:"stem" binding:"required"`
 			Options     []readingOption `json:"options" binding:"required"`
@@ -733,5 +733,5 @@ func (h *Handlers) handleAdminUpsertQuestions(c *gin.Context) {
 		response.Fail(c, "保存题目失败", err)
 		return
 	}
-	response.Success(c, "保存成功", nil)
+	response.SuccessMsg(c, "保存成功", nil)
 }

@@ -11,7 +11,7 @@ import (
 	CloudStepsGo "github.com/LingByte/CloudStepsGo"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -165,7 +165,7 @@ func (h *Handlers) handleListWordBooks(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     books,
 		"total":    total,
 		"page":     page,
@@ -182,7 +182,7 @@ func (h *Handlers) handleGetWordBook(c *gin.Context) {
 		response.Fail(c, "词库不存在", err)
 		return
 	}
-	response.Success(c, "success", book)
+	response.SuccessMsg(c, "success", book)
 }
 
 // handleGetWordDetail GET /words/:id — 返回单个单词的完整词典数据
@@ -198,7 +198,7 @@ func (h *Handlers) handleGetWordDetail(c *gin.Context) {
 		response.Fail(c, "单词不存在", err)
 		return
 	}
-	response.Success(c, "success", word)
+	response.SuccessMsg(c, "success", word)
 }
 
 // handleListWordBookWords GET /wordbooks/:id/words?page=&pageSize=&keyword=
@@ -237,7 +237,7 @@ func (h *Handlers) handleListWordBookWords(c *gin.Context) {
 		response.Fail(c, "查询失败", err)
 		return
 	}
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"list":     words,
 		"total":    total,
 		"page":     page,
@@ -272,7 +272,7 @@ func (h *Handlers) handleSelectWordBook(c *gin.Context) {
 	// 筛词时按需创建状态记录，学习时也按需创建
 	// ScreenProgress=0 表示从头开始筛词，不需要预创建任何状态
 
-	response.Success(c, "success", uwb)
+	response.SuccessMsg(c, "success", uwb)
 }
 
 func (h *Handlers) handleGetWordBookProgress(c *gin.Context) {
@@ -303,7 +303,7 @@ func (h *Handlers) handleGetWordBookProgress(c *gin.Context) {
 		Where("user_id = ? AND word_book_id = ? AND learn_status IN ?", user.ID, id, []string{"learned", "mastered"}).
 		Count(&learnedCount).Error
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"userWordBook":     uwb,
 		"totalWords":       totalWords,
 		"screenProgress":   uwb.ScreenProgress,
@@ -328,7 +328,7 @@ func (h *Handlers) handleScreenNext(c *gin.Context) {
 		return
 	}
 	if uwb.ScreenCompleted {
-		response.Success(c, "筛词已完成", gin.H{"completed": true})
+		response.SuccessMsg(c, "筛词已完成", gin.H{"completed": true})
 		return
 	}
 
@@ -342,14 +342,14 @@ func (h *Handlers) handleScreenNext(c *gin.Context) {
 		First(&word).Error
 	if err != nil {
 		_ = db.Model(&uwb).Updates(map[string]any{"screen_completed": true}).Error
-		response.Success(c, "筛词已完成", gin.H{"completed": true})
+		response.SuccessMsg(c, "筛词已完成", gin.H{"completed": true})
 		return
 	}
 
 	// 使用 word_books.word_count 冗余字段
 	totalWords, _ := models.GetWordCountByBookID(db, uint(id))
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"word":      word,
 		"screened":  uwb.ScreenProgress,
 		"total":     totalWords,
@@ -414,7 +414,7 @@ func (h *Handlers) handleScreenSubmit(c *gin.Context) {
 		Where("user_id = ? AND word_book_id = ? AND screen_result = ?", user.ID, id, "known").
 		Count(&knownCount).Error
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"unknownCount":     unknownCount,
 		"knownCount":       knownCount,
 		"screened":         newProgress,
@@ -450,7 +450,7 @@ func (h *Handlers) handleScreenStatus(c *gin.Context) {
 	// 使用 word_books.word_count 冗余字段
 	totalWords, _ := models.GetWordCountByBookID(db, uint(id))
 
-	response.Success(c, "success", gin.H{
+	response.SuccessMsg(c, "success", gin.H{
 		"screened":         uwb.ScreenProgress,
 		"total":            totalWords,
 		"screenCompleted":  uwb.ScreenCompleted,
@@ -480,7 +480,7 @@ func (h *Handlers) adminListWordBooks(c *gin.Context) {
 	var books []models.WordBook
 	q.Offset((page - 1) * pageSize).Limit(pageSize).Find(&books)
 
-	response.Success(c, "success", gin.H{"list": books, "total": total, "page": page, "pageSize": pageSize})
+	response.SuccessMsg(c, "success", gin.H{"list": books, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handlers) adminCreateWordBook(c *gin.Context) {
@@ -536,7 +536,7 @@ func (h *Handlers) adminCreateWordBook(c *gin.Context) {
 		response.Fail(c, "创建失败", err)
 		return
 	}
-	response.Success(c, "创建成功", book)
+	response.SuccessMsg(c, "创建成功", book)
 }
 
 func (h *Handlers) adminUpdateWordBook(c *gin.Context) {
@@ -572,7 +572,7 @@ func (h *Handlers) adminUpdateWordBook(c *gin.Context) {
 		return
 	}
 	book, _ := models.GetWordBookByID(db, uint(id))
-	response.Success(c, "更新成功", book)
+	response.SuccessMsg(c, "更新成功", book)
 }
 
 func (h *Handlers) adminDeleteWordBook(c *gin.Context) {
@@ -593,7 +593,7 @@ func (h *Handlers) adminDeleteWordBook(c *gin.Context) {
 		response.Fail(c, "删除失败", err)
 		return
 	}
-	response.Success(c, "删除成功", nil)
+	response.SuccessMsg(c, "删除成功", nil)
 }
 
 func (h *Handlers) adminListWords(c *gin.Context) {
@@ -608,7 +608,7 @@ func (h *Handlers) adminListWords(c *gin.Context) {
 		response.Fail(c, "查询失败", err)
 		return
 	}
-	response.Success(c, "success", gin.H{"list": words, "total": total, "page": page, "pageSize": pageSize})
+	response.SuccessMsg(c, "success", gin.H{"list": words, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handlers) adminCreateWord(c *gin.Context) {
@@ -635,7 +635,7 @@ func (h *Handlers) adminCreateWord(c *gin.Context) {
 		response.Fail(c, "创建失败", err)
 		return
 	}
-	response.Success(c, "创建成功", word)
+	response.SuccessMsg(c, "创建成功", word)
 }
 
 func (h *Handlers) adminUpdateWord(c *gin.Context) {
@@ -671,7 +671,7 @@ func (h *Handlers) adminUpdateWord(c *gin.Context) {
 		return
 	}
 	word, _ := models.GetWordByID(db, uint(wid))
-	response.Success(c, "更新成功", word)
+	response.SuccessMsg(c, "更新成功", word)
 }
 
 func (h *Handlers) adminDeleteWord(c *gin.Context) {
@@ -692,7 +692,7 @@ func (h *Handlers) adminDeleteWord(c *gin.Context) {
 		response.Fail(c, "删除失败", err)
 		return
 	}
-	response.Success(c, "删除成功", nil)
+	response.SuccessMsg(c, "删除成功", nil)
 }
 
 // adminCheckWords POST {adminPrefix}/wordbooks/:id/words/check
@@ -703,14 +703,14 @@ func (h *Handlers) adminCheckWords(c *gin.Context) {
 		Words []string `json:"words"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || len(body.Words) == 0 {
-		response.Success(c, "success", gin.H{"duplicates": []string{}})
+		response.SuccessMsg(c, "success", gin.H{"duplicates": []string{}})
 		return
 	}
 	var existing []string
 	db.Model(&models.Word{}).
 		Where("word_book_id = ? AND is_deleted = ? AND word IN ?", id, models.SoftDeleteStatusActive, body.Words).
 		Pluck("word", &existing)
-	response.Success(c, "success", gin.H{"duplicates": existing})
+	response.SuccessMsg(c, "success", gin.H{"duplicates": existing})
 }
 
 // adminBatchCreateWords POST {adminPrefix}/wordbooks/:id/words/batch
@@ -755,5 +755,5 @@ func (h *Handlers) adminBatchCreateWords(c *gin.Context) {
 		response.Fail(c, "批量插入失败", err)
 		return
 	}
-	response.Success(c, "导入成功", gin.H{"imported": len(words)})
+	response.SuccessMsg(c, "导入成功", gin.H{"imported": len(words)})
 }

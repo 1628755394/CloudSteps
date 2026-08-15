@@ -10,8 +10,8 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -48,6 +48,9 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 		t.GET("/students/:studentId/study-sessions/:sessionId", h.coachingTeacherStudentStudySessionDetail)
 		t.GET("/students/:studentId/vocab-records/:recordId", h.coachingTeacherStudentVocabRecordDetail)
 		t.GET("/students/:studentId/vocab-records", h.coachingTeacherStudentVocabRecords)
+		t.GET("/students/:studentId/wordbooks", h.coachingTeacherListStudentWordBooks)
+		t.POST("/students/:studentId/wordbooks", h.coachingTeacherAddStudentWordBook)
+		t.DELETE("/students/:studentId/wordbooks/:wordBookId", h.coachingTeacherRemoveStudentWordBook)
 		t.POST("/appointments/:id/start", h.coachingTeacherStart)
 		t.POST("/appointments/:id/end", h.coachingTeacherEnd)
 		// 无排课练习：按所选学员开课计时并扣额度
@@ -219,7 +222,7 @@ func (h *Handlers) coachingAdminListAppointments(c *gin.Context) {
 		response.Fail(c, "查询失败", err.Error())
 		return
 	}
-	response.Success(c, "ok", list)
+	response.SuccessMsg(c, "ok", list)
 }
 
 type coachingAdminApptBody struct {
@@ -274,9 +277,9 @@ func (h *Handlers) coachingAdminCreateAppointment(c *gin.Context) {
 	coachingWriteCoachingAudit(db, c, coachingAuditAppointmentCreate, "appointment", ap.ID, ap.ID, "创建排课", map[string]any{
 		"teacherId": ap.TeacherID, "studentId": ap.StudentID,
 		"scheduledDate": ap.ScheduledDate.Format("2006-01-02"),
-		"startTime": ap.StartTime, "endTime": ap.EndTime,
+		"startTime":     ap.StartTime, "endTime": ap.EndTime,
 	})
-	response.Success(c, "ok", ap)
+	response.SuccessMsg(c, "ok", ap)
 }
 
 func (h *Handlers) coachingAdminUpdateAppointment(c *gin.Context) {
@@ -338,9 +341,9 @@ func (h *Handlers) coachingAdminUpdateAppointment(c *gin.Context) {
 	coachingWriteCoachingAudit(db, c, coachingAuditAppointmentUpdate, "appointment", ap.ID, ap.ID, "更新排课", map[string]any{
 		"teacherId": ap.TeacherID, "studentId": ap.StudentID,
 		"scheduledDate": ap.ScheduledDate.Format("2006-01-02"),
-		"startTime": ap.StartTime, "endTime": ap.EndTime,
+		"startTime":     ap.StartTime, "endTime": ap.EndTime,
 	})
-	response.Success(c, "ok", ap)
+	response.SuccessMsg(c, "ok", ap)
 }
 
 func (h *Handlers) coachingAdminDeleteAppointment(c *gin.Context) {
@@ -352,7 +355,7 @@ func (h *Handlers) coachingAdminDeleteAppointment(c *gin.Context) {
 	}
 	uid := uint(id)
 	coachingWriteCoachingAudit(db, c, coachingAuditAppointmentDelete, "appointment", uid, uid, "删除排课", map[string]any{"appointmentId": id})
-	response.Success(c, "ok", gin.H{"id": id})
+	response.SuccessMsg(c, "ok", gin.H{"id": id})
 }
 
 func (h *Handlers) coachingAdminListQuotas(c *gin.Context) {
@@ -368,7 +371,7 @@ func (h *Handlers) coachingAdminListQuotas(c *gin.Context) {
 		response.Fail(c, "查询失败", err.Error())
 		return
 	}
-	response.Success(c, "ok", list)
+	response.SuccessMsg(c, "ok", list)
 }
 
 type coachingQuotaBody struct {
@@ -411,7 +414,7 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 		coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "新建师生额度", map[string]any{
 			"teacherId": body.TeacherID, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
 		})
-		response.Success(c, "ok", q)
+		response.SuccessMsg(c, "ok", q)
 		return
 	}
 	if err != nil {
@@ -429,7 +432,7 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "更新师生额度", map[string]any{
 		"teacherId": body.TeacherID, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
 	})
-	response.Success(c, "ok", q)
+	response.SuccessMsg(c, "ok", q)
 }
 
 func (h *Handlers) coachingAdminListUsagePeriods(c *gin.Context) {
@@ -459,7 +462,7 @@ func (h *Handlers) coachingAdminListUsagePeriods(c *gin.Context) {
 		response.Fail(c, "查询失败", err.Error())
 		return
 	}
-	response.Success(c, "ok", rows)
+	response.SuccessMsg(c, "ok", rows)
 }
 
 type coachingUsagePeriodBody struct {
@@ -518,7 +521,7 @@ func (h *Handlers) coachingAdminPutUsagePeriod(c *gin.Context) {
 		coachingWriteCoachingAudit(db, c, coachingAuditUsagePeriodPut, "usage_period", row.ID, 0, "创建老师计量周期", map[string]any{
 			"teacherId": body.TeacherID, "month": body.Month, "capMinutes": row.CapMinutes, "usedMinutes": row.UsedMinutes,
 		})
-		response.Success(c, "ok", row)
+		response.SuccessMsg(c, "ok", row)
 		return
 	}
 	if err != nil {
@@ -552,7 +555,7 @@ func (h *Handlers) coachingAdminPutUsagePeriod(c *gin.Context) {
 	coachingWriteCoachingAudit(db, c, coachingAuditUsagePeriodPut, "usage_period", row.ID, 0, "更新老师计量周期", map[string]any{
 		"teacherId": body.TeacherID, "month": body.Month, "updates": updates,
 	})
-	response.Success(c, "ok", row)
+	response.SuccessMsg(c, "ok", row)
 }
 
 // --- Teacher week / start / end ---
@@ -606,7 +609,7 @@ func (h *Handlers) coachingTeacherWeek(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "日期无效"})
 		return
 	}
-	response.Success(c, "ok", gin.H{"schedules": coachingToWeekDTO(list)})
+	response.SuccessMsg(c, "ok", gin.H{"schedules": coachingToWeekDTO(list)})
 }
 
 func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
@@ -668,7 +671,7 @@ func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 		response.Fail(c, "汇总测评数据失败", err.Error())
 		return
 	}
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"list":       items,
 		"nextCursor": nextCursor,
 		"hasMore":    hasMore,
@@ -702,20 +705,20 @@ func (h *Handlers) coachingStudentWeek(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "日期无效"})
 		return
 	}
-	response.Success(c, "ok", gin.H{"schedules": coachingToWeekDTO(list)})
+	response.SuccessMsg(c, "ok", gin.H{"schedules": coachingToWeekDTO(list)})
 }
 
 type coachingWeekScheduleDTO struct {
-	ID              uint    `json:"id"`
-	Title           string  `json:"title"`
-	ScheduledDate   string  `json:"scheduledDate"`
-	StartTime       string  `json:"startTime"`
-	EndTime         string  `json:"endTime"`
-	TeacherID       uint    `json:"teacherId"`
-	StudentID       uint    `json:"studentId"`
-	Status          string  `json:"status"`
-	Students        []string `json:"students,omitempty"`
-	Session         any     `json:"session,omitempty"`
+	ID            uint     `json:"id"`
+	Title         string   `json:"title"`
+	ScheduledDate string   `json:"scheduledDate"`
+	StartTime     string   `json:"startTime"`
+	EndTime       string   `json:"endTime"`
+	TeacherID     uint     `json:"teacherId"`
+	StudentID     uint     `json:"studentId"`
+	Status        string   `json:"status"`
+	Students      []string `json:"students,omitempty"`
+	Session       any      `json:"session,omitempty"`
 }
 
 func coachingToWeekDTO(list []models.CoachingAppointment) []coachingWeekScheduleDTO {
@@ -732,21 +735,21 @@ func coachingToWeekDTO(list []models.CoachingAppointment) []coachingWeekSchedule
 		var sess any
 		if a.Session != nil && a.Session.ID > 0 {
 			sess = gin.H{
-				"status":                  a.Session.Status,
-				"startedAt":               a.Session.StartedAt,
-				"endedAt":                 a.Session.EndedAt,
-				"actualMinutes":           a.Session.ActualMinutes,
-				"billedMinutes":           a.Session.BilledMinutes,
-				"teacherCreditedMinutes":  a.Session.TeacherCreditedMinutes,
+				"status":                 a.Session.Status,
+				"startedAt":              a.Session.StartedAt,
+				"endedAt":                a.Session.EndedAt,
+				"actualMinutes":          a.Session.ActualMinutes,
+				"billedMinutes":          a.Session.BilledMinutes,
+				"teacherCreditedMinutes": a.Session.TeacherCreditedMinutes,
 			}
 		} else if a.Status == models.CoachingStatusInProgress && a.ActualStartedAt != nil {
 			loc := time.Local
 			_, slotEnd, planned, _ := models.CoachingAppointmentSlotBounds(&a, loc)
 			sess = gin.H{
-				"status":          "in_progress",
-				"startedAt":       *a.ActualStartedAt,
-				"scheduledEndAt":  slotEnd,
-				"plannedMinutes":  planned,
+				"status":         "in_progress",
+				"startedAt":      *a.ActualStartedAt,
+				"scheduledEndAt": slotEnd,
+				"plannedMinutes": planned,
 			}
 		}
 		out = append(out, coachingWeekScheduleDTO{
@@ -793,7 +796,7 @@ const coachingDefaultStudentPassword = "student123"
 
 type coachingTeacherCreateStudentBody struct {
 	DisplayName string `json:"displayName" binding:"required"`
-	Password    string `json:"password"`  // 可选；默认 student123
+	Password    string `json:"password"`   // 可选；默认 student123
 	StudyHours  int    `json:"studyHours"` // 学时 → 转成分钟额度
 }
 
@@ -908,7 +911,7 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 		"teacherId": tid, "studentId": student.ID, "displayName": name,
 		"remainingMinutes": remaining, "username": username,
 	})
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"quota":           quota,
 		"student":         student,
 		"username":        username,
@@ -962,7 +965,7 @@ func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
 	coachingWriteCoachingAudit(db, c, "student_password_set", "student", user.ID, 0, "老师设置学员密码", map[string]any{
 		"teacherId": tid, "studentId": user.ID, "resetToDefault": strings.TrimSpace(body.Password) == "",
 	})
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"studentId": user.ID,
 		"username":  user.Username,
 		"password":  pwd,
@@ -1024,7 +1027,7 @@ func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
 		response.Fail(c, "查询失败", err.Error())
 		return
 	}
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"schedules": coachingToWeekDTO(list),
 		"total":     total,
 		"page":      page,
@@ -1059,7 +1062,7 @@ func (h *Handlers) coachingTeacherSearchStudents(c *gin.Context) {
 			"phone":       u.Phone,
 		})
 	}
-	response.Success(c, "ok", items)
+	response.SuccessMsg(c, "ok", items)
 }
 
 func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
@@ -1098,7 +1101,7 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 		coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "老师添加学员", map[string]any{
 			"teacherId": tid, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
 		})
-		response.Success(c, "ok", q)
+		response.SuccessMsg(c, "ok", q)
 		return
 	}
 	if err != nil {
@@ -1117,7 +1120,7 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "老师更新学员额度", map[string]any{
 		"teacherId": tid, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
 	})
-	response.Success(c, "ok", q)
+	response.SuccessMsg(c, "ok", q)
 }
 
 func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
@@ -1163,9 +1166,9 @@ func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
 	coachingWriteCoachingAudit(db, c, coachingAuditAppointmentCreate, "appointment", ap.ID, ap.ID, "老师创建排课", map[string]any{
 		"teacherId": ap.TeacherID, "studentId": ap.StudentID,
 		"scheduledDate": ap.ScheduledDate.Format("2006-01-02"),
-		"startTime": ap.StartTime, "endTime": ap.EndTime,
+		"startTime":     ap.StartTime, "endTime": ap.EndTime,
 	})
-	response.Success(c, "ok", ap)
+	response.SuccessMsg(c, "ok", ap)
 }
 
 func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
@@ -1227,9 +1230,9 @@ func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
 	coachingWriteCoachingAudit(db, c, coachingAuditAppointmentUpdate, "appointment", ap.ID, ap.ID, "老师更新排课", map[string]any{
 		"teacherId": ap.TeacherID, "studentId": ap.StudentID,
 		"scheduledDate": ap.ScheduledDate.Format("2006-01-02"),
-		"startTime": ap.StartTime, "endTime": ap.EndTime,
+		"startTime":     ap.StartTime, "endTime": ap.EndTime,
 	})
-	response.Success(c, "ok", ap)
+	response.SuccessMsg(c, "ok", ap)
 }
 
 func (h *Handlers) coachingTeacherDeleteAppointment(c *gin.Context) {
@@ -1255,7 +1258,7 @@ func (h *Handlers) coachingTeacherDeleteAppointment(c *gin.Context) {
 	}
 	uid := uint(id)
 	coachingWriteCoachingAudit(db, c, coachingAuditAppointmentDelete, "appointment", uid, uid, "老师删除排课", map[string]any{"appointmentId": id})
-	response.Success(c, "ok", gin.H{"id": id})
+	response.SuccessMsg(c, "ok", gin.H{"id": id})
 }
 
 func (h *Handlers) coachingTeacherStart(c *gin.Context) {
@@ -1273,7 +1276,7 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 	}
 	if ap.Status != models.CoachingStatusScheduled {
 		if ap.Status == models.CoachingStatusInProgress {
-			response.Success(c, "ok", gin.H{"appointment": ap, "message": "已在上课中"})
+			response.SuccessMsg(c, "ok", gin.H{"appointment": ap, "message": "已在上课中"})
 			return
 		}
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "当前状态不可开始"})
@@ -1313,7 +1316,7 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 	coachingWriteCoachingAudit(db, c, coachingAuditSessionStart, "appointment", uint(id), uint(id), "开始上课", map[string]any{
 		"teacherId": ap.TeacherID, "studentId": ap.StudentID,
 	})
-	response.Success(c, "ok", ap)
+	response.SuccessMsg(c, "ok", ap)
 }
 
 func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
@@ -1336,7 +1339,7 @@ func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
 		return
 	}
-	response.Success(c, "ok", gin.H{"session": rec, "appointment": apCompleted})
+	response.SuccessMsg(c, "ok", gin.H{"session": rec, "appointment": apCompleted})
 }
 
 type coachingPracticeStartBody struct {
@@ -1407,8 +1410,8 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 			} else {
 				out = ap
 			}
-			response.Success(c, "ok", gin.H{
-				"appointment": out,
+			response.SuccessMsg(c, "ok", gin.H{
+				"appointment":   out,
 				"appointmentId": ap.ID,
 				"studentId":     ap.StudentID,
 				"owned":         false,
@@ -1465,7 +1468,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	} else {
 		out = ap
 	}
-	response.Success(c, "ok", gin.H{
+	response.SuccessMsg(c, "ok", gin.H{
 		"appointment":   out,
 		"appointmentId": ap.ID,
 		"studentId":     ap.StudentID,
@@ -1473,4 +1476,3 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 		"reused":        false,
 	})
 }
-
