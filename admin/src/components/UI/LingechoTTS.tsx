@@ -36,7 +36,7 @@ export default function LingechoTTS({ word, translation, onGenerated }: Props) {
         type="button"
         onClick={handleGenerate}
         disabled={status === 'loading' || !word.trim()}
-        title="通过 Qwen-TTS 生成音频"
+        title="通过腾讯云 TTS 生成音频"
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors disabled:opacity-50
           border-indigo-300 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-600 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
       >

@@ -1,128 +1,172 @@
-// Package tts 使用阿里云 DashScope Qwen-TTS realtime（WebSocket）合成 PCM16LE。
-// 与 cmd/tts-gen 共用同一协议，供 CLI 与管理端 API 调用。
+// Package tts 使用腾讯云语音合成（流式 PCM）生成音频。
+// 与 cmd/tts-gen 共用，供 CLI 与管理端 API 调用。
 //
-// 协议参考：https://www.alibabacloud.com/help/en/model-studio/qwen-tts-realtime
+// 协议对齐腾讯云 TextToStreamAudio（https://tts.cloud.tencent.com/stream）。
 package tts
 
 import (
+	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"os/exec"
-	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
-	"github.com/gorilla/websocket"
+	"github.com/google/uuid"
 )
 
 const (
-	DefaultBaseURL    = "wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
-	DefaultModel      = "qwen3-tts-flash-realtime"
-	DefaultVoice      = "Cherry"
-	DefaultLang       = "Auto"
-	DefaultMode       = "server_commit"
-	DefaultSampleRate = 24000
+	// DefaultVoiceType 腾讯云音色 ID（1005 为常用女声，可按产品需要调整）
+	DefaultVoiceType = int64(1005)
+	// DefaultSampleRate 腾讯云流式 TTS 常用 16k
+	DefaultSampleRate = 16000
+	DefaultCodec      = "pcm"
+	DefaultModelType  = int64(1)
+
+	qcloudTTSHost   = "tts.cloud.tencent.com"
+	qcloudTTSPath   = "/stream"
+	qcloudTTSAction = "TextToStreamAudio"
 )
 
-// Options 合成参数。
+// Options 腾讯云 TTS 合成参数。
 type Options struct {
-	APIKey      string
-	BaseURL     string
-	Model       string
-	Voice       string
-	Lang        string
-	Mode        string
-	SampleRate  int
-	Instruct    string
-	OptInstruct bool
-	DialTimeout time.Duration
-	Verbose     bool
-	Logf        func(format string, args ...any)
+	AppID      int64
+	SecretID   string
+	SecretKey  string
+	VoiceType  int64
+	// Voice 兼容旧管理端字段：可传数字音色 ID（如 "1005"）；非数字则忽略。
+	Voice string
+	// Lang 仅用于缓存键/日志区分，腾讯云流式接口靠 VoiceType 区分语言。
+	Lang       string
+	SampleRate int
+	Codec      string
+	Speed      int64
+	ModelType  int64
+	Verbose    bool
+	Logf       func(format string, args ...any)
 }
 
-// DefaultOptions 返回可用的默认配置（不含 API Key）。
+// DefaultOptions 返回可用的默认配置（不含密钥）。
 func DefaultOptions() Options {
 	return Options{
-		BaseURL:     DefaultBaseURL,
-		Model:       DefaultModel,
-		Voice:       DefaultVoice,
-		Lang:        DefaultLang,
-		Mode:        DefaultMode,
-		SampleRate:  DefaultSampleRate,
-		DialTimeout: 10 * time.Second,
+		VoiceType:  DefaultVoiceType,
+		SampleRate: DefaultSampleRate,
+		Codec:      DefaultCodec,
+		ModelType:  DefaultModelType,
+		Speed:      0,
 	}
 }
 
-// ResolveAPIKey 按优先级解析 API Key。
-func ResolveAPIKey(explicit string) string {
-	if v := strings.TrimSpace(explicit); v != "" {
-		return v
+// ResolveCredentials 从显式参数与环境变量解析腾讯云凭证。
+// 环境变量：QCLOUD_APP_ID / QCLOUD_SECRET_ID / QCLOUD_SECRET（或 QCLOUD_SECRET_KEY）
+func ResolveCredentials(appID, secretID, secretKey string) (int64, string, string) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" || appID == "0" {
+		appID = os.Getenv("QCLOUD_APP_ID")
 	}
-	for _, key := range []string{"DASHSCOPE_API_KEY", "REALTIME_API_KEY", "LLM_API_KEY"} {
-		if v := strings.TrimSpace(utils.GetEnv(key)); v != "" {
-			return v
+	if strings.TrimSpace(secretID) == "" {
+		secretID = os.Getenv("QCLOUD_SECRET_ID")
+	}
+	if strings.TrimSpace(secretKey) == "" {
+		secretKey = os.Getenv("QCLOUD_SECRET")
+		if strings.TrimSpace(secretKey) == "" {
+			secretKey = os.Getenv("QCLOUD_SECRET_KEY")
 		}
 	}
-	return ""
+	id, _ := strconv.ParseInt(strings.TrimSpace(appID), 10, 64)
+	return id, strings.TrimSpace(secretID), strings.TrimSpace(secretKey)
+}
+
+// ResolveAPIKey 兼容旧调用名：返回 SecretKey（若已配置完整凭证则非空）。
+func ResolveAPIKey(explicit string) string {
+	_, _, sk := ResolveCredentials("", "", explicit)
+	return sk
 }
 
 // Normalize 填充默认值并校验关键参数。
 func (o *Options) Normalize() error {
-	if o.APIKey == "" {
-		o.APIKey = ResolveAPIKey("")
+	if o.AppID == 0 || o.SecretID == "" || o.SecretKey == "" {
+		appIDStr := ""
+		if o.AppID != 0 {
+			appIDStr = strconv.FormatInt(o.AppID, 10)
+		}
+		id, sid, sk := ResolveCredentials(appIDStr, o.SecretID, o.SecretKey)
+		if o.AppID == 0 {
+			o.AppID = id
+		}
+		if o.SecretID == "" {
+			o.SecretID = sid
+		}
+		if o.SecretKey == "" {
+			o.SecretKey = sk
+		}
 	}
-	if o.APIKey == "" {
-		return errors.New("缺少 API Key：请设置 DASHSCOPE_API_KEY 或 REALTIME_API_KEY")
+	if o.AppID == 0 || o.SecretID == "" || o.SecretKey == "" {
+		return errors.New("缺少腾讯云 TTS 凭证：请设置 QCLOUD_APP_ID / QCLOUD_SECRET_ID / QCLOUD_SECRET")
 	}
-	if strings.TrimSpace(o.BaseURL) == "" {
-		o.BaseURL = DefaultBaseURL
+
+	if o.VoiceType == 0 {
+		if v := strings.TrimSpace(o.Voice); v != "" {
+			if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+				o.VoiceType = n
+			}
+		}
 	}
-	if strings.TrimSpace(o.Model) == "" {
-		o.Model = DefaultModel
+	if o.VoiceType == 0 {
+		if v := strings.TrimSpace(os.Getenv("QCLOUD_VOICE_TYPE")); v != "" {
+			if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+				o.VoiceType = n
+			}
+		}
 	}
-	if strings.TrimSpace(o.Voice) == "" {
-		o.Voice = DefaultVoice
+	if o.VoiceType == 0 {
+		o.VoiceType = DefaultVoiceType
 	}
-	if strings.TrimSpace(o.Lang) == "" {
-		o.Lang = DefaultLang
-	}
-	if o.Mode == "" {
-		o.Mode = DefaultMode
-	}
-	if o.Mode != "server_commit" && o.Mode != "commit" {
-		return fmt.Errorf("mode 必须是 server_commit 或 commit，当前 %q", o.Mode)
-	}
+
 	if o.SampleRate == 0 {
 		o.SampleRate = DefaultSampleRate
 	}
-	if o.SampleRate != 16000 && o.SampleRate != 22050 && o.SampleRate != 24000 {
-		return fmt.Errorf("rate 必须是 16000 / 22050 / 24000，当前 %d", o.SampleRate)
+	switch o.SampleRate {
+	case 8000, 16000:
+		// ok
+	default:
+		return fmt.Errorf("sampleRate 必须是 8000 或 16000，当前 %d", o.SampleRate)
 	}
-	if o.DialTimeout <= 0 {
-		o.DialTimeout = 10 * time.Second
+	if strings.TrimSpace(o.Codec) == "" {
+		o.Codec = DefaultCodec
+	}
+	if o.ModelType == 0 {
+		o.ModelType = DefaultModelType
 	}
 	return nil
 }
 
-type event struct {
-	Type  string `json:"type"`
-	Delta string `json:"delta,omitempty"`
-	Error *struct {
-		Type    string `json:"type"`
-		Code    string `json:"code"`
-		Message string `json:"message"`
-	} `json:"error,omitempty"`
+type qcloudTTSRequest struct {
+	Action     string `json:"Action"`
+	AppID      int64  `json:"AppId"`
+	SecretID   string `json:"SecretId"`
+	Timestamp  int64  `json:"Timestamp"`
+	Expired    int64  `json:"Expired"`
+	Text       string `json:"Text"`
+	SessionID  string `json:"SessionId"`
+	ModelType  int64  `json:"ModelType"`
+	VoiceType  int64  `json:"VoiceType"`
+	SampleRate int64  `json:"SampleRate"`
+	Codec      string `json:"Codec"`
+	Speed      int64  `json:"Speed,omitempty"`
 }
 
-// Synthesize 走 WebSocket 协议合成 PCM16LE（mono）。
+// Synthesize 调用腾讯云流式 TTS，返回 PCM16LE mono。
 func Synthesize(ctx context.Context, opt Options, text string) ([]byte, error) {
 	if err := opt.Normalize(); err != nil {
 		return nil, err
@@ -131,270 +175,118 @@ func Synthesize(ctx context.Context, opt Options, text string) ([]byte, error) {
 	if text == "" {
 		return nil, errors.New("文本为空")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
-	wsURL, err := buildWSURL(opt.BaseURL, opt.Model)
+	if opt.Verbose && opt.Logf != nil {
+		opt.Logf("qcloud tts: voiceType=%d sampleRate=%d codec=%s text=%q",
+			opt.VoiceType, opt.SampleRate, opt.Codec, text)
+	}
+
+	now := time.Now().Unix()
+	req := qcloudTTSRequest{
+		Action:     qcloudTTSAction,
+		AppID:      opt.AppID,
+		SecretID:   opt.SecretID,
+		Timestamp:  now,
+		Expired:    now + 24*60*60,
+		Text:       text,
+		SessionID:  uuid.NewString(),
+		ModelType:  opt.ModelType,
+		VoiceType:  opt.VoiceType,
+		SampleRate: int64(opt.SampleRate),
+		Codec:      opt.Codec,
+	}
+	if opt.Speed != 0 {
+		req.Speed = opt.Speed
+	}
+
+	signURL := qcloudTTSHost + qcloudTTSPath
+	signature := signQCloudTTS(signURL, &req, opt.SecretKey)
+	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
 
-	dialer := *websocket.DefaultDialer
-	dialer.HandshakeTimeout = opt.DialTimeout
-	headers := http.Header{}
-	headers.Set("Authorization", "Bearer "+opt.APIKey)
-
-	if opt.Verbose && opt.Logf != nil {
-		opt.Logf("dial %s model=%s voice=%s lang=%s mode=%s rate=%d",
-			wsURL, opt.Model, opt.Voice, opt.Lang, opt.Mode, opt.SampleRate)
-	}
-	conn, resp, err := dialer.DialContext(ctx, wsURL, headers)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://"+signURL, bytes.NewReader(body))
 	if err != nil {
-		status := -1
-		if resp != nil {
-			status = resp.StatusCode
-			_ = resp.Body.Close()
-		}
-		return nil, fmt.Errorf("dial %s (status=%d): %w", wsURL, status, err)
+		return nil, err
 	}
-	defer conn.Close()
+	httpReq.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	httpReq.Header.Set("Authorization", signature)
 
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = conn.Close()
-		case <-done:
-		}
-	}()
-
-	if err := sendSessionUpdate(conn, opt); err != nil {
-		return nil, fmt.Errorf("session.update: %w", err)
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext,
+			ResponseHeaderTimeout: 10 * time.Second,
+		},
+		Timeout: 60 * time.Second,
 	}
-	if err := sendEvent(conn, map[string]any{
-		"type": "input_text_buffer.append",
-		"text": text,
-	}); err != nil {
-		return nil, fmt.Errorf("append text: %w", err)
-	}
-	if opt.Mode == "commit" {
-		if err := sendEvent(conn, map[string]any{"type": "input_text_buffer.commit"}); err != nil {
-			return nil, fmt.Errorf("commit: %w", err)
-		}
-	}
-	if err := sendEvent(conn, map[string]any{"type": "session.finish"}); err != nil {
-		return nil, fmt.Errorf("session.finish: %w", err)
-	}
-
-	var pcm []byte
-	for {
-		_, raw, err := conn.ReadMessage()
-		if err != nil {
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
-				return pcm, nil
-			}
-			return nil, fmt.Errorf("read: %w", err)
-		}
-		var evt event
-		if err := json.Unmarshal(raw, &evt); err != nil {
-			continue
-		}
-		if opt.Verbose && opt.Logf != nil {
-			opt.Logf("event: %s", evt.Type)
-		}
-		switch evt.Type {
-		case "response.audio.delta":
-			if evt.Delta == "" {
-				continue
-			}
-			chunk, err := base64.StdEncoding.DecodeString(evt.Delta)
-			if err != nil {
-				continue
-			}
-			pcm = append(pcm, chunk...)
-		case "response.done", "session.finished":
-			if evt.Type == "session.finished" {
-				return pcm, nil
-			}
-		case "error":
-			msg := "unknown error"
-			if evt.Error != nil {
-				if evt.Error.Message != "" {
-					msg = evt.Error.Message
-				} else if evt.Error.Code != "" {
-					msg = evt.Error.Code
-				}
-			}
-			return nil, fmt.Errorf("server error: %s", msg)
-		}
-	}
-}
-
-func buildWSURL(base, model string) (string, error) {
-	if base == "" {
-		base = DefaultBaseURL
-	}
-	u, err := url.Parse(base)
+	rsp, err := client.Do(httpReq)
 	if err != nil {
-		return "", fmt.Errorf("parse base_url: %w", err)
+		return nil, fmt.Errorf("qcloud tts request: %w", err)
 	}
-	if u.Scheme != "ws" && u.Scheme != "wss" {
-		return "", fmt.Errorf("base_url 必须 ws:// 或 wss://，当前 %q", u.Scheme)
-	}
-	q := u.Query()
-	if q.Get("model") == "" && model != "" {
-		q.Set("model", model)
-		u.RawQuery = q.Encode()
-	}
-	return u.String(), nil
-}
+	defer rsp.Body.Close()
 
-func sendSessionUpdate(conn *websocket.Conn, opt Options) error {
-	session := map[string]any{
-		"mode":            opt.Mode,
-		"voice":           opt.Voice,
-		"language_type":   opt.Lang,
-		"response_format": "pcm",
-		"sample_rate":     opt.SampleRate,
+	ct := rsp.Header.Get("Content-Type")
+	if rsp.StatusCode != http.StatusOK || !strings.Contains(ct, "application/octet-stream") {
+		errBody, _ := io.ReadAll(io.LimitReader(rsp.Body, 4096))
+		if len(errBody) == 0 {
+			return nil, fmt.Errorf("qcloud tts failed: status=%d content-type=%s", rsp.StatusCode, ct)
+		}
+		return nil, fmt.Errorf("qcloud tts failed: status=%d %s", rsp.StatusCode, strings.TrimSpace(string(errBody)))
 	}
-	if opt.Instruct != "" {
-		session["instructions"] = opt.Instruct
-		session["optimize_instructions"] = opt.OptInstruct
-	}
-	return sendEvent(conn, map[string]any{
-		"type":    "session.update",
-		"session": session,
-	})
-}
 
-func sendEvent(conn *websocket.Conn, event map[string]any) error {
-	event["event_id"] = fmt.Sprintf("event_%d", time.Now().UnixMilli())
-	buf, err := json.Marshal(event)
+	pcm, err := io.ReadAll(rsp.Body)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("qcloud tts read: %w", err)
 	}
-	return conn.WriteMessage(websocket.TextMessage, buf)
-}
-
-// EncodeWAV 将 PCM16LE mono 编码为完整 WAV 字节。
-func EncodeWAV(pcm []byte, sampleRate int) ([]byte, error) {
 	if len(pcm) == 0 {
-		return nil, errors.New("PCM 数据为空")
+		return nil, errors.New("qcloud tts: 未收到音频数据")
 	}
-	if sampleRate <= 0 {
-		sampleRate = DefaultSampleRate
-	}
-	dataLen := uint32(len(pcm))
-	byteRate := uint32(sampleRate) * 2
-	totalLen := 36 + dataLen
-
-	buf := make([]byte, 0, 44+len(pcm))
-	w := &binaryWriter{b: buf}
-	w.bytes([]byte("RIFF"))
-	w.u32(totalLen)
-	w.bytes([]byte("WAVE"))
-	w.bytes([]byte("fmt "))
-	w.u32(16)
-	w.u16(1) // PCM
-	w.u16(1) // mono
-	w.u32(uint32(sampleRate))
-	w.u32(byteRate)
-	w.u16(2)
-	w.u16(16)
-	w.bytes([]byte("data"))
-	w.u32(dataLen)
-	w.bytes(pcm)
-	return w.b, nil
+	return pcm, nil
 }
 
-type binaryWriter struct{ b []byte }
-
-func (w *binaryWriter) bytes(p []byte) { w.b = append(w.b, p...) }
-func (w *binaryWriter) u16(v uint16) {
-	var tmp [2]byte
-	binary.LittleEndian.PutUint16(tmp[:], v)
-	w.b = append(w.b, tmp[:]...)
-}
-func (w *binaryWriter) u32(v uint32) {
-	var tmp [4]byte
-	binary.LittleEndian.PutUint32(tmp[:], v)
-	w.b = append(w.b, tmp[:]...)
-}
-
-// WriteAudioFile 根据后缀写出 .pcm / .wav / .mp3（mp3 需系统 ffmpeg）。
-func WriteAudioFile(path string, pcm []byte, sampleRate int) error {
-	if len(pcm) == 0 {
-		return errors.New("PCM 数据为空")
+func signQCloudTTS(pathWithHost string, request *qcloudTTSRequest, secretKey string) string {
+	queryMap := map[string]string{
+		"Action":     request.Action,
+		"AppId":      strconv.FormatInt(request.AppID, 10),
+		"SecretId":   request.SecretID,
+		"Timestamp":  strconv.FormatInt(request.Timestamp, 10),
+		"Expired":    strconv.FormatInt(request.Expired, 10),
+		"Text":       request.Text,
+		"SessionId":  request.SessionID,
+		"ModelType":  strconv.FormatInt(request.ModelType, 10),
+		"VoiceType":  strconv.FormatInt(request.VoiceType, 10),
+		"SampleRate": strconv.FormatInt(request.SampleRate, 10),
+		"Codec":      request.Codec,
 	}
-	ext := strings.ToLower(filepath.Ext(path))
-	switch ext {
-	case ".pcm":
-		return os.WriteFile(path, pcm, 0o644)
-	case ".wav":
-		wav, err := EncodeWAV(pcm, sampleRate)
-		if err != nil {
-			return err
+	if request.Speed != 0 {
+		queryMap["Speed"] = strconv.FormatInt(request.Speed, 10)
+	}
+
+	keys := make([]string, 0, len(queryMap))
+	for k := range queryMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var queryStr bytes.Buffer
+	for i, k := range keys {
+		if i > 0 {
+			queryStr.WriteByte('&')
 		}
-		return os.WriteFile(path, wav, 0o644)
-	case ".mp3":
-		return writeMP3ViaFFmpeg(path, pcm, sampleRate)
-	default:
-		return fmt.Errorf("不支持的输出格式 %q（支持 .pcm/.wav/.mp3）", ext)
+		queryStr.WriteString(k)
+		queryStr.WriteByte('=')
+		queryStr.WriteString(queryMap[k])
 	}
-}
 
-func writeMP3ViaFFmpeg(path string, pcm []byte, sampleRate int) error {
-	if _, err := exec.LookPath("ffmpeg"); err != nil {
-		return fmt.Errorf("未找到 ffmpeg，请先安装（brew install ffmpeg）：%w", err)
-	}
-	tmpWAV, err := os.CreateTemp("", "tts-*.wav")
-	if err != nil {
-		return err
-	}
-	tmpWAVPath := tmpWAV.Name()
-	_ = tmpWAV.Close()
-	defer os.Remove(tmpWAVPath)
-
-	wav, err := EncodeWAV(pcm, sampleRate)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(tmpWAVPath, wav, 0o644); err != nil {
-		return fmt.Errorf("写临时 wav: %w", err)
-	}
-	cmd := exec.Command("ffmpeg", "-y", "-i", tmpWAVPath, "-codec:a", "libmp3lame", "-b:a", "64k", path)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("ffmpeg 转码: %w", err)
-	}
-	return nil
-}
-
-// SanitizeFilename 将文本转为安全文件名片段。
-func SanitizeFilename(s string, maxLen int) string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return "tts"
-	}
-	var b strings.Builder
-	for _, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9',
-			r >= 0x4e00 && r <= 0x9fff:
-			b.WriteRune(r)
-		case r == ' ' || r == '-':
-			b.WriteRune('_')
-		default:
-			b.WriteRune('_')
-		}
-	}
-	out := strings.Trim(b.String(), "_")
-	if out == "" {
-		out = "tts"
-	}
-	if maxLen > 0 && len([]rune(out)) > maxLen {
-		out = string([]rune(out)[:maxLen])
-	}
-	return out
+	signPayload := "POST" + pathWithHost + "?" + queryStr.String()
+	mac := hmac.New(sha1.New, []byte(secretKey))
+	_, _ = mac.Write([]byte(signPayload))
+	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
 }

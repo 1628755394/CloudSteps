@@ -1,6 +1,5 @@
 /**
- * 管理端 TTS：走后端 /api/admin/tts（DashScope Qwen-TTS，与 cmd/tts-gen 同源）。
- * 不再使用 Lingecho 开放接口。
+ * 管理端 TTS：走后端 /api/admin/tts（腾讯云 TTS，与 cmd/tts-gen 同源）。
  */
 import { post } from '@/utils/request'
 import { getApiBaseURL } from '@/config/apiConfig'
