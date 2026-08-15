@@ -8,7 +8,7 @@ require (
 	github.com/LingByte/ling-base/cache v0.1.0
 	github.com/LingByte/ling-base/captcha v0.2.0
 	github.com/LingByte/ling-base/common v0.3.0
-	github.com/LingByte/ling-base/common/config v0.1.0
+	github.com/LingByte/ling-base/common/config v0.1.1
 	github.com/LingByte/ling-base/common/random v0.1.0
 	github.com/LingByte/ling-base/common/response/gin v0.1.0
 	github.com/LingByte/ling-base/i18n v0.1.0
