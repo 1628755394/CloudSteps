@@ -1,6 +1,7 @@
 import { CloudButton } from "../components/cloudsteps";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticePauseMenu } from "../components/PracticePauseMenu";
 import { TopBar } from "../components/TopBar";
 import { Pause, Volume2, Scissors } from "lucide-react";
 import { useNavigate } from "react-router";
@@ -17,10 +18,12 @@ import {
   setStudyRecheckWords,
   shouldEnterPostTrainingCheck,
 } from "../utils/studyBatchFlow";
+import { getReviewReturnPath } from "../utils/reviewPractice";
 
 const CHECK_PHASE_KEY = "lb_study_check_phase";
 
 type FlashWord = {
+  uid: string;
   id: number;
   word: string;
   phonetic: string;
@@ -31,9 +34,15 @@ type FlashWord = {
   heard: boolean;
 };
 
+function newUid(id: number): string {
+  return `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function mapToFlashWord(w: Record<string, unknown>): FlashWord {
+  const id = Number(w.id);
   return {
-    id: Number(w.id),
+    uid: newUid(id),
+    id,
     word: String(w.word || ""),
     phonetic: pickPhoneticDisplay(w as { phonetic?: string; phoneticUk?: string; phoneticUs?: string }),
     translation: formatTranslation(w.translation as string),
@@ -48,19 +57,10 @@ export default function FlashReview() {
   const navigate = useNavigate();
   const [words, setWords] = useState<FlashWord[]>([]);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
-
-  useEffect(() => {
-    if (mode !== "review") return;
-    const wordBookId = sessionStorage.getItem("lb_review_wordbook_id");
-    if (wordBookId) {
-      navigate(`/review-word-list?wordBookId=${wordBookId}`, { replace: true });
-    } else {
-      navigate("/anti-forgetting", { replace: true });
-    }
-  }, [mode, navigate]);
 
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
@@ -76,7 +76,7 @@ export default function FlashReview() {
       return;
     }
     if (window.history.length > 1) navigate(-1);
-    else navigate(mode === "review" ? "/anti-forgetting" : "/word-practice");
+    else navigate(mode === "review" ? getReviewReturnPath("/anti-forgetting") : "/word-practice");
   };
 
   useEffect(() => {
@@ -104,7 +104,7 @@ export default function FlashReview() {
   const handleScissorClick = (word: FlashWord, action: "red" | "green") => {
     setWords((prev) =>
       prev.map((w) => {
-        if (w.id !== word.id) return w;
+        if (w.uid !== word.uid) return w;
         // 红/绿都会剪掉：红=不熟(1)，绿=掌握(2)
         return { ...w, scissorCount: action === "red" ? 1 : 2 };
       })
@@ -132,7 +132,7 @@ export default function FlashReview() {
     }
     setWords((prev) =>
       prev.map((w) => {
-        if (w.id === word.id) {
+        if (w.uid === word.uid) {
           return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
         if (next.showTranslation) {
@@ -160,6 +160,19 @@ export default function FlashReview() {
       return;
     }
     if (mode === "review") {
+      try {
+        const raw = sessionStorage.getItem("lb_review_words") || "[]";
+        const all = JSON.parse(raw);
+        const total = Array.isArray(all) ? all.length : 0;
+        const reviewBatches = Math.max(1, Math.ceil(total / 5));
+        if (batchIdx + 1 < reviewBatches) {
+          sessionStorage.setItem("lb_review_batch_idx", String(batchIdx + 1));
+          navigate("/word-practice", { replace: true });
+          return;
+        }
+      } catch {
+        // fall through
+      }
       navigate("/post-training-check");
       return;
     }
@@ -203,12 +216,6 @@ export default function FlashReview() {
     }
   }, [allCut, showCompleteDialog]);
 
-  const scissorColor = (count: number) => {
-    if (count >= 2) return "text-[#66BB6A]";
-    if (count === 1) return "text-[#FF6B6B]";
-    return "text-[#718096]";
-  };
-
   const headerTitle = isRetryMode
     ? "错词快闪重练"
     : `第 ${batchIdx + 1} 组快闪`;
@@ -223,6 +230,8 @@ export default function FlashReview() {
       ? "继续下一组"
       : "进入组内复习";
 
+  const uncutCount = words.filter((w) => w.scissorCount === 0).length;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <TopBar
@@ -235,7 +244,12 @@ export default function FlashReview() {
               onClick={() => setAnnotationOpen((v) => !v)}
             />
             <PracticeFontSettingsButton />
-            <CloudButton type="button" variant="ghost" size="iconRound">
+            <CloudButton
+              type="button"
+              variant="ghost"
+              size="iconRound"
+              onClick={() => setShowPauseMenu((v) => !v)}
+            >
               <Pause size={18} className="text-[#2D3748]" />
             </CloudButton>
           </div>
@@ -251,8 +265,8 @@ export default function FlashReview() {
       <div className="px-4 mt-6 max-w-2xl mx-auto w-full pb-28">
         <p className="text-center text-sm text-[#718096] mb-6">
           {isRetryMode
-            ? "点红剪刀表示不熟，点绿剪刀表示掌握（都会剪掉）"
-            : `${words.filter((w) => w.scissorCount === 0).length} 个待剪`}
+            ? "点红剪刀表示不熟（会重新排队），点绿剪刀表示掌握"
+            : `${uncutCount} 个待剪`}
         </p>
 
         <div className="space-y-3 mb-6">
@@ -260,7 +274,7 @@ export default function FlashReview() {
             .filter((w) => w.scissorCount === 0)
             .map((word) => (
               <div
-                key={word.id}
+                key={word.uid}
                 className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all"
               >
                 <div
@@ -300,7 +314,6 @@ export default function FlashReview() {
                       }
                     />
                   </CloudButton>
-                  {/* 红剪刀：不熟 — 默认即显示红色，选中时加深底 */}
                   <CloudButton
                     type="button"
                     variant="ghost"
@@ -309,12 +322,10 @@ export default function FlashReview() {
                       e.stopPropagation();
                       handleScissorClick(word, "red");
                     }}
-                    title="红剪：不熟"
-                    className={word.scissorCount === 1 ? "bg-[#FF6B6B]/15 ring-1 ring-[#FF6B6B]/40" : ""}
+                    title="红剪：不熟，重新排队"
                   >
                     <Scissors size={20} className="text-[#FF6B6B]" />
                   </CloudButton>
-                  {/* 绿剪刀：掌握 — 默认即显示绿色 */}
                   <CloudButton
                     type="button"
                     variant="ghost"
@@ -324,7 +335,6 @@ export default function FlashReview() {
                       handleScissorClick(word, "green");
                     }}
                     title="绿剪：掌握"
-                    className={word.scissorCount === 2 ? "bg-[#66BB6A]/15 ring-1 ring-[#66BB6A]/40" : ""}
                   >
                     <Scissors size={20} className="text-[#66BB6A]" />
                   </CloudButton>
@@ -333,6 +343,11 @@ export default function FlashReview() {
             ))}
         </div>
       </div>
+
+      <PracticePauseMenu
+        open={showPauseMenu}
+        onClose={() => setShowPauseMenu(false)}
+      />
 
       {showCompleteDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
