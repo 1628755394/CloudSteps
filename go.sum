@@ -22,6 +22,8 @@ github.com/LingByte/ling-base v0.2.0 h1:tnd8VfWzJ87vFuekhGIaaNagy0/wNGEtDjJXJfam
 github.com/LingByte/ling-base v0.2.0/go.mod h1:hvY3juLG2VXXLILEUZq4dVRRIKcWRLNTKJECuHcu4m4=
 github.com/LingByte/ling-base/bootstrap v0.1.0 h1:bNbvNwYL8EExkcIANFUbe+JSi5fY8o3bXmsy62Qo/tU=
 github.com/LingByte/ling-base/bootstrap v0.1.0/go.mod h1:n5ia6BK1bO7iQNNG91+8CymFHyV/F49rOiYAmwU5KWw=
+github.com/LingByte/ling-base/bootstrap v0.1.1 h1:YPxd3yaolRSQOZ5o9yKrlJ5+kHiAIvTFLov7c5MBmQY=
+github.com/LingByte/ling-base/bootstrap v0.1.1/go.mod h1:hH4mXc5Ku+lf5IlBjLGlqyBHM7xON7f3LE+3zdXUd9g=
 github.com/LingByte/ling-base/cache v0.1.0 h1:xPwpCGQd7PDvQnSxeTEOI+dk6IbKWjRU6LxX/WoQo5c=
 github.com/LingByte/ling-base/cache v0.1.0/go.mod h1:wFMCOaZdQA3G4oa7fxQWw9DPL5Qu+We3fW8HNogN7t8=
 github.com/LingByte/ling-base/captcha v0.2.0 h1:SOqdM3N7bRWpd82gcG9EkL+8+LMkxqDQvOhXirdCPWo=

@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/LingByte/ling-base v0.2.0
-	github.com/LingByte/ling-base/bootstrap v0.1.0
+	github.com/LingByte/ling-base/bootstrap v0.1.1
 	github.com/LingByte/ling-base/cache v0.1.0
 	github.com/LingByte/ling-base/captcha v0.2.0
 	github.com/LingByte/ling-base/common v0.3.0
