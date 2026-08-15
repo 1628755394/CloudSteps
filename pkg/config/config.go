@@ -8,10 +8,8 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
-	"github.com/LingByte/CloudStepsGo/pkg/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/ling-base/common"
-	"github.com/LingByte/lingstorage-sdk-go"
 )
 
 // Config main configuration structure
@@ -29,20 +27,20 @@ type Config struct {
 
 // ServerConfig server configuration
 type ServerConfig struct {
-	Name          string `env:"SERVER_NAME"`
-	Desc          string `env:"SERVER_DESC"`
-	URL           string `env:"SERVER_URL"`
-	Logo          string `env:"SERVER_LOGO"`
-	TermsURL      string `env:"SERVER_TERMS_URL"`
-	Addr          string `env:"ADDR"`
-	Mode          string `env:"MODE"`
-	DocsPrefix    string `env:"DOCS_PREFIX"`
-	APIPrefix     string `env:"API_PREFIX"`
-	AdminPrefix   string `env:"ADMIN_PREFIX"`
-	AuthPrefix    string `env:"AUTH_PREFIX"`
-	SSLEnabled    bool   `env:"SSL_ENABLED"`
-	SSLCertFile   string `env:"SSL_CERT_FILE"`
-	SSLKeyFile    string `env:"SSL_KEY_FILE"`
+	Name        string `env:"SERVER_NAME"`
+	Desc        string `env:"SERVER_DESC"`
+	URL         string `env:"SERVER_URL"`
+	Logo        string `env:"SERVER_LOGO"`
+	TermsURL    string `env:"SERVER_TERMS_URL"`
+	Addr        string `env:"ADDR"`
+	Mode        string `env:"MODE"`
+	DocsPrefix  string `env:"DOCS_PREFIX"`
+	APIPrefix   string `env:"API_PREFIX"`
+	AdminPrefix string `env:"ADMIN_PREFIX"`
+	AuthPrefix  string `env:"AUTH_PREFIX"`
+	SSLEnabled  bool   `env:"SSL_ENABLED"`
+	SSLCertFile string `env:"SSL_CERT_FILE"`
+	SSLKeyFile  string `env:"SSL_KEY_FILE"`
 }
 
 // DatabaseConfig database configuration
@@ -62,10 +60,23 @@ type AuthConfig struct {
 // ServicesConfig services configuration
 type ServicesConfig struct {
 	LLM           LLMConfig               `mapstructure:"llm"`
-	Mail          notification.MailConfig `mapstructure:"mail"`
+	Mail          MailConfig              `mapstructure:"mail"`
 	KnowledgeBase KnowledgeBaseConfig     `mapstructure:"knowledge_base"`
 	Voice         VoiceConfig             `mapstructure:"voice"`
-	Storage       StorageConfig           `mapstructure:"storage"`
+}
+
+// MailConfig email configuration (supports both SMTP and SendCloud).
+// Mirrors internal/notification.MailConfig so pkg/config stays free of
+// app-level imports.
+type MailConfig struct {
+	Provider string `json:"provider"`
+	Host     string `json:"host"`
+	Port     int64  `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	APIUser  string `json:"api_user"`
+	APIKey   string `json:"api_key"`
+	From     string `json:"from"`
 }
 
 // LLMConfig LLM service configuration
@@ -83,7 +94,6 @@ type KnowledgeBaseConfig struct {
 	Qdrant        QdrantConfig        `mapstructure:"qdrant"`
 	Elasticsearch ElasticsearchConfig `mapstructure:"elasticsearch"`
 	Pinecone      PineconeConfig      `mapstructure:"pinecone"`
-	Neo4j         Neo4jConfig         `mapstructure:"neo4j"`
 }
 
 // BailianConfig Bailian configuration
@@ -143,9 +153,8 @@ type Neo4jConfig struct {
 
 // VoiceConfig voice service configuration
 type VoiceConfig struct {
-	Qiniu      QiniuVoiceConfig  `mapstructure:"qiniu"`
-	Xunfei     XunfeiVoiceConfig `mapstructure:"xunfei"`
-	Voiceprint VoiceprintConfig  `mapstructure:"voiceprint"`
+	Qiniu  QiniuVoiceConfig  `mapstructure:"qiniu"`
+	Xunfei XunfeiVoiceConfig `mapstructure:"xunfei"`
 }
 
 // QiniuVoiceConfig Qiniu voice configuration
@@ -249,8 +258,6 @@ type CircuitBreakerConfig struct {
 
 var GlobalConfig *Config
 
-var GlobalStore *lingstorage.Client
-
 func Load() error {
 	// 1. Load .env file based on environment (don't error if it doesn't exist, use default values)
 	env := os.Getenv("APP_ENV")
@@ -264,20 +271,20 @@ func Load() error {
 	GlobalConfig = &Config{
 		MachineID: common.GetIntEnv("MACHINE_ID"),
 		Server: ServerConfig{
-			Name:          getStringOrDefault("SERVER_NAME", ""),
-			Desc:          getStringOrDefault("SERVER_DESC", ""),
-			URL:           getStringOrDefault("SERVER_URL", ""),
-			Logo:          getStringOrDefault("SERVER_LOGO", ""),
-			TermsURL:      getStringOrDefault("SERVER_TERMS_URL", ""),
-			Addr:          getStringOrDefault("ADDR", ":7072"),
-			Mode:          getStringOrDefault("MODE", "development"),
-			DocsPrefix:    getStringOrDefault("DOCS_PREFIX", "/api/docs"),
-			APIPrefix:     getStringOrDefault("API_PREFIX", "/api"),
-			AdminPrefix:   getStringOrDefault("ADMIN_PREFIX", "/admin"),
-			AuthPrefix:    getStringOrDefault("AUTH_PREFIX", "/auth"),
-			SSLEnabled:    getBoolOrDefault("SSL_ENABLED", false),
-			SSLCertFile:   getStringOrDefault("SSL_CERT_FILE", ""),
-			SSLKeyFile:    getStringOrDefault("SSL_KEY_FILE", ""),
+			Name:        getStringOrDefault("SERVER_NAME", ""),
+			Desc:        getStringOrDefault("SERVER_DESC", ""),
+			URL:         getStringOrDefault("SERVER_URL", ""),
+			Logo:        getStringOrDefault("SERVER_LOGO", ""),
+			TermsURL:    getStringOrDefault("SERVER_TERMS_URL", ""),
+			Addr:        getStringOrDefault("ADDR", ":7072"),
+			Mode:        getStringOrDefault("MODE", "development"),
+			DocsPrefix:  getStringOrDefault("DOCS_PREFIX", "/api/docs"),
+			APIPrefix:   getStringOrDefault("API_PREFIX", "/api"),
+			AdminPrefix: getStringOrDefault("ADMIN_PREFIX", "/admin"),
+			AuthPrefix:  getStringOrDefault("AUTH_PREFIX", "/auth"),
+			SSLEnabled:  getBoolOrDefault("SSL_ENABLED", false),
+			SSLCertFile: getStringOrDefault("SSL_CERT_FILE", ""),
+			SSLKeyFile:  getStringOrDefault("SSL_KEY_FILE", ""),
 		},
 		Database: DatabaseConfig{
 			Driver: getStringOrDefault("DB_DRIVER", "sqlite"),
@@ -342,13 +349,6 @@ func Load() error {
 					IndexName: getStringOrDefault("PINECONE_INDEX_NAME", ""),
 					Dimension: getIntOrDefault("PINECONE_DIMENSION", 1536),
 				},
-				Neo4j: Neo4jConfig{
-					Enabled:  getBoolOrDefault("NEO4J_ENABLED", false),
-					URI:      getStringOrDefault("NEO4J_URI", "bolt://localhost:7687"),
-					Username: getStringOrDefault("NEO4J_USERNAME", "neo4j"),
-					Password: getStringOrDefault("NEO4J_PASSWORD", ""),
-					Database: getStringOrDefault("NEO4J_DATABASE", "neo4j"),
-				},
 			},
 			Voice: VoiceConfig{
 				Qiniu: QiniuVoiceConfig{
@@ -362,27 +362,6 @@ func Load() error {
 					WSAPIKey:    getStringOrDefault("XUNFEI_WS_API_KEY", ""),
 					WSAPISecret: getStringOrDefault("XUNFEI_WS_API_SECRET", ""),
 				},
-				Voiceprint: VoiceprintConfig{
-					Enabled:             getBoolOrDefault("VOICEPRINT_ENABLED", false),
-					BaseURL:             getStringOrDefault("VOICEPRINT_BASE_URL", "http://localhost:8005"),
-					APIKey:              getStringOrDefault("VOICEPRINT_API_KEY", ""),
-					Timeout:             parseDuration(getStringOrDefault("VOICEPRINT_TIMEOUT", "30s"), 30*time.Second),
-					ConnectTimeout:      parseDuration(getStringOrDefault("VOICEPRINT_CONNECT_TIMEOUT", "10s"), 10*time.Second),
-					MaxRetries:          getIntOrDefault("VOICEPRINT_MAX_RETRIES", 3),
-					RetryInterval:       parseDuration(getStringOrDefault("VOICEPRINT_RETRY_INTERVAL", "1s"), 1*time.Second),
-					SimilarityThreshold: getFloatOrDefault("VOICEPRINT_SIMILARITY_THRESHOLD", 0.6),
-					MaxCandidates:       getIntOrDefault("VOICEPRINT_MAX_CANDIDATES", 10),
-					CacheEnabled:        getBoolOrDefault("VOICEPRINT_CACHE_ENABLED", true),
-					CacheTTL:            parseDuration(getStringOrDefault("VOICEPRINT_CACHE_TTL", "5m"), 5*time.Minute),
-					LogEnabled:          getBoolOrDefault("VOICEPRINT_LOG_ENABLED", true),
-					LogLevel:            getStringOrDefault("VOICEPRINT_LOG_LEVEL", "info"),
-				},
-			},
-			Storage: StorageConfig{
-				BaseURL:   getStringOrDefault("LINGSTORAGE_BASE_URL", "https://api.lingstorage.com"),
-				APIKey:    getStringOrDefault("LINGSTORAGE_API_KEY", ""),
-				APISecret: getStringOrDefault("LINGSTORAGE_API_SECRET", ""),
-				Bucket:    getStringOrDefault("LINGSTORAGE_BUCKET", "default"),
 			},
 		},
 		Features: FeaturesConfig{
@@ -396,12 +375,6 @@ func Load() error {
 		},
 		Middleware: loadMiddlewareConfig(),
 	}
-	GlobalStore = lingstorage.NewClient(&lingstorage.Config{
-		BaseURL:   GlobalConfig.Services.Storage.BaseURL,
-		APIKey:    GlobalConfig.Services.Storage.APIKey,
-		APISecret: GlobalConfig.Services.Storage.APISecret,
-	})
-
 	return nil
 }
 
@@ -449,13 +422,6 @@ func (c *Config) Validate() error {
 			if c.Services.KnowledgeBase.Pinecone.IndexName == "" {
 				return errors.New("pinecone index name is required when API key is set")
 			}
-		}
-	}
-
-	// Validate Neo4j configuration
-	if c.Services.KnowledgeBase.Neo4j.Enabled {
-		if c.Services.KnowledgeBase.Neo4j.URI == "" {
-			return errors.New("neo4j URI is required when enabled")
 		}
 	}
 
@@ -626,7 +592,7 @@ func loadMiddlewareConfig() MiddlewareConfig {
 
 // loadMailConfig loads mail configuration from environment variables
 // Supports both SMTP (legacy MAIL_* vars) and SendCloud (SENDCLOUD_* vars)
-func loadMailConfig() notification.MailConfig {
+func loadMailConfig() MailConfig {
 	provider := getStringOrDefault("MAIL_PROVIDER", "")
 
 	// Auto-detect provider based on available environment variables
@@ -643,7 +609,7 @@ func loadMailConfig() notification.MailConfig {
 		}
 	}
 
-	config := notification.MailConfig{
+	config := MailConfig{
 		Provider: provider,
 	}
 

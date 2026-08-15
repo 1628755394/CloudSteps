@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/notification"
+	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/gin-gonic/gin"
 )
@@ -42,7 +42,7 @@ func (h *Handlers) handleUnReadNotificationCount(c *gin.Context) {
 		response.AbortWithStatus(c, http.StatusUnauthorized)
 		return
 	}
-	unreadNotificationCount, err := notification.NewInternalNotificationService(h.db).GetUnreadNotificationsCount(users.ID)
+	unreadNotificationCount, err := appnotifier.NewInternalNotificationService(h.db).GetUnreadNotificationsCount(users.ID)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
@@ -82,7 +82,7 @@ func (h *Handlers) handleListNotifications(c *gin.Context) {
 		end, _ = time.Parse(layout, endStr)
 	}
 
-	service := notification.NewInternalNotificationService(h.db)
+	service := appnotifier.NewInternalNotificationService(h.db)
 	notifications, total, totalUnread, totalRead, err := service.GetPaginatedNotifications(
 		user.ID,
 		pageInt,
@@ -113,7 +113,7 @@ func (h *Handlers) handleAllNotifications(c *gin.Context) {
 	if user == nil {
 		response.Fail(c, "User is not logged in.", nil)
 	}
-	err := notification.NewInternalNotificationService(h.db).MarkAllAsRead(user.ID)
+	err := appnotifier.NewInternalNotificationService(h.db).MarkAllAsRead(user.ID)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
@@ -138,14 +138,14 @@ func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
 		return
 	}
 
-	_, err = notification.NewInternalNotificationService(h.db).GetOne(user.ID, notificationID)
+	_, err = appnotifier.NewInternalNotificationService(h.db).GetOne(user.ID, notificationID)
 	if err != nil {
 		response.Fail(c, "You don't have permission to flag this message.", nil)
 		return
 	}
 
 	// Call service layer to mark as read
-	err = notification.NewInternalNotificationService(h.db).MarkAsRead(notificationID)
+	err = appnotifier.NewInternalNotificationService(h.db).MarkAsRead(notificationID)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
@@ -166,7 +166,7 @@ func (h *Handlers) handleDeleteNotification(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
-	err = notification.NewInternalNotificationService(h.db).Delete(user.ID, notificationID)
+	err = appnotifier.NewInternalNotificationService(h.db).Delete(user.ID, notificationID)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
@@ -196,7 +196,7 @@ func (h *Handlers) handleBatchDeleteNotifications(c *gin.Context) {
 		return
 	}
 
-	service := notification.NewInternalNotificationService(h.db)
+	service := appnotifier.NewInternalNotificationService(h.db)
 	deletedCount, err := service.BatchDelete(user.ID, request.IDs)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
@@ -235,7 +235,7 @@ func (h *Handlers) handleGetAllNotificationIds(c *gin.Context) {
 		end, _ = time.Parse(layout, endStr)
 	}
 
-	service := notification.NewInternalNotificationService(h.db)
+	service := appnotifier.NewInternalNotificationService(h.db)
 	ids, err := service.GetAllNotificationIds(user.ID, filterBy, title, content, start, end)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)

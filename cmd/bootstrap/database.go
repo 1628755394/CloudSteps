@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
-	"github.com/LingByte/CloudStepsGo/pkg/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/ling-base/common"
 	"go.uber.org/zap"
@@ -159,7 +159,7 @@ func RunMigrations(db *gorm.DB) error {
 		&models.GrammarLesson{},
 		&models.GrammarQuestion{},
 		&models.GrammarRecord{},
-		&notification.InternalNotification{},
+		&appnotifier.InternalNotification{},
 		&models.StudentTeacherCoachingQuota{},
 		&models.TeacherCoachingUsagePeriod{},
 		&models.CoachingAppointment{},

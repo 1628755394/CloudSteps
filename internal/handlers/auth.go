@@ -15,11 +15,11 @@ import (
 
 	CloudStepsGo "github.com/LingByte/CloudStepsGo"
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
-	"github.com/LingByte/CloudStepsGo/pkg/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
@@ -1698,7 +1698,16 @@ func (h *Handlers) handleSendEmailCode(context *gin.Context) {
 	utils.GlobalCache.Add(req.Email, text)
 	go func() {
 		// Use IP address for tracking since no user context
-		mailNotif := notification.NewMailNotificationWithIP(config.GlobalConfig.Services.Mail, h.db, req.ClientIp)
+		mailNotif := appnotifier.NewMailNotificationWithIP(appnotifier.MailConfig{
+			Provider: config.GlobalConfig.Services.Mail.Provider,
+			Host:     config.GlobalConfig.Services.Mail.Host,
+			Port:     config.GlobalConfig.Services.Mail.Port,
+			Username: config.GlobalConfig.Services.Mail.Username,
+			Password: config.GlobalConfig.Services.Mail.Password,
+			APIUser:  config.GlobalConfig.Services.Mail.APIUser,
+			APIKey:   config.GlobalConfig.Services.Mail.APIKey,
+			From:     config.GlobalConfig.Services.Mail.From,
+		}, h.db, req.ClientIp)
 		err := mailNotif.SendVerificationCode(req.Email, text)
 		if err != nil {
 			CloudStepsGo.AbortWithJSONError(context, http.StatusBadRequest, err)

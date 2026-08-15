@@ -3,12 +3,14 @@ module github.com/LingByte/CloudStepsGo
 go 1.26.2
 
 require (
+	github.com/LingByte/ling-base/captcha v0.2.0
 	github.com/LingByte/ling-base/common v0.2.0
 	github.com/LingByte/ling-base/common/random v0.1.0
 	github.com/LingByte/ling-base/i18n v0.1.0
 	github.com/LingByte/ling-base/i18n/gin v0.1.0
+	github.com/LingByte/ling-base/notification/email v0.1.0
+	github.com/LingByte/ling-base/notification/inbox v0.1.0
 	github.com/LingByte/lingllm v1.2.0
-	github.com/LingByte/lingstorage-sdk-go v0.0.0-20260113030255-ff9d0501909c
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/aws/aws-sdk-go-v2 v1.43.4
 	github.com/aws/aws-sdk-go-v2/config v1.32.35
@@ -19,7 +21,6 @@ require (
 	github.com/gin-contrib/sessions v1.0.4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
-	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/csrf v1.7.3
 	github.com/hashicorp/golang-lru/v2 v2.0.7
@@ -27,9 +28,7 @@ require (
 	github.com/minio/minio-go/v7 v7.2.1
 	github.com/mssola/user_agent v0.6.0
 	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/qiniu/go-sdk/v7 v7.27.0
-	github.com/redis/go-redis/v9 v9.20.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/sirupsen/logrus v1.9.4
@@ -54,9 +53,9 @@ require (
 	cloud.google.com/go/texttospeech v1.21.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
-	github.com/LingByte/ling-base/captcha v0.2.0 // indirect
 	github.com/LingByte/ling-base/common/idgen v0.1.0 // indirect
 	github.com/LingByte/ling-base/constants v0.1.0 // indirect
+	github.com/LingByte/ling-base/notification v0.1.0 // indirect
 	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.16 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.35 // indirect
@@ -85,6 +84,9 @@ require (
 	github.com/deepgram/deepgram-go-sdk v1.9.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvonthenen/websocket v1.5.1-dyv.2 // indirect
+	github.com/emersion/go-imap/v2 v2.0.0-20251216103119-7ac47a9cfd9a // indirect
+	github.com/emersion/go-message v0.18.2 // indirect
+	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
@@ -101,6 +103,7 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.16 // indirect
@@ -161,7 +164,6 @@ require (
 	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.22.0 // indirect
