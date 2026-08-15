@@ -10,10 +10,10 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	appnotifier "github.com/LingByte/CloudStepsGo/internal/notification"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/ling-base/common"
+	"github.com/LingByte/ling-base/logger"
 	"go.uber.org/zap"
 
 	"gorm.io/gorm"

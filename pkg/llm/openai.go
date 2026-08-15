@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	common "github.com/LingByte/ling-base/common"
+	"github.com/LingByte/ling-base/logger"
 	"github.com/google/uuid"
 	"github.com/sashabaranov/go-openai"
 	"go.uber.org/zap"

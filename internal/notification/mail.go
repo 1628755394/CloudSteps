@@ -13,7 +13,7 @@ import (
 	"html/template"
 
 	CloudStepsGo "github.com/LingByte/CloudStepsGo"
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
+	"github.com/LingByte/ling-base/logger"
 	"github.com/LingByte/ling-base/notification/email"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

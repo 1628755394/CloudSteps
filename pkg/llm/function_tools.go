@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
+	"github.com/LingByte/ling-base/logger"
 	"github.com/sashabaranov/go-openai"
 	"go.uber.org/zap"
 )

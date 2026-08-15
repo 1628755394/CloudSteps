@@ -13,8 +13,8 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/voice"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	"github.com/LingByte/CloudStepsGo/pkg/response"
+	"github.com/LingByte/ling-base/logger"
 	"github.com/LingByte/lingllm/protocol/voice/xiaozhi"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -333,14 +333,14 @@ func (h *Handlers) handleScenarioDialogueStats(c *gin.Context) {
 		Order("ended_at desc").Limit(20).Find(&sessions)
 
 	type agg struct {
-		TotalSessions      int     `json:"totalSessions"`
-		TotalMinutes       float64 `json:"totalMinutes"`
-		AvgOverallScore    int     `json:"avgOverallScore"`
-		AvgFluencyScore    int     `json:"avgFluencyScore"`
-		AvgAccuracyScore   int     `json:"avgAccuracyScore"`
-		AvgPronunciation   int     `json:"avgPronunciationScore"`
-		TotalCorrections   int     `json:"totalCorrections"`
-		RecentSessions     []models.ScenarioDialogueSession `json:"recentSessions"`
+		TotalSessions    int                              `json:"totalSessions"`
+		TotalMinutes     float64                          `json:"totalMinutes"`
+		AvgOverallScore  int                              `json:"avgOverallScore"`
+		AvgFluencyScore  int                              `json:"avgFluencyScore"`
+		AvgAccuracyScore int                              `json:"avgAccuracyScore"`
+		AvgPronunciation int                              `json:"avgPronunciationScore"`
+		TotalCorrections int                              `json:"totalCorrections"`
+		RecentSessions   []models.ScenarioDialogueSession `json:"recentSessions"`
 	}
 	result := agg{RecentSessions: sessions}
 	for _, s := range sessions {
@@ -489,21 +489,21 @@ func cleanSpecialChars(s string) string {
 	if s == "" {
 		return s
 	}
-	
+
 	// 定义需要过滤的特殊字符
 	replacements := map[rune]string{
-		'…': "...",      // 中文省略号
-		'–': "-",        // 长破折号
-		'—': "-",        // 破折号
+		'…':      "...", // 中文省略号
+		'–':      "-",   // 长破折号
+		'—':      "-",   // 破折号
 		'\u2018': "'",   // 左单引号
 		'\u2019': "'",   // 右单引号
 		'\u201C': "\"",  // 左双引号
 		'\u201D': "\"",  // 右双引号
-		'·': "·",        // 中点
-		'×': "x",        // 乘号
-		'÷': "/",        // 除号
+		'·':      "·",   // 中点
+		'×':      "x",   // 乘号
+		'÷':      "/",   // 除号
 	}
-	
+
 	result := make([]rune, 0, len([]rune(s)))
 	for _, r := range s {
 		if replacement, ok := replacements[r]; ok {
@@ -529,7 +529,7 @@ func cleanSpecialChars(s string) string {
 		}
 		// 其他控制字符和无效字符被过滤掉
 	}
-	
+
 	return string(result)
 }
 

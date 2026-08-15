@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/logger"
 	"github.com/LingByte/lingllm/realtime"
 	_ "github.com/LingByte/lingllm/realtime/aliyunomni"
 	_ "github.com/LingByte/lingllm/realtime/volcdialogue"
@@ -21,13 +21,13 @@ import (
 
 // SessionContext holds per-connection scenario dialogue state.
 type SessionContext struct {
-	SessionID           uint
-	UserID              uint
-	SystemPrompt        string
-	CurrentExpressions  string // 用户当前的微表情数据
-	ExpressionHistory   []string // 表情历史记录
-	OnTurn              func(role, content string, hasCorrection, hasPronunciation bool)
-	mu                  sync.RWMutex // 保护并发访问
+	SessionID          uint
+	UserID             uint
+	SystemPrompt       string
+	CurrentExpressions string   // 用户当前的微表情数据
+	ExpressionHistory  []string // 表情历史记录
+	OnTurn             func(role, content string, hasCorrection, hasPronunciation bool)
+	mu                 sync.RWMutex // 保护并发访问
 }
 
 var pendingDeviceID atomic.Value // string, set per incoming WS before upgrade
@@ -39,10 +39,10 @@ func SetPendingDeviceID(deviceID string) {
 
 // RealtimeFactory creates lingllm realtime agents for scenario dialogue.
 type RealtimeFactory struct {
-	db                  *gorm.DB
-	sessions            sync.Map // sessionID(uint) -> *SessionContext
-	callMap             sync.Map // callID(string) -> sessionID(uint)
-	expressionHandler   *ExpressionHandler
+	db                *gorm.DB
+	sessions          sync.Map // sessionID(uint) -> *SessionContext
+	callMap           sync.Map // callID(string) -> sessionID(uint)
+	expressionHandler *ExpressionHandler
 }
 
 func NewRealtimeFactory(db *gorm.DB) *RealtimeFactory {
@@ -60,7 +60,7 @@ func (f *RealtimeFactory) RegisterSession(ctx *SessionContext) {
 // BindCall associates a xiaozhi callID with a session.
 func (f *RealtimeFactory) BindCall(callID string, sessionID uint) {
 	f.callMap.Store(callID, sessionID)
-	
+
 	// 注册会话到表情处理器
 	if v, ok := f.sessions.Load(sessionID); ok {
 		if sessionCtx, ok2 := v.(*SessionContext); ok2 {
@@ -80,7 +80,7 @@ func (f *RealtimeFactory) UnregisterCall(callID string) {
 		f.sessions.Delete(v.(uint))
 		f.callMap.Delete(callID)
 	}
-	
+
 	// 从表情处理器中注销会话
 	f.expressionHandler.UnregisterSession(callID)
 }
@@ -116,7 +116,7 @@ func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent f
 	if sessionCtx != nil && sessionCtx.SystemPrompt != "" {
 		systemPrompt = sessionCtx.SystemPrompt
 	}
-	
+
 	// 根据用户的微表情调整系统提示
 	if sessionCtx != nil {
 		expressions := sessionCtx.GetCurrentExpressions()
@@ -259,7 +259,7 @@ func (f *RealtimeFactory) handleSessionEvent(ctx *SessionContext, ev realtime.Ev
 func (sc *SessionContext) UpdateExpressions(expressions string) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
-	
+
 	if expressions != sc.CurrentExpressions {
 		sc.CurrentExpressions = expressions
 		// 保留最近的 10 条表情记录
@@ -282,64 +282,64 @@ func buildSystemPromptWithExpression(basePrompt string, expressions string) stri
 	if expressions == "" {
 		return basePrompt
 	}
-	
+
 	// 解析表情数据
 	expList := strings.Split(expressions, ",")
 	expMap := make(map[string]bool)
 	for _, exp := range expList {
 		expMap[strings.TrimSpace(exp)] = true
 	}
-	
+
 	// 根据表情调整提示
 	var adjustments []string
-	
+
 	// 检测用户情绪和状态
 	if expMap["big_smile"] || expMap["smiling"] {
 		adjustments = append(adjustments, "用户看起来很开心，保持积极和热情的语气。")
 	}
-	
+
 	if expMap["frowning"] || expMap["frowning_deeply"] {
 		adjustments = append(adjustments, "用户看起来有些不满或困惑，请更耐心地解释，避免过于复杂的表达。")
 	}
-	
+
 	if expMap["eyes_wide_open"] || expMap["surprised"] {
 		adjustments = append(adjustments, "用户看起来很惊讶，请确保你的回答清晰易懂，提供更多上下文。")
 	}
-	
+
 	if expMap["eyes_looking_away"] {
 		adjustments = append(adjustments, "用户看起来可能不太专注，请尝试提出问题来吸引他们的注意力，保持互动性。")
 	}
-	
+
 	if expMap["jaw_clenched"] || expMap["face_tensed"] {
 		adjustments = append(adjustments, "用户看起来很紧张，请用更温和、放松和鼓励的语气。")
 	}
-	
+
 	if expMap["head_looking_down"] {
 		adjustments = append(adjustments, "用户看起来在思考或有些害羞，请给他们更多时间和空间，不要催促。")
 	}
-	
+
 	if expMap["eyes_squinted"] || expMap["eyes_closed"] {
 		adjustments = append(adjustments, "用户看起来可能很疲劳，请简化内容，给予更多休息时间。")
 	}
-	
+
 	if expMap["mouth_tightly_closed"] || expMap["mouth_closed"] {
 		adjustments = append(adjustments, "用户看起来不太想说话，请给予更多开放式问题来鼓励他们表达。")
 	}
-	
+
 	if expMap["head_turned_left"] || expMap["head_turned_right"] {
 		adjustments = append(adjustments, "用户看起来有些分心，请尝试重新吸引他们的注意力。")
 	}
-	
+
 	if expMap["lips_trembling"] {
 		adjustments = append(adjustments, "用户看起来可能很紧张或害怕，请提供更多支持和鼓励。")
 	}
-	
+
 	// 组合提示
 	fullPrompt := basePrompt
 	if len(adjustments) > 0 {
 		fullPrompt += "\n\n[用户当前状态提示]\n" + strings.Join(adjustments, "\n")
 	}
-	
+
 	return fullPrompt
 }
 

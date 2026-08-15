@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/ling-base/common"
+	"github.com/LingByte/ling-base/logger"
 )
 
 // Config main configuration structure
@@ -59,10 +59,10 @@ type AuthConfig struct {
 
 // ServicesConfig services configuration
 type ServicesConfig struct {
-	LLM           LLMConfig               `mapstructure:"llm"`
-	Mail          MailConfig              `mapstructure:"mail"`
-	KnowledgeBase KnowledgeBaseConfig     `mapstructure:"knowledge_base"`
-	Voice         VoiceConfig             `mapstructure:"voice"`
+	LLM           LLMConfig           `mapstructure:"llm"`
+	Mail          MailConfig          `mapstructure:"mail"`
+	KnowledgeBase KnowledgeBaseConfig `mapstructure:"knowledge_base"`
+	Voice         VoiceConfig         `mapstructure:"voice"`
 }
 
 // MailConfig email configuration (supports both SMTP and SendCloud).

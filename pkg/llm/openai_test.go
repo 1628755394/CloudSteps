@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
+	"github.com/LingByte/ling-base/logger"
 	"github.com/sashabaranov/go-openai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

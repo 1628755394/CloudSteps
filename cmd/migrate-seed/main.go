@@ -6,7 +6,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/cmd/bootstrap"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
+	"github.com/LingByte/ling-base/logger"
 )
 
 // One-shot: migrate entities + seed (including reading passages), then exit.

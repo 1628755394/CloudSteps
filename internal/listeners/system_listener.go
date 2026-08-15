@@ -6,8 +6,8 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/logger"
 	common "github.com/LingByte/ling-base/common"
+	"github.com/LingByte/ling-base/logger"
 	"go.uber.org/zap"
 )
 
