@@ -8,29 +8,80 @@ export type VocabTestResultPayload = {
   totalCount: number;
 };
 
-const LEVELS = ["A1", "A2", "B1", "B2", "C1"] as const;
+const LEVELS = [
+  "L0", "L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8", "L9", "L10", "L11",
+] as const;
 export type VocabLevel = (typeof LEVELS)[number];
 
 export const VOCAB_LEVEL_MAP: Record<VocabLevel, number> = {
-  A1: 300,
-  A2: 1000,
-  B1: 2500,
-  B2: 4000,
-  C1: 6000,
+  L0: 100,
+  L1: 300,
+  L2: 500,
+  L3: 800,
+  L4: 1200,
+  L5: 1800,
+  L6: 2500,
+  L7: 3500,
+  L8: 5000,
+  L9: 7000,
+  L10: 10000,
+  L11: 15000,
 };
 
-/** CEFR → 国内常见学段/考试表述（金字塔与结果页主展示） */
+/** 细分学段/考试表述（金字塔与结果页主展示） */
 export const VOCAB_LEVEL_ZH: Record<VocabLevel, string> = {
-  A1: "英语启蒙",
-  A2: "小学阶段",
-  B1: "初中阶段",
-  B2: "高中 / 四级",
-  C1: "六级 / 进阶",
+  L0: "英语启蒙",
+  L1: "小学初级",
+  L2: "小学中级",
+  L3: "小学高级",
+  L4: "初中初级",
+  L5: "初中高级",
+  L6: "高中 / 四级",
+  L7: "高中高级 / 四级优秀",
+  L8: "六级 / 考研",
+  L9: "雅思 / 托福起步",
+  L10: "雅思高分 / 托福",
+  L11: "GRE / 学术进阶",
+};
+
+/** 对应 CEFR 参考 */
+export const VOCAB_LEVEL_CEFR: Record<VocabLevel, string> = {
+  L0: "Pre-A1",
+  L1: "A1",
+  L2: "A1+",
+  L3: "A2",
+  L4: "A2+",
+  L5: "B1",
+  L6: "B1+",
+  L7: "B2",
+  L8: "B2+",
+  L9: "C1",
+  L10: "C1+",
+  L11: "C2",
+};
+
+/** 旧 CEFR 级别 → 新细分级别映射（兼容后端返回 A1~C1） */
+const LEGACY_CEFR_TO_LEVEL: Record<string, VocabLevel> = {
+  A1: "L1",
+  A2: "L3",
+  B1: "L5",
+  B2: "L7",
+  C1: "L9",
+};
+
+/** 根据估算词汇量精确匹配最接近的细分级别 */
+export const vocabToLevel = (vocab: number): VocabLevel => {
+  let result: VocabLevel = "L0";
+  for (const lv of LEVELS) {
+    if (vocab >= VOCAB_LEVEL_MAP[lv]) result = lv;
+  }
+  return result;
 };
 
 export const clampVocabLevel = (lv: string): VocabLevel => {
   const up = String(lv || "").toUpperCase();
-  return (LEVELS.find((x) => x === up) as VocabLevel) || "A1";
+  if (up in LEGACY_CEFR_TO_LEVEL) return LEGACY_CEFR_TO_LEVEL[up] as VocabLevel;
+  return (LEVELS.find((x) => x === up) as VocabLevel) || "L0";
 };
 
 /** 根据估算词汇量给出中文水平描述（面向学生/家长，不用 CEFR） */
@@ -128,11 +179,13 @@ export const vocabCapability = (vocab: number): { canDo: string; nextStep: strin
 };
 
 export function buildVocabTestSummary(result: VocabTestResultPayload) {
-  const lv = clampVocabLevel(result.level);
-  const approxByLevel = VOCAB_LEVEL_MAP[lv];
+  const legacyLv = clampVocabLevel(result.level);
+  const approxByLevel = VOCAB_LEVEL_MAP[legacyLv];
   const vocab = result.estimatedVocab || approxByLevel;
+  // 用估算词汇量精确匹配细分级别，比后端粗粒度 CEFR 更准
+  const level = vocabToLevel(vocab);
   return {
-    level: lv,
+    level,
     approxByLevel,
     chineseLevel: vocabToChineseLevel(vocab),
     capability: vocabCapability(vocab),
@@ -167,7 +220,7 @@ export function VocabTestResultView({
             <div className="text-sm text-[#718096]">词汇水平</div>
             <div className="text-xl font-bold text-[#2D3748] mt-1">{summary.chineseLevel}</div>
             <div className="text-xs text-[#A0AEC0] mt-1">
-              约相当于{VOCAB_LEVEL_ZH[summary.level]}（参考 {summary.level}）
+              约相当于{VOCAB_LEVEL_ZH[summary.level]}（参考 {VOCAB_LEVEL_CEFR[summary.level]}）
             </div>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-[#4ECDC4]/10 flex items-center justify-center">
@@ -200,27 +253,32 @@ export function VocabTestResultView({
               高亮层为本次测评落点，越高表示词汇面越宽。
             </div>
 
-            <div className="mt-5 flex flex-col items-center gap-2">
+            <div className="mt-5 flex flex-col items-center gap-1">
               {[...LEVELS].reverse().map((lv, idx) => {
                 const isActive = lv === summary.level;
-                const widthPct = 55 + idx * 10;
+                const isPassed = VOCAB_LEVEL_MAP[lv] <= summary.vocab;
+                const widthPct = 40 + idx * 5;
                 const vocabHint = VOCAB_LEVEL_MAP[lv];
                 return (
                   <div
                     key={lv}
-                    className={`rounded-xl px-4 py-3 border w-full transition-colors ${
+                    className={`rounded-lg px-3 py-2 border w-full transition-colors ${
                       isActive
-                        ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
+                        ? "bg-[#4ECDC4]/15 border-[#4ECDC4]"
+                        : isPassed
+                        ? "bg-[#4ECDC4]/5 border-[#4ECDC4]/30"
                         : "bg-[#F7F9FC] border-[#E2E8F0]"
                     }`}
                     style={{ maxWidth: `${widthPct}%` }}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold text-[#2D3748]">{VOCAB_LEVEL_ZH[lv]}</div>
-                        <div className="text-[11px] text-[#A0AEC0] mt-0.5">{lv}</div>
+                        <div className={`text-xs font-semibold ${isActive ? "text-[#4ECDC4]" : "text-[#2D3748]"}`}>
+                          {VOCAB_LEVEL_ZH[lv]}
+                        </div>
+                        <div className="text-[10px] text-[#A0AEC0] mt-0.5">{VOCAB_LEVEL_CEFR[lv]}</div>
                       </div>
-                      <div className="text-xs text-[#718096] shrink-0">约 {vocabHint}+</div>
+                      <div className="text-[11px] text-[#718096] shrink-0">{vocabHint}+</div>
                     </div>
                   </div>
                 );
