@@ -55,7 +55,7 @@ export default function WordPractice() {
     const index = prev % urls.length;
     const abort = playAudioAtIndex(word.audioUrl, index, () => setPlayingId(null));
     abortRef.current = abort;
-    const next = prev + 1;
+    const next = prev === 0 ? 1 : (prev % 3) + 1;
     setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
 
@@ -186,7 +186,7 @@ export default function WordPractice() {
 
     if (sequence.length === 0) return;
     setWords((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, count: w.count + 1 } : w))
+      prev.map((w) => (w.id === id ? { ...w, count: (w.count + 1) % 4 } : w))
     );
     if (frameIdx >= sequence.length - 1) {
       return;

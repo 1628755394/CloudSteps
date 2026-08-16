@@ -8,7 +8,7 @@ import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkVie
 import { Pause, ArrowRight, Volume2, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { playFirstWordAudio } from "../utils/audioPlayer";
+import { playSecondWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 
@@ -99,16 +99,19 @@ export default function ListenIdentify() {
     if (!w.audioUrl) return;
     abortRef.current?.();
     setPlayingId(w.id);
-    const abort = playFirstWordAudio(w.audioUrl, () => setPlayingId(null));
+    const abort = playSecondWordAudio(w.audioUrl, () => setPlayingId(null));
     abortRef.current = abort;
   };
 
   const handleCardClick = (word: ListenWord) => {
+    const current = words.find((w) => w.id === word.id);
+    if (current?.state === "idle") {
+      handlePlayFirstAudio(current);
+    }
     setWords((prev) =>
       prev.map((w) => {
         if (w.id !== word.id) return w;
         if (w.state === "idle") {
-          handlePlayFirstAudio(w);
           return { ...w, state: "played" };
         }
         if (w.state === "played") {

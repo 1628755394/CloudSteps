@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudSelect } from "../components/cloudsteps/arco";
 import { FlowPageShell } from "../components/PageTransition";
+import { MemoryLighthouse, type MemoryLighthouseData } from "../components/MemoryLighthouse";
 
 import { TopBar } from "../components/TopBar";
 import { useAuthStore } from "../stores/authStore";
@@ -391,70 +392,23 @@ export default function WordTraining() {
             </p>
           </div>
 
-          {/* PC 限制九宫格宽度，避免 aspect-square 在宽屏撑得过大 */}
-          <div className="mx-auto w-full max-w-[340px] sm:max-w-[380px] lg:max-w-[400px] space-y-2.5">
-            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-              {memoryData.slice(0, 3).map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => navigate(`/lighthouse-words?step=${item.id}`)}
-                  className="aspect-square max-h-[7.5rem] lg:max-h-[6.75rem] bg-gradient-to-br from-[#4ECDC4] to-[#45b8b0] rounded-xl flex flex-col items-center justify-center text-white cursor-pointer hover:opacity-90 active:scale-95 transition-all"
-                >
-                  <div className="text-xs opacity-80 mb-0.5">{item.id}</div>
-                  <div className="text-lg lg:text-xl font-bold">{item.count}</div>
-                  <div className="text-[10px] sm:text-xs opacity-90 mt-0.5 text-center leading-tight px-0.5 line-clamp-3">
-                    {item.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-              {memoryData.slice(3, 6).map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => navigate(`/lighthouse-words?step=${item.id}`)}
-                  className="aspect-square max-h-[7.5rem] lg:max-h-[6.75rem] bg-gradient-to-br from-[#66BB6A] to-[#5ca860] rounded-xl flex flex-col items-center justify-center text-white cursor-pointer hover:opacity-90 active:scale-95 transition-all"
-                >
-                  <div className="text-xs opacity-80 mb-0.5">{item.id}</div>
-                  <div className="text-lg lg:text-xl font-bold">{item.count}</div>
-                  <div className="text-[10px] sm:text-xs opacity-90 mt-0.5 text-center leading-tight px-0.5 line-clamp-3">
-                    {item.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
-              {memoryData.slice(6, 7).map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => navigate(`/lighthouse-words?step=${item.id}`)}
-                  className="aspect-square max-h-[7.5rem] lg:max-h-[6.75rem] bg-gradient-to-br from-[#FF9800] to-[#e68900] rounded-xl flex flex-col items-center justify-center text-white cursor-pointer hover:opacity-90 active:scale-95 transition-all"
-                >
-                  <div className="text-xs opacity-80 mb-0.5">{item.id}</div>
-                  <div className="text-lg lg:text-xl font-bold">{item.count}</div>
-                  <div className="text-[10px] sm:text-xs opacity-90 mt-0.5 text-center leading-tight px-0.5 line-clamp-3">
-                    {item.label}
-                  </div>
-                </div>
-              ))}
-              <div
-                onClick={() => navigate("/lighthouse-words?step=pending")}
-                className="aspect-square max-h-[7.5rem] lg:max-h-[6.75rem] bg-gray-100 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-200 active:scale-95 transition-all"
-              >
-                <div className="text-lg lg:text-xl font-bold text-[#718096]">{pendingCount}</div>
-                <div className="text-xs text-[#718096] mt-0.5">待学</div>
-              </div>
-              <div
-                onClick={() => navigate("/lighthouse-words?step=mastered")}
-                className="aspect-square max-h-[7.5rem] lg:max-h-[6.75rem] bg-gradient-to-br from-[#FFD700] to-[#e6c200] rounded-xl flex flex-col items-center justify-center text-white cursor-pointer hover:opacity-90 active:scale-95 transition-all"
-              >
-                <div className="text-lg lg:text-xl font-bold">{masteredCount}</div>
-                <div className="text-xs opacity-80 mt-0.5">掌握</div>
-              </div>
-            </div>
-          </div>
+          <MemoryLighthouse
+            data={{
+              boxes: memoryData.map((d) => ({ count: d.count })),
+              mastered: masteredCount,
+              unlearned: pendingCount,
+              total: memoryData.reduce((sum, d) => sum + d.count, 0) + masteredCount + pendingCount,
+            } as MemoryLighthouseData}
+            onBlockClick={(type, _wordNum, tips) => {
+              const stepMap: Record<string, string> = {
+                BOX_0: "01", BOX_1: "02", BOX_2: "03", BOX_3: "04",
+                BOX_4: "05", BOX_5: "06", BOX_6: "07",
+                BOX_7: "mastered", UNLEARNED: "pending",
+              };
+              const step = stepMap[type] || tips;
+              navigate(`/lighthouse-words?step=${step}`);
+            }}
+          />
         </div>
 
         <div className="flex gap-3 pt-1">

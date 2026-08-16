@@ -103,3 +103,22 @@ export function playFirstWordAudio(
   nextAudioIndexByKey.set(key, urls.length > 1 ? 1 : 0)
   return playSingleAudio(urls[0], onDone)
 }
+
+/**
+ * 播放第二个音频（如美式发音），如果没有第二个则播放第一个
+ */
+export function playSecondWordAudio(
+  audioUrl: string | undefined | null,
+  onDone?: () => void
+): () => void {
+  const urls = parseAudioUrls(audioUrl)
+  if (urls.length === 0) {
+    onDone?.()
+    return () => {}
+  }
+
+  const key = urls.join(";")
+  nextAudioIndexByKey.set(key, 0)
+  const index = urls.length > 1 ? 1 : 0
+  return playSingleAudio(urls[index], onDone)
+}

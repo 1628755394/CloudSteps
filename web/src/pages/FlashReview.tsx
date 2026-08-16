@@ -7,7 +7,7 @@ import { Pause, Volume2, Scissors } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
-import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
+import { playFirstWordAudio, playSecondWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState } from "../utils/wordReveal";
 import {
@@ -115,7 +115,7 @@ export default function FlashReview() {
     if (!word.audioUrl) return;
     abortRef.current?.();
     setPlayingId(word.id);
-    const abort = playWordAudio(word.audioUrl, 300, () => setPlayingId(null));
+    const abort = playSecondWordAudio(word.audioUrl, () => setPlayingId(null));
     abortRef.current = abort;
   };
 
@@ -144,6 +144,28 @@ export default function FlashReview() {
   };
 
   const allCut = words.length > 0 && words.every((word) => word.scissorCount > 0);
+
+  const [round, setRound] = useState(0);
+
+  // 当所有词都剪完后，如果有红剪词（不熟），重新出现再来一轮
+  useEffect(() => {
+    if (!allCut || showCompleteDialog) return;
+    const redWords = words.filter((w) => w.scissorCount === 1);
+    if (redWords.length > 0) {
+      // 有红剪词，重置它们再来一轮
+      const timer = setTimeout(() => {
+        setWords((prev) =>
+          prev.map((w) =>
+            w.scissorCount === 1 ? { ...w, scissorCount: 0, showTranslation: false, heard: false } : w
+          )
+        );
+        setRound((r) => r + 1);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    // 没有红剪词，全部掌握，显示完成
+    handleComplete();
+  }, [allCut, showCompleteDialog, words]);
 
   const continueAfterRetry = () => {
     const retried = getStudyRetryWords();
@@ -210,12 +232,6 @@ export default function FlashReview() {
     setShowCompleteDialog(true);
   };
 
-  useEffect(() => {
-    if (allCut && !showCompleteDialog) {
-      handleComplete();
-    }
-  }, [allCut, showCompleteDialog]);
-
   const headerTitle = isRetryMode
     ? "错词快闪重练"
     : `第 ${batchIdx + 1} 组快闪`;
@@ -266,7 +282,7 @@ export default function FlashReview() {
         <p className="text-center text-sm text-[#718096] mb-6">
           {isRetryMode
             ? "点红剪刀表示不熟（会重新排队），点绿剪刀表示掌握"
-            : `${uncutCount} 个待剪`}
+            : `${uncutCount} 个待剪${round > 0 ? ` · 第 ${round + 1} 轮` : ""}`}
         </p>
 
         <div className="space-y-3 mb-6">
