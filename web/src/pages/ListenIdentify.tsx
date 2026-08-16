@@ -8,7 +8,7 @@ import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkVie
 import { Pause, ArrowRight, Volume2, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { playSecondWordAudio } from "../utils/audioPlayer";
+import { playFirstWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 
@@ -99,7 +99,7 @@ export default function ListenIdentify() {
     if (!w.audioUrl) return;
     abortRef.current?.();
     setPlayingId(w.id);
-    const abort = playSecondWordAudio(w.audioUrl, () => setPlayingId(null));
+    const abort = playFirstWordAudio(w.audioUrl, () => setPlayingId(null));
     abortRef.current = abort;
   };
 
@@ -162,7 +162,7 @@ export default function ListenIdentify() {
           opts?.centered ? "w-full" : ""
         } ${
           w.state === "revealed"
-            ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
+            ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/5"
             : w.state === "played"
             ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/10"
             : ""
@@ -172,7 +172,7 @@ export default function ListenIdentify() {
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
               w.state === "revealed"
-                ? "bg-[#66BB6A]/15"
+                ? "bg-[#4ECDC4]/15"
                 : w.state === "played"
                 ? "bg-[#4ECDC4]/15"
                 : "bg-gray-100"
@@ -182,7 +182,7 @@ export default function ListenIdentify() {
               size={20}
               className={
                 w.state === "revealed"
-                  ? "text-[#66BB6A]"
+                  ? "text-[#4ECDC4]"
                   : w.state === "played"
                   ? "text-[#4ECDC4]"
                   : "text-[#718096]"

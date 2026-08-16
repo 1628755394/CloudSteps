@@ -3,7 +3,9 @@ import { AnnotationLayer, AnnotationToggleButton } from "../components/Annotatio
 import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticePauseMenu } from "../components/PracticePauseMenu";
 import { TopBar } from "../components/TopBar";
-import { Pause, Volume2, Scissors } from "lucide-react";
+import { WordDetailPanel } from "../components/WordDetailPanel";
+import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
+import { Pause, Volume2, Scissors, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
@@ -59,6 +61,10 @@ export default function FlashReview() {
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<WordViewMode>("list");
+  const [cardIndex, setCardIndex] = useState(0);
+  const [detailMode, setDetailMode] = useState(false);
+  const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
 
@@ -119,7 +125,18 @@ export default function FlashReview() {
     abortRef.current = abort;
   };
 
+  const handleShuffle = () => {
+    setWords((prev) => [...prev].sort(() => Math.random() - 0.5));
+    setCardIndex(0);
+  };
+
   const handleWordTap = (word: FlashWord) => {
+    if (detailMode) {
+      setDetailWord((prev) =>
+        prev?.id === word.id ? null : { id: word.id, word: word.word }
+      );
+      return;
+    }
     const next = nextWordTapState({
       showTranslation: word.showTranslation,
       heard: word.heard,
@@ -247,6 +264,7 @@ export default function FlashReview() {
       : "进入组内复习";
 
   const uncutCount = words.filter((w) => w.scissorCount === 0).length;
+  const visibleWords = words.filter((w) => w.scissorCount === 0);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -285,10 +303,99 @@ export default function FlashReview() {
             : `${uncutCount} 个待剪${round > 0 ? ` · 第 ${round + 1} 轮` : ""}`}
         </p>
 
-        <div className="space-y-3 mb-6">
-          {words
-            .filter((w) => w.scissorCount === 0)
-            .map((word) => (
+        {viewMode === "card" && visibleWords.length > 0 ? (
+          <div className="flex flex-col items-center gap-5 py-2">
+            <div className="flex items-center gap-3 w-full">
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                disabled={cardIndex <= 0}
+                onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
+                className="shrink-0 bg-muted disabled:opacity-40"
+              >
+                <ChevronLeft size={22} />
+              </CloudButton>
+              <div
+                className="flex-1 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors"
+                style={{ minHeight: "max(8rem, calc(var(--practice-word-size) * 6))" }}
+                onClick={() => handleWordTap(visibleWords[cardIndex])}
+              >
+                <p className="text-xs text-[#718096] mb-4">
+                  {cardIndex + 1} / {visibleWords.length}
+                </p>
+                <div className={`${PRACTICE_WORD_CLASS} text-center break-all`}>
+                  {visibleWords[cardIndex].word}
+                </div>
+                {visibleWords[cardIndex].showTranslation && (
+                  <div className="animate-in fade-in slide-in-from-top-1 text-center mt-2">
+                    {visibleWords[cardIndex].phonetic ? (
+                      <div className="text-sm text-[#718096] font-mono mb-0.5">
+                        {visibleWords[cardIndex].phonetic}
+                      </div>
+                    ) : null}
+                    {visibleWords[cardIndex].translation ? (
+                      <div className={PRACTICE_TRANS_CLASS}>{visibleWords[cardIndex].translation}</div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                disabled={cardIndex >= visibleWords.length - 1}
+                onClick={() => setCardIndex((i) => Math.min(visibleWords.length - 1, i + 1))}
+                className="shrink-0 bg-muted disabled:opacity-40"
+              >
+                <ChevronRight size={22} />
+              </CloudButton>
+            </div>
+            <div className="flex items-center gap-3">
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                onClick={() => handlePlayAudio(visibleWords[cardIndex])}
+              >
+                <Volume2
+                  size={20}
+                  className={playingId === visibleWords[cardIndex].id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+                />
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                onClick={() => handleScissorClick(visibleWords[cardIndex], "red")}
+                title="红剪：不熟，重新排队"
+              >
+                <Scissors size={20} className="text-[#FF6B6B]" />
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                onClick={() => handleScissorClick(visibleWords[cardIndex], "green")}
+                title="绿剪：掌握"
+              >
+                <Scissors size={20} className="text-[#66BB6A]" />
+              </CloudButton>
+            </div>
+            {detailMode && detailWord?.id === visibleWords[cardIndex].id && (
+              <div className="w-full">
+                <WordDetailPanel
+                  wordId={visibleWords[cardIndex].id}
+                  wordText={visibleWords[cardIndex].word}
+                  variant="inline"
+                  onClose={() => setDetailWord(null)}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3 mb-6">
+            {visibleWords.map((word) => (
               <div
                 key={word.uid}
                 className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all"
@@ -355,8 +462,44 @@ export default function FlashReview() {
                     <Scissors size={20} className="text-[#66BB6A]" />
                   </CloudButton>
                 </div>
+                {detailMode && detailWord?.id === word.id && (
+                  <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                    <WordDetailPanel
+                      wordId={word.id}
+                      wordText={word.word}
+                      variant="inline"
+                      onClose={() => setDetailWord(null)}
+                    />
+                  </div>
+                )}
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
+        <div className="max-w-2xl mx-auto w-full flex items-center justify-between gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
+              <Shuffle size={16} />
+              乱序
+            </CloudButton>
+            <CloudButton
+              variant={detailMode ? "brand" : "outline"}
+              size="pill"
+              onClick={() => {
+                setDetailMode((v) => {
+                  if (v) setDetailWord(null);
+                  return !v;
+                });
+              }}
+            >
+              <BookOpen size={16} />
+              拓展
+            </CloudButton>
+          </div>
         </div>
       </div>
 
