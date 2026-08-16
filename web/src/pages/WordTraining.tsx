@@ -416,7 +416,17 @@ export default function WordTraining() {
             variant="brandOutline"
             size="pillLg"
             className="flex-1"
-            onClick={() => navigate("/review-check")}
+            onClick={() => {
+              if (!selectedWordBookId) return;
+              const name = findWordBookName(selectedWordBookId);
+              sessionStorage.setItem("lb_mode", "review");
+              sessionStorage.setItem("lb_review_wordbook_id", String(selectedWordBookId));
+              sessionStorage.setItem("lb_review_wordbook_name", name);
+              sessionStorage.setItem("lb_review_date", todayLabel);
+              navigate(
+                `/review-word-list?wordBookId=${selectedWordBookId}&date=${encodeURIComponent(todayLabel)}`
+              );
+            }}
           >
             开始复习
           </CloudButton>
