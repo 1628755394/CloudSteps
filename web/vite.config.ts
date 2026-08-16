@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  // 部署到 GitHub Pages 项目页（如 https://<org>.github.io/CloudSteps/）时，
+  // 通过 VITE_BASE_PATH 传入子路径；本地开发/其他部署方式默认使用根路径。
+  base: process.env.VITE_BASE_PATH || '/',
   build: {
     outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,

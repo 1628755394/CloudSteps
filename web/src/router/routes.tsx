@@ -46,7 +46,8 @@ import LighthouseWords from "../pages/LighthouseWords";
 import TrainingRecords from "../pages/TrainingRecords";
 import LessonPrep from "../pages/LessonPrep";
 
-export const router = createBrowserRouter([
+export const router = createBrowserRouter(
+  [
   {
     path: "/",
     element: (
@@ -322,4 +323,8 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
   },
-]);
+  ],
+  // 部署到 GitHub Pages 项目页时，Vite 的 base（import.meta.env.BASE_URL）
+  // 会带上仓库子路径，这里同步给 Router，避免路由在子路径下失效。
+  { basename: import.meta.env.BASE_URL }
+);
