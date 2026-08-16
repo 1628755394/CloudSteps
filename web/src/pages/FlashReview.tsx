@@ -398,72 +398,74 @@ export default function FlashReview() {
             {visibleWords.map((word) => (
               <div
                 key={word.uid}
-                className="bg-white rounded-xl p-4 flex items-center justify-between shadow-sm transition-all"
+                className="bg-white rounded-xl p-4 shadow-sm transition-all"
               >
-                <div
-                  className="flex items-center gap-3 flex-1 cursor-pointer pr-3"
-                  onClick={() => handleWordTap(word)}
-                >
-                  <div>
-                    <div className={`${PRACTICE_WORD_CLASS} mb-1 hover:text-[#4ECDC4] transition-colors`}>
-                      {word.word}
-                    </div>
-                    {word.showTranslation && (
-                      <div className="animate-in fade-in slide-in-from-top-1">
-                        {word.phonetic ? (
-                          <div className="text-sm text-[#718096] font-mono mb-0.5">{word.phonetic}</div>
-                        ) : null}
-                        {word.translation ? (
-                          <div className={PRACTICE_TRANS_CLASS}>{word.translation}</div>
-                        ) : null}
+                <div className="flex items-center justify-between">
+                  <div
+                    className="flex items-center gap-3 flex-1 cursor-pointer pr-3"
+                    onClick={() => handleWordTap(word)}
+                  >
+                    <div>
+                      <div className={`${PRACTICE_WORD_CLASS} mb-1 hover:text-[#4ECDC4] transition-colors`}>
+                        {word.word}
                       </div>
-                    )}
+                      {word.showTranslation && (
+                        <div className="animate-in fade-in slide-in-from-top-1">
+                          {word.phonetic ? (
+                            <div className="text-sm text-[#718096] font-mono mb-0.5">{word.phonetic}</div>
+                          ) : null}
+                          {word.translation ? (
+                            <div className={PRACTICE_TRANS_CLASS}>{word.translation}</div>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CloudButton
+                      type="button"
+                      variant="ghost"
+                      size="iconRound"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayAudio(word);
+                      }}
+                    >
+                      <Volume2
+                        size={20}
+                        className={
+                          playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"
+                        }
+                      />
+                    </CloudButton>
+                    <CloudButton
+                      type="button"
+                      variant="ghost"
+                      size="iconRound"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleScissorClick(word, "red");
+                      }}
+                      title="红剪：不熟，重新排队"
+                    >
+                      <Scissors size={20} className="text-[#FF6B6B]" />
+                    </CloudButton>
+                    <CloudButton
+                      type="button"
+                      variant="ghost"
+                      size="iconRound"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleScissorClick(word, "green");
+                      }}
+                      title="绿剪：掌握"
+                    >
+                      <Scissors size={20} className="text-[#66BB6A]" />
+                    </CloudButton>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <CloudButton
-                    type="button"
-                    variant="ghost"
-                    size="iconRound"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePlayAudio(word);
-                    }}
-                  >
-                    <Volume2
-                      size={20}
-                      className={
-                        playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"
-                      }
-                    />
-                  </CloudButton>
-                  <CloudButton
-                    type="button"
-                    variant="ghost"
-                    size="iconRound"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleScissorClick(word, "red");
-                    }}
-                    title="红剪：不熟，重新排队"
-                  >
-                    <Scissors size={20} className="text-[#FF6B6B]" />
-                  </CloudButton>
-                  <CloudButton
-                    type="button"
-                    variant="ghost"
-                    size="iconRound"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleScissorClick(word, "green");
-                    }}
-                    title="绿剪：掌握"
-                  >
-                    <Scissors size={20} className="text-[#66BB6A]" />
-                  </CloudButton>
-                </div>
                 {detailMode && detailWord?.id === word.id && (
-                  <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                  <div className="mt-3 pt-3 border-t border-[#E2E8F0]" onClick={(e) => e.stopPropagation()}>
                     <WordDetailPanel
                       wordId={word.id}
                       wordText={word.word}
