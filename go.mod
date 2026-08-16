@@ -13,6 +13,9 @@ require (
 	github.com/LingByte/ling-base/common/response/gin v0.1.0
 	github.com/LingByte/ling-base/notification/email v0.1.0
 	github.com/LingByte/ling-base/notification/inbox v0.1.0
+	github.com/LingByte/ling-base/realtime v0.0.0
+	github.com/LingByte/ling-base/realtime/aliyunomni v0.0.0
+	github.com/LingByte/ling-base/realtime/volcdialogue v0.0.0
 	github.com/LingByte/ling-base/stores v0.1.0
 	github.com/LingByte/ling-base/stores/cos v0.1.0
 	github.com/LingByte/ling-base/stores/kodo v0.1.0
@@ -205,4 +208,10 @@ require (
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect
 	modernc.org/sqlite v1.23.1 // indirect
+)
+
+replace (
+	github.com/LingByte/ling-base/realtime => /Users/cetide/Desktop/ling-base/realtime
+	github.com/LingByte/ling-base/realtime/aliyunomni => /Users/cetide/Desktop/ling-base/realtime/aliyunomni
+	github.com/LingByte/ling-base/realtime/volcdialogue => /Users/cetide/Desktop/ling-base/realtime/volcdialogue
 )

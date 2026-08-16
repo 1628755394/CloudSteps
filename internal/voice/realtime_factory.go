@@ -12,9 +12,10 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/ling-base/common"
 	"github.com/LingByte/ling-base/logger"
-	"github.com/LingByte/lingllm/realtime"
-	_ "github.com/LingByte/lingllm/realtime/aliyunomni"
-	_ "github.com/LingByte/lingllm/realtime/volcdialogue"
+	"github.com/LingByte/ling-base/realtime"
+	_ "github.com/LingByte/ling-base/realtime/aliyunomni"
+	_ "github.com/LingByte/ling-base/realtime/volcdialogue"
+	lingllm "github.com/LingByte/lingllm/realtime"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -37,7 +38,7 @@ func SetPendingDeviceID(deviceID string) {
 	pendingDeviceID.Store(strings.TrimSpace(deviceID))
 }
 
-// RealtimeFactory creates lingllm realtime agents for scenario dialogue.
+// RealtimeFactory creates ling-base realtime agents for scenario dialogue.
 type RealtimeFactory struct {
 	db                *gorm.DB
 	sessions          sync.Map // sessionID(uint) -> *SessionContext
@@ -98,7 +99,7 @@ func (f *RealtimeFactory) GetSessionByCallID(callID string) *SessionContext {
 }
 
 // NewAgent implements xiaozhi.RealtimeAgentFactory.
-func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent func(realtime.Event)) (realtime.Agent, int, int, error) {
+func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent func(lingllm.Event)) (lingllm.Agent, int, int, error) {
 	sessionCtx := f.resolveSession(callID)
 	if sessionCtx == nil {
 		if v := pendingDeviceID.Load(); v != nil {
@@ -156,7 +157,7 @@ func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent f
 				f.handleSessionEvent(sessionCtx, ev, &turnUser, &turnAssistant)
 			}
 			if onEvent != nil {
-				onEvent(ev)
+				onEvent(adaptEvent(ev))
 			}
 		},
 	})
@@ -171,7 +172,7 @@ func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent f
 		return nil, 0, 0, err
 	}
 	setLastInitError("")
-	return agent, inSR, outSR, nil
+	return adapt(agent), inSR, outSR, nil
 }
 
 var lastInitError atomic.Value
