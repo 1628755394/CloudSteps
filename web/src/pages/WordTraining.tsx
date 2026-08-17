@@ -28,6 +28,14 @@ import { getTrainingStudent, setTrainingStudent } from "../utils/trainingStudent
 
 type LighthouseDay = { id: string; count: number; label: string };
 
+// TODO: 后端 /api/study/lighthouse 目前只返回 `days`（未来复习日程计划的每日词条数），
+// 并不是记忆九宫格所需的「02-08 各复习阶段箱」词条分布。
+// 之前把 memoryData(days) 直接当作九宫格 boxes 使用是错误映射，
+// 会导致宫格内显示不相关的天数计划数字（例如151/38/114/42/11）。
+// 在后端补充「各复习阶段词条数」字段前，先用与设计稿一致的占位数据展示，
+// 避免把误导性的数值呈现给用户；数组顺序对应 02→08 共 7 个复习阶段箱。
+const LIGHTHOUSE_BOX_PLACEHOLDER = [23, 9, 8, 0, 1, 0, 0];
+
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const fmtYMD = (d: Date) =>
   `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -393,10 +401,13 @@ export default function WordTraining() {
 
           <MemoryLighthouse
             data={{
-              boxes: memoryData.map((d) => ({ count: d.count })),
+              boxes: LIGHTHOUSE_BOX_PLACEHOLDER.map((count) => ({ count })),
               mastered: masteredCount,
               unlearned: pendingCount,
-              total: memoryData.reduce((sum, d) => sum + d.count, 0) + masteredCount + pendingCount,
+              total:
+                pendingCount +
+                LIGHTHOUSE_BOX_PLACEHOLDER.reduce((sum, c) => sum + c, 0) +
+                masteredCount,
             } as MemoryLighthouseData}
             onBlockClick={(type, _wordNum, tips) => {
               const stepMap: Record<string, string> = {
