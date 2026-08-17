@@ -141,7 +141,7 @@ export default function LighthouseWords() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6">
+      <div className="px-4 mt-6 max-w-2xl mx-auto w-full">
         {/* 统计信息 */}
         <div className="text-center text-sm text-[#718096] mb-4">
           共 {total} 个单词

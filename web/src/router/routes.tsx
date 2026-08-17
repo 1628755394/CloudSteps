@@ -93,7 +93,6 @@ export const router = createBrowserRouter(
       { path: "lesson-prep", element: <Home /> },
       { path: "word-books", element: <WordBooks /> },
       { path: "word-books/:id", element: <WordBookWords /> },
-      { path: "lighthouse-words", element: <LighthouseWords /> },
       { path: "training-records", element: <TrainingRecords /> },
       { path: "anti-forgetting", element: <AntiForgetting /> },
       { path: "coach-center", element: <CoachCenter /> },
@@ -256,6 +255,14 @@ export const router = createBrowserRouter(
     element: (
       <RequireAuth>
         <WordTraining />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/lighthouse-words",
+    element: (
+      <RequireAuth>
+        <LighthouseWords />
       </RequireAuth>
     ),
   },

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Volume2, X } from "lucide-react";
+import { Loader2, Volume2 } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import { getWordDetail, type WordDetail } from "../api/wordbooks";
 import { formatTranslation, formatTranslationShort, withPartOfSpeech } from "../utils/wordFormat";
@@ -66,7 +66,7 @@ type ExtTab = { key: ExtKey; label: string };
 type Props = {
   wordId: number;
   wordText?: string;
-  onClose: () => void;
+  onClose?: () => void;
   /** tags：仅标签；inline：音标+释义+标签（词下展开）；full：含词头卡片 */
   variant?: "full" | "tags" | "inline";
   /** 简易：只展示部分拓展标签；默认 true */
@@ -79,7 +79,6 @@ type Props = {
 export function WordDetailPanel({
   wordId,
   wordText,
-  onClose,
   variant = "full",
   simpleMode = true,
 }: Props) {
@@ -178,7 +177,7 @@ export function WordDetailPanel({
         <p className="px-3 pb-4 text-center text-sm text-muted-foreground">暂无数据</p>
       ) : (
         <>
-          <div className="flex items-start justify-between gap-2 px-1 pb-1">
+          <div className="flex items-start gap-2 px-1 pb-1">
             {tabs.length > 0 ? (
               <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
                 {tabs.map((t) => (
@@ -199,9 +198,6 @@ export function WordDetailPanel({
             ) : (
               <p className="text-sm text-muted-foreground flex-1">该单词暂无拓展内容</p>
             )}
-            <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} aria-label="关闭">
-              <X size={16} className="text-[#718096]" />
-            </CloudButton>
           </div>
 
           {active && active !== "translation" && (

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { Volume2, Check, X } from "lucide-react";
+import { Volume2, Check, X, BookOpen } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getReviewToday, startReviewSession, completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
@@ -18,7 +18,8 @@ import {
   WordViewModeToggle,
   type WordViewMode,
 } from "../components/WordMarkView";
-import { nextWordTapState } from "../utils/wordReveal";
+import { WordDetailPanel } from "../components/WordDetailPanel";
+import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 
 type ReviewWordItem = {
@@ -49,6 +50,8 @@ export default function ReviewWordList() {
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
+  const [detailMode, setDetailMode] = useState(false);
+  const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
 
   const wordBookId = useMemo(() => {
     const url = new URL(window.location.href);
@@ -155,6 +158,7 @@ export default function ReviewWordList() {
         return word;
       })
     );
+    setDetailWord(syncDetailWordWithTap(detailMode, next, { id: item.id, word: item.word }));
   };
 
   /** 批量：全部认识 */
@@ -173,6 +177,8 @@ export default function ReviewWordList() {
   const [hint, setHint] = useState<string | null>(null);
   const markedWords = useMemo(() => words.filter((w) => w.status !== null), [words]);
   const markedCount = markedWords.length;
+  const unmarkedCount = words.length - markedCount;
+  const allMarked = words.length > 0 && unmarkedCount === 0;
 
   const handleSubmit = () => {
     if (submitting) return;
@@ -180,8 +186,8 @@ export default function ReviewWordList() {
       setHint("当前没有可复习的单词");
       return;
     }
-    if (markedCount === 0) {
-      setHint("请至少为一个单词选择 ✓ 或 × 后再提交");
+    if (!allMarked) {
+      setHint(`还有 ${unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交`);
       return;
     }
     setHint(null);
@@ -272,6 +278,8 @@ export default function ReviewWordList() {
               onPlay={handlePlayAudio}
               onWordClick={handleWordClick}
               onStatus={handleStatusClick}
+              amplifyDetail={detailMode}
+              onDetailClose={() => setDetailWord(null)}
             />
           </div>
         ) : (
@@ -340,6 +348,16 @@ export default function ReviewWordList() {
                       </CloudButton>
                     </div>
                   </div>
+                  {detailMode && item.showTranslation && (
+                    <div className="mt-3 pt-3 border-t border-[#E2E8F0]" onClick={(e) => e.stopPropagation()}>
+                      <WordDetailPanel
+                        wordId={item.id}
+                        wordText={item.word}
+                        variant="inline"
+                        onClose={() => setDetailWord(null)}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -364,26 +382,45 @@ export default function ReviewWordList() {
             </CloudButton>
             <div className="flex-1" />
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <CloudButton
+              type="button"
+              variant={detailMode ? "brand" : "outline"}
+              size="pill"
+              onClick={() => {
+                setDetailMode((v) => {
+                  if (v) setDetailWord(null);
+                  return !v;
+                });
+              }}
+            >
+              <BookOpen size={16} />
+              拓展
+            </CloudButton>
           </div>
           <CloudButton
             type="button"
             variant="brand"
             size="pill"
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || !allMarked}
             loading={submitting}
             loadingText="提交中…"
-            className={`w-full ${markedCount === 0 && words.length > 0 ? "opacity-80" : ""}`}
+            className={`w-full ${!allMarked && words.length > 0 ? "opacity-80" : ""}`}
           >
             提交复习
-            {markedCount > 0 ? ` (${markedCount})` : ""}
+            {words.length > 0 ? ` (${markedCount}/${words.length})` : ""}
           </CloudButton>
           {hint && (
             <p className="text-center text-xs text-amber-600 px-1 animate-in fade-in">{hint}</p>
           )}
-          {!hint && markedCount === 0 && words.length > 0 && (
+          {!hint && !allMarked && words.length > 0 && (
+            <p className="text-center text-xs text-[#FF6B6B]">
+              还有 {unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交
+            </p>
+          )}
+          {!hint && allMarked && words.length > 0 && (
             <p className="text-center text-xs text-[#A0AEC0]">
-              勾选 ✓ 认识 / ✗ 忘记，提交后九宫格自动进退
+              已全部勾选，可提交复习
             </p>
           )}
         </div>
