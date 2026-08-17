@@ -60,7 +60,6 @@ const STAGES: StageDef[] = [
   { num: "08", en: "Eighth",  name: "08｜第八复习阶段", color: "#0E7D48", textColor: "#fff", kind: "box", boxIndex: 6 },
   { num: "09", en: "Ninth",   name: "09｜已掌握",       color: "#00A88C", textColor: "#fff", kind: "mastered", keyNode: true },
 ];
-
 const BOX_TYPES = ["BOX_0","BOX_1","BOX_2","BOX_3","BOX_4","BOX_5","BOX_6","BOX_7"];
 
 export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) {
@@ -138,7 +137,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
         series: [
           {
             type: "pie",
-            radius: ["60%", "88%"],
+            radius: ["38%", "58%"],
             center: ["50%", "50%"],
             // 起始角 180°：01 从底部开始顺时针排布
             startAngle: 180,
@@ -240,7 +239,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
    * 起始角度 120°（左下方，对应 01），顺时针每块 +40°
    * 半径用 % 表示（相对容器），大于外环 88%
    */
-  const labelRadius = 57; // % 距中心，外环是 44%（88%/2），标签放在外环之外
+  const labelRadius = 43; // % 距中心，环形外缘在 29%（58%/2），标签放在 43% 留足空间
   const labelPositions = useMemo(
     () =>
       STAGES.map((_, idx) => {
@@ -292,7 +291,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
       ) : (
         /* 环形图 + 外发光 + 外圈 DOM 标签 + 圆心 DOM 面板 */
         <div
-          className="relative aspect-square w-full max-w-[440px] mx-auto"
+          className="relative aspect-square w-full max-w-[440px] mx-auto overflow-visible"
           style={{
             // 外圈柔和淡黄色外发光光晕（CSS filter，不模糊分割线）
             filter: "drop-shadow(0 0 14px rgba(255, 224, 110, 0.38))",
@@ -316,12 +315,12 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
                     transform: "translate(-50%, -50%)",
                   }}
                 >
-                  {/* 引导短线：CSS 伪元素，从标签指向圆环边缘 */}
+                  {/* 引导短线：从标签指向圆环边缘 */}
                   <div
                     className="absolute"
                     style={{
                       width: "1px",
-                      height: "10px",
+                      height: "22px",
                       backgroundColor: "#bbb",
                       // 短线指向圆心方向
                       transform: `translate(-50%, -100%) rotate(${lineAngle + 180}deg)`,
@@ -347,7 +346,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: "46%",
+              width: "38%",
             }}
           >
             <Brain className="mx-auto text-[#FFB300]" size={26} strokeWidth={1.8} />
