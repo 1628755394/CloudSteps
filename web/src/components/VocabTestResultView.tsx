@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, User } from "lucide-react";
 
 export type VocabTestResultPayload = {
   level: string;
@@ -42,6 +42,43 @@ export const VOCAB_LEVEL_ZH: Record<VocabLevel, string> = {
   L9: "雅思 / 托福起步",
   L10: "雅思高分 / 托福",
   L11: "GRE / 学术进阶",
+};
+
+/** 结果图阶梯：启蒙 / 筑基 / 拾阶 / 臻学（臻学仅初阶、进阶两层） */
+export const VOCAB_PYRAMID_STAGE: Record<VocabLevel, { stage: string; rung: string }> = {
+  L0: { stage: "启蒙", rung: "初阶" },
+  L1: { stage: "启蒙", rung: "基础" },
+  L2: { stage: "启蒙", rung: "进阶" },
+  L3: { stage: "筑基", rung: "初阶" },
+  L4: { stage: "筑基", rung: "基础" },
+  L5: { stage: "筑基", rung: "进阶" },
+  L6: { stage: "拾阶", rung: "初阶" },
+  L7: { stage: "拾阶", rung: "基础" },
+  L8: { stage: "拾阶", rung: "进阶" },
+  L9: { stage: "臻学", rung: "初阶" },
+  L10: { stage: "臻学", rung: "进阶" },
+  L11: { stage: "臻学", rung: "进阶" },
+};
+
+export function vocabPyramidLabel(lv: VocabLevel): string {
+  const { stage, rung } = VOCAB_PYRAMID_STAGE[lv];
+  return `${stage} · ${rung}`;
+}
+
+/** 标记中心相对 pyramid.png 高度的 %（各色带垂直中点） */
+const PYRAMID_MARKER_TOP: Record<VocabLevel, number> = {
+  L0: 95.6, // 启蒙 · 初阶
+  L1: 86.6, // 启蒙 · 基础
+  L2: 78.3, // 启蒙 · 进阶
+  L3: 69.2, // 筑基 · 初阶
+  L4: 61.6, // 筑基 · 基础
+  L5: 53.8, // 筑基 · 进阶
+  L6: 44.3, // 拾阶 · 初阶
+  L7: 36.1, // 拾阶 · 基础
+  L8: 28.5, // 拾阶 · 进阶
+  L9: 17.8, // 臻学 · 初阶
+  L10: 6.3, // 臻学 · 进阶
+  L11: 6.3, // 臻学 · 进阶
 };
 
 /** 对应 CEFR 参考 */
@@ -220,7 +257,7 @@ export function VocabTestResultView({
             <div className="text-sm text-[#718096]">词汇水平</div>
             <div className="text-xl font-bold text-[#2D3748] mt-1">{summary.chineseLevel}</div>
             <div className="text-xs text-[#A0AEC0] mt-1">
-              约相当于{VOCAB_LEVEL_ZH[summary.level]}（参考 {VOCAB_LEVEL_CEFR[summary.level]}）
+              约相当于{vocabPyramidLabel(summary.level)}（{VOCAB_LEVEL_ZH[summary.level]}）
             </div>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-[#4ECDC4]/10 flex items-center justify-center">
@@ -250,39 +287,25 @@ export function VocabTestResultView({
           <>
             <div className="text-base font-semibold text-[#2D3748]">词汇量金字塔</div>
             <div className="text-sm text-[#718096] mt-1">
-              高亮层为本次测评落点，越高表示词汇面越宽。
+              阶梯越高表示词汇面越宽。本次测评落点为{" "}
+              <span className="text-[#4ECDC4] font-semibold">{vocabPyramidLabel(summary.level)}</span>
+              。
             </div>
 
-            <div className="mt-5 flex flex-col items-center gap-1">
-              {[...LEVELS].reverse().map((lv, idx) => {
-                const isActive = lv === summary.level;
-                const isPassed = VOCAB_LEVEL_MAP[lv] <= summary.vocab;
-                const widthPct = 40 + idx * 5;
-                const vocabHint = VOCAB_LEVEL_MAP[lv];
-                return (
-                  <div
-                    key={lv}
-                    className={`rounded-lg px-3 py-2 border w-full transition-colors ${
-                      isActive
-                        ? "bg-[#4ECDC4]/15 border-[#4ECDC4]"
-                        : isPassed
-                        ? "bg-[#4ECDC4]/5 border-[#4ECDC4]/30"
-                        : "bg-[#F7F9FC] border-[#E2E8F0]"
-                    }`}
-                    style={{ maxWidth: `${widthPct}%` }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className={`text-xs font-semibold ${isActive ? "text-[#4ECDC4]" : "text-[#2D3748]"}`}>
-                          {VOCAB_LEVEL_ZH[lv]}
-                        </div>
-                        <div className="text-[10px] text-[#A0AEC0] mt-0.5">{VOCAB_LEVEL_CEFR[lv]}</div>
-                      </div>
-                      <div className="text-[11px] text-[#718096] shrink-0">{vocabHint}+</div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="mt-5 relative mx-auto w-full max-w-[520px] pr-[5.5rem]">
+              <img
+                src="/pyramid.png"
+                alt="词汇量金字塔"
+                className="w-full h-auto object-contain select-none"
+                draggable={false}
+              />
+              <div
+                className="absolute flex items-center gap-1 whitespace-nowrap text-[13px] font-semibold text-[#2D3748] pointer-events-none -translate-y-1/2"
+                style={{ top: `${PYRAMID_MARKER_TOP[summary.level]}%`, left: "calc(100% - 5.25rem)" }}
+              >
+                <User size={16} strokeWidth={2.25} className="shrink-0" />
+                您的位置
+              </div>
             </div>
           </>
         )}
