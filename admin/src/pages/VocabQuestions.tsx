@@ -7,7 +7,7 @@ import { getApiBaseURL } from '@/config/apiConfig'
 import { showAlert } from '@/utils/notification'
 import { Plus, Pencil, Trash2, Search, X, Upload, Download, AlertTriangle, Wand2, Volume2, VolumeX, Loader2 } from 'lucide-react'
 import LingechoTTS from '@/components/UI/LingechoTTS'
-import { fetchTTS, sleep, TTS_WORD_GAP_MS } from '@/utils/lingechoTts'
+import { fetchTTS } from '@/utils/lingechoTts'
 
 interface VocabQuestion {
   id: number
@@ -52,9 +52,7 @@ export default function VocabQuestions() {
   const [saving, setSaving] = useState(false)
   const [generatingAudio, setGeneratingAudio] = useState(false)
   const [batchRunning, setBatchRunning] = useState(false)
-  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null)
-  const batchStopRef = useRef(false)
-  const batchLockRef = useRef(false)
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number; success?: number } | null>(null)
   const [purgingAudio, setPurgingAudio] = useState(false)
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false)
   const [purgingAllAudio, setPurgingAllAudio] = useState(false)
@@ -78,104 +76,112 @@ export default function VocabQuestions() {
     }
   }
 
-  /** 拉取全部无音频题目（跨分页） */
-  const fetchAllWithoutAudio = async (): Promise<VocabQuestion[]> => {
-    const pageLimit = 500
-    let pageNo = 1
-    let totalCount = Infinity
-    const all: VocabQuestion[] = []
-    while (all.length < totalCount) {
-      const params = new URLSearchParams({
-        page: String(pageNo),
-        pageSize: String(pageLimit),
-        withoutAudio: '1',
-      })
-      if (level) params.append('level', level)
-      if (keyword) params.append('word', keyword)
-      const res = await get<any>(`${getApiBaseURL()}/vocab/questions?${params}`)
-      if (res?.code && res.code !== 200) {
-        throw new Error(res.msg || '加载无音频题目失败')
+  /** 后台批量生成音频（服务端执行，刷新页面不中断） */
+  const pollBatchAudioStatus = async () => {
+    const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    for (;;) {
+      try {
+        const res = await get<{
+          status?: string
+          total?: number
+          processed?: number
+          success?: number
+          failed?: number
+          error?: string
+        }>(`${getApiBaseURL()}/vocab/questions/batch-audio`)
+        if (res.code !== 200) {
+          showAlert(res.msg || '查询生成进度失败', 'error')
+          setBatchRunning(false)
+          setBatchProgress(null)
+          return
+        }
+        const data = res.data || {}
+        const status = data.status || 'idle'
+        if (status === 'running') {
+          setBatchRunning(true)
+          setBatchProgress({
+            done: data.processed ?? 0,
+            total: data.total ?? 0,
+            success: data.success,
+          })
+          await sleepMs(1200)
+          continue
+        }
+        setBatchProgress(null)
+        setBatchRunning(false)
+        if (status === 'failed') {
+          showAlert(data.error || '批量生成失败', 'error')
+          return
+        }
+        if (status === 'stopped') {
+          showAlert(`已停止，成功 ${data.success ?? 0}/${data.processed ?? 0}`, 'info')
+          fetchList()
+          return
+        }
+        if (status === 'done') {
+          const success = data.success ?? 0
+          const total = data.total ?? 0
+          showAlert(
+            total === 0 ? '所有题目已有音频' : `完成，成功 ${success}/${total}`,
+            'success'
+          )
+          fetchList()
+        }
+        return
+      } catch (e: any) {
+        showAlert(e?.msg || e?.message || '查询生成进度失败', 'error')
+        setBatchRunning(false)
+        setBatchProgress(null)
+        return
       }
-      const payload = res?.data
-      totalCount = Number(payload?.total || 0)
-      const chunk = payload?.questions || payload?.list || []
-      if (!Array.isArray(chunk) || chunk.length === 0) break
-      all.push(...chunk)
-      if (chunk.length < pageLimit || all.length >= totalCount) break
-      pageNo += 1
-      if (pageNo > 100) break
     }
-    return all
   }
 
-  /** 与词库一致：后台逐条生成并即时写回，不弹模态框 */
   const handleBatchAudio = async () => {
-    // 已在跑：生成阶段可停止；加载阶段忽略误触
-    if (batchRunning || batchLockRef.current) {
-      if (batchProgress) batchStopRef.current = true
-      return
-    }
-
-    batchLockRef.current = true
-    setBatchRunning(true)
-    batchStopRef.current = false
-    setBatchProgress(null)
-
-    let targets: VocabQuestion[]
-    try {
-      targets = await fetchAllWithoutAudio()
-    } catch (e: any) {
-      batchLockRef.current = false
-      setBatchRunning(false)
-      setBatchProgress(null)
-      showAlert(e?.message || '加载失败', 'error')
-      return
-    }
-    if (batchStopRef.current) {
-      batchLockRef.current = false
-      setBatchRunning(false)
-      setBatchProgress(null)
-      return
-    }
-    if (targets.length === 0) {
-      batchLockRef.current = false
-      setBatchRunning(false)
-      setBatchProgress(null)
-      showAlert('所有题目已有音频', 'success')
-      return
-    }
-
-    setBatchProgress({ done: 0, total: targets.length })
-
-    let done = 0
-    let successCount = 0
-    for (const q of targets) {
-      if (batchStopRef.current) break
+    if (batchRunning) {
       try {
-        const audioUrl = await fetchTTS(q.word)
-        await put(`${getApiBaseURL()}/vocab/questions/${q.id}`, { audioUrl })
-        successCount++
-        setList((prev) =>
-          prev.map((item) => (item.id === q.id ? { ...item, audioUrl } : item))
-        )
-      } catch {
-        // 单个失败跳过，继续下一个
+        await post(`${getApiBaseURL()}/vocab/questions/batch-audio/stop`)
+        showAlert('已请求停止，稍候…', 'info')
+      } catch (e: any) {
+        showAlert(e?.msg || e?.message || '停止失败', 'error')
       }
-      done++
-      setBatchProgress({ done, total: targets.length })
-      await sleep(TTS_WORD_GAP_MS)
+      return
     }
 
-    batchLockRef.current = false
-    setBatchRunning(false)
+    setBatchRunning(true)
     setBatchProgress(null)
-    showAlert(
-      batchStopRef.current
-        ? `已停止，成功 ${successCount}/${done}`
-        : `完成，成功 ${successCount}/${done}`,
-      'success'
-    )
-    fetchList()
+    try {
+      const res = await post<{
+        status?: string
+        started?: boolean
+        total?: number
+        processed?: number
+        success?: number
+      }>(`${getApiBaseURL()}/vocab/questions/batch-audio`, {
+        level: level || undefined,
+        word: keyword || undefined,
+      })
+      if (res.code !== 200) {
+        showAlert(res.msg || '启动失败', 'error')
+        setBatchRunning(false)
+        return
+      }
+      const data = res.data || {}
+      if (data.status === 'running' && !data.started) {
+        showAlert('已有生成任务进行中', 'info')
+      } else if (data.started === false && (data.total ?? 0) === 0) {
+        showAlert('所有题目已有音频', 'success')
+        setBatchRunning(false)
+        return
+      } else {
+        showAlert(res.msg || '已在后台开始生成', 'info')
+      }
+      await pollBatchAudioStatus()
+    } catch (e: any) {
+      showAlert(e?.msg || e?.message || '启动失败', 'error')
+      setBatchRunning(false)
+      setBatchProgress(null)
+    }
   }
 
   const runPurgeBadAudio = async () => {
@@ -322,6 +328,30 @@ export default function VocabQuestions() {
   }, [page, pageSize, level, keyword])
 
   useEffect(() => { fetchList() }, [fetchList])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await get<{ status?: string; processed?: number; total?: number }>(
+          `${getApiBaseURL()}/vocab/questions/batch-audio`
+        )
+        if (cancelled || res.code !== 200) return
+        if (res.data?.status === 'running') {
+          setBatchRunning(true)
+          setBatchProgress({
+            done: res.data.processed ?? 0,
+            total: res.data.total ?? 0,
+          })
+          await pollBatchAudioStatus()
+        }
+      } catch {
+        // ignore
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -510,7 +540,7 @@ export default function VocabQuestions() {
             </button>
             <button
               onClick={handleBatchAudio}
-              disabled={(loading && !batchRunning) || (batchRunning && !batchProgress)}
+              disabled={loading && !batchRunning}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:pointer-events-none ${
                 batchRunning
                   ? 'border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
@@ -524,9 +554,9 @@ export default function VocabQuestions() {
               )}
               {!batchRunning
                 ? '批量生成音频'
-                : !batchProgress
-                  ? '加载中...'
-                  : `停止 (${batchProgress.done}/${batchProgress.total})`}
+                : batchProgress
+                  ? `停止 (${batchProgress.done}/${batchProgress.total})`
+                  : '启动中...'}
             </button>
             <button onClick={downloadTemplate}
               className="flex items-center gap-2 px-3 py-2 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">

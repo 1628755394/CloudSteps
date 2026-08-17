@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '@/components/Layout/AdminLayout'
 import Button from '@/components/UI/Button'
+import ConfirmDialog from '@/components/UI/ConfirmDialog'
 import { get, post, put, del } from '@/utils/request'
 import { getApiBaseURL } from '@/config/apiConfig'
 import { showAlert } from '@/utils/notification'
-import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Upload, X, Library, RefreshCw } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, Upload, X, Library, RefreshCw, Wand2, VolumeX, Loader2 } from 'lucide-react'
 
 interface WordBook {
   id: number
@@ -48,6 +49,15 @@ const emptyForm = {
   examTags: '', cefrRange: '', regionalVariant: '', sourceName: '', sourceUrl: '', licenseNote: '',
 }
 
+type AudioJobKind = 'batch' | 'purge'
+type AudioJob = {
+  kind: AudioJobKind
+  status: string
+  processed: number
+  total: number
+  success?: number
+}
+
 export default function WordBooks() {
   const navigate = useNavigate()
   const [books, setBooks] = useState<WordBook[]>([])
@@ -62,6 +72,11 @@ export default function WordBooks() {
   const [saving, setSaving] = useState(false)
   const [coverUploading, setCoverUploading] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
+  const [audioJobs, setAudioJobs] = useState<Record<number, AudioJob>>({})
+  const [purgeTarget, setPurgeTarget] = useState<WordBook | null>(null)
+  const [purgeStarting, setPurgeStarting] = useState(false)
+  const audioJobsRef = useRef(audioJobs)
+  audioJobsRef.current = audioJobs
 
   const pageSize = 20
 
@@ -79,6 +94,251 @@ export default function WordBooks() {
   }, [page, keyword])
 
   useEffect(() => { load() }, [load])
+
+  const setBookJob = (bookId: number, job: AudioJob | null) => {
+    setAudioJobs((prev) => {
+      if (!job) {
+        if (!(bookId in prev)) return prev
+        const next = { ...prev }
+        delete next[bookId]
+        return next
+      }
+      return { ...prev, [bookId]: job }
+    })
+  }
+
+  const fetchBookAudioJob = async (bookId: number): Promise<AudioJob | null> => {
+    const [batchRes, purgeRes] = await Promise.all([
+      get<{ status?: string; processed?: number; total?: number; success?: number }>(
+        `${getApiBaseURL()}/wordbooks/${bookId}/words/batch-audio`
+      ),
+      get<{ status?: string; processed?: number; total?: number }>(
+        `${getApiBaseURL()}/wordbooks/${bookId}/words/purge-all-audio`
+      ),
+    ])
+    if (batchRes.code === 200 && batchRes.data?.status === 'running') {
+      return {
+        kind: 'batch',
+        status: 'running',
+        processed: batchRes.data.processed ?? 0,
+        total: batchRes.data.total ?? 0,
+        success: batchRes.data.success,
+      }
+    }
+    if (purgeRes.code === 200 && purgeRes.data?.status === 'running') {
+      return {
+        kind: 'purge',
+        status: 'running',
+        processed: purgeRes.data.processed ?? 0,
+        total: purgeRes.data.total ?? 0,
+      }
+    }
+    return null
+  }
+
+  useEffect(() => {
+    if (books.length === 0) return
+    let cancelled = false
+    ;(async () => {
+      const found: Record<number, AudioJob> = {}
+      await Promise.all(
+        books.map(async (b) => {
+          try {
+            const job = await fetchBookAudioJob(b.id)
+            if (job) found[b.id] = job
+          } catch {
+            // ignore
+          }
+        })
+      )
+      if (!cancelled && Object.keys(found).length > 0) {
+        setAudioJobs((prev) => ({ ...prev, ...found }))
+      }
+    })()
+    return () => { cancelled = true }
+  }, [books])
+
+  const runningJobKey = Object.entries(audioJobs)
+    .filter(([, job]) => job.status === 'running')
+    .map(([id, job]) => `${id}:${job.kind}`)
+    .sort()
+    .join(',')
+
+  useEffect(() => {
+    const runningIds = runningJobKey
+      ? runningJobKey.split(',').map((item) => Number(item.split(':')[0]))
+      : []
+    if (runningIds.length === 0) return
+
+    let stopped = false
+    const tick = async () => {
+      for (const bookId of runningIds) {
+        if (stopped) return
+        const current = audioJobsRef.current[bookId]
+        if (!current || current.status !== 'running') continue
+        try {
+          if (current.kind === 'batch') {
+            const res = await get<{
+              status?: string
+              processed?: number
+              total?: number
+              success?: number
+              error?: string
+            }>(`${getApiBaseURL()}/wordbooks/${bookId}/words/batch-audio`)
+            if (res.code !== 200) continue
+            const status = res.data?.status || 'idle'
+            if (status === 'running') {
+              const processed = res.data?.processed ?? 0
+              const total = res.data?.total ?? 0
+              const latest = audioJobsRef.current[bookId]
+              if (latest?.kind === 'batch' && latest.processed === processed && latest.total === total) continue
+              setBookJob(bookId, {
+                kind: 'batch',
+                status: 'running',
+                processed,
+                total,
+                success: res.data?.success,
+              })
+              continue
+            }
+            setBookJob(bookId, null)
+            const bookName = books.find((b) => b.id === bookId)?.name || `词库 #${bookId}`
+            if (status === 'failed') showAlert(`${bookName}：${res.data?.error || '批量生成失败'}`, 'error')
+            else if (status === 'stopped') showAlert(`${bookName}：已停止，成功 ${res.data?.success ?? 0}/${res.data?.processed ?? 0}`, 'info')
+            else if (status === 'done') {
+              const total = res.data?.total ?? 0
+              const success = res.data?.success ?? 0
+              showAlert(total === 0 ? `${bookName}：所有单词已有音频` : `${bookName}：生成完成 ${success}/${total}`, 'success')
+            }
+          } else {
+            const res = await get<{
+              status?: string
+              processed?: number
+              total?: number
+              cleared?: number
+              objectsFailed?: number
+              error?: string
+            }>(`${getApiBaseURL()}/wordbooks/${bookId}/words/purge-all-audio`)
+            if (res.code !== 200) continue
+            const status = res.data?.status || 'idle'
+            if (status === 'running') {
+              const processed = res.data?.processed ?? 0
+              const total = res.data?.total ?? 0
+              const latest = audioJobsRef.current[bookId]
+              if (latest?.kind === 'purge' && latest.processed === processed && latest.total === total) continue
+              setBookJob(bookId, {
+                kind: 'purge',
+                status: 'running',
+                processed,
+                total,
+              })
+              continue
+            }
+            setBookJob(bookId, null)
+            const bookName = books.find((b) => b.id === bookId)?.name || `词库 #${bookId}`
+            if (status === 'failed') showAlert(`${bookName}：${res.data?.error || '清除失败'}`, 'error')
+            else if (status === 'done') {
+              const cleared = res.data?.cleared ?? 0
+              const failed = res.data?.objectsFailed ?? 0
+              showAlert(
+                cleared > 0 ? `${bookName}：已清除 ${cleared} 条音频` : `${bookName}：没有需要清除的音频`,
+                failed > 0 ? 'warning' : 'success'
+              )
+            }
+          }
+        } catch {
+          // keep polling
+        }
+      }
+    }
+
+    const timer = window.setInterval(() => { void tick() }, 1200)
+    void tick()
+    return () => {
+      stopped = true
+      window.clearInterval(timer)
+    }
+  }, [runningJobKey, books])
+
+  const handleBatchAudio = async (b: WordBook) => {
+    const job = audioJobs[b.id]
+    if (job?.kind === 'purge' && job.status === 'running') return
+    if (job?.kind === 'batch' && job.status === 'running') {
+      try {
+        await post(`${getApiBaseURL()}/wordbooks/${b.id}/words/batch-audio/stop`)
+        showAlert(`「${b.name}」已请求停止`, 'info')
+      } catch (e: any) {
+        showAlert(e?.msg || e?.message || '停止失败', 'error')
+      }
+      return
+    }
+
+    setBookJob(b.id, { kind: 'batch', status: 'running', processed: 0, total: 0 })
+    try {
+      const res = await post<{
+        status?: string
+        started?: boolean
+        total?: number
+        processed?: number
+        success?: number
+      }>(`${getApiBaseURL()}/wordbooks/${b.id}/words/batch-audio`)
+      if (res.code !== 200) {
+        showAlert(res.msg || '启动失败', 'error')
+        setBookJob(b.id, null)
+        return
+      }
+      if (res.data?.started === false && (res.data?.total ?? 0) === 0) {
+        showAlert(`「${b.name}」所有单词已有音频`, 'success')
+        setBookJob(b.id, null)
+        return
+      }
+      setBookJob(b.id, {
+        kind: 'batch',
+        status: 'running',
+        processed: res.data?.processed ?? 0,
+        total: res.data?.total ?? 0,
+        success: res.data?.success,
+      })
+      showAlert(res.msg || `「${b.name}」已在后台开始生成`, 'info')
+    } catch (e: any) {
+      showAlert(e?.msg || e?.message || '启动失败', 'error')
+      setBookJob(b.id, null)
+    }
+  }
+
+  const runPurgeAllAudio = async () => {
+    const b = purgeTarget
+    if (!b || purgeStarting) return
+    setPurgeStarting(true)
+    try {
+      const res = await post<{
+        status?: string
+        started?: boolean
+        total?: number
+        processed?: number
+      }>(`${getApiBaseURL()}/wordbooks/${b.id}/words/purge-all-audio`)
+      if (res.code !== 200) {
+        showAlert(res.msg || '启动清除失败', 'error')
+        return
+      }
+      setPurgeTarget(null)
+      if (res.data?.status === 'done' && (res.data?.total ?? 0) === 0) {
+        showAlert(`「${b.name}」没有需要清除的音频`, 'info')
+        return
+      }
+      setBookJob(b.id, {
+        kind: 'purge',
+        status: 'running',
+        processed: res.data?.processed ?? 0,
+        total: res.data?.total ?? 0,
+      })
+      showAlert(res.msg || `「${b.name}」已在后台开始清除`, 'info')
+    } catch (e: any) {
+      showAlert(e?.msg || e?.message || '启动清除失败', 'error')
+    } finally {
+      setPurgeStarting(false)
+    }
+  }
 
   const openCreate = () => {
     setEditing(null)
@@ -170,9 +430,11 @@ export default function WordBooks() {
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
-          <Button onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />} variant="primary">
-            新建词库
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />} variant="primary">
+              新建词库
+            </Button>
+          </div>
         </div>
 
         {/* 词库卡片网格 */}
@@ -257,6 +519,48 @@ export default function WordBooks() {
                     </button>
                     <button onClick={() => handleDelete(b)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-500 hover:text-red-500 transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleBatchAudio(b)}
+                      disabled={audioJobs[b.id]?.kind === 'purge' && audioJobs[b.id]?.status === 'running'}
+                      className={`flex-1 inline-flex items-center justify-center gap-1 text-xs py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
+                        audioJobs[b.id]?.kind === 'batch' && audioJobs[b.id]?.status === 'running'
+                          ? 'border border-red-300 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                          : 'border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+                      }`}
+                    >
+                      {audioJobs[b.id]?.kind === 'batch' && audioJobs[b.id]?.status === 'running' ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          停止 {audioJobs[b.id].total > 0 ? `(${audioJobs[b.id].processed}/${audioJobs[b.id].total})` : ''}
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-3.5 h-3.5" />
+                          批量生成
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPurgeTarget(b)}
+                      disabled={!!audioJobs[b.id] && audioJobs[b.id].status === 'running'}
+                      className="flex-1 inline-flex items-center justify-center gap-1 text-xs py-1.5 rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                    >
+                      {audioJobs[b.id]?.kind === 'purge' && audioJobs[b.id]?.status === 'running' ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          清除中 {audioJobs[b.id].total > 0 ? `(${audioJobs[b.id].processed}/${audioJobs[b.id].total})` : ''}
+                        </>
+                      ) : (
+                        <>
+                          <VolumeX className="w-3.5 h-3.5" />
+                          清除音频
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -394,6 +698,20 @@ export default function WordBooks() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!purgeTarget}
+        onClose={() => {
+          if (!purgeStarting) setPurgeTarget(null)
+        }}
+        onConfirm={runPurgeAllAudio}
+        title="清除全部音频"
+        message={`将删除「${purgeTarget?.name || ''}」中所有单词的音频文件，并清空 audioUrl。单词本身不会删除。此操作不可恢复，是否继续？`}
+        confirmText="后台清除"
+        cancelText="取消"
+        variant="danger"
+        loading={purgeStarting}
+      />
     </AdminLayout>
   )
 }

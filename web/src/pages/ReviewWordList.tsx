@@ -67,6 +67,11 @@ export default function ReviewWordList() {
     return sessionStorage.getItem("lb_review_date") || "";
   }, []);
 
+  const viewOnly = useMemo(() => {
+    const url = new URL(window.location.href);
+    return url.searchParams.get("view") === "1";
+  }, []);
+
   const [playingId, setPlayingId] = useState<number | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -79,8 +84,9 @@ export default function ReviewWordList() {
   };
 
   useEffect(() => {
+    if (viewOnly) return;
     sessionStorage.setItem("lb_mode", "review");
-  }, []);
+  }, [viewOnly]);
 
   useEffect(() => {
     let mounted = true;
@@ -233,7 +239,7 @@ export default function ReviewWordList() {
   return (
     <FlowPageShell className="min-h-dvh bg-[#F7F9FC] pb-[max(7.5rem,env(safe-area-inset-bottom))]">
       <TopBar
-        title="开始复习"
+        title={viewOnly ? "查看" : "开始复习"}
         onBack={handleBack}
         rightSlot={
           <div className="flex items-center gap-0.5">
@@ -254,7 +260,9 @@ export default function ReviewWordList() {
 
       <div className="px-4 pt-3 pb-4 max-w-2xl mx-auto w-full">
         <div className="mb-3">
-          <p className="text-[#718096] text-sm">当前共有 {words.length} 个可选单词</p>
+          <p className="text-[#718096] text-sm">
+            {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
+          </p>
           {words.length === 0 && (
             <p className="text-xs text-amber-600 mt-1">
               该日暂无待复习单词
@@ -262,11 +270,13 @@ export default function ReviewWordList() {
           )}
         </div>
 
-        <WordMarkStatsBar
-          correctCount={correctCount}
-          wrongCount={wrongCount}
-          total={words.length}
-        />
+        {!viewOnly && (
+          <WordMarkStatsBar
+            correctCount={correctCount}
+            wrongCount={wrongCount}
+            total={words.length}
+          />
+        )}
 
         {viewMode === "card" ? (
           <div className="mt-3">
@@ -278,6 +288,7 @@ export default function ReviewWordList() {
               onPlay={handlePlayAudio}
               onWordClick={handleWordClick}
               onStatus={handleStatusClick}
+              hideStatus={viewOnly}
               amplifyDetail={detailMode}
               onDetailClose={() => setDetailWord(null)}
             />
@@ -290,7 +301,7 @@ export default function ReviewWordList() {
                   key={item.id}
                   className={`bg-white rounded-xl p-3.5 shadow-sm border border-transparent transition-all hover:shadow-md hover:border-[#4ECDC4]/35 ${
                     item.status === "correct"
-                      ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5 hover:border-[#66BB6A]"
+                      ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/[0.06] hover:border-[#4ECDC4]"
                       : item.status === "wrong"
                       ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5 hover:border-[#FF6B6B]"
                       : ""
@@ -329,23 +340,26 @@ export default function ReviewWordList() {
                       >
                         <Volume2 size={20} className={playingId === item.id ? "animate-pulse" : ""} />
                       </CloudButton>
-                      <CloudButton
-                        type="button"
-                        variant={item.status === "correct" ? "brand" : "ghost"}
-                        size="iconRound"
-                        onClick={() => handleStatusClick(item.id, "correct")}
-                        className={item.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
-                      >
-                        <Check size={18} />
-                      </CloudButton>
-                      <CloudButton
-                        type="button"
-                        variant={item.status === "wrong" ? "destructive" : "ghost"}
-                        size="iconRound"
-                        onClick={() => handleStatusClick(item.id, "wrong")}
-                      >
-                        <X size={18} />
-                      </CloudButton>
+                      {!viewOnly && (
+                        <>
+                          <CloudButton
+                            type="button"
+                            variant={item.status === "correct" ? "mint" : "ghost"}
+                            size="iconRound"
+                            onClick={() => handleStatusClick(item.id, "correct")}
+                          >
+                            <Check size={18} />
+                          </CloudButton>
+                          <CloudButton
+                            type="button"
+                            variant={item.status === "wrong" ? "destructive" : "ghost"}
+                            size="iconRound"
+                            onClick={() => handleStatusClick(item.id, "wrong")}
+                          >
+                            <X size={18} />
+                          </CloudButton>
+                        </>
+                      )}
                     </div>
                   </div>
                   {detailMode && item.showTranslation && (
@@ -368,18 +382,22 @@ export default function ReviewWordList() {
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
         <div className="max-w-2xl mx-auto w-full space-y-2.5">
           <div className="flex items-center gap-2 flex-wrap">
-            <CloudButton type="button" variant="outline" size="pill" onClick={markAllCorrect}>
-              全部认识
-            </CloudButton>
-            <CloudButton
-              type="button"
-              variant="ghost"
-              size="pill"
-              onClick={clearMarks}
-              disabled={markedCount === 0}
-            >
-              清空
-            </CloudButton>
+            {!viewOnly && (
+              <>
+                <CloudButton type="button" variant="outline" size="pill" onClick={markAllCorrect}>
+                  全部认识
+                </CloudButton>
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="pill"
+                  onClick={clearMarks}
+                  disabled={markedCount === 0}
+                >
+                  清空
+                </CloudButton>
+              </>
+            )}
             <div className="flex-1" />
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
@@ -397,31 +415,35 @@ export default function ReviewWordList() {
               拓展
             </CloudButton>
           </div>
-          <CloudButton
-            type="button"
-            variant="brand"
-            size="pill"
-            onClick={handleSubmit}
-            disabled={submitting || !allMarked}
-            loading={submitting}
-            loadingText="提交中…"
-            className={`w-full ${!allMarked && words.length > 0 ? "opacity-80" : ""}`}
-          >
-            提交复习
-            {words.length > 0 ? ` (${markedCount}/${words.length})` : ""}
-          </CloudButton>
-          {hint && (
-            <p className="text-center text-xs text-amber-600 px-1 animate-in fade-in">{hint}</p>
-          )}
-          {!hint && !allMarked && words.length > 0 && (
-            <p className="text-center text-xs text-[#FF6B6B]">
-              还有 {unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交
-            </p>
-          )}
-          {!hint && allMarked && words.length > 0 && (
-            <p className="text-center text-xs text-[#A0AEC0]">
-              已全部勾选，可提交复习
-            </p>
+          {!viewOnly && (
+            <>
+              <CloudButton
+                type="button"
+                variant="brand"
+                size="pill"
+                onClick={handleSubmit}
+                disabled={submitting || !allMarked}
+                loading={submitting}
+                loadingText="提交中…"
+                className={`w-full ${!allMarked && words.length > 0 ? "opacity-80" : ""}`}
+              >
+                提交复习
+                {words.length > 0 ? ` (${markedCount}/${words.length})` : ""}
+              </CloudButton>
+              {hint && (
+                <p className="text-center text-xs text-amber-600 px-1 animate-in fade-in">{hint}</p>
+              )}
+              {!hint && !allMarked && words.length > 0 && (
+                <p className="text-center text-xs text-[#FF6B6B]">
+                  还有 {unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交
+                </p>
+              )}
+              {!hint && allMarked && words.length > 0 && (
+                <p className="text-center text-xs text-[#A0AEC0]">
+                  已全部勾选，可提交复习
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>

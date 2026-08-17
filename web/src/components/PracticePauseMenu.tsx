@@ -32,8 +32,8 @@ export function PracticePauseMenu({
     ? homePath.includes("anti-forgetting")
       ? "确定结束复习并返回抗遗忘？"
       : "确定结束复习并返回单词训练？"
-    : "确定结束训练并进入抗遗忘？";
-  const endPath = isReview ? homePath : "/anti-forgetting";
+    : "确定结束训练并设置抗遗忘？";
+  const endPath = isReview ? homePath : "/create-anti-forgetting";
 
   return (
     <div

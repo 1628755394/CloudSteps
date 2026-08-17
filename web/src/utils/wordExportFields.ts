@@ -52,7 +52,12 @@ export function pickPhonetic(w: {
   phoneticUs?: string;
 }): string {
   const p = w.phoneticUk || w.phoneticUs || w.phonetic || "";
-  return p ? `[${p.replace(/^\[|\]$/g, "")}]` : "";
+  const inner = p
+    .trim()
+    .replace(/^[\[\/]+/, "")
+    .replace(/[\]\/]+$/, "")
+    .trim();
+  return inner ? `/${inner}/` : "";
 }
 
 /** 从详情中取某一拓展字段的纯文本 */

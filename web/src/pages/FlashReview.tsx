@@ -4,7 +4,7 @@ import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/Practic
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { TopBar } from "../components/TopBar";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
+import { WordViewModeToggle, isWordCardTapped, markWordCardClass, markWordCardStyle, type WordViewMode } from "../components/WordMarkView";
 import { Volume2, Scissors, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -151,10 +151,7 @@ export default function FlashReview() {
         if (w.uid === word.uid) {
           return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
-        if (next.showTranslation) {
-          return { ...w, showTranslation: false };
-        }
-        return w;
+        return { ...w, heard: false, showTranslation: false };
       })
     );
     setDetailWord(syncDetailWordWithTap(detailMode, next, { id: word.id, word: word.word }));
@@ -319,7 +316,7 @@ export default function FlashReview() {
       <div className="px-4 mt-6 max-w-2xl mx-auto w-full pb-28">
         <p className="text-center text-sm text-[#718096] mb-6">
           {isRetryMode
-            ? "点红剪刀表示不熟（会重新排队），点绿剪刀表示掌握"
+            ? "点红剪刀表示不熟（会重新排队），点青剪刀表示掌握"
             : `${uncutCount} 个待剪${round > 0 ? ` · 第 ${round + 1} 轮` : ""}`}
         </p>
 
@@ -337,8 +334,25 @@ export default function FlashReview() {
                 <ChevronLeft size={22} />
               </CloudButton>
               <div
-                className="flex-1 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors"
-                style={{ minHeight: "max(8rem, calc(var(--practice-word-size) * 6))" }}
+                className={`flex-1 rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${markWordCardClass(
+                  null,
+                  isWordCardTapped(
+                    visibleWords[cardIndex],
+                    playingId,
+                    visibleWords[cardIndex].id
+                  )
+                )}`}
+                style={{
+                  ...markWordCardStyle(
+                    null,
+                    isWordCardTapped(
+                      visibleWords[cardIndex],
+                      playingId,
+                      visibleWords[cardIndex].id
+                    )
+                  ),
+                  minHeight: "max(8rem, calc(var(--practice-word-size) * 6))",
+                }}
                 onClick={() => handleWordTap(visibleWords[cardIndex])}
               >
                 <p className="text-xs text-[#718096] mb-4">
@@ -386,9 +400,9 @@ export default function FlashReview() {
                 variant="ghost"
                 size="iconRound"
                 onClick={() => handleScissorClick(visibleWords[cardIndex], "green")}
-                title="绿剪：掌握"
+                title="青剪：掌握"
               >
-                <Scissors size={20} className="text-[#66BB6A]" />
+                <Scissors size={20} className="text-[#4ECDC4]" />
               </CloudButton>
             </div>
             {detailMode && visibleWords[cardIndex]?.showTranslation && (
@@ -407,13 +421,15 @@ export default function FlashReview() {
             {visibleWords.map((word) => (
               <div
                 key={word.uid}
-                className="bg-white rounded-xl p-4 shadow-sm transition-all"
+                className={`rounded-xl p-4 shadow-sm transition-all cursor-pointer ${markWordCardClass(
+                  null,
+                  isWordCardTapped(word, playingId, word.id)
+                )}`}
+                style={markWordCardStyle(null, isWordCardTapped(word, playingId, word.id))}
+                onClick={() => handleWordTap(word)}
               >
                 <div className="flex items-center justify-between">
-                  <div
-                    className="flex items-center gap-3 flex-1 cursor-pointer pr-3"
-                    onClick={() => handleWordTap(word)}
-                  >
+                  <div className="flex items-center gap-3 flex-1 pr-3">
                     <div>
                       <div className={`${PRACTICE_WORD_CLASS} mb-1 hover:text-[#4ECDC4] transition-colors`}>
                         {word.word}
@@ -429,6 +445,13 @@ export default function FlashReview() {
                       onClick={(e) => {
                         e.stopPropagation();
                         handlePlayAudio(word);
+                        setWords((prev) =>
+                          prev.map((w) =>
+                            w.uid === word.uid
+                              ? { ...w, heard: true }
+                              : { ...w, heard: false, showTranslation: false }
+                          )
+                        );
                       }}
                     >
                       <Volume2
@@ -458,9 +481,9 @@ export default function FlashReview() {
                         e.stopPropagation();
                         handleScissorClick(word, "green");
                       }}
-                      title="绿剪：掌握"
+                      title="青剪：掌握"
                     >
-                      <Scissors size={20} className="text-[#66BB6A]" />
+                      <Scissors size={20} className="text-[#4ECDC4]" />
                     </CloudButton>
                   </div>
                 </div>

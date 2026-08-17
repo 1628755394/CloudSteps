@@ -51,6 +51,13 @@ async function settleAndStop() {
   await finishPracticeBilling(billing);
 }
 
+/** App 里的计时器在 Router 外，不能用 useNavigate */
+function goToAntiForgettingSetup() {
+  void import("../router/routes").then(({ router }) => {
+    void router.navigate("/create-anti-forgetting");
+  });
+}
+
 /** 设置 / 调整上课定时 */
 export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: SetupProps) {
   const storeDuration = useClassTimerStore((s) => s.durationMin);
@@ -187,6 +194,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
                   await settleAndStop();
                   onOpenChange(false);
                   showToast.info("已结束上课定时");
+                  goToAntiForgettingSetup();
                 })();
               }}
             >
@@ -417,9 +425,10 @@ export function ClassSessionTimer() {
               onClick={() => {
                 setEndOpen(false);
                 useClassTimerStore.getState().stop();
+                goToAntiForgettingSetup();
               }}
             >
-              知道了
+              去设置抗遗忘
             </CloudButton>
           </DialogFooter>
         </DialogContent>

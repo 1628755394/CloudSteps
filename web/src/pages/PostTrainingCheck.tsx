@@ -523,13 +523,12 @@ export default function PostTrainingCheck() {
                   </CloudButton>
                   <CloudButton
                     type="button"
-                    variant={word.status === "correct" ? "brand" : "ghost"}
+                    variant={word.status === "correct" ? "mint" : "ghost"}
                     size="iconRound"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleStatusClick(word.id, "correct");
                     }}
-                    className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
                   >
                     <Check size={20} />
                   </CloudButton>
@@ -584,7 +583,7 @@ export default function PostTrainingCheck() {
             </CloudButton>
           </div>
           <div className="text-sm text-[#718096] text-right">
-            正确 <span className="text-[#66BB6A] font-semibold">{correctCount}</span> · 错误{" "}
+            正确 <span className="text-[#4ECDC4] font-semibold">{correctCount}</span> · 错误{" "}
             <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
             {mode === "study" && isRecheckMode && (
               <span className="block text-xs text-[#A0AEC0] mt-1">错词复检 · 仅显示刚重练的单词</span>

@@ -4,16 +4,16 @@
 import { post } from '@/utils/request'
 import { getApiBaseURL } from '@/config/apiConfig'
 
-/** 同一单词内，连续多次 TTS 请求之间的间隔（默认 30ms） */
+/** 同一单词内，连续多次 TTS 请求之间的间隔（默认 8ms） */
 export const TTS_REQUEST_GAP_MS = Math.max(
   0,
-  Number(import.meta.env.VITE_TTS_REQUEST_GAP_MS ?? 30) || 30
+  Number(import.meta.env.VITE_TTS_REQUEST_GAP_MS ?? 8) || 8
 )
 
-/** 批量模式下，处理完一个单词后的间隔（默认 50ms） */
+/** 批量模式下，处理完一个单词后的间隔（默认 8ms） */
 export const TTS_WORD_GAP_MS = Math.max(
   0,
-  Number(import.meta.env.VITE_TTS_WORD_GAP_MS ?? 50) || 50
+  Number(import.meta.env.VITE_TTS_WORD_GAP_MS ?? 8) || 8
 )
 
 export function sleep(ms: number): Promise<void> {

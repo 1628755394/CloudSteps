@@ -1,4 +1,4 @@
-package tts
+package synthesizer
 
 import (
 	"encoding/binary"
@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+// DefaultSampleRate 默认 PCM 采样率（与腾讯云常用 16k 对齐）。
+const DefaultSampleRate = 16000
 
 // EncodeWAV 将 PCM16LE mono 编码为完整 WAV 字节。
 func EncodeWAV(pcm []byte, sampleRate int) ([]byte, error) {

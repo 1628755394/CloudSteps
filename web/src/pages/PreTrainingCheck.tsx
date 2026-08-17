@@ -407,13 +407,12 @@ export default function PreTrainingCheck() {
           </CloudButton>
           <CloudButton
             type="button"
-            variant={word.status === "correct" ? "brand" : "ghost"}
+            variant={word.status === "correct" ? "mint" : "ghost"}
             size="iconRound"
             onClick={(e) => {
               e.stopPropagation();
               handleStatusClick(word.id, "correct");
             }}
-            className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
           >
             <Check size={20} />
           </CloudButton>

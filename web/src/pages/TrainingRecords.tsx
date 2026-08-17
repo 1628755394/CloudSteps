@@ -12,7 +12,7 @@ import {
 } from "../api/study";
 import { listAllTeacherCoachingQuotas, type TeacherCoachingQuotaRow } from "../api/coaching";
 import { playFirstWordAudio } from "../utils/audioPlayer";
-import { formatTranslation } from "../utils/wordFormat";
+import { formatTranslation, formatTranslationShort } from "../utils/wordFormat";
 import { downloadExcelRows, downloadPdfTable } from "../utils/excelExport";
 import { pickPhonetic } from "../utils/wordExportFields";
 import { showToast } from "../utils/toast";
@@ -126,6 +126,7 @@ export default function TrainingRecords() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("pdf");
   const [exportContent, setExportContent] = useState<ExportContent>("both");
+  const [rowExportItem, setRowExportItem] = useState<StudySessionListItem | null>(null);
 
   const studentOptions = useMemo(
     () => students.map((r) => ({ label: studentLabel(r), value: String(r.studentId) })),
@@ -318,6 +319,55 @@ export default function TrainingRecords() {
     }
   };
 
+  const buildExportTable = (
+    words: Array<{
+      word: string;
+      phonetic?: string;
+      phoneticUk?: string;
+      phoneticUs?: string;
+      translation?: string;
+    }>,
+    content: ExportContent
+  ) => {
+    const headers =
+      content === "both"
+        ? ["序号", "英文", "音标", "中文"]
+        : content === "zh"
+          ? ["序号", "英文", "中文"]
+          : ["序号", "英文", "音标"];
+    const tableRows: Array<Array<string | number>> = words.map((w, i) => {
+      const phonetic = pickPhonetic(w);
+      const zh = formatTranslationShort(w.translation) || "";
+      const en = w.word || "";
+      const no = i + 1;
+      if (content === "both") return [no, en, phonetic, zh];
+      if (content === "zh") return [no, en, zh];
+      return [no, en, phonetic];
+    });
+    return { headers, tableRows };
+  };
+
+  const downloadExportFile = async (opts: {
+    format: ExportFormat;
+    fileBase: string;
+    headers: string[];
+    tableRows: Array<Array<string | number>>;
+  }) => {
+    const title = opts.fileBase.replace(/^【|】$/g, "");
+    if (opts.format === "excel") {
+      downloadExcelRows(`${opts.fileBase}.xls`, title, [opts.headers, ...opts.tableRows], {
+        equalColumns: true,
+      });
+    } else {
+      await downloadPdfTable({
+        filename: `${opts.fileBase}.pdf`,
+        title,
+        headers: opts.headers,
+        rows: opts.tableRows,
+      });
+    }
+  };
+
   const handleExport = async () => {
     if (isCoach && !studentId) {
       showToast.error("请先选择学员再导出");
@@ -336,22 +386,7 @@ export default function TrainingRecords() {
         return;
       }
 
-      const headers =
-        exportContent === "both"
-          ? ["英文", "音标", "中文"]
-          : exportContent === "zh"
-            ? ["英文", "中文"]
-            : ["英文", "音标"];
-
-      const tableRows: Array<Array<string | number>> = words.map((w) => {
-        const phonetic = pickPhonetic(w);
-        const zh = formatTranslation(w.translation) || "";
-        const en = w.word || "";
-        if (exportContent === "both") return [en, phonetic, zh];
-        if (exportContent === "zh") return [en, zh];
-        return [en, phonetic];
-      });
-
+      const { headers, tableRows } = buildExportTable(words, exportContent);
       const who = selectedStudentName || "学员";
       const contentLabel = exportContentLabel(exportContent);
       const stamp = todayCompact();
@@ -359,20 +394,67 @@ export default function TrainingRecords() {
         tab === "review"
           ? `【${who}-${stamp}抗遗忘-${contentLabel}】`
           : `【${who}-${stamp}-${contentLabel}】`;
-      const title = fileBase.replace(/^【|】$/g, "");
 
-      if (exportFormat === "excel") {
-        downloadExcelRows(`${fileBase}.xls`, title, [headers, ...tableRows], { equalColumns: true });
-      } else {
-        await downloadPdfTable({
-          filename: `${fileBase}.pdf`,
-          title,
-          headers,
-          rows: tableRows,
-        });
-      }
+      await downloadExportFile({ format: exportFormat, fileBase, headers, tableRows });
       showToast.success(`已导出 ${words.length} 个单词`);
       setExportOpen(false);
+    } catch (e) {
+      console.error(e);
+      showToast.error(e instanceof Error ? e.message : "导出失败");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const fetchRecordWords = async (item: StudySessionListItem) => {
+    if (item.wordBookId) {
+      const res = await exportStudySessionWords({
+        sessionType: tab === "study" ? "learn" : "review",
+        status: "completed",
+        wordBookId: item.wordBookId,
+        date: item.day || undefined,
+      });
+      if (res.code === 200 && (res.data?.words?.length || 0) > 0) {
+        return res.data?.words || [];
+      }
+    }
+    const ids =
+      Array.isArray(item.sessionIds) && item.sessionIds.length > 0
+        ? item.sessionIds
+        : item.id
+          ? [item.id]
+          : [];
+    if (ids.length === 0) return [];
+    const merged = new Map<number, StudyWordItem>();
+    await Promise.all(
+      ids.map(async (sid) => {
+        const res = await getStudySessionDetail(sid);
+        if (res.code !== 200) return;
+        for (const w of res.data?.words || []) {
+          if (!merged.has(w.id)) merged.set(w.id, w);
+        }
+      })
+    );
+    return Array.from(merged.values());
+  };
+
+  const handleExportRecord = async (item: StudySessionListItem, format: ExportFormat) => {
+    setExporting(true);
+    try {
+      const words = await fetchRecordWords(item);
+      if (words.length === 0) {
+        showToast.error("暂无单词可导出");
+        return;
+      }
+      const { headers, tableRows } = buildExportTable(words, "both");
+      const who = selectedStudentName || "学员";
+      const day = item.day || todayCompact();
+      const book = item.wordBookName || "词库";
+      const kind = tab === "review" ? "抗遗忘" : "训练";
+      const fileBase = `【${who}-${day}-${book}-${kind}】`;
+      await downloadExportFile({ format, fileBase, headers, tableRows });
+      showToast.success(`已导出 ${words.length} 个单词`);
+      setRowExportItem(null);
     } catch (e) {
       console.error(e);
       showToast.error(e instanceof Error ? e.message : "导出失败");
@@ -546,9 +628,25 @@ export default function TrainingRecords() {
                       {item.wordBookName || `词书 #${item.wordBookId || "—"}`}
                     </span>
                   </div>
-                  <span className="text-xs px-2 py-0.5 rounded-md shrink-0 bg-emerald-50 text-emerald-700">
-                    {item.day || (item.startedAt ? String(item.startedAt).slice(0, 10) : "—")}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700">
+                      {item.day || (item.startedAt ? String(item.startedAt).slice(0, 10) : "—")}
+                    </span>
+                    <CloudButton
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2"
+                      disabled={exporting}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRowExportItem(item);
+                      }}
+                    >
+                      <Download size={14} />
+                      导出
+                    </CloudButton>
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>{fmtTime(item.latestAt || item.startedAt)}</span>
@@ -584,6 +682,62 @@ export default function TrainingRecords() {
               </CloudButton>
             </div>
           )}
+        </div>
+      )}
+
+      {rowExportItem && (
+        <div
+          className="fixed inset-0 bg-black/40 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => !exporting && setRowExportItem(null)}
+        >
+          <div
+            className="bg-card rounded-t-2xl sm:rounded-2xl border border-border max-w-sm w-full overflow-hidden shadow-soft-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div className="min-w-0 pr-2">
+                <h3 className="text-base font-semibold text-foreground truncate">导出本条记录</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  {[
+                    rowExportItem.wordBookName,
+                    rowExportItem.day || String(rowExportItem.startedAt || "").slice(0, 10),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              <CloudButton
+                type="button"
+                variant="ghost"
+                size="iconRound"
+                disabled={exporting}
+                onClick={() => setRowExportItem(null)}
+              >
+                <X size={20} className="text-muted-foreground" />
+              </CloudButton>
+            </div>
+            <div className="px-4 py-4 space-y-2">
+              <p className="text-xs text-muted-foreground mb-1">选择导出格式</p>
+              <CloudButton
+                type="button"
+                variant="brand"
+                className="w-full"
+                disabled={exporting}
+                onClick={() => void handleExportRecord(rowExportItem, "excel")}
+              >
+                {exporting ? "导出中…" : "Excel"}
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={exporting}
+                onClick={() => void handleExportRecord(rowExportItem, "pdf")}
+              >
+                {exporting ? "导出中…" : "PDF"}
+              </CloudButton>
+            </div>
+          </div>
         </div>
       )}
 

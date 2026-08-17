@@ -18,12 +18,12 @@ export type MarkableWord = {
 
 export type WordViewMode = "list" | "card";
 
-/** 勾选态优先；当前点中的词用淡青浅底（边框色走 inline） */
+/** 勾选态优先；正确/点中均用青绿色，错误仍为红 */
 export function markWordCardClass(
   status: MarkableWord["status"],
   tapped?: boolean
 ): string {
-  if (status === "correct") return "bg-[#66BB6A]/10";
+  if (status === "correct") return "bg-[#4ECDC4]/[0.06]";
   if (status === "wrong") return "bg-[#FF6B6B]/10";
   if (tapped) return "bg-[#4ECDC4]/[0.03]";
   return "bg-white";
@@ -43,8 +43,8 @@ export function markWordCardStyle(
     return {
       borderWidth: 2,
       borderStyle: "solid",
-      borderColor: "#66BB6A",
-      backgroundColor: "rgba(102, 187, 106, 0.1)",
+      borderColor: "#4ECDC4",
+      backgroundColor: "rgba(78, 205, 196, 0.06)",
     };
   }
   if (status === "wrong") {
@@ -95,7 +95,7 @@ export function WordMarkStatsBar({ correctCount, wrongCount, total }: StatsBarPr
     <div className="bg-card border border-border rounded-xl px-3 py-2.5 mb-4">
       <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
         <span>
-          正确: <span className="text-[#66BB6A] font-semibold">{correctCount}</span>
+          正确: <span className="text-[#4ECDC4] font-semibold">{correctCount}</span>
           {" / "}
           错误: <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
         </span>
@@ -127,6 +127,8 @@ type CardProps = {
    * 不单独劫持第一次读音。
    */
   amplifyDetail?: boolean;
+  /** 只看单词，不显示 ✓ / ✗ */
+  hideStatus?: boolean;
 };
 
 export function WordCardPanel({
@@ -141,6 +143,7 @@ export function WordCardPanel({
   onDetailClose,
   simpleMode = true,
   amplifyDetail = false,
+  hideStatus = false,
 }: CardProps) {
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
@@ -243,23 +246,26 @@ export function WordCardPanel({
         >
           <BookOpen size={20} />
         </CloudButton>
-        <CloudButton
-          type="button"
-          variant={word.status === "correct" ? "brand" : "ghost"}
-          size="iconRound"
-          onClick={() => onStatus(word.id, "correct")}
-          className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
-        >
-          <Check size={20} />
-        </CloudButton>
-        <CloudButton
-          type="button"
-          variant={word.status === "wrong" ? "destructive" : "ghost"}
-          size="iconRound"
-          onClick={() => onStatus(word.id, "wrong")}
-        >
-          <X size={20} />
-        </CloudButton>
+        {!hideStatus && (
+          <>
+            <CloudButton
+              type="button"
+              variant={word.status === "correct" ? "mint" : "ghost"}
+              size="iconRound"
+              onClick={() => onStatus(word.id, "correct")}
+            >
+              <Check size={20} />
+            </CloudButton>
+            <CloudButton
+              type="button"
+              variant={word.status === "wrong" ? "destructive" : "ghost"}
+              size="iconRound"
+              onClick={() => onStatus(word.id, "wrong")}
+            >
+              <X size={20} />
+            </CloudButton>
+          </>
+        )}
       </div>
 
       {detailOpen && (

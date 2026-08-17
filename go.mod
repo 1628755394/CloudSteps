@@ -26,7 +26,25 @@ require (
 	github.com/LingByte/ling-base/stores/oss v0.1.0
 	github.com/LingByte/ling-base/stores/s3 v0.1.0
 	github.com/LingByte/ling-base/stores/tos v0.1.0
+	github.com/LingByte/ling-base/synthesizer v0.0.0
+	github.com/LingByte/ling-base/synthesizer/aliyun v0.0.0
+	github.com/LingByte/ling-base/synthesizer/aws v0.0.0
+	github.com/LingByte/ling-base/synthesizer/azure v0.0.0
+	github.com/LingByte/ling-base/synthesizer/baidu v0.0.0
+	github.com/LingByte/ling-base/synthesizer/coqui v0.0.0
+	github.com/LingByte/ling-base/synthesizer/elevenlabs v0.0.0
+	github.com/LingByte/ling-base/synthesizer/fishaudio v0.0.0
+	github.com/LingByte/ling-base/synthesizer/fishspeech v0.0.0
+	github.com/LingByte/ling-base/synthesizer/google v0.0.0
+	github.com/LingByte/ling-base/synthesizer/local v0.0.0
+	github.com/LingByte/ling-base/synthesizer/minimax v0.0.0
+	github.com/LingByte/ling-base/synthesizer/openai v0.0.0
+	github.com/LingByte/ling-base/synthesizer/qcloud v0.0.0
+	github.com/LingByte/ling-base/synthesizer/qiniu v0.0.0
+	github.com/LingByte/ling-base/synthesizer/volcengine v0.0.0
+	github.com/LingByte/ling-base/synthesizer/xunfei v0.0.0
 	github.com/LingByte/lingllm v1.2.0
+	github.com/aws/aws-sdk-go-v2/service/polly v1.58.2
 	github.com/coze-dev/coze-go v0.0.0-20260303032728-01875f396c48
 	github.com/gin-contrib/sessions v1.0.4
 	github.com/gin-gonic/gin v1.12.0
@@ -47,7 +65,7 @@ require (
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
-	cloud.google.com/go/auth v0.20.0 // indirect
+	cloud.google.com/go/auth v0.23.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/longrunning v0.9.0 // indirect
@@ -64,27 +82,26 @@ require (
 	github.com/LingByte/ling-base/version v0.1.0 // indirect
 	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82 // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible // indirect
-	github.com/aws/aws-sdk-go-v2 v1.43.5 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.43.6 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.16 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.32.36 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.35 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.36 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.41 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.36 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.36 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.37 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.37 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.37 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.16 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.28 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.36 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.36 // indirect
-	github.com/aws/aws-sdk-go-v2/service/polly v1.58.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.5.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.33.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.38.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.45.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/transcribestreaming v1.35.1 // indirect
-	github.com/aws/smithy-go v1.27.7 // indirect
+	github.com/aws/smithy-go v1.27.8 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
@@ -118,8 +135,8 @@ require (
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.16 // indirect
-	github.com/googleapis/gax-go/v2 v2.22.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.20 // indirect
+	github.com/googleapis/gax-go/v2 v2.23.0 // indirect
 	github.com/gorilla/context v1.1.2 // indirect
 	github.com/gorilla/schema v1.3.0 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
@@ -181,9 +198,9 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0 // indirect
-	go.opentelemetry.io/otel v1.43.0 // indirect
-	go.opentelemetry.io/otel/metric v1.43.0 // indirect
-	go.opentelemetry.io/otel/trace v1.43.0 // indirect
+	go.opentelemetry.io/otel v1.44.0 // indirect
+	go.opentelemetry.io/otel/metric v1.44.0 // indirect
+	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/arch v0.22.0 // indirect
@@ -193,10 +210,10 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/api v0.283.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260523011958-0a33c5d7ca68 // indirect
-	google.golang.org/grpc v1.81.1 // indirect
+	google.golang.org/api v0.293.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260630182238-925bb5da69e7 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260807164820-c8921c73eeea // indirect
+	google.golang.org/grpc v1.83.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -214,4 +231,21 @@ replace (
 	github.com/LingByte/ling-base/realtime => /Users/cetide/Desktop/ling-base/realtime
 	github.com/LingByte/ling-base/realtime/aliyunomni => /Users/cetide/Desktop/ling-base/realtime/aliyunomni
 	github.com/LingByte/ling-base/realtime/volcdialogue => /Users/cetide/Desktop/ling-base/realtime/volcdialogue
+	github.com/LingByte/ling-base/synthesizer => /Users/cetide/Desktop/ling-base/synthesizer
+	github.com/LingByte/ling-base/synthesizer/aliyun => /Users/cetide/Desktop/ling-base/synthesizer/aliyun
+	github.com/LingByte/ling-base/synthesizer/aws => /Users/cetide/Desktop/ling-base/synthesizer/aws
+	github.com/LingByte/ling-base/synthesizer/azure => /Users/cetide/Desktop/ling-base/synthesizer/azure
+	github.com/LingByte/ling-base/synthesizer/baidu => /Users/cetide/Desktop/ling-base/synthesizer/baidu
+	github.com/LingByte/ling-base/synthesizer/coqui => /Users/cetide/Desktop/ling-base/synthesizer/coqui
+	github.com/LingByte/ling-base/synthesizer/elevenlabs => /Users/cetide/Desktop/ling-base/synthesizer/elevenlabs
+	github.com/LingByte/ling-base/synthesizer/fishaudio => /Users/cetide/Desktop/ling-base/synthesizer/fishaudio
+	github.com/LingByte/ling-base/synthesizer/fishspeech => /Users/cetide/Desktop/ling-base/synthesizer/fishspeech
+	github.com/LingByte/ling-base/synthesizer/google => /Users/cetide/Desktop/ling-base/synthesizer/google
+	github.com/LingByte/ling-base/synthesizer/local => /Users/cetide/Desktop/ling-base/synthesizer/local
+	github.com/LingByte/ling-base/synthesizer/minimax => /Users/cetide/Desktop/ling-base/synthesizer/minimax
+	github.com/LingByte/ling-base/synthesizer/openai => /Users/cetide/Desktop/ling-base/synthesizer/openai
+	github.com/LingByte/ling-base/synthesizer/qcloud => /Users/cetide/Desktop/ling-base/synthesizer/qcloud
+	github.com/LingByte/ling-base/synthesizer/qiniu => /Users/cetide/Desktop/ling-base/synthesizer/qiniu
+	github.com/LingByte/ling-base/synthesizer/volcengine => /Users/cetide/Desktop/ling-base/synthesizer/volcengine
+	github.com/LingByte/ling-base/synthesizer/xunfei => /Users/cetide/Desktop/ling-base/synthesizer/xunfei
 )

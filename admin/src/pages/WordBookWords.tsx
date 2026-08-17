@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import AdminLayout from '@/components/Layout/AdminLayout'
+import ConfirmDialog from '@/components/UI/ConfirmDialog'
 import { get, post, put, del } from '@/utils/request'
 import { getApiBaseURL } from '@/config/apiConfig'
 import { showAlert } from '@/utils/notification'
-import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, ArrowLeft, Upload, Download, AlertTriangle, Wand2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, ArrowLeft, Upload, Download, AlertTriangle, Wand2, VolumeX, Loader2 } from 'lucide-react'
 import LingechoTTS from '@/components/UI/LingechoTTS'
 import VoicePlayer from '@/components/VoicePlayer'
-import { generateWordAudioUrls, sleep, TTS_WORD_GAP_MS } from '@/utils/lingechoTts'
 
 interface Word {
   id: number
@@ -69,19 +69,39 @@ const emptyForm = (): Record<string, string | number> => ({
 })
 
 const splitAudioUrls = (audioUrl: string): [string, string, string] => {
-  const parts = (audioUrl || '')
-    .split(';')
-    .map(s => s.trim())
-    .filter(Boolean)
-  const p0 = parts[0] || ''
-  const p1 = parts[1] || ''
-  const p2 = parts[2] || ''
-  return [p0, p1, p2]
+  const parts = (audioUrl || '').split(';').map(s => s.trim())
+  return [parts[0] || '', parts[1] || '', parts[2] || '']
+}
+
+function audioDedupKey(url: string): string {
+  const u = url.trim().toLowerCase().split('?')[0]
+  for (const suffix of ['_uk.mp3', '_us.mp3', '_uk.wav', '_us.wav']) {
+    if (u.endsWith(suffix)) return u.slice(0, -suffix.length)
+  }
+  return u
 }
 
 const joinAudioUrls = (parts: [string, string, string]): string => {
-  const normalized = parts.map(p => (p || '').trim())
-  return normalized.join(';').replace(/;+$/g, '')
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const p of parts) {
+    const t = (p || '').trim()
+    if (!t) {
+      out.push('')
+      continue
+    }
+    const key = audioDedupKey(t)
+    if (seen.has(key)) {
+      out.push('')
+      continue
+    }
+    seen.add(key)
+    out.push(t)
+  }
+  while (out.length > 0 && !out[out.length - 1]?.trim()) {
+    out.pop()
+  }
+  return out.join(';')
 }
 
 export default function WordBookWords() {
@@ -100,6 +120,12 @@ export default function WordBookWords() {
   const [form, setForm] = useState(emptyForm())
   const [audioUrlParts, setAudioUrlParts] = useState<[string, string, string]>(['', '', ''])
   const [saving, setSaving] = useState(false)
+  const [dedupingAudio, setDedupingAudio] = useState(false)
+  const [purgingAllAudio, setPurgingAllAudio] = useState(false)
+  const [showPurgeAllConfirm, setShowPurgeAllConfirm] = useState(false)
+  const [purgeAllProgress, setPurgeAllProgress] = useState<{ processed: number; total: number } | null>(null)
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null)
 
   // 导入预览弹窗
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -125,6 +151,56 @@ export default function WordBookWords() {
 
   useEffect(() => { loadBook() }, [loadBook])
   useEffect(() => { loadWords() }, [loadWords])
+
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await get<{ status?: string; processed?: number; total?: number }>(
+          `${getApiBaseURL()}/wordbooks/${id}/words/purge-all-audio`
+        )
+        if (cancelled || res.code !== 200) return
+        if (res.data?.status === 'running') {
+          setPurgingAllAudio(true)
+          setPurgeAllProgress({
+            processed: res.data.processed ?? 0,
+            total: res.data.total ?? 0,
+          })
+          await pollPurgeAllAudioStatus()
+        }
+      } catch {
+        // ignore
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await get<{ status?: string; processed?: number; total?: number }>(
+          `${getApiBaseURL()}/wordbooks/${id}/words/batch-audio`
+        )
+        if (cancelled || res.code !== 200) return
+        if (res.data?.status === 'running') {
+          setBatchRunning(true)
+          setBatchProgress({
+            done: res.data.processed ?? 0,
+            total: res.data.total ?? 0,
+          })
+          await pollBatchAudioStatus()
+        }
+      } catch {
+        // ignore
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const openCreate = () => {
     setEditing(null)
@@ -200,40 +276,225 @@ export default function WordBookWords() {
     } catch (e: any) { showAlert(e?.message || '删除失败', 'error') }
   }
 
-  // 批量生成音频
-  const [batchRunning, setBatchRunning] = useState(false)
-  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null)
-  const batchStopRef = useRef(false)
+  const pollPurgeAllAudioStatus = async () => {
+    if (!id) return
+    const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    for (;;) {
+      try {
+        const res = await get<{
+          status?: string
+          total?: number
+          processed?: number
+          cleared?: number
+          objectsAttempted?: number
+          objectsFailed?: number
+          error?: string
+        }>(`${getApiBaseURL()}/wordbooks/${id}/words/purge-all-audio`)
+        if (res.code !== 200) {
+          showAlert(res.msg || '查询清除进度失败', 'error')
+          setPurgingAllAudio(false)
+          setPurgeAllProgress(null)
+          return
+        }
+        const data = res.data || {}
+        const status = data.status || 'idle'
+        if (status === 'running') {
+          setPurgingAllAudio(true)
+          setPurgeAllProgress({
+            processed: data.processed ?? 0,
+            total: data.total ?? 0,
+          })
+          await sleepMs(1500)
+          continue
+        }
+        setPurgeAllProgress(null)
+        setPurgingAllAudio(false)
+        if (status === 'failed') {
+          showAlert(data.error || '清除失败', 'error')
+          return
+        }
+        if (status === 'done') {
+          const cleared = data.cleared ?? 0
+          const attempted = data.objectsAttempted ?? 0
+          const failed = data.objectsFailed ?? 0
+          showAlert(
+            cleared > 0
+              ? `清除完成：${cleared} 条单词音频（对象 ${attempted}，失败 ${failed}）`
+              : '没有需要清除的音频',
+            failed > 0 ? 'warning' : 'success'
+          )
+          loadWords()
+        }
+        return
+      } catch (e: any) {
+        showAlert(e?.msg || e?.message || '查询清除进度失败', 'error')
+        setPurgingAllAudio(false)
+        setPurgeAllProgress(null)
+        return
+      }
+    }
+  }
+
+  const runPurgeAllAudio = async () => {
+    if (!id || purgingAllAudio) return
+    setPurgingAllAudio(true)
+    try {
+      const res = await post<{
+        status?: string
+        started?: boolean
+        total?: number
+        cleared?: number
+      }>(`${getApiBaseURL()}/wordbooks/${id}/words/purge-all-audio`)
+      if (res.code !== 200) {
+        showAlert(res.msg || '启动清除失败', 'error')
+        setPurgingAllAudio(false)
+        return
+      }
+      setShowPurgeAllConfirm(false)
+      if (res.data?.status === 'done' && (res.data?.total ?? 0) === 0) {
+        showAlert('没有需要清除的音频', 'info')
+        setPurgingAllAudio(false)
+        return
+      }
+      showAlert(res.msg || '已在后台开始清除', 'info')
+      await pollPurgeAllAudioStatus()
+    } catch (e: any) {
+      showAlert(e?.msg || e?.message || '启动清除失败', 'error')
+      setPurgingAllAudio(false)
+    }
+  }
+
+  const handleDeduplicateAudio = async () => {
+    if (!id || dedupingAudio) return
+    setDedupingAudio(true)
+    try {
+      const res = await post<{ checked?: number; updated?: number }>(
+        `${getApiBaseURL()}/wordbooks/${id}/words/deduplicate-audio`
+      )
+      if (res.code !== 200) {
+        showAlert(res.msg || '清理失败', 'error')
+        return
+      }
+      const checked = res.data?.checked ?? 0
+      const updated = res.data?.updated ?? 0
+      showAlert(
+        updated > 0 ? `已检查 ${checked} 条，清理 ${updated} 条重复音频` : `已检查 ${checked} 条，未发现重复`,
+        updated > 0 ? 'success' : 'info'
+      )
+      loadWords()
+    } catch (e: any) {
+      showAlert(e?.msg || e?.message || '清理失败', 'error')
+    } finally {
+      setDedupingAudio(false)
+    }
+  }
+
+  // 批量生成音频（后台任务）
+  const pollBatchAudioStatus = async () => {
+    if (!id) return
+    const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    for (;;) {
+      try {
+        const res = await get<{
+          status?: string
+          total?: number
+          processed?: number
+          success?: number
+          failed?: number
+          error?: string
+        }>(`${getApiBaseURL()}/wordbooks/${id}/words/batch-audio`)
+        if (res.code !== 200) {
+          showAlert(res.msg || '查询生成进度失败', 'error')
+          setBatchRunning(false)
+          setBatchProgress(null)
+          return
+        }
+        const data = res.data || {}
+        const status = data.status || 'idle'
+        if (status === 'running') {
+          setBatchRunning(true)
+          setBatchProgress({
+            done: data.processed ?? 0,
+            total: data.total ?? 0,
+          })
+          await sleepMs(1000)
+          continue
+        }
+        setBatchProgress(null)
+        setBatchRunning(false)
+        if (status === 'failed') {
+          showAlert(data.error || '批量生成失败', 'error')
+          return
+        }
+        if (status === 'stopped') {
+          showAlert(`已停止，成功 ${data.success ?? 0}/${data.processed ?? 0}`, 'info')
+          loadWords()
+          return
+        }
+        if (status === 'done') {
+          const success = data.success ?? 0
+          const total = data.total ?? 0
+          showAlert(
+            total === 0 ? '所有单词已有音频' : `完成，成功 ${success}/${total}`,
+            'success'
+          )
+          loadWords()
+        }
+        return
+      } catch (e: any) {
+        showAlert(e?.msg || e?.message || '查询生成进度失败', 'error')
+        setBatchRunning(false)
+        setBatchProgress(null)
+        return
+      }
+    }
+  }
 
   const handleBatchAudio = async () => {
-    // 拉取全部无音频的单词（不受分页限制）
-    const res = await get<any>(`${getApiBaseURL()}/wordbooks/${id}/managed-words?page=1&pageSize=9999`)
-    const allWords: Word[] = res.data?.list || []
-    const targets = allWords.filter(w => !w.audioUrl)
-    if (targets.length === 0) { showAlert('所有单词已有音频', 'success'); return }
-
-    setBatchRunning(true)
-    batchStopRef.current = false
-    setBatchProgress({ done: 0, total: targets.length })
-
-    let done = 0
-    for (const w of targets) {
-      if (batchStopRef.current) break
+    if (!id) return
+    if (batchRunning) {
       try {
-        const audioUrl = await generateWordAudioUrls(w.word, w.translation)
-        await put(`${getApiBaseURL()}/wordbooks/${id}/words/${w.id}`, { audioUrl })
-      } catch {
-        // 单个失败跳过，继续下一个
+        await post(`${getApiBaseURL()}/wordbooks/${id}/words/batch-audio/stop`)
+        showAlert('已请求停止，稍候…', 'info')
+      } catch (e: any) {
+        showAlert(e?.msg || e?.message || '停止失败', 'error')
       }
-      done++
-      setBatchProgress({ done, total: targets.length })
-      await sleep(TTS_WORD_GAP_MS)
+      return
     }
 
-    setBatchRunning(false)
+    setBatchRunning(true)
     setBatchProgress(null)
-    showAlert(`完成，已处理 ${done} 个单词`, 'success')
-    loadWords()
+    try {
+      const res = await post<{
+        status?: string
+        started?: boolean
+        total?: number
+        processed?: number
+        success?: number
+      }>(`${getApiBaseURL()}/wordbooks/${id}/words/batch-audio`, {
+        keyword: keyword || undefined,
+      })
+      if (res.code !== 200) {
+        showAlert(res.msg || '启动失败', 'error')
+        setBatchRunning(false)
+        return
+      }
+      const data = res.data || {}
+      if (data.status === 'running' && !data.started) {
+        showAlert('已有生成任务进行中', 'info')
+      } else if (data.started === false && (data.total ?? 0) === 0) {
+        showAlert('所有单词已有音频', 'success')
+        setBatchRunning(false)
+        return
+      } else {
+        showAlert(res.msg || '已在后台开始生成', 'info')
+      }
+      await pollBatchAudioStatus()
+    } catch (e: any) {
+      showAlert(e?.msg || e?.message || '启动失败', 'error')
+      setBatchRunning(false)
+      setBatchProgress(null)
+    }
   }
 
   const downloadTemplate = () => {
@@ -355,18 +616,43 @@ export default function WordBookWords() {
             </button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
             <button
-              onClick={batchRunning ? () => { batchStopRef.current = true } : handleBatchAudio}
-              disabled={loading}
+              onClick={() => setShowPurgeAllConfirm(true)}
+              disabled={loading || purgingAllAudio || dedupingAudio}
+              className="flex items-center gap-2 px-3 py-2 border border-red-300 dark:border-red-600 text-red-600 dark:text-red-300 rounded-lg text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+            >
+              {purgingAllAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <VolumeX className="w-4 h-4" />}
+              {purgingAllAudio
+                ? (purgeAllProgress
+                  ? `清除中 (${purgeAllProgress.processed}/${purgeAllProgress.total})`
+                  : '清除中...')
+                : '清除全部音频'}
+            </button>
+            <button
+              onClick={handleDeduplicateAudio}
+              disabled={loading || dedupingAudio}
+              className="flex items-center gap-2 px-3 py-2 border border-amber-400 text-amber-700 dark:text-amber-300 rounded-lg text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50"
+            >
+              {dedupingAudio ? '清理中...' : '清理重复音频'}
+            </button>
+            <button
+              onClick={handleBatchAudio}
+              disabled={loading || purgingAllAudio}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 ${
                 batchRunning
                   ? 'border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
                   : 'border border-indigo-400 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
               }`}
             >
-              <Wand2 className="w-4 h-4" />
-              {batchRunning
-                ? `停止 (${batchProgress?.done}/${batchProgress?.total})`
-                : '批量生成音频'}
+              {batchRunning && !batchProgress ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Wand2 className="w-4 h-4" />
+              )}
+              {!batchRunning
+                ? '批量生成音频'
+                : batchProgress
+                  ? `停止 (${batchProgress.done}/${batchProgress.total})`
+                  : '启动中...'}
             </button>
             <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">
               <Plus className="w-4 h-4" /> 添加单词
@@ -721,6 +1007,20 @@ export default function WordBookWords() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showPurgeAllConfirm}
+        onClose={() => {
+          if (!purgingAllAudio) setShowPurgeAllConfirm(false)
+        }}
+        onConfirm={runPurgeAllAudio}
+        title="清除全部音频"
+        message="将删除本词库所有单词的音频文件（对象存储），并清空 audioUrl。单词本身不会删除。此操作不可恢复，是否继续？"
+        confirmText="后台清除"
+        cancelText="取消"
+        variant="danger"
+        loading={purgingAllAudio}
+      />
     </AdminLayout>
   )
 }

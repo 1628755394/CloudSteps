@@ -45,6 +45,9 @@ func (h *Handlers) registerVocabTestRoutes(r *gin.RouterGroup) {
 		admin.POST("/questions/purge-bad-audio", h.handlePurgeBadAudio)
 		admin.POST("/questions/purge-all-audio", h.handlePurgeAllAudio)
 		admin.GET("/questions/purge-all-audio", h.handlePurgeAllAudioStatus)
+		admin.POST("/questions/batch-audio", h.handleBatchAudio)
+		admin.GET("/questions/batch-audio", h.handleBatchAudioStatus)
+		admin.POST("/questions/batch-audio/stop", h.handleBatchAudioStop)
 	}
 }
 

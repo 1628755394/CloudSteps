@@ -1,12 +1,11 @@
-// Command tts-gen 使用腾讯云 TTS 合成语音并写出音频文件。
-//
-// 核心逻辑在 pkg/tts；本命令为离线/批量工具入口。
+// Command tts-gen 使用 pkg/synthesizer 合成语音并写出音频文件。
 //
 // 环境变量：
 //
-//	QCLOUD_APP_ID       必填
-//	QCLOUD_SECRET_ID    必填
-//	QCLOUD_SECRET       必填（也可用 QCLOUD_SECRET_KEY）
+//	TTS_PROVIDER        可选，默认 qcloud
+//	QCLOUD_APP_ID       腾讯云必填
+//	QCLOUD_SECRET_ID    腾讯云必填
+//	QCLOUD_SECRET       腾讯云必填（也可用 QCLOUD_SECRET_KEY）
 //	QCLOUD_VOICE_TYPE   可选，默认 1005
 //
 // 基本用法：
@@ -26,17 +25,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/LingByte/CloudStepsGo/pkg/tts"
+	"github.com/LingByte/CloudStepsGo/pkg/synthesizer"
 )
 
 func main() {
 	var (
+		provider   = flag.String("provider", "", "TTS 厂商；为空则读 TTS_PROVIDER，默认 qcloud")
 		appID      = flag.String("app-id", "", "腾讯云 AppId；为空则读 QCLOUD_APP_ID")
 		secretID   = flag.String("secret-id", "", "腾讯云 SecretId；为空则读 QCLOUD_SECRET_ID")
 		secretKey  = flag.String("secret", "", "腾讯云 SecretKey；为空则读 QCLOUD_SECRET")
-		voice      = flag.String("voice", "", "音色 VoiceType（数字）；为空则读 QCLOUD_VOICE_TYPE 或默认 1005")
-		sampleRate = flag.Int("rate", tts.DefaultSampleRate, "采样率：8000 / 16000")
-		speed      = flag.Int64("speed", 0, "语速（SDK 若支持；0 为默认）")
+		voice      = flag.String("voice", "", "音色（腾讯云为 VoiceType 数字）；为空则读环境默认")
+		sampleRate = flag.Int("rate", synthesizer.DefaultSampleRate, "采样率：8000 / 16000（腾讯云）")
+		speed      = flag.Int64("speed", 0, "语速（腾讯云；0 为默认）")
 		text       = flag.String("text", "", "要合成的文本（单条模式）")
 		outPath    = flag.String("o", "tts_out.pcm", "单条模式输出路径；后缀决定格式：.pcm/.wav/.mp3")
 		batch      = flag.Bool("batch", false, "批量模式：从 stdin 读取每行一条文本，输出到 -out-dir")
@@ -47,25 +47,15 @@ func main() {
 	)
 	flag.Parse()
 
-	id, sid, sk := tts.ResolveCredentials(*appID, *secretID, *secretKey)
-	opt := tts.Options{
-		AppID:      id,
-		SecretID:   sid,
-		SecretKey:  sk,
-		Voice:      strings.TrimSpace(*voice),
-		SampleRate: *sampleRate,
-		Speed:      *speed,
-		Verbose:    *verbose,
-		Logf:       log.Printf,
-	}
-	if err := opt.Normalize(); err != nil {
+	svc, sample, voiceLabel, err := newTTSService(*provider, *appID, *secretID, *secretKey, *voice, *sampleRate, *speed)
+	if err != nil {
 		log.Fatal(err)
 	}
+	defer func() { _ = svc.Close() }()
 
 	ctx := context.Background()
-
 	if *batch {
-		if err := runBatch(ctx, opt, *outDir, *naming, *overwrite); err != nil {
+		if err := runBatch(ctx, svc, sample, voiceLabel, *outDir, *naming, *overwrite, *verbose); err != nil {
 			log.Fatalf("批量合成失败: %v", err)
 		}
 		return
@@ -74,27 +64,73 @@ func main() {
 	if strings.TrimSpace(*text) == "" {
 		log.Fatal("单条模式需要 -text 参数；或使用 -batch 从 stdin 读取")
 	}
-	if err := runSingle(ctx, opt, *text, *outPath); err != nil {
+	if err := runSingle(ctx, svc, sample, voiceLabel, *text, *outPath); err != nil {
 		log.Fatalf("合成失败: %v", err)
 	}
 }
 
-func runSingle(ctx context.Context, opt tts.Options, text, outPath string) error {
-	pcm, err := tts.Synthesize(ctx, opt, text)
+func newTTSService(provider, appID, secretID, secretKey, voice string, sampleRate int, speed int64) (*synthesizer.Service, int, string, error) {
+	p := synthesizer.NormalizeProvider(provider)
+	if p == synthesizer.ProviderTencent || p == "" {
+		cfg, err := synthesizer.NewQCloudConfig(synthesizer.QCloudOverrides{
+			AppID:      appID,
+			SecretID:   secretID,
+			SecretKey:  secretKey,
+			VoiceType:  voice,
+			SampleRate: sampleRate,
+			Speed:      speed,
+		})
+		if err != nil {
+			return nil, 0, "", err
+		}
+		svc, err := synthesizer.NewWithConfig(cfg)
+		if err != nil {
+			return nil, 0, "", err
+		}
+		rate := int(cfg.SampleRate)
+		if rate <= 0 {
+			rate = synthesizer.DefaultSampleRate
+		}
+		return svc, rate, fmt.Sprintf("%d", cfg.VoiceType), nil
+	}
+
+	// 非腾讯云：走环境变量配置；-voice 仅作日志标签
+	svc, err := synthesizer.New(string(p))
+	if err != nil {
+		return nil, 0, "", err
+	}
+	rate := svc.Format().SampleRate
+	if rate <= 0 {
+		rate = synthesizer.DefaultSampleRate
+	}
+	label := strings.TrimSpace(voice)
+	if label == "" {
+		label = string(p)
+	}
+	return svc, rate, label, nil
+}
+
+func runSingle(ctx context.Context, svc *synthesizer.Service, sampleRate int, voiceLabel, text, outPath string) error {
+	pcm, err := svc.Synthesize(ctx, text)
 	if err != nil {
 		return err
 	}
-	if err := tts.WriteAudioFile(outPath, pcm, opt.SampleRate); err != nil {
+	if err := synthesizer.WriteAudioFile(outPath, pcm, sampleRate); err != nil {
 		return fmt.Errorf("写出 %s: %w", outPath, err)
 	}
-	log.Printf("✓ %s（%d 字节 PCM，%.2f 秒，voice=%d）→ %s",
-		strings.TrimSpace(text), len(pcm),
-		float64(len(pcm))/float64(opt.SampleRate*2),
-		opt.VoiceType, outPath)
+	log.Printf("✓ %s（%d 字节，provider=%s voice=%s）→ %s",
+		strings.TrimSpace(text), len(pcm), svc.Provider(), voiceLabel, outPath)
 	return nil
 }
 
-func runBatch(ctx context.Context, opt tts.Options, outDir, naming string, overwrite bool) error {
+func runBatch(
+	ctx context.Context,
+	svc *synthesizer.Service,
+	sampleRate int,
+	voiceLabel string,
+	outDir, naming string,
+	overwrite, verbose bool,
+) error {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return fmt.Errorf("创建输出目录: %w", err)
 	}
@@ -113,8 +149,8 @@ func runBatch(ctx context.Context, opt tts.Options, outDir, naming string, overw
 	if len(lines) == 0 {
 		return errors.New("stdin 无有效文本行")
 	}
-	log.Printf("批量模式：%d 条文本，输出目录 %s，命名规则 %s，voiceType=%d",
-		len(lines), outDir, naming, opt.VoiceType)
+	log.Printf("批量模式：%d 条文本，输出目录 %s，命名规则 %s，provider=%s voice=%s",
+		len(lines), outDir, naming, svc.Provider(), voiceLabel)
 
 	ext := ".pcm"
 	ok, skip, fail := 0, 0, 0
@@ -122,7 +158,7 @@ func runBatch(ctx context.Context, opt tts.Options, outDir, naming string, overw
 		var fname string
 		switch naming {
 		case "text":
-			fname = tts.SanitizeFilename(text, 40) + ext
+			fname = synthesizer.SanitizeFilename(text, 40) + ext
 		default:
 			fname = fmt.Sprintf("%04d%s", i+1, ext)
 		}
@@ -133,19 +169,19 @@ func runBatch(ctx context.Context, opt tts.Options, outDir, naming string, overw
 				continue
 			}
 		}
-		pcm, err := tts.Synthesize(ctx, opt, text)
+		pcm, err := svc.Synthesize(ctx, text)
 		if err != nil {
 			fail++
 			log.Printf("[%d/%d] 失败: %s → %v", i+1, len(lines), text, err)
 			continue
 		}
-		if err := tts.WriteAudioFile(outPath, pcm, opt.SampleRate); err != nil {
+		if err := synthesizer.WriteAudioFile(outPath, pcm, sampleRate); err != nil {
 			fail++
 			log.Printf("[%d/%d] 写出失败: %s → %v", i+1, len(lines), outPath, err)
 			continue
 		}
 		ok++
-		if opt.Verbose || (i+1)%10 == 0 || i+1 == len(lines) {
+		if verbose || (i+1)%10 == 0 || i+1 == len(lines) {
 			log.Printf("[%d/%d] ok=%d skip=%d fail=%d → %s", i+1, len(lines), ok, skip, fail, outPath)
 		}
 	}

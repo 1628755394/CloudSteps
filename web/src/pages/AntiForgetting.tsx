@@ -87,14 +87,23 @@ export default function AntiForgetting() {
     setSelectedDate(toDateInputValue(d));
   };
 
+  const isToday = selectedDate === toDateInputValue(new Date());
+
   const handleOpenTask = (task: ReviewTask) => {
     if (task.count <= 0) return;
-    sessionStorage.setItem("lb_mode", "review");
     sessionStorage.setItem("lb_review_wordbook_id", String(task.wordBookId));
     sessionStorage.setItem("lb_review_wordbook_name", task.vocabularyPack);
     sessionStorage.setItem("lb_review_date", selectedDate);
     sessionStorage.setItem("lb_review_return", "/anti-forgetting");
-    navigate(`/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}`);
+    if (isToday) {
+      sessionStorage.setItem("lb_mode", "review");
+      navigate(`/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}`);
+      return;
+    }
+    sessionStorage.removeItem("lb_mode");
+    navigate(
+      `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}&view=1`
+    );
   };
 
   return (
@@ -183,7 +192,7 @@ export default function AntiForgetting() {
                         className="gap-1.5"
                       >
                         <Eye size={14} />
-                        {task.count <= 0 ? "暂无词" : task.status === "completed" ? "查看" : "复习"}
+                        {task.count <= 0 ? "暂无词" : isToday ? "复习" : "查看"}
                       </CloudButton>
                     </div>
                   </div>

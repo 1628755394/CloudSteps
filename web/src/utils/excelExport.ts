@@ -97,7 +97,21 @@ function wrapText(
   return lines.length ? lines : [""];
 }
 
-function canvasToJpegBytes(canvas: HTMLCanvasElement, quality = 0.82): Promise<Uint8Array> {
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+function colAlign(header: string): CanvasTextAlign {
+  if (header === "中文" || header === "释义") return "left";
+  return "center";
+}
+
+function canvasToJpegBytes(canvas: HTMLCanvasElement, quality = 0.92): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       async (blob) => {
@@ -116,7 +130,13 @@ function canvasToJpegBytes(canvas: HTMLCanvasElement, quality = 0.82): Promise<U
 
 /** 用页面图片拼成可下载的 PDF（支持中文，无第三方依赖） */
 function buildPdfFromJpegPages(
-  pages: Array<{ bytes: Uint8Array; width: number; height: number }>
+  pages: Array<{
+    bytes: Uint8Array;
+    width: number;
+    height: number;
+    pageWidth: number;
+    pageHeight: number;
+  }>
 ): Blob {
   const encoder = new TextEncoder();
   const chunks: Uint8Array[] = [];
@@ -153,14 +173,16 @@ function buildPdfFromJpegPages(
     const imageObj = pageObj + 2;
     const w = page.width;
     const h = page.height;
+    const pw = page.pageWidth;
+    const ph = page.pageHeight;
 
     beginObj(pageObj);
     push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${w} ${h}] /Contents ${contentObj} 0 R /Resources << /XObject << /Im${i} ${imageObj} 0 R >> >> >>`
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Contents ${contentObj} 0 R /Resources << /XObject << /Im${i} ${imageObj} 0 R >> >> >>`
     );
     endObj();
 
-    const content = `q ${w} 0 0 ${h} 0 0 cm /Im${i} Do Q`;
+    const content = `q ${pw} 0 0 ${ph} 0 0 cm /Im${i} Do Q`;
     beginObj(contentObj);
     push(`<< /Length ${encoder.encode(content).length} >>\nstream\n${content}\nendstream`);
     endObj();
@@ -194,118 +216,162 @@ function buildPdfFromJpegPages(
 }
 
 /**
- * 将表格渲染为 PDF 并直接下载 .pdf 文件（中文走浏览器字体，无额外依赖）
+ * 将表格渲染为打印风格 PDF：居中标题、右上角 logo、细黑框表格。
+ * 序号 / 英文 / 音标居中，中文左对齐。
  */
 export async function downloadPdfTable(opts: {
   filename: string;
   title: string;
   headers: string[];
   rows: Array<Array<string | number>>;
+  logoUrl?: string;
 }) {
-  const { title, headers, rows } = opts;
+  const { headers, rows } = opts;
   const filename = opts.filename.endsWith(".pdf") ? opts.filename : `${opts.filename}.pdf`;
+  const heading = (opts.title || "").trim() || "单词表";
+  const logo = await loadImage(opts.logoUrl || "/logo.png");
 
-  const pageW = 794;
-  const pageH = 1123;
-  const margin = 36;
-  const colCount = headers.length;
+  const pageW = 595;
+  const pageH = 842;
+  const scale = 2.5;
+  const margin = 40;
   const usable = pageW - margin * 2;
-  // 等宽分列（音标/中文/英文）；若含「序号」则序号列略窄
-  const hasIndex = headers[0] === "序号";
+  const padX = 8;
+
   const colWidths = (() => {
-    if (!hasIndex) {
-      const w = usable / Math.max(1, colCount);
-      return headers.map(() => w);
+    const n = headers.length;
+    const hasIndex = headers[0] === "序号";
+    if (hasIndex && n === 4) {
+      const idx = 36;
+      const rest = usable - idx;
+      return [idx, rest * 0.26, rest * 0.32, rest * 0.42];
     }
-    const firstCol = Math.min(48, usable * 0.08);
-    return headers.map((_, i) => (i === 0 ? firstCol : (usable - firstCol) / Math.max(1, colCount - 1)));
+    if (hasIndex && n === 3) {
+      const idx = 36;
+      const rest = usable - idx;
+      const mid = headers.includes("音标") ? rest * 0.42 : rest * 0.38;
+      return [idx, mid, rest - mid];
+    }
+    if (!hasIndex && n === 3) {
+      return [usable * 0.24, usable * 0.32, usable * 0.44];
+    }
+    const w = usable / Math.max(1, n);
+    return headers.map(() => w);
   })();
 
-  const lineH = 18;
-  const rowPad = 14;
-  const font = '14px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
-  const fontBold = 'bold 14px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
-  const titleFont = 'bold 18px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
+  const aligns = headers.map(colAlign);
+  const lineH = 16;
+  const rowPad = 12;
+  const font = '13px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
+  const titleFont = 'bold 16px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif';
 
   const measureCtx = document.createElement("canvas").getContext("2d")!;
   measureCtx.font = font;
 
   const rowLineSets = rows.map((row) =>
-    headers.map((_, ci) => wrapText(measureCtx, String(row[ci] ?? ""), colWidths[ci] - 12))
+    headers.map((_, ci) => wrapText(measureCtx, String(row[ci] ?? ""), Math.max(12, colWidths[ci] - padX * 2)))
   );
   const rowHeights = rowLineSets.map((cells) =>
-    Math.max(32, ...cells.map((ls) => ls.length * lineH + rowPad))
+    Math.max(28, ...cells.map((ls) => ls.length * lineH + rowPad))
   );
 
-  measureCtx.font = fontBold;
-  const headerLines = headers.map((h, ci) => wrapText(measureCtx, h, colWidths[ci] - 12));
-  const headerH = Math.max(32, ...headerLines.map((ls) => ls.length * lineH + rowPad));
-
-  const pages: Array<{ bytes: Uint8Array; width: number; height: number }> = [];
+  const pages: Array<{
+    bytes: Uint8Array;
+    width: number;
+    height: number;
+    pageWidth: number;
+    pageHeight: number;
+  }> = [];
   let rowIdx = 0;
-  let isFirst = true;
 
-  while (rowIdx < rows.length || isFirst) {
+  while (rowIdx < rows.length || pages.length === 0) {
     const canvas = document.createElement("canvas");
-    canvas.width = pageW;
-    canvas.height = pageH;
+    canvas.width = Math.round(pageW * scale);
+    canvas.height = Math.round(pageH * scale);
     const ctx = canvas.getContext("2d")!;
+    ctx.scale(scale, scale);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, pageW, pageH);
 
-    let y = margin;
-    if (isFirst) {
-      ctx.fillStyle = "#1a202c";
-      ctx.font = titleFont;
-      ctx.fillText(title, margin, y + 18);
-      y += 36;
-      isFirst = false;
+    const headerTop = margin;
+    const titleY = headerTop + 16;
+    const logoH = 28;
+    const logoW = logo ? logoH * (logo.width / Math.max(1, logo.height)) : 0;
+    if (logo) {
+      ctx.drawImage(logo, pageW - margin - logoW, titleY - logoH / 2, logoW, logoH);
     }
 
-    const drawHeader = () => {
-      let x = margin;
-      ctx.fillStyle = "#edf2f7";
-      ctx.fillRect(margin, y, usable, headerH);
-      ctx.strokeStyle = "#cbd5e0";
-      ctx.strokeRect(margin, y, usable, headerH);
-      ctx.fillStyle = "#1a202c";
-      ctx.font = fontBold;
-      headers.forEach((_, ci) => {
-        headerLines[ci].forEach((ln, li) => {
-          ctx.fillText(ln, x + 6, y + 18 + li * lineH);
-        });
-        x += colWidths[ci];
-      });
-      y += headerH;
-    };
+    ctx.fillStyle = "#111111";
+    ctx.font = titleFont;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(heading, pageW / 2, titleY, usable - logoW - 8);
 
-    drawHeader();
+    let y = headerTop + 40;
+    const tableTop = y;
+    const pageStart = rowIdx;
+    ctx.font = font;
+    ctx.fillStyle = "#111111";
+    ctx.strokeStyle = "#111111";
+    ctx.lineWidth = 0.7;
 
     while (rowIdx < rows.length) {
       const rh = rowHeights[rowIdx];
       if (y + rh > pageH - margin) break;
-      let x = margin;
-      ctx.strokeStyle = "#cbd5e0";
-      ctx.strokeRect(margin, y, usable, rh);
-      ctx.fillStyle = "#1a202c";
-      ctx.font = font;
-      const cells = rowLineSets[rowIdx];
-      cells.forEach((lines, ci) => {
-        lines.forEach((ln, li) => {
-          ctx.fillText(ln, x + 6, y + 18 + li * lineH);
-        });
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x, y + rh);
-        ctx.stroke();
-        x += colWidths[ci];
-      });
       y += rh;
       rowIdx += 1;
     }
 
-    const bytes = await canvasToJpegBytes(canvas);
-    pages.push({ bytes, width: pageW, height: pageH });
+    const tableBottom = y;
+    const tableH = tableBottom - tableTop;
+    ctx.strokeRect(margin, tableTop, usable, tableH);
+
+    let vx = margin;
+    for (let ci = 0; ci < headers.length - 1; ci++) {
+      vx += colWidths[ci];
+      ctx.beginPath();
+      ctx.moveTo(vx, tableTop);
+      ctx.lineTo(vx, tableBottom);
+      ctx.stroke();
+    }
+
+    let hy = tableTop;
+    for (let ri = pageStart; ri < rowIdx; ri++) {
+      const rh = rowHeights[ri];
+      const cells = rowLineSets[ri];
+      let x = margin;
+      cells.forEach((lines, ci) => {
+        const w = colWidths[ci];
+        const align = aligns[ci];
+        const blockH = lines.length * lineH;
+        const startY = hy + (rh - blockH) / 2 + lineH / 2;
+        ctx.textAlign = align;
+        ctx.textBaseline = "middle";
+        const tx = align === "center" ? x + w / 2 : x + padX;
+        lines.forEach((ln, li) => {
+          ctx.fillText(ln, tx, startY + li * lineH);
+        });
+        x += w;
+      });
+      hy += rh;
+      if (ri < rowIdx - 1) {
+        ctx.beginPath();
+        ctx.moveTo(margin, hy);
+        ctx.lineTo(margin + usable, hy);
+        ctx.stroke();
+      }
+    }
+
+    const bytes = await canvasToJpegBytes(canvas, 0.95);
+    pages.push({
+      bytes,
+      width: canvas.width,
+      height: canvas.height,
+      pageWidth: pageW,
+      pageHeight: pageH,
+    });
 
     if (rowIdx >= rows.length) break;
   }

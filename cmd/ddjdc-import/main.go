@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/pkg/audio"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/ling-base/common"
@@ -512,7 +513,12 @@ func joinAudioURLs(pair audioURLPair, store stores.Store) string {
 		urls = append(urls, store.PublicURL(pair.uk))
 	}
 	if pair.us != "" {
-		urls = append(urls, store.PublicURL(pair.us))
+		usURL := store.PublicURL(pair.us)
+		if len(urls) == 0 {
+			urls = append(urls, usURL)
+		} else if audio.DedupKey(urls[0]) != audio.DedupKey(usURL) {
+			urls = append(urls, usURL)
+		}
 	}
 	return strings.Join(urls, ";")
 }

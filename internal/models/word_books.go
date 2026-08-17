@@ -344,13 +344,32 @@ func SetWordBookActive(db *gorm.DB, id uint, active bool) error {
 	return db.Model(&WordBook{}).Where("id = ?", id).Update("is_active", active).Error
 }
 
-// SyncWordBookCount 重新统计并写回 word_count
+// SyncWordBookCount 重新统计未删除单词并写回 word_count
 func SyncWordBookCount(db *gorm.DB, wordBookID uint) error {
 	var cnt int64
-	if err := db.Model(&Word{}).Where("word_book_id = ?", wordBookID).Count(&cnt).Error; err != nil {
+	if err := db.Model(&Word{}).
+		Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive).
+		Count(&cnt).Error; err != nil {
 		return err
 	}
 	return db.Model(&WordBook{}).Where("id = ?", wordBookID).Update("word_count", cnt).Error
+}
+
+// SyncAllWordBookCounts 按未删除单词重新计算全部词库 word_count
+func SyncAllWordBookCounts(db *gorm.DB) (int64, error) {
+	res := db.Exec(fmt.Sprintf(`
+		UPDATE %s wb
+		LEFT JOIN (
+			SELECT word_book_id, COUNT(*) AS cnt
+			FROM %s
+			WHERE is_deleted = ?
+			GROUP BY word_book_id
+		) t ON t.word_book_id = wb.id
+		SET wb.word_count = COALESCE(t.cnt, 0)
+		WHERE wb.is_deleted = ?
+	`, constants.TABLE_WORD_BOOKS, constants.TABLE_WORDS),
+		SoftDeleteStatusActive, SoftDeleteStatusActive)
+	return res.RowsAffected, res.Error
 }
 
 // CreateWord 创建单词，并同步词库计数

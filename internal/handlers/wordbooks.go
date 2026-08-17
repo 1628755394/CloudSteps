@@ -10,6 +10,7 @@ import (
 
 	CloudStepsGo "github.com/LingByte/CloudStepsGo"
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/pkg/audio"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
@@ -77,7 +78,7 @@ func (p adminWordPayload) toWord(bookID uint) models.Word {
 		Translation:      p.Translation,
 		ExampleSentence:  p.ExampleSentence,
 		ExampleSentences: p.ExampleSentences,
-		AudioURL:         p.AudioURL,
+		AudioURL:         audio.DeduplicateSlots(p.AudioURL),
 		ImageURL:         p.ImageURL,
 		VideoURL:         p.VideoURL,
 		Difficulty:       diff,
@@ -123,6 +124,7 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 		admin.Use(h.requireAdmin)
 		{
 			admin.GET("/list", h.adminListWordBooks)
+			admin.POST("/:id/recount-count", h.adminRecountWordBookCount)
 			admin.POST("", h.adminCreateWordBook)
 			admin.PUT("/:id", h.adminUpdateWordBook)
 			admin.DELETE("/:id", h.adminDeleteWordBook)
@@ -133,6 +135,12 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 			admin.DELETE("/:id/words/:wid", h.adminDeleteWord)
 			admin.POST("/:id/words/check", h.adminCheckWords)
 			admin.POST("/:id/words/batch", h.adminBatchCreateWords)
+			admin.POST("/:id/words/deduplicate-audio", h.adminDeduplicateWordBookAudio)
+			admin.POST("/:id/words/purge-all-audio", h.adminPurgeWordBookAudio)
+			admin.GET("/:id/words/purge-all-audio", h.adminPurgeWordBookAudioStatus)
+			admin.POST("/:id/words/batch-audio", h.adminBatchWordBookAudio)
+			admin.GET("/:id/words/batch-audio", h.adminBatchWordBookAudioStatus)
+			admin.POST("/:id/words/batch-audio/stop", h.adminBatchWordBookAudioStop)
 		}
 	}
 
@@ -483,6 +491,35 @@ func (h *Handlers) adminListWordBooks(c *gin.Context) {
 	response.SuccessMsg(c, "success", gin.H{"list": books, "total": total, "page": page, "pageSize": pageSize})
 }
 
+func (h *Handlers) adminRecountWordBookCount(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	bookID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || bookID == 0 {
+		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid word book id"))
+		return
+	}
+	var book models.WordBook
+	if err := db.Where("id = ? AND is_deleted = ?", bookID, models.SoftDeleteStatusActive).First(&book).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(c, "词库不存在", nil)
+		} else {
+			response.Fail(c, "查询词库失败", err)
+		}
+		return
+	}
+	if err := models.SyncWordBookCount(db, uint(bookID)); err != nil {
+		response.Fail(c, "重新计算失败", err)
+		return
+	}
+	if err := db.Select("word_count").First(&book, bookID).Error; err != nil {
+		response.Fail(c, "查询词数失败", err)
+		return
+	}
+	response.SuccessMsg(c, fmt.Sprintf("已重新计算词数：%d 词", book.WordCount), gin.H{
+		"wordCount": book.WordCount,
+	})
+}
+
 func (h *Handlers) adminCreateWordBook(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	user := models.CurrentUser(c)
@@ -666,6 +703,10 @@ func (h *Handlers) adminUpdateWord(c *gin.Context) {
 		}
 		body["update_by"] = operator
 	}
+	if v, ok := body["audioUrl"]; ok {
+		body["audio_url"] = audio.DeduplicateSlots(strings.TrimSpace(fmt.Sprint(v)))
+		delete(body, "audioUrl")
+	}
 	if err := models.UpdateWord(db, uint(wid), body); err != nil {
 		response.Fail(c, "更新失败", err)
 		return
@@ -756,4 +797,41 @@ func (h *Handlers) adminBatchCreateWords(c *gin.Context) {
 		return
 	}
 	response.SuccessMsg(c, "导入成功", gin.H{"imported": len(words)})
+}
+
+// adminDeduplicateWordBookAudio POST /wordbooks/:id/words/deduplicate-audio
+func (h *Handlers) adminDeduplicateWordBookAudio(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	bookID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || bookID <= 0 {
+		response.Fail(c, "无效词库 ID", nil)
+		return
+	}
+
+	var words []models.Word
+	if err := db.Select("id, word, audio_url").
+		Where("word_book_id = ? AND audio_url IS NOT NULL AND audio_url <> ''", bookID).
+		Find(&words).Error; err != nil {
+		response.Fail(c, "查询失败", err)
+		return
+	}
+
+	checked := len(words)
+	updated := 0
+	for _, w := range words {
+		cleaned := audio.DeduplicateSlots(w.AudioURL)
+		if cleaned == w.AudioURL {
+			continue
+		}
+		if err := db.Model(&models.Word{}).Where("id = ?", w.ID).
+			Update("audio_url", cleaned).Error; err != nil {
+			continue
+		}
+		updated++
+	}
+
+	response.SuccessMsg(c, fmt.Sprintf("已检查 %d 条，清理重复音频 %d 条", checked, updated), gin.H{
+		"checked": checked,
+		"updated": updated,
+	})
 }
