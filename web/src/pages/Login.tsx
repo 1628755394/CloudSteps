@@ -185,7 +185,7 @@ export default function Login() {
       <div className="w-full max-w-md rounded-xl p-8 bg-card border border-border">
         <div className="mb-6">
           <img
-            src="/logo.png"
+            src={`${import.meta.env.BASE_URL}logo.png`}
             alt="CloudSteps"
             className="w-12 h-12 rounded-xl object-contain mb-5"
           />
