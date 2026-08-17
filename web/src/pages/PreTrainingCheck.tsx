@@ -3,8 +3,9 @@ import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import { getStudyWords, startStudySession } from "../api/study";
-import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
-import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { AnnotationLayer } from "../components/AnnotationLayer";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { CloudButton } from "../components/cloudsteps";
 import { TopBar } from "../components/TopBar";
 import { FlowPageShell } from "../components/PageTransition";
@@ -12,10 +13,10 @@ import {
   WordCardPanel,
   WordMarkStatsBar,
   WordViewModeToggle,
+  markWordCardClass,
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { ClassTimerBadge, ClassTimerSetupDialog } from "../components/ClassSessionTimer";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
@@ -60,7 +61,6 @@ export default function PreTrainingCheck() {
   /** 拓展简易模式：默认开，只展示部分标签 */
   const [simpleDetail, setSimpleDetail] = useState(true);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
-  const [timerOpen, setTimerOpen] = useState(false);
 
   const handlePlayAudio = useCallback((word: WordItem) => {
     if (!word.audioUrl) return;
@@ -359,13 +359,10 @@ export default function PreTrainingCheck() {
 
   const renderWordItem = (word: WordItem) => (
     <div
-      className={`bg-white rounded-xl p-3.5 sm:p-4 shadow-sm border border-transparent transition-all hover:shadow-md hover:border-[#4ECDC4]/35 hover:bg-[#4ECDC4]/5 ${
-        word.status === "correct"
-          ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5 hover:border-[#66BB6A] hover:bg-[#66BB6A]/10"
-          : word.status === "wrong"
-          ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5 hover:border-[#FF6B6B] hover:bg-[#FF6B6B]/10"
-          : ""
-      }`}
+      className={`bg-white rounded-xl p-3.5 sm:p-4 shadow-sm transition-all ${markWordCardClass(
+        word.status,
+        word.heard || word.showTranslation
+      )}`}
     >
       <div className="flex items-center justify-between gap-2">
         <div
@@ -432,28 +429,21 @@ export default function PreTrainingCheck() {
         title="训前检测"
         onBack={handleBack}
         rightSlot={
-          <div className="flex items-center gap-1">
-            <span
-              className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
-                shuffleMode ? "bg-[#4ECDC4]/15 text-[#4ECDC4]" : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {shuffleMode ? "乱序" : "正序"}
-            </span>
-            <ClassTimerBadge onClick={() => setTimerOpen(true)} />
-            <AnnotationToggleButton
-              active={annotationOpen}
-              onClick={() => setAnnotationOpen((v) => !v)}
-            />
-            <PracticeFontSettingsButton />
-          </div>
+          <PracticeFlowToolbar
+            annotationOpen={annotationOpen}
+            onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
+            wordCount={selectedCount}
+            extraBefore={
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
+                  shuffleMode ? "bg-[#4ECDC4]/15 text-[#4ECDC4]" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {shuffleMode ? "乱序" : "正序"}
+              </span>
+            }
+          />
         }
-      />
-
-      <ClassTimerSetupDialog
-        open={timerOpen}
-        onOpenChange={setTimerOpen}
-        wordCount={selectedCount}
       />
 
       <AnnotationLayer

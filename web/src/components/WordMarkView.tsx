@@ -18,6 +18,17 @@ export type MarkableWord = {
 
 export type WordViewMode = "list" | "card";
 
+/** 勾选态优先；点词第一次发音 / 第二次出释义用同一套青色边框 */
+export function markWordCardClass(
+  status: MarkableWord["status"],
+  tapped?: boolean
+): string {
+  if (status === "correct") return "border-2 border-[#66BB6A] bg-[#66BB6A]/5";
+  if (status === "wrong") return "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5";
+  if (tapped) return "border-2 border-[#4ECDC4] bg-[#4ECDC4]/5";
+  return "border-2 border-transparent";
+}
+
 type StatsBarProps = {
   correctCount: number;
   wrongCount: number;
@@ -118,13 +129,10 @@ export function WordCardPanel({
         </CloudButton>
 
         <div
-          className={`flex-1 min-h-[220px] bg-card border rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-            word.status === "correct"
-              ? "border-[#66BB6A] bg-[#66BB6A]/5"
-              : word.status === "wrong"
-              ? "border-[#FF6B6B] bg-[#FF6B6B]/5"
-              : "border-border"
-          }`}
+          className={`flex-1 min-h-[220px] bg-card rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${markWordCardClass(
+            word.status,
+            word.heard || word.showTranslation
+          )}`}
           onClick={() => onWordClick(word)}
         >
           <p className="text-xs text-muted-foreground mb-4">

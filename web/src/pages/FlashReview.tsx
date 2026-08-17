@@ -1,11 +1,11 @@
 import { CloudButton } from "../components/cloudsteps";
-import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
-import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
-import { PracticePauseMenu } from "../components/PracticePauseMenu";
+import { AnnotationLayer } from "../components/AnnotationLayer";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { TopBar } from "../components/TopBar";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
-import { Pause, Volume2, Scissors, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { Volume2, Scissors, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
@@ -62,7 +62,6 @@ export default function FlashReview() {
   const navigate = useNavigate();
   const [words, setWords] = useState<FlashWord[]>([]);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
-  const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
@@ -303,21 +302,11 @@ export default function FlashReview() {
         title={headerTitle}
         onBack={handleBack}
         rightSlot={
-          <div className="flex items-center gap-0.5">
-            <AnnotationToggleButton
-              active={annotationOpen}
-              onClick={() => setAnnotationOpen((v) => !v)}
-            />
-            <PracticeFontSettingsButton />
-            <CloudButton
-              type="button"
-              variant="ghost"
-              size="iconRound"
-              onClick={() => setShowPauseMenu((v) => !v)}
-            >
-              <Pause size={18} className="text-[#2D3748]" />
-            </CloudButton>
-          </div>
+          <PracticeFlowToolbar
+            annotationOpen={annotationOpen}
+            onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
+            wordCount={words.length}
+          />
         }
       />
 
@@ -515,11 +504,6 @@ export default function FlashReview() {
           </div>
         </div>
       </div>
-
-      <PracticePauseMenu
-        open={showPauseMenu}
-        onClose={() => setShowPauseMenu(false)}
-      />
 
       {showCompleteDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

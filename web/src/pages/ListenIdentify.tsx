@@ -1,11 +1,11 @@
 import { CloudButton } from "../components/cloudsteps";
-import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
-import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
-import { PracticePauseMenu } from "../components/PracticePauseMenu";
+import { AnnotationLayer } from "../components/AnnotationLayer";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { TopBar } from "../components/TopBar";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
-import { Pause, ArrowRight, Volume2, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Volume2, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { playFirstWordAudio } from "../utils/audioPlayer";
@@ -26,7 +26,6 @@ type ListenWord = {
 export default function ListenIdentify() {
   const navigate = useNavigate();
   const [words, setWords] = useState<ListenWord[]>([]);
-  const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
@@ -161,11 +160,9 @@ export default function ListenIdentify() {
         className={`bg-white rounded-xl p-4 shadow-sm transition-all cursor-pointer select-none ${
           opts?.centered ? "w-full" : ""
         } ${
-          w.state === "revealed"
-            ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/5"
-            : w.state === "played"
-            ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/10"
-            : ""
+          w.state === "idle"
+            ? "border-2 border-transparent"
+            : "border-2 border-[#4ECDC4] bg-[#4ECDC4]/5"
         }`}
       >
         <div className={`flex items-center gap-3 ${opts?.centered ? "flex-col text-center" : ""}`}>
@@ -220,21 +217,12 @@ export default function ListenIdentify() {
         title="听音识词"
         onBack={handleBack}
         rightSlot={
-          <div className="flex items-center gap-0.5">
-            <AnnotationToggleButton
-              active={annotationOpen}
-              onClick={() => setAnnotationOpen((v) => !v)}
-            />
-            <PracticeFontSettingsButton />
-            <CloudButton
-              type="button"
-              variant="ghost"
-              size="iconRound"
-              onClick={() => setShowPauseMenu(!showPauseMenu)}
-            >
-              <Pause size={18} className="text-[#2D3748]" />
-            </CloudButton>
-          </div>
+          <PracticeFlowToolbar
+            annotationOpen={annotationOpen}
+            onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
+            pauseContinueLabel="继续练习"
+            wordCount={words.length}
+          />
         }
       />
 
@@ -317,12 +305,6 @@ export default function ListenIdentify() {
           </CloudButton>
         </div>
       </div>
-
-      <PracticePauseMenu
-        open={showPauseMenu}
-        onClose={() => setShowPauseMenu(false)}
-        continueLabel="继续练习"
-      />
     </div>
   );
 }

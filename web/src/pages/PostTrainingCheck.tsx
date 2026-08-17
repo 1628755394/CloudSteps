@@ -1,9 +1,9 @@
-import { Volume2, Check, X, BookOpen, Shuffle, Pause } from "lucide-react";
+import { Volume2, Check, X, BookOpen, Shuffle } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
-import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
-import { PracticePauseMenu } from "../components/PracticePauseMenu";
+import { AnnotationLayer } from "../components/AnnotationLayer";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
@@ -11,6 +11,7 @@ import {
   WordCardPanel,
   WordMarkStatsBar,
   WordViewModeToggle,
+  markWordCardClass,
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
@@ -78,7 +79,6 @@ export default function PostTrainingCheck() {
   const navigate = useNavigate();
   const [words, setWords] = useState<CheckWord[]>([]);
   const [annotationOpen, setAnnotationOpen] = useState(false);
-  const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
@@ -434,21 +434,11 @@ export default function PostTrainingCheck() {
         title={mode === "review" ? "开始复习" : phaseLabels.title}
         onBack={handleBack}
         rightSlot={
-          <div className="flex items-center gap-0.5">
-            <AnnotationToggleButton
-              active={annotationOpen}
-              onClick={() => setAnnotationOpen((v) => !v)}
-            />
-            <PracticeFontSettingsButton />
-            <CloudButton
-              type="button"
-              variant="ghost"
-              size="iconRound"
-              onClick={() => setShowPauseMenu((v) => !v)}
-            >
-              <Pause size={18} className="text-[#2D3748]" />
-            </CloudButton>
-          </div>
+          <PracticeFlowToolbar
+            annotationOpen={annotationOpen}
+            onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
+            wordCount={words.length}
+          />
         }
       />
 
@@ -484,13 +474,10 @@ export default function PostTrainingCheck() {
             {words.map((word) => (
               <div
                 key={word.id}
-                className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
-                  word.status === "correct"
-                    ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
-                    : word.status === "wrong"
-                    ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5"
-                    : ""
-                }`}
+                className={`bg-white rounded-xl p-4 shadow-sm transition-all ${markWordCardClass(
+                  word.status,
+                  word.heard || word.showTranslation
+                )}`}
               >
                 <div className="flex items-center justify-between">
                 <div
@@ -627,11 +614,6 @@ export default function PostTrainingCheck() {
         )}
         </div>
       </div>
-
-      <PracticePauseMenu
-        open={showPauseMenu}
-        onClose={() => setShowPauseMenu(false)}
-      />
     </FlowPageShell>
   );
 }

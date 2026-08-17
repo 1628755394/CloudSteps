@@ -1,9 +1,9 @@
-import { Pause, Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
-import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
-import { PracticePauseMenu } from "../components/PracticePauseMenu";
+import { AnnotationLayer } from "../components/AnnotationLayer";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
@@ -32,7 +32,6 @@ export default function WordPractice() {
   const [words, setWords] = useState<PracticeWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [manualReadMode, setManualReadMode] = useState(false);
-  const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [frameIdx, setFrameIdx] = useState(0);
   const [playingId, setPlayingId] = useState<number | null>(null);
@@ -247,21 +246,12 @@ export default function WordPractice() {
         title={mode === "review" ? "开始复习" : "单词练习"}
         onBack={handleBack}
         rightSlot={
-          <div className="flex items-center gap-0.5">
-            <AnnotationToggleButton
-              active={annotationOpen}
-              onClick={() => setAnnotationOpen((v) => !v)}
-            />
-            <PracticeFontSettingsButton />
-            <CloudButton
-              type="button"
-              variant="ghost"
-              size="iconRound"
-              onClick={() => setShowPauseMenu(!showPauseMenu)}
-            >
-              <Pause size={18} className="text-[#2D3748]" />
-            </CloudButton>
-          </div>
+          <PracticeFlowToolbar
+            annotationOpen={annotationOpen}
+            onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
+            pauseContinueLabel="继续练习"
+            wordCount={words.length}
+          />
         }
       />
 
@@ -441,12 +431,6 @@ export default function WordPractice() {
           </CloudButton>
         </div>
       </div>
-
-      <PracticePauseMenu
-        open={showPauseMenu}
-        onClose={() => setShowPauseMenu(false)}
-        continueLabel="继续练习"
-      />
     </FlowPageShell>
   );
 }

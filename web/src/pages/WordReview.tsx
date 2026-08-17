@@ -1,8 +1,9 @@
 import { CloudButton } from "../components/cloudsteps";
-import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
-import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
-import { PracticePauseMenu } from "../components/PracticePauseMenu";
-import { ArrowLeft, Pause, Shuffle, ArrowRight } from "lucide-react";
+import { AnnotationLayer } from "../components/AnnotationLayer";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
+import { TopBar } from "../components/TopBar";
+import { Shuffle, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { playFirstWordAudio, playWordAudio, parseAudioUrls } from "../utils/audioPlayer";
@@ -23,7 +24,6 @@ export default function WordReview() {
   const navigate = useNavigate();
   const [words, setWords] = useState<ReviewWord[]>([]);
   const [manualReadMode, setManualReadMode] = useState(false);
-  const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [touchedIds, setTouchedIds] = useState<Set<number>>(new Set());
   const [playingId, setPlayingId] = useState<number | null>(null);
@@ -169,31 +169,18 @@ export default function WordReview() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-white sticky top-0 z-10 shadow-sm">
-        <div className="grid grid-cols-[2.5rem_1fr_auto] items-center px-4 py-4 gap-1">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={handleBack} className="-ml-2 justify-self-start">
-            <ArrowLeft size={24} className="text-[#2D3748]" />
-          </CloudButton>
-          <h1 className="text-center text-lg font-semibold text-[#2D3748]">
-            单词复习
-          </h1>
-          <div className="flex items-center justify-end gap-0.5 -mr-2">
-            <AnnotationToggleButton
-              active={annotationOpen}
-              onClick={() => setAnnotationOpen((v) => !v)}
-            />
-            <PracticeFontSettingsButton />
-            <CloudButton
-              type="button"
-              variant="ghost"
-              size="iconRound"
-              onClick={() => setShowPauseMenu(!showPauseMenu)}
-            >
-              <Pause size={24} className="text-[#2D3748]" />
-            </CloudButton>
-          </div>
-        </div>
-      </div>
+      <TopBar
+        title="单词复习"
+        onBack={handleBack}
+        rightSlot={
+          <PracticeFlowToolbar
+            annotationOpen={annotationOpen}
+            onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
+            pauseContinueLabel="继续练习"
+            wordCount={words.length}
+          />
+        }
+      />
 
       <AnnotationLayer
         storageKey="word-review"
@@ -277,12 +264,6 @@ export default function WordReview() {
           </CloudButton>
         </div>
       </div>
-
-      <PracticePauseMenu
-        open={showPauseMenu}
-        onClose={() => setShowPauseMenu(false)}
-        continueLabel="继续练习"
-      />
     </div>
   );
 }

@@ -1,15 +1,17 @@
-import { ArrowLeft, Volume2, Check, X, Shuffle, BookOpen } from "lucide-react";
+import { Volume2, Check, X, Shuffle, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
-import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
-import { PracticeFontSettingsButton, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { AnnotationLayer } from "../components/AnnotationLayer";
+import { PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
-import { FlowPageTitle } from "../components/PageTitle";
+import { TopBar } from "../components/TopBar";
 import {
   WordCardPanel,
   WordMarkStatsBar,
   WordViewModeToggle,
+  markWordCardClass,
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
@@ -207,30 +209,17 @@ export default function ReviewCheck() {
 
   return (
     <FlowPageShell>
-      <div className="bg-white sticky top-0 z-30 shadow-sm">
-        <div className="grid grid-cols-[2.5rem_1fr_auto] items-center px-3 py-3 gap-1">
-          <CloudButton
-            type="button"
-            variant="ghost"
-            size="iconRound"
-            onClick={handleBack}
-            className="justify-self-start"
-            aria-label="返回"
-          >
-            <ArrowLeft size={20} className="text-[#2D3748]" />
-          </CloudButton>
-          <FlowPageTitle>开始复习</FlowPageTitle>
-          <div className="flex items-center justify-end gap-0.5">
-            {showList && (
-              <AnnotationToggleButton
-                active={annotationOpen}
-                onClick={() => setAnnotationOpen((v) => !v)}
-              />
-            )}
-            <PracticeFontSettingsButton />
-          </div>
-        </div>
-      </div>
+      <TopBar
+        title="开始复习"
+        onBack={handleBack}
+        rightSlot={
+          <PracticeFlowToolbar
+            annotationOpen={annotationOpen}
+            onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
+            wordCount={words.length}
+          />
+        }
+      />
 
       <AnnotationLayer
         storageKey={`review-check:${wordBookId}:${sessionId}`}
@@ -296,13 +285,10 @@ export default function ReviewCheck() {
                 {words.map((word) => (
                   <div
                     key={word.id}
-                    className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
-                      word.status === "correct"
-                        ? "border-2 border-[#66BB6A] bg-[#66BB6A]/5"
-                        : word.status === "wrong"
-                        ? "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5"
-                        : ""
-                    }`}
+                    className={`bg-white rounded-xl p-4 shadow-sm transition-all ${markWordCardClass(
+                      word.status,
+                      word.heard || word.showTranslation
+                    )}`}
                   >
                     <div className="flex items-center justify-between">
                       <div
