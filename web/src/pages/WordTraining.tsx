@@ -388,7 +388,7 @@ export default function WordTraining() {
               <h3 className="text-base font-semibold text-[#2D3748]">智能记忆灯塔</h3>
             </div>
             <p className="text-[11px] text-[#A0AEC0] text-center px-2">
-              按艾宾浩斯复习阶段（第 1～7 步）统计当前词库词汇量
+              01 待学，02–08 复习阶段，09 已掌握
             </p>
           </div>
 
@@ -423,6 +423,7 @@ export default function WordTraining() {
               sessionStorage.setItem("lb_review_wordbook_id", String(selectedWordBookId));
               sessionStorage.setItem("lb_review_wordbook_name", name);
               sessionStorage.setItem("lb_review_date", todayLabel);
+              sessionStorage.setItem("lb_review_return", "/word-training");
               navigate(
                 `/review-word-list?wordBookId=${selectedWordBookId}&date=${encodeURIComponent(todayLabel)}`
               );
