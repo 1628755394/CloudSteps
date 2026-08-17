@@ -108,8 +108,6 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
         realValue: rawData[idx].realValue,
         itemStyle: {
           color: stage.color,
-          // 0 值弱化：保留结构，透明度 0.3
-          opacity: rawData[idx].realValue > 0 ? 1 : 0.3,
           borderColor: "#ffffff",
           // 01、09 业务首尾节点分割线加粗
           borderWidth: stage.keyNode ? 2.5 : 2,
@@ -128,9 +126,6 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
           // tooltip 读取自定义 realValue
           formatter: (params: any) => {
             const realVal = params.data?.realValue ?? 0;
-            if (realVal === 0) {
-              return `${params.name}<br/>该阶段暂无词条`;
-            }
             return `${params.name}<br/>词条数量：${realVal}`;
           },
         },
@@ -330,13 +325,13 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
                 {/* 阶段编号与英文名，颜色与对应扇区颜色一致（1:1 对齐原型图） */}
                 <div
                   className="font-bold leading-none whitespace-nowrap"
-                  style={{ color: stage.color, fontSize: isMobile ? 11 : 15 }}
+                  style={{ color: stage.color, fontSize: isMobile ? 14 : 18 }}
                 >
                   {stage.num}
                 </div>
                 <div
                   className="leading-none whitespace-nowrap"
-                  style={{ color: stage.color, opacity: 0.85, fontSize: isMobile ? 7 : 10, marginTop: 2 }}
+                  style={{ color: stage.color, opacity: 0.85, fontSize: isMobile ? 9 : 12, marginTop: 3 }}
                 >
                   {stage.en}
                 </div>
