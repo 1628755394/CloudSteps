@@ -139,8 +139,10 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
             type: "pie",
             radius: ["44%", "66%"],
             center: ["50%", "50%"],
-            // 起始角 180°：01 从底部开始顺时针排布
-            startAngle: 180,
+            // 起始角 270°（ECharts 角度约定，0=右/正东，逆时针为正）：
+            // 与外圈标签角度公式 110+idx*40（屏幕角度，0=右，顺时针为正）精确对齐，
+            // 保证每个扇区的颜色与其外部编号、数字位置一一对应
+            startAngle: 270,
             clockwise: true,
             avoidLabelOverlap: false,
             minAngle: 0,
