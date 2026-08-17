@@ -48,7 +48,7 @@ export function Header({
             aria-label="云阶首页"
           >
             <img
-              src="/logo.png"
+              src={`${import.meta.env.BASE_URL}logo.png`}
               alt=""
               className="w-7 h-7 rounded-md object-contain shrink-0"
               loading="eager"
