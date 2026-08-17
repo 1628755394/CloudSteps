@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as echarts from "echarts";
 import { Brain } from "lucide-react";
+import { triggerPageRipple } from "../stores/pageTransitionStore";
 
 export interface LighthouseBox {
   count: number;
@@ -197,20 +198,28 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
     ro.observe(chartRef.current);
     window.addEventListener("resize", handleResize);
 
-    // 点击扇区 → 触发 onBlockClick 筛选词条
+    // 点击扇区 → 该扇区颜色的圆点从点击位置放大铺满全屏、淡出后再触发 onBlockClick 跳转，
+    // 整个过渡动画控制在 0.5 秒内（放大 0.3s + 淡出 0.2s）
     const onChartClick = (params: any) => {
       if (params.componentType !== "series") return;
       const idx = params.dataIndex as number;
       const stage = STAGES[idx];
       if (!stage) return;
       const count = rawData[idx].realValue;
-      if (stage.kind === "unlearned") {
-        onBlockClick?.("UNLEARNED", count, stage.name);
-      } else if (stage.kind === "mastered") {
-        onBlockClick?.(BOX_TYPES[7], count, stage.name);
-      } else {
-        onBlockClick?.(BOX_TYPES[stage.boxIndex!], count, stage.name);
-      }
+      const fireBlockClick = () => {
+        if (stage.kind === "unlearned") {
+          onBlockClick?.("UNLEARNED", count, stage.name);
+        } else if (stage.kind === "mastered") {
+          onBlockClick?.(BOX_TYPES[7], count, stage.name);
+        } else {
+          onBlockClick?.(BOX_TYPES[stage.boxIndex!], count, stage.name);
+        }
+      };
+      const nativeEvt = params.event?.event as MouseEvent | undefined;
+      const rect = chartRef.current!.getBoundingClientRect();
+      const clientX = nativeEvt?.clientX ?? rect.left + (params.event?.offsetX ?? rect.width / 2);
+      const clientY = nativeEvt?.clientY ?? rect.top + (params.event?.offsetY ?? rect.height / 2);
+      triggerPageRipple(clientX, clientY, stage.color, fireBlockClick);
     };
     chart.on("click", onChartClick);
 
@@ -335,8 +344,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
                 style={{
                   left: `${left}%`,
                   top: `${top}%`,
-                  width: isMobile ? "5px" : "7px",
-                  height: isMobile ? "5px" : "7px",
+                  width: isMobile ? "7px" : "10px",
+                  height: isMobile ? "7px" : "10px",
                   transform: "translate(-50%, -50%)",
                   boxShadow: "0 0 2px rgba(0,0,0,0.15)",
                 }}
