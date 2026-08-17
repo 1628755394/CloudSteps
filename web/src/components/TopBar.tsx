@@ -13,7 +13,7 @@ type Props = {
 
 export function TopBar({ title, onBack, rightSlot }: Props) {
   return (
-    <div className="bg-white sticky top-0 z-10 shadow-sm">
+    <div className="bg-white sticky top-0 z-30 shadow-sm">
       <div className="grid grid-cols-[2.5rem_1fr_auto] items-center h-11 px-3 gap-1">
         <CloudButton
           variant="ghost"
