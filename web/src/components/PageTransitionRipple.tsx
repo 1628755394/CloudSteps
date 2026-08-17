@@ -23,10 +23,12 @@ export function PageTransitionRipple() {
           marginLeft: -BASE_SIZE / 2,
           marginTop: -BASE_SIZE / 2,
           borderRadius: "9999px",
-          backgroundColor: color,
+          // 放大的同时颜色由该阶段色渐渐过渡到白色，最后再淡出露出新页面
+          backgroundColor: expanded ? "#ffffff" : color,
           transform: `scale(${expanded ? scale : 1})`,
           opacity: fading ? 0 : 1,
-          transition: "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease-in",
+          transition:
+            "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), background-color 300ms ease-out, opacity 200ms ease-in",
         }}
       />
     </div>

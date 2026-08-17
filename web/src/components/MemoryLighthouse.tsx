@@ -237,8 +237,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
    * 起始角度 120°（左下方，对应 01），顺时针每块 +40°
    * 半径用 % 表示（相对容器），大于外环 88%
    */
-  // 环形外缘在 35%（70%/2），标签半径加大让数字/单词离环形更远；移动端略微收窄避免溢出
-  const labelRadius = isMobile ? 47 : 51;
+  // 环形外缘在 35%（70%/2），标签半径适度加大且不超出容器；移动端略微收窄避免溢出
+  const labelRadius = isMobile ? 44 : 47;
   const labelPositions = useMemo(
     () =>
       STAGES.map((_, idx) => {
