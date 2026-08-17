@@ -235,20 +235,21 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
    * 起始角度 120°（左下方，对应 01），顺时针每块 +40°
    * 半径用 % 表示（相对容器），大于外环 88%
    */
-  const labelRadius = 47; // % 距中心，环形外缘在 33%（66%/2），标签放在 47% 留足空间
+  // 环形外缘在 33%（66%/2），移动端标签更紧凑，标签半径略微收窄避免溢出
+  const labelRadius = isMobile ? 44 : 47;
   const labelPositions = useMemo(
     () =>
       STAGES.map((_, idx) => {
-        // 原型标签中心：01 位于左下方约 120°，之后每块顺时针 +40°
-        // 01 → 02 → ... → 05(顶部) → ... → 09
-        const angleDeg = 120 + idx * 40;
+        // 精确匹配原型图布局：01 位于底部偏左，09 位于底部偏右，05 位于正上方
+        // 01 → 02(左下) → 03(左) → 04(左上) → 05(正上) → 06(右上) → 07(右) → 08(右下) → 09(底部偏右)
+        const angleDeg = 110 + idx * 40;
         const angleRad = (angleDeg * Math.PI) / 180;
         // left/top 用 % 表示，圆心在 50%
         const left = 50 + labelRadius * Math.cos(angleRad);
         const top = 50 + labelRadius * Math.sin(angleRad);
         return { left, top, angleDeg };
       }),
-    []
+    [labelRadius]
   );
 
   /** 顶部可视化彩色图例 */
@@ -295,45 +296,51 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
         >
           <div ref={chartRef} className="absolute inset-0 w-full h-full" />
 
-          {/* 外圈阶段标签：DOM + CSS 引导短线（非 ECharts label） */}
-          {!isMobile &&
-            STAGES.map((stage, idx) => {
-              const pos = labelPositions[idx];
-              // 引导短线方向：从圆心指向标签
-              const lineAngle = pos.angleDeg;
-              return (
+          {/* 外圈阶段标签：DOM + CSS 引导短线（非 ECharts label），按阶段色对齐每个模块 */}
+          {STAGES.map((stage, idx) => {
+            const pos = labelPositions[idx];
+            // 引导短线方向：从圆心指向标签
+            const lineAngle = pos.angleDeg;
+            return (
+              <div
+                key={idx}
+                className="absolute pointer-events-none flex flex-col items-center"
+                style={{
+                  left: `${pos.left}%`,
+                  top: `${pos.top}%`,
+                  transform: "translate(-50%, -50%)",
+                }}
+              >
+                {/* 引导短线：从标签指向圆环边缘 */}
                 <div
-                  key={idx}
-                  className="absolute pointer-events-none flex flex-col items-center"
+                  className="absolute"
                   style={{
-                    left: `${pos.left}%`,
-                    top: `${pos.top}%`,
-                    transform: "translate(-50%, -50%)",
+                    width: "1px",
+                    height: isMobile ? "8px" : "16px",
+                    backgroundColor: "#ccc",
+                    // 短线指向圆心方向
+                    transform: `translate(-50%, -100%) rotate(${lineAngle + 180}deg)`,
+                    transformOrigin: "bottom center",
+                    top: "-2px",
+                    left: "50%",
                   }}
+                />
+                {/* 阶段编号与英文名，颜色与对应扇区颜色一致（1:1 对齐原型图） */}
+                <div
+                  className="font-bold leading-none whitespace-nowrap"
+                  style={{ color: stage.color, fontSize: isMobile ? 11 : 15 }}
                 >
-                  {/* 引导短线：从标签指向圆环边缘 */}
-                  <div
-                    className="absolute"
-                    style={{
-                      width: "1px",
-                      height: "16px",
-                      backgroundColor: "#bbb",
-                      // 短线指向圆心方向
-                      transform: `translate(-50%, -100%) rotate(${lineAngle + 180}deg)`,
-                      transformOrigin: "bottom center",
-                      top: "-2px",
-                      left: "50%",
-                    }}
-                  />
-                  <div className="text-[14px] font-bold leading-none" style={{ color: stage.color }}>{stage.num}</div>
-                  <div className="text-[9px] text-[#A0AEC0] leading-none mt-0.5">{stage.en}</div>
-                  {/* 外圈数量与对应扇区内 realValue 保持一致，0 也显示，白色 */}
-                  <div className="text-[13px] font-bold leading-none mt-1 tabular-nums px-1.5 py-0.5 rounded" style={{ color: "#fff", backgroundColor: stage.color }}>
-                    {rawData[idx].realValue}
-                  </div>
+                  {stage.num}
                 </div>
-              );
-            })}
+                <div
+                  className="leading-none whitespace-nowrap"
+                  style={{ color: stage.color, opacity: 0.85, fontSize: isMobile ? 7 : 10, marginTop: 2 }}
+                >
+                  {stage.en}
+                </div>
+              </div>
+            );
+          })}
 
           {/* 圆心 DOM 面板：鼠标穿透，不挡 hover */}
           <div
@@ -345,35 +352,35 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
               width: "38%",
             }}
           >
-            <Brain className="mx-auto text-[#FFB300]" size={26} strokeWidth={1.8} />
-            <div className="text-[14px] font-semibold text-[#2D3748] mt-1">记忆九宫格</div>
-            <div className="text-[9px] tracking-wider text-[#A0AEC0]">MEMORY NINE-GRID</div>
+            <Brain className="mx-auto text-[#FFB300]" size={isMobile ? 20 : 26} strokeWidth={1.8} />
+            <div className="font-semibold text-[#2D3748] mt-1" style={{ fontSize: isMobile ? 11 : 14 }}>记忆九宫格</div>
+            <div className="tracking-wider text-[#A0AEC0]" style={{ fontSize: isMobile ? 7 : 9 }}>MEMORY NINE-GRID</div>
           </div>
         </div>
       )}
 
       {!isEmpty && (
-        /* 汇总统计：横行展示，待学/复习中/已掌握 一行排开 */
-        <div className="mt-3 px-2">
-          <div className="flex items-stretch justify-center gap-2 sm:gap-4">
-            <div className="flex-1 max-w-[180px] flex items-center gap-2 px-3 py-2 rounded-lg bg-[#FCEDEB]">
-              <span className="inline-block size-3 rounded-[3px] bg-[#F45448] shrink-0" />
-              <span className="text-[13px] text-[#4A5568]">待学</span>
-              <span className="ml-auto font-bold text-[20px] leading-none text-[#2D3748] tabular-nums">{waitStudy}</span>
+        /* 汇总统计：横行展示，待学/复习中/已掌握 一行排开；小屏幕自动缩小间距和字号 */
+        <div className="mt-3 px-1 sm:px-2">
+          <div className="flex items-stretch justify-center gap-1.5 sm:gap-4">
+            <div className="flex-1 min-w-0 max-w-[180px] flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[#FCEDEB]">
+              <span className="inline-block size-2.5 sm:size-3 rounded-[3px] bg-[#F45448] shrink-0" />
+              <span className="text-[11px] sm:text-[13px] text-[#4A5568] truncate">待学</span>
+              <span className="ml-auto font-bold text-[16px] sm:text-[20px] leading-none text-[#2D3748] tabular-nums">{waitStudy}</span>
             </div>
-            <div className="flex-1 max-w-[180px] flex items-center gap-2 px-3 py-2 rounded-lg bg-[#FEF3E0]">
-              <span className="inline-block size-3 rounded-[3px] bg-[#FCAA22] shrink-0" />
-              <span className="text-[13px] text-[#4A5568]">复习中</span>
-              <span className="ml-auto font-bold text-[20px] leading-none text-[#2D3748] tabular-nums">{reviewTotal}</span>
+            <div className="flex-1 min-w-0 max-w-[180px] flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[#FEF3E0]">
+              <span className="inline-block size-2.5 sm:size-3 rounded-[3px] bg-[#FCAA22] shrink-0" />
+              <span className="text-[11px] sm:text-[13px] text-[#4A5568] truncate">复习中</span>
+              <span className="ml-auto font-bold text-[16px] sm:text-[20px] leading-none text-[#2D3748] tabular-nums">{reviewTotal}</span>
             </div>
-            <div className="flex-1 max-w-[180px] flex items-center gap-2 px-3 py-2 rounded-lg bg-[#E5F8F6]">
-              <span className="inline-block size-3 rounded-[3px] bg-[#17B3A6] shrink-0" />
-              <span className="text-[13px] text-[#4A5568]">已掌握</span>
-              <span className="ml-auto font-bold text-[20px] leading-none text-[#2D3748] tabular-nums">{masteredTotal}</span>
+            <div className="flex-1 min-w-0 max-w-[180px] flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[#E5F8F6]">
+              <span className="inline-block size-2.5 sm:size-3 rounded-[3px] bg-[#17B3A6] shrink-0" />
+              <span className="text-[11px] sm:text-[13px] text-[#4A5568] truncate">已掌握</span>
+              <span className="ml-auto font-bold text-[16px] sm:text-[20px] leading-none text-[#2D3748] tabular-nums">{masteredTotal}</span>
             </div>
           </div>
-          <div className="mt-2 text-center text-[12px] text-[#718096]">
-            总词条 <span className="font-bold text-[16px] text-[#2D3748] tabular-nums">{totalCount}</span>
+          <div className="mt-2 text-center text-[11px] sm:text-[12px] text-[#718096]">
+            总词条 <span className="font-bold text-[14px] sm:text-[16px] text-[#2D3748] tabular-nums">{totalCount}</span>
           </div>
         </div>
       )}
