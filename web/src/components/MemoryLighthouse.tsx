@@ -87,12 +87,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
     [boxes, unlearnedCount, masteredCount]
   );
 
-  /** 业务统计（读 realValue，不读 echarts） */
-  const waitStudy = rawData[0].realValue;
-  const reviewTotal = rawData.slice(1, 8).reduce((s, i) => s + i.realValue, 0);
-  const masteredTotal = rawData[8].realValue;
-  const totalCount = waitStudy + reviewTotal + masteredTotal;
-  const isEmpty = totalCount === 0;
+  /** 空状态判断：所有阶段 realValue 均为 0 */
+  const isEmpty = rawData.every((d) => d.realValue === 0);
 
   const chartRef = useRef<HTMLDivElement | null>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -339,6 +335,31 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
             );
           })}
 
+          {/* 内环接缝处的 9 个白色小圆点：每两个扇区交界一个，均匀分布在内环半径上 */}
+          {STAGES.map((_, idx) => {
+            // 接缝角度 = 扇区中心 + 半个扇区宽度 = 110 + idx*40 + 20 = 130 + idx*40
+            const seamAngleDeg = 130 + idx * 40;
+            const seamAngleRad = (seamAngleDeg * Math.PI) / 180;
+            // 内环半径 44%（ECharts pie inner radius），正方形容器下 = 22% 容器宽度
+            const dotRadius = 22;
+            const left = 50 + dotRadius * Math.cos(seamAngleRad);
+            const top = 50 + dotRadius * Math.sin(seamAngleRad);
+            return (
+              <div
+                key={`dot-${idx}`}
+                className="absolute pointer-events-none rounded-full bg-white"
+                style={{
+                  left: `${left}%`,
+                  top: `${top}%`,
+                  width: isMobile ? "5px" : "7px",
+                  height: isMobile ? "5px" : "7px",
+                  transform: "translate(-50%, -50%)",
+                  boxShadow: "0 0 2px rgba(0,0,0,0.15)",
+                }}
+              />
+            );
+          })}
+
           {/* 圆心 DOM 面板：鼠标穿透，不挡 hover */}
           <div
             className="absolute pointer-events-none text-center"
@@ -352,32 +373,6 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
             <Brain className="mx-auto text-[#FFB300]" size={isMobile ? 20 : 26} strokeWidth={1.8} />
             <div className="font-semibold text-[#2D3748] mt-1" style={{ fontSize: isMobile ? 11 : 14 }}>记忆九宫格</div>
             <div className="tracking-wider text-[#A0AEC0]" style={{ fontSize: isMobile ? 7 : 9 }}>MEMORY NINE-GRID</div>
-          </div>
-        </div>
-      )}
-
-      {!isEmpty && (
-        /* 汇总统计：横行展示，待学/复习中/已掌握 一行排开；小屏幕自动缩小间距和字号 */
-        <div className="mt-3 px-1 sm:px-2">
-          <div className="flex items-stretch justify-center gap-1.5 sm:gap-4">
-            <div className="flex-1 min-w-0 max-w-[180px] flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[#FCEDEB]">
-              <span className="inline-block size-2.5 sm:size-3 rounded-[3px] bg-[#F45448] shrink-0" />
-              <span className="text-[11px] sm:text-[13px] text-[#4A5568] truncate">待学</span>
-              <span className="ml-auto font-bold text-[16px] sm:text-[20px] leading-none text-[#2D3748] tabular-nums">{waitStudy}</span>
-            </div>
-            <div className="flex-1 min-w-0 max-w-[180px] flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[#FEF3E0]">
-              <span className="inline-block size-2.5 sm:size-3 rounded-[3px] bg-[#FCAA22] shrink-0" />
-              <span className="text-[11px] sm:text-[13px] text-[#4A5568] truncate">复习中</span>
-              <span className="ml-auto font-bold text-[16px] sm:text-[20px] leading-none text-[#2D3748] tabular-nums">{reviewTotal}</span>
-            </div>
-            <div className="flex-1 min-w-0 max-w-[180px] flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-[#E5F8F6]">
-              <span className="inline-block size-2.5 sm:size-3 rounded-[3px] bg-[#17B3A6] shrink-0" />
-              <span className="text-[11px] sm:text-[13px] text-[#4A5568] truncate">已掌握</span>
-              <span className="ml-auto font-bold text-[16px] sm:text-[20px] leading-none text-[#2D3748] tabular-nums">{masteredTotal}</span>
-            </div>
-          </div>
-          <div className="mt-2 text-center text-[11px] sm:text-[12px] text-[#718096]">
-            总词条 <span className="font-bold text-[14px] sm:text-[16px] text-[#2D3748] tabular-nums">{totalCount}</span>
           </div>
         </div>
       )}
