@@ -1,7 +1,7 @@
 import { resolveMediaUrl } from './mediaUrl'
 
 /**
- * 解析分号分隔的音频URL字符串，返回有效URL数组
+ * 解析分号分隔的音频URL字符串，返回有效URL数组（压缩空槽，适合顺序轮播）。
  */
 export function parseAudioUrls(audioUrl?: string | null): string[] {
   if (!audioUrl?.trim()) return []
@@ -11,6 +11,21 @@ export function parseAudioUrls(audioUrl?: string | null): string[] {
     .filter(Boolean)
     .map(u => resolveMediaUrl(u))
     .filter((u): u is string => u !== null)
+}
+
+/**
+ * 按原始分号槽位解析（保留空位），保证「第 1/2/3 段」索引稳定。
+ * 词库 TTS 约定：0=单词一遍，1=单词三遍，2=单词+中文。
+ */
+export function parseAudioUrlSlots(audioUrl?: string | null): (string | null)[] {
+  if (audioUrl == null) return []
+  return String(audioUrl)
+    .split(';')
+    .map((u) => {
+      const t = u.trim()
+      if (!t) return null
+      return resolveMediaUrl(t)
+    })
 }
 
 /**
@@ -46,7 +61,7 @@ export function playSingleAudio(url: string, onDone?: () => void): () => void {
 const nextAudioIndexByKey = new Map<string, number>()
 
 /**
- * 便捷函数：解析 audioUrl 字符串并单次播放
+ * 便捷函数：解析 audioUrl 字符串并单次播放（跳过空槽轮播）
  * @returns abort 函数
  */
 export function playWordAudio(
@@ -70,7 +85,7 @@ export function playWordAudio(
 }
 
 /**
- * 播放指定索引的音频（0-based）
+ * 播放指定槽位的音频（0-based，对应分号分隔的第几段；空槽不挪位冒充）
  * @returns abort 函数
  */
 export function playAudioAtIndex(
@@ -78,47 +93,55 @@ export function playAudioAtIndex(
   index: number,
   onDone?: () => void
 ): () => void {
-  const urls = parseAudioUrls(audioUrl)
-  if (urls.length === 0 || index < 0 || index >= urls.length) {
+  const slots = parseAudioUrlSlots(audioUrl)
+  if (slots.length === 0 || index < 0 || index >= slots.length) {
     onDone?.()
     return () => {}
   }
-  return playSingleAudio(urls[index], onDone)
+  const direct = slots[index]
+  if (!direct) {
+    onDone?.()
+    return () => {}
+  }
+  return playSingleAudio(direct, onDone)
 }
 
 /**
- * 播放第一个音频，并把下次顺序播放位置推进到第二个
+ * 播放第一个音频（槽位 0：单词一遍）
  */
 export function playFirstWordAudio(
   audioUrl: string | undefined | null,
   onDone?: () => void
 ): () => void {
-  const urls = parseAudioUrls(audioUrl)
-  if (urls.length === 0) {
+  const slots = parseAudioUrlSlots(audioUrl)
+  const url = slots[0] || slots.find((u): u is string => !!u) || null
+  if (!url) {
     onDone?.()
     return () => {}
   }
-
-  const key = urls.join(";")
-  nextAudioIndexByKey.set(key, urls.length > 1 ? 1 : 0)
-  return playSingleAudio(urls[0], onDone)
+  const compact = parseAudioUrls(audioUrl)
+  if (compact.length > 0) {
+    nextAudioIndexByKey.set(compact.join(";"), compact.length > 1 ? 1 : 0)
+  }
+  return playSingleAudio(url, onDone)
 }
 
 /**
- * 播放第二个音频（如美式发音），如果没有第二个则播放第一个
+ * 播放第二个音频（槽位 1：单词三遍）。没有第二段则回退第一段。
  */
 export function playSecondWordAudio(
   audioUrl: string | undefined | null,
   onDone?: () => void
 ): () => void {
-  const urls = parseAudioUrls(audioUrl)
-  if (urls.length === 0) {
+  const slots = parseAudioUrlSlots(audioUrl)
+  const url = slots[1] || slots[0] || slots.find((u): u is string => !!u) || null
+  if (!url) {
     onDone?.()
     return () => {}
   }
-
-  const key = urls.join(";")
-  nextAudioIndexByKey.set(key, 0)
-  const index = urls.length > 1 ? 1 : 0
-  return playSingleAudio(urls[index], onDone)
+  const compact = parseAudioUrls(audioUrl)
+  if (compact.length > 0) {
+    nextAudioIndexByKey.set(compact.join(";"), 0)
+  }
+  return playSingleAudio(url, onDone)
 }
