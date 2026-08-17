@@ -97,7 +97,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
   return (
     <div className="relative w-full max-w-[400px] mx-auto aspect-[1190/1322]">
       <img
-        src="/course/nine_grid_alt.png"
+        src={`${import.meta.env.BASE_URL}course/nine_grid_alt.png`}
         alt="记忆灯塔"
         className="w-full h-full object-contain select-none pointer-events-none"
         draggable={false}
