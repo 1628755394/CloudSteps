@@ -42,15 +42,15 @@ interface RingSlot {
 
 /** 扇区 01–09 数字中心（相对图片宽高 %，按实机截图微调） */
 const RING_SLOTS: RingSlot[] = [
-  { left: 37.5, top: 78.5, kind: "unlearned", tips: "待学" }, // 01 First
-  { left: 22.5, top: 70.0, kind: "box", boxIndex: 0, tips: "1" }, // 02 → 复习 1
-  { left: 16.5, top: 50.0, kind: "box", boxIndex: 1, tips: "2" }, // 03 → 复习 2
-  { left: 25.0, top: 31.0, kind: "box", boxIndex: 2, tips: "3" }, // 04 → 复习 3
-  { left: 50.0, top: 22.0, kind: "box", boxIndex: 3, tips: "4" }, // 05 → 复习 4
-  { left: 76.0, top: 31.0, kind: "box", boxIndex: 4, tips: "5" }, // 06 → 复习 5
-  { left: 83.5, top: 50.0, kind: "box", boxIndex: 5, tips: "6" }, // 07 → 复习 6
-  { left: 77.0, top: 70.0, kind: "box", boxIndex: 6, tips: "7" }, // 08 → 复习 7
-  { left: 62.0, top: 78.5, kind: "mastered", tips: "已掌握" }, // 09 Ninth
+  { left: 35.0, top: 82.0, kind: "unlearned", tips: "待学" }, // 01 First
+  { left: 19.0, top: 73.0, kind: "box", boxIndex: 0, tips: "1" }, // 02 → 复习 1
+  { left: 13.0, top: 50.0, kind: "box", boxIndex: 1, tips: "2" }, // 03 → 复习 2
+  { left: 22.0, top: 28.0, kind: "box", boxIndex: 2, tips: "3" }, // 04 → 复习 3
+  { left: 50.0, top: 18.0, kind: "box", boxIndex: 3, tips: "4" }, // 05 → 复习 4
+  { left: 80.0, top: 28.0, kind: "box", boxIndex: 4, tips: "5" }, // 06 → 复习 5
+  { left: 87.0, top: 50.0, kind: "box", boxIndex: 5, tips: "6" }, // 07 → 复习 6
+  { left: 81.0, top: 73.0, kind: "box", boxIndex: 6, tips: "7" }, // 08 → 复习 7
+  { left: 65.0, top: 82.0, kind: "mastered", tips: "已掌握" }, // 09 Ninth
 ];
 
 const BOX_TYPES = [
