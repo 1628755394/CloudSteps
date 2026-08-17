@@ -13,3 +13,16 @@ export function nextWordTapState(opts: {
   }
   return { heard: true, showTranslation: true, shouldPlay: false };
 }
+
+/**
+ * 拓展模式不打断点词节奏：仅在「展示释义」时同步打开详情，收起释义时关掉。
+ */
+export function syncDetailWordWithTap(
+  detailMode: boolean,
+  next: { showTranslation: boolean },
+  word: { id: number; word: string }
+): { id: number; word: string } | null {
+  if (!detailMode) return null;
+  if (next.showTranslation) return { id: word.id, word: word.word };
+  return null;
+}

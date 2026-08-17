@@ -60,6 +60,11 @@ type CardProps = {
   detailWordId?: number | null;
   onDetailClose?: () => void;
   simpleMode?: boolean;
+  /**
+   * 拓展增幅：跟点词节奏联动，仅在 showTranslation 时展示详情，
+   * 不单独劫持第一次读音。
+   */
+  amplifyDetail?: boolean;
 };
 
 export function WordCardPanel({
@@ -73,13 +78,18 @@ export function WordCardPanel({
   detailWordId,
   onDetailClose,
   simpleMode = true,
+  amplifyDetail = false,
 }: CardProps) {
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
   const [localDetail, setLocalDetail] = useState(false);
 
   const detailControlled = detailWordId !== undefined;
-  const detailOpen = detailControlled ? detailWordId === word?.id : localDetail;
+  const detailOpen = amplifyDetail
+    ? !!word?.showTranslation
+    : detailControlled
+      ? detailWordId === word?.id
+      : localDetail;
 
   // 切换单词时收起本地详情
   useEffect(() => {
@@ -159,6 +169,7 @@ export function WordCardPanel({
           variant="ghost"
           size="iconRound"
           onClick={() => {
+            if (amplifyDetail) return;
             if (detailControlled) {
               if (detailOpen) onDetailClose?.();
               else onWordClick(word);
@@ -167,7 +178,8 @@ export function WordCardPanel({
             }
           }}
           aria-label="单词详情"
-          className="text-[#4ECDC4] hover:bg-[#4ECDC4]/10"
+          className={`text-[#4ECDC4] hover:bg-[#4ECDC4]/10 ${amplifyDetail ? "opacity-60" : ""}`}
+          title={amplifyDetail ? "拓展已开启：点单词显示释义时自动展开" : "单词详情"}
         >
           <BookOpen size={20} />
         </CloudButton>

@@ -18,7 +18,7 @@ import { completeStudySession } from "../api/study";
 import { completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
-import { nextWordTapState } from "../utils/wordReveal";
+import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import {
   clearStudyRecheck,
   getCheckPhaseLabel,
@@ -145,7 +145,7 @@ export default function PostTrainingCheck() {
 
   const handleBack = () => {
     if (mode === "review") {
-      navigate(getReviewReturnPath("/anti-forgetting"));
+      navigate(getReviewReturnPath("/word-training"));
       return;
     }
     if (window.history.length > 1) navigate(-1);
@@ -203,12 +203,6 @@ export default function PostTrainingCheck() {
   };
 
   const handleWordClick = (word: CheckWord) => {
-    if (detailMode) {
-      setDetailWord((prev) =>
-        prev?.id === word.id ? null : { id: word.id, word: word.word }
-      );
-      return;
-    }
     const next = nextWordTapState({
       showTranslation: !!word.showTranslation,
       heard: !!word.heard,
@@ -230,6 +224,7 @@ export default function PostTrainingCheck() {
         return w;
       })
     );
+    setDetailWord(syncDetailWordWithTap(detailMode, next, word));
   };
 
   const handleShuffle = () => {
@@ -364,7 +359,7 @@ export default function PostTrainingCheck() {
           if (res.code !== 200) {
             throw new Error(res.msg || "提交失败");
           }
-          const returnPath = getReviewReturnPath("/anti-forgetting");
+          const returnPath = getReviewReturnPath("/word-training");
           clearReviewPracticeSession();
           navigate(returnPath, { replace: true });
           return;
@@ -481,7 +476,7 @@ export default function PostTrainingCheck() {
             onPlay={handlePlayAudio}
             onWordClick={handleWordClick}
             onStatus={handleStatusClick}
-            detailWordId={detailMode ? detailWord?.id ?? null : undefined}
+            amplifyDetail={detailMode}
             onDetailClose={() => setDetailWord(null)}
           />
         ) : (
@@ -558,7 +553,7 @@ export default function PostTrainingCheck() {
                   </CloudButton>
                 </div>
                 </div>
-                {detailMode && detailWord?.id === word.id && (
+                {detailMode && word.showTranslation && (
                   <WordDetailPanel
                     wordId={word.id}
                     wordText={word.word}

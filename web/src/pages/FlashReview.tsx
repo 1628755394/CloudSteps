@@ -10,8 +10,8 @@ import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
 import { playFirstWordAudio, playSecondWordAudio } from "../utils/audioPlayer";
-import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
-import { nextWordTapState } from "../utils/wordReveal";
+import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
+import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import {
   clearStudyRetryFlash,
   getStudyRetryWords,
@@ -30,6 +30,7 @@ type FlashWord = {
   word: string;
   phonetic: string;
   translation: string;
+  translationShort: string;
   audioUrl?: string;
   scissorCount: number;
   showTranslation: boolean;
@@ -42,12 +43,14 @@ function newUid(id: number): string {
 
 function mapToFlashWord(w: Record<string, unknown>): FlashWord {
   const id = Number(w.id);
+  const rawTranslation = w.translation as string;
   return {
     uid: newUid(id),
     id,
     word: String(w.word || ""),
     phonetic: pickPhoneticDisplay(w as { phonetic?: string; phoneticUk?: string; phoneticUs?: string }),
-    translation: formatTranslation(w.translation as string),
+    translation: formatTranslation(rawTranslation),
+    translationShort: formatTranslationShort(rawTranslation),
     audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
     scissorCount: 0,
     showTranslation: false,
@@ -65,6 +68,8 @@ export default function FlashReview() {
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
+  /** false=简译（默认），true=全部意思；与单词练习/听音辨义一致 */
+  const [fullMeaning, setFullMeaning] = useState(false);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
 
@@ -82,7 +87,7 @@ export default function FlashReview() {
       return;
     }
     if (window.history.length > 1) navigate(-1);
-    else navigate(mode === "review" ? getReviewReturnPath("/anti-forgetting") : "/word-practice");
+    else navigate(mode === "review" ? getReviewReturnPath("/word-training") : "/word-practice");
   };
 
   useEffect(() => {
@@ -121,6 +126,7 @@ export default function FlashReview() {
     if (!word.audioUrl) return;
     abortRef.current?.();
     setPlayingId(word.id);
+    // 快闪喇叭固定播第 2 段（单词三遍）；按分号槽位取，避免空段压缩后误播第 3 段
     const abort = playSecondWordAudio(word.audioUrl, () => setPlayingId(null));
     abortRef.current = abort;
   };
@@ -131,12 +137,6 @@ export default function FlashReview() {
   };
 
   const handleWordTap = (word: FlashWord) => {
-    if (detailMode) {
-      setDetailWord((prev) =>
-        prev?.id === word.id ? null : { id: word.id, word: word.word }
-      );
-      return;
-    }
     const next = nextWordTapState({
       showTranslation: word.showTranslation,
       heard: word.heard,
@@ -158,6 +158,7 @@ export default function FlashReview() {
         return w;
       })
     );
+    setDetailWord(syncDetailWordWithTap(detailMode, next, { id: word.id, word: word.word }));
   };
 
   const allCut = words.length > 0 && words.every((word) => word.scissorCount > 0);
@@ -266,6 +267,36 @@ export default function FlashReview() {
   const uncutCount = words.filter((w) => w.scissorCount === 0).length;
   const visibleWords = words.filter((w) => w.scissorCount === 0);
 
+  const meaningText = (word: FlashWord) =>
+    fullMeaning ? word.translation || word.translationShort : word.translationShort || word.translation;
+
+  const renderMeaning = (word: FlashWord, opts?: { centered?: boolean }) => {
+    if (!word.showTranslation) return null;
+    const meaning = meaningText(word);
+    return (
+      <div className={`animate-in fade-in slide-in-from-top-1 ${opts?.centered ? "text-center mt-2" : ""}`}>
+        {word.phonetic ? (
+          <div className={`text-sm text-[#718096] font-mono ${opts?.centered ? "mb-0.5" : "mb-0.5"}`}>
+            {word.phonetic}
+          </div>
+        ) : null}
+        {meaning ? <div className={PRACTICE_TRANS_CLASS}>{meaning}</div> : null}
+        {(word.translation || word.translationShort) && (
+          <button
+            type="button"
+            className="text-xs text-[#4ECDC4] hover:underline mt-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullMeaning((v) => !v);
+            }}
+          >
+            {fullMeaning ? "简译" : "全部意思"}
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <TopBar
@@ -327,18 +358,7 @@ export default function FlashReview() {
                 <div className={`${PRACTICE_WORD_CLASS} text-center break-all`}>
                   {visibleWords[cardIndex].word}
                 </div>
-                {visibleWords[cardIndex].showTranslation && (
-                  <div className="animate-in fade-in slide-in-from-top-1 text-center mt-2">
-                    {visibleWords[cardIndex].phonetic ? (
-                      <div className="text-sm text-[#718096] font-mono mb-0.5">
-                        {visibleWords[cardIndex].phonetic}
-                      </div>
-                    ) : null}
-                    {visibleWords[cardIndex].translation ? (
-                      <div className={PRACTICE_TRANS_CLASS}>{visibleWords[cardIndex].translation}</div>
-                    ) : null}
-                  </div>
-                )}
+                {renderMeaning(visibleWords[cardIndex], { centered: true })}
               </div>
               <CloudButton
                 type="button"
@@ -382,7 +402,7 @@ export default function FlashReview() {
                 <Scissors size={20} className="text-[#66BB6A]" />
               </CloudButton>
             </div>
-            {detailMode && detailWord?.id === visibleWords[cardIndex].id && (
+            {detailMode && visibleWords[cardIndex]?.showTranslation && (
               <div className="w-full">
                 <WordDetailPanel
                   wordId={visibleWords[cardIndex].id}
@@ -409,16 +429,7 @@ export default function FlashReview() {
                       <div className={`${PRACTICE_WORD_CLASS} mb-1 hover:text-[#4ECDC4] transition-colors`}>
                         {word.word}
                       </div>
-                      {word.showTranslation && (
-                        <div className="animate-in fade-in slide-in-from-top-1">
-                          {word.phonetic ? (
-                            <div className="text-sm text-[#718096] font-mono mb-0.5">{word.phonetic}</div>
-                          ) : null}
-                          {word.translation ? (
-                            <div className={PRACTICE_TRANS_CLASS}>{word.translation}</div>
-                          ) : null}
-                        </div>
-                      )}
+                      {renderMeaning(word)}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -464,7 +475,7 @@ export default function FlashReview() {
                     </CloudButton>
                   </div>
                 </div>
-                {detailMode && detailWord?.id === word.id && (
+                {detailMode && word.showTranslation && (
                   <div className="mt-3 pt-3 border-t border-[#E2E8F0]" onClick={(e) => e.stopPropagation()}>
                     <WordDetailPanel
                       wordId={word.id}

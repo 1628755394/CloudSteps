@@ -11,7 +11,7 @@ import { WordDetailPanel } from "../components/WordDetailPanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
-import { nextWordTapState } from "../utils/wordReveal";
+import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 
 type PracticeWord = {
@@ -63,7 +63,7 @@ export default function WordPractice() {
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate(mode === "review" ? getReviewReturnPath("/review-check") : "/pre-training-check");
+    else navigate(mode === "review" ? getReviewReturnPath("/word-training") : "/pre-training-check");
   };
 
   const batchIdx = useMemo(() => {
@@ -149,14 +149,8 @@ export default function WordPractice() {
     setCurrentIndex(activeIndex);
   }, [activeIndex, words.length]);
 
-  /** 点单词：第一次发音，第二次显示音标+释义 */
+  /** 点单词：第一次发音，第二次显示音标+释义；拓展仅在释义时增幅 */
   const handleWordTap = (word: PracticeWord) => {
-    if (detailMode) {
-      setDetailWord((prev) =>
-        prev?.id === word.id ? null : { id: word.id, word: word.word }
-      );
-      return;
-    }
     const next = nextWordTapState({
       showTranslation: word.showTranslation,
       heard: word.heard,
@@ -178,6 +172,7 @@ export default function WordPractice() {
         return w;
       })
     );
+    setDetailWord(syncDetailWordWithTap(detailMode, next, word));
   };
 
   const handleCountClick = (id: number) => {
@@ -342,7 +337,7 @@ export default function WordPractice() {
                 </CloudButton>
               </div>
             )}
-            {detailMode && detailWord?.id === cardWord.id && (
+            {detailMode && cardWord.showTranslation && (
               <div className="w-full">
                 <WordDetailPanel
                   wordId={cardWord.id}
@@ -393,7 +388,7 @@ export default function WordPractice() {
                     </div>
                   )}
                 </div>
-                {detailMode && detailWord?.id === word.id && (
+                {detailMode && word.showTranslation && (
                   <WordDetailPanel
                     wordId={word.id}
                     wordText={word.word}

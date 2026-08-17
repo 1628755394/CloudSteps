@@ -18,7 +18,7 @@ import { WordDetailPanel } from "../components/WordDetailPanel";
 import { ClassTimerBadge, ClassTimerSetupDialog } from "../components/ClassSessionTimer";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
-import { nextWordTapState } from "../utils/wordReveal";
+import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 
 type WordItem = {
   id: number;
@@ -227,12 +227,6 @@ export default function PreTrainingCheck() {
   }, []);
 
   const handleWordClick = useCallback((word: WordItem) => {
-    if (detailMode) {
-      setDetailWord((prev) =>
-        prev?.id === word.id ? null : { id: word.id, word: word.word }
-      );
-      return;
-    }
     const next = nextWordTapState({
       showTranslation: !!word.showTranslation,
       heard: !!word.heard,
@@ -254,6 +248,8 @@ export default function PreTrainingCheck() {
         return w;
       })
     );
+    // 拓展只增幅：释义出现时挂详情，收起时关掉
+    setDetailWord(syncDetailWordWithTap(detailMode, next, word));
   }, [detailMode]);
 
   /** 后端乱序：换 seed 后从第 1 页重新拉取 */
@@ -418,7 +414,7 @@ export default function PreTrainingCheck() {
           </CloudButton>
         </div>
       </div>
-      {detailMode && detailWord?.id === word.id && (
+      {detailMode && word.showTranslation && (
         <WordDetailPanel
           wordId={word.id}
           wordText={word.word}
@@ -497,7 +493,7 @@ export default function PreTrainingCheck() {
             onPlay={handlePlayAudio}
             onWordClick={handleWordClick}
             onStatus={handleStatusClick}
-            detailWordId={detailMode ? detailWord?.id ?? null : undefined}
+            amplifyDetail={detailMode}
             onDetailClose={() => setDetailWord(null)}
             simpleMode={simpleDetail}
           />

@@ -15,7 +15,7 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 
 import { startReviewSession } from "../api/review";
-import { nextWordTapState } from "../utils/wordReveal";
+import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { beginReviewPractice, type ReviewPracticeWord } from "../utils/reviewPractice";
 
 type ReviewWord = {
@@ -121,16 +121,13 @@ export default function ReviewCheck() {
   };
 
   const handleWordClick = (word: ReviewWord) => {
-    if (detailMode) {
-      setDetailWord((prev) =>
-        prev?.id === word.id ? null : { id: word.id, word: word.word }
-      );
-      return;
-    }
     const next = nextWordTapState({
       showTranslation: !!word.showTranslation,
       heard: !!word.heard,
     });
+    if (next.shouldPlay && word.audioUrl) {
+      // 有音频时按同一节奏发音
+    }
     setWords((prev) =>
       prev.map((w) => {
         if (w.id === word.id) {
@@ -142,6 +139,7 @@ export default function ReviewCheck() {
         return w;
       })
     );
+    setDetailWord(syncDetailWordWithTap(detailMode, next, word));
   };
 
   const handlePlayAudio = (_word: ReviewWord) => {
@@ -290,7 +288,7 @@ export default function ReviewCheck() {
                 onPlay={handlePlayAudio}
                 onWordClick={handleWordClick}
                 onStatus={handleStatusClick}
-                detailWordId={detailMode ? detailWord?.id ?? null : undefined}
+                amplifyDetail={detailMode}
                 onDetailClose={() => setDetailWord(null)}
               />
             ) : (
@@ -336,7 +334,7 @@ export default function ReviewCheck() {
                         </CloudButton>
                       </div>
                     </div>
-                    {detailMode && detailWord?.id === word.id && (
+                    {detailMode && word.showTranslation && (
                       <WordDetailPanel
                         wordId={word.id}
                         wordText={word.word}
