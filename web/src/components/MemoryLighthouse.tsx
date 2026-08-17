@@ -129,7 +129,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
         series: [
           {
             type: "pie",
-            radius: ["34%", "70%"],
+            radius: ["42%", "70%"],
             center: ["50%", "50%"],
             // 起始角 270°（ECharts 角度约定，0=右/正东，逆时针为正）：
             // 与外圈标签角度公式 110+idx*40（屏幕角度，0=右，顺时针为正）精确对齐，
@@ -237,8 +237,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
    * 起始角度 120°（左下方，对应 01），顺时针每块 +40°
    * 半径用 % 表示（相对容器），大于外环 88%
    */
-  // 环形外缘在 35%（70%/2），移动端标签更紧凑，标签半径略微收窄避免溢出
-  const labelRadius = isMobile ? 41 : 44;
+  // 环形外缘在 35%（70%/2），标签半径加大让数字/单词离环形更远；移动端略微收窄避免溢出
+  const labelRadius = isMobile ? 47 : 51;
   const labelPositions = useMemo(
     () =>
       STAGES.map((_, idx) => {
@@ -333,8 +333,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
             // 接缝角度 = 扇区中心 + 半个扇区宽度 = 110 + idx*40 + 20 = 130 + idx*40
             const seamAngleDeg = 130 + idx * 40;
             const seamAngleRad = (seamAngleDeg * Math.PI) / 180;
-            // 内环半径 34%（ECharts pie inner radius），正方形容器下 = 17% 容器宽度
-            const dotRadius = 17;
+            // 内环半径 42%（ECharts pie inner radius），正方形容器下 = 21% 容器宽度
+            const dotRadius = 21;
             const left = 50 + dotRadius * Math.cos(seamAngleRad);
             const top = 50 + dotRadius * Math.sin(seamAngleRad);
             return (
