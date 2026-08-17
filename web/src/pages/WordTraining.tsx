@@ -394,9 +394,6 @@ export default function WordTraining() {
               <Lightbulb className="text-[#FFD700]" size={22} />
               <h3 className="text-base font-semibold text-[#2D3748]">智能记忆灯塔</h3>
             </div>
-            <p className="text-[11px] text-[#A0AEC0] text-center px-2">
-              01 待学，02–08 复习阶段，09 已掌握
-            </p>
           </div>
 
           <MemoryLighthouse

@@ -273,7 +273,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
 
       {isEmpty ? (
         /* 空状态 */
-        <div className="aspect-square flex flex-col items-center justify-center text-center text-[#A0AEC0] px-6 max-w-[440px] mx-auto">
+        <div className="aspect-square flex flex-col items-center justify-center text-center text-[#A0AEC0] px-6 max-w-[440px] sm:max-w-[500px] mx-auto">
           <div className="text-4xl mb-2">🪹</div>
           <p className="text-sm">暂无记忆词条</p>
           <p className="text-xs mt-1">快去添加知识点</p>
@@ -281,7 +281,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
       ) : (
         /* 环形图 + 外发光 + 外圈 DOM 标签 + 圆心 DOM 面板 */
         <div
-          className="relative aspect-square w-full max-w-[440px] mx-auto overflow-visible"
+          className="relative aspect-square w-full max-w-[440px] sm:max-w-[500px] mx-auto overflow-visible"
           style={{
             // 外圈柔和淡黄色外发光光晕（CSS filter，不模糊分割线）
             filter: "drop-shadow(0 0 14px rgba(255, 224, 110, 0.38))",
@@ -292,8 +292,6 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
           {/* 外圈阶段标签：DOM + CSS 引导短线（非 ECharts label），按阶段色对齐每个模块 */}
           {STAGES.map((stage, idx) => {
             const pos = labelPositions[idx];
-            // 引导短线方向：从圆心指向标签
-            const lineAngle = pos.angleDeg;
             return (
               <div
                 key={idx}
@@ -304,20 +302,6 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
                   transform: "translate(-50%, -50%)",
                 }}
               >
-                {/* 引导短线：从标签指向圆环边缘 */}
-                <div
-                  className="absolute"
-                  style={{
-                    width: "1px",
-                    height: isMobile ? "8px" : "16px",
-                    backgroundColor: "#ccc",
-                    // 短线指向圆心方向
-                    transform: `translate(-50%, -100%) rotate(${lineAngle + 180}deg)`,
-                    transformOrigin: "bottom center",
-                    top: "-2px",
-                    left: "50%",
-                  }}
-                />
                 {/* 阶段编号与英文名，颜色与对应扇区颜色一致（1:1 对齐原型图） */}
                 <div
                   className="font-bold leading-none whitespace-nowrap"
