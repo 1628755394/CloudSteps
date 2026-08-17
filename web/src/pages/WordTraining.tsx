@@ -1,9 +1,10 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Lightbulb } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudSelect } from "../components/cloudsteps/arco";
 import { FlowPageShell } from "../components/PageTransition";
+import { MemoryLighthouse, type MemoryLighthouseData } from "../components/MemoryLighthouse";
 import { TopBar } from "../components/TopBar";
 import { useAuthStore } from "../stores/authStore";
 import {
@@ -377,6 +378,36 @@ export default function WordTraining() {
             <div className="text-xl font-bold text-[#66BB6A] mb-0.5">{masteredCount}</div>
             <div className="text-xs text-[#718096]">累计识词</div>
           </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <div className="flex flex-col items-center gap-1 mb-3">
+            <div className="flex items-center justify-center gap-2">
+              <Lightbulb className="text-[#FFD700]" size={22} />
+              <h3 className="text-base font-semibold text-[#2D3748]">智能记忆灯塔</h3>
+            </div>
+            <p className="text-[11px] text-[#A0AEC0] text-center px-2">
+              01 待学，02–08 复习阶段，09 已掌握
+            </p>
+          </div>
+
+          <MemoryLighthouse
+            data={{
+              boxes: memoryData.map((d) => ({ count: d.count })),
+              mastered: masteredCount,
+              unlearned: pendingCount,
+              total: memoryData.reduce((sum, d) => sum + d.count, 0) + masteredCount + pendingCount,
+            } as MemoryLighthouseData}
+            onBlockClick={(type, _wordNum, tips) => {
+              const stepMap: Record<string, string> = {
+                BOX_0: "01", BOX_1: "02", BOX_2: "03", BOX_3: "04",
+                BOX_4: "05", BOX_5: "06", BOX_6: "07",
+                BOX_7: "mastered", UNLEARNED: "pending",
+              };
+              const step = stepMap[type] || tips;
+              navigate(`/lighthouse-words?step=${step}`);
+            }}
+          />
         </div>
 
         <div className="flex gap-3 pt-1">
