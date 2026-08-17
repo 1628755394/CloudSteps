@@ -128,7 +128,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
         series: [
           {
             type: "pie",
-            radius: ["38%", "70%"],
+            radius: ["30%", "70%"],
             center: ["50%", "50%"],
             // 起始角 270°（ECharts 角度约定，0=右/正东，逆时针为正）：
             // 与外圈标签角度公式 110+idx*40（屏幕角度，0=右，顺时针为正）精确对齐，
@@ -340,8 +340,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
             // 接缝角度 = 扇区中心 + 半个扇区宽度 = 110 + idx*40 + 20 = 130 + idx*40
             const seamAngleDeg = 130 + idx * 40;
             const seamAngleRad = (seamAngleDeg * Math.PI) / 180;
-            // 内环半径 38%（ECharts pie inner radius），正方形容器下 = 19% 容器宽度
-            const dotRadius = 19;
+            // 内环半径 30%（ECharts pie inner radius），正方形容器下 = 15% 容器宽度
+            const dotRadius = 15;
             const left = 50 + dotRadius * Math.cos(seamAngleRad);
             const top = 50 + dotRadius * Math.sin(seamAngleRad);
             return (
