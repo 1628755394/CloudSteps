@@ -1,23 +1,18 @@
 /**
- * MemoryLighthouse — 智能记忆灯塔九宫格组件（纯矢量版，无图片）
+ * MemoryLighthouse — 智能记忆灯塔九宫格组件（纯矢量，9 等分固定环形）
  *
- * 9 段空心环形圆环（ECharts pie canvas 绘制）：
- *   01    → 待学（pending）
- *   02–08 → 复习阶段 boxes[0–6]
- *   09    → 已掌握（mastered）
- *
- * 实现要点：
- *   - 环形：ECharts pie，内环 60% / 外环 88%，起始角 180°（01 从底部顺时针）
- *   - 扇区内数字：position 'inside'，rotate:false，几何居中、水平正向
- *   - 0 值扇区：保留结构、透明度 0.3 弱化、隐藏内部数字
- *   - 外圈标签：ECharts label 'outside' + labelLine 矢量引导线（canvas 矢量，非图片）
- *     每组 = 大号阶段编号(01..09) + 小号英文(First..Ninth)
- *   - 圆心 DOM 面板：大脑图标 + 「记忆九宫格」+ MEMORY NINE-GRID + 汇总统计
- *     pointer-events:none，鼠标穿透不挡 hover
- *   - 外发光：CSS filter drop-shadow 淡黄色光晕，不模糊分割线
+ * 核心实现：9 个扇区强制均分 360°（每块固定 40°），与 value 无关。
+ *   - ECharts series data 的 value 全部固定为 1 → 强制 9 等分
+ *   - 真实词条数存到自定义字段 realValue，label/tooltip/统计都读 realValue
+ *   - 0 值扇区保留结构，opacity 0.3 弱化，隐藏内部数字
+ *   - 扇区内数字 position 'inside' + rotate:0，水平正向、几何居中
+ *   - 外圈阶段标签用 DOM + 三角函数定位（非 ECharts label），带 CSS 引导短线
+ *   - 圆心 DOM 面板：大脑图标 + 记忆九宫格 + 统计，pointer-events:none 穿透
+ *   - 外发光：CSS filter drop-shadow 淡黄色，不模糊分割线
  *   - 图标：lucide-react 矢量 SVG（Brain / Lightbulb），非位图
- *   - 响应式：PC 完整外圈标签；移动端隐藏外圈标签，信息走 tooltip
  *   - 空状态：全 0 时隐藏环形，展示「暂无记忆词条，快去添加知识点」
+ *
+ * 顺序：01(First) → 02(Second) → ... → 09(Ninth)，从底部顺时针
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -40,14 +35,10 @@ interface MemoryLighthouseProps {
   onBlockClick?: (type: string, wordNum: number, tips: string) => void;
 }
 
-/** 9 个阶段的语义化定义 */
+/** 9 个阶段定义 */
 interface StageDef {
-  key: string;
-  /** 外圈大号编号 */
   num: string;
-  /** 外圈小号英文 */
   en: string;
-  /** tooltip 完整名称 */
   name: string;
   color: string;
   /** 扇区内数字颜色（深色扇区白字，浅色扇区深字） */
@@ -59,15 +50,15 @@ interface StageDef {
 }
 
 const STAGES: StageDef[] = [
-  { key: "01", num: "01", en: "First",  name: "01｜待学",         color: "#F24C4C", textColor: "#fff", kind: "unlearned", keyNode: true },
-  { key: "02", num: "02", en: "Second", name: "02｜第二复习阶段", color: "#FF7833", textColor: "#fff", kind: "box", boxIndex: 0 },
-  { key: "03", num: "03", en: "Third",  name: "03｜第三复习阶段", color: "#FFAA22", textColor: "#222", kind: "box", boxIndex: 1 },
-  { key: "04", num: "04", en: "Fourth", name: "04｜第四复习阶段", color: "#FFCC44", textColor: "#222", kind: "box", boxIndex: 2 },
-  { key: "05", num: "05", en: "Fifth",  name: "05｜第五复习阶段", color: "#F9E796", textColor: "#222", kind: "box", boxIndex: 3 },
-  { key: "06", num: "06", en: "Sixth",  name: "06｜第六复习阶段", color: "#A6D258", textColor: "#222", kind: "box", boxIndex: 4 },
-  { key: "07", num: "07", en: "Seventh",name: "07｜第七复习阶段", color: "#27BD62", textColor: "#fff", kind: "box", boxIndex: 5 },
-  { key: "08", num: "08", en: "Eighth", name: "08｜第八复习阶段", color: "#0E7D48", textColor: "#fff", kind: "box", boxIndex: 6 },
-  { key: "09", num: "09", en: "Ninth",  name: "09｜已掌握",       color: "#00A88C", textColor: "#fff", kind: "mastered", keyNode: true },
+  { num: "01", en: "First",   name: "01｜待学",         color: "#F24C4C", textColor: "#fff", kind: "unlearned", keyNode: true },
+  { num: "02", en: "Second",  name: "02｜第二复习阶段", color: "#FF7833", textColor: "#fff", kind: "box", boxIndex: 0 },
+  { num: "03", en: "Third",   name: "03｜第三复习阶段", color: "#FFAA22", textColor: "#222", kind: "box", boxIndex: 1 },
+  { num: "04", en: "Fourth",  name: "04｜第四复习阶段", color: "#FFCC44", textColor: "#222", kind: "box", boxIndex: 2 },
+  { num: "05", en: "Fifth",   name: "05｜第五复习阶段", color: "#F9E796", textColor: "#222", kind: "box", boxIndex: 3 },
+  { num: "06", en: "Sixth",   name: "06｜第六复习阶段", color: "#A6D258", textColor: "#222", kind: "box", boxIndex: 4 },
+  { num: "07", en: "Seventh", name: "07｜第七复习阶段", color: "#27BD62", textColor: "#fff", kind: "box", boxIndex: 5 },
+  { num: "08", en: "Eighth",  name: "08｜第八复习阶段", color: "#0E7D48", textColor: "#fff", kind: "box", boxIndex: 6 },
+  { num: "09", en: "Ninth",   name: "09｜已掌握",       color: "#00A88C", textColor: "#fff", kind: "mastered", keyNode: true },
 ];
 
 const BOX_TYPES = ["BOX_0","BOX_1","BOX_2","BOX_3","BOX_4","BOX_5","BOX_6","BOX_7"];
@@ -83,45 +74,49 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
 
   const masteredCount = boxes[7]?.count ?? mastered;
 
-  /** 9 段数值，顺序对应 STAGES */
-  const sectorValues = useMemo(
-    () => STAGES.map((s) =>
-      s.kind === "unlearned" ? unlearnedCount
-      : s.kind === "mastered" ? masteredCount
-      : boxes[s.boxIndex!]?.count || 0
-    ),
+  /** 真实业务数据（realValue），顺序对应 STAGES */
+  const rawData = useMemo(
+    () => STAGES.map((s) => ({
+      num: s.num,
+      en: s.en,
+      color: s.color,
+      realValue:
+        s.kind === "unlearned" ? unlearnedCount
+        : s.kind === "mastered" ? masteredCount
+        : boxes[s.boxIndex!]?.count || 0,
+    })),
     [boxes, unlearnedCount, masteredCount]
   );
 
-  const reviewingCount = useMemo(
-    () => sectorValues.slice(1, 8).reduce((s, v) => s + v, 0),
-    [sectorValues]
-  );
-  const totalCount = unlearnedCount + reviewingCount + masteredCount;
+  /** 业务统计（读 realValue，不读 echarts） */
+  const waitStudy = rawData[0].realValue;
+  const reviewTotal = rawData.slice(1, 8).reduce((s, i) => s + i.realValue, 0);
+  const masteredTotal = rawData[8].realValue;
+  const totalCount = waitStudy + reviewTotal + masteredTotal;
   const isEmpty = totalCount === 0;
 
   const chartRef = useRef<HTMLDivElement | null>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  /** 构建 ECharts option：value 全部为 1，强制 9 等分 */
   const buildOption = useCallback(
-    (mobile: boolean): echarts.EChartsCoreOption => {
-      const seriesData = STAGES.map((stage, idx) => {
-        const value = sectorValues[idx];
-        return {
-          name: stage.name,
-          value,
-          itemStyle: {
-            color: stage.color,
-            // 0 值弱化：保留结构，透明度 0.3
-            opacity: value > 0 ? 1 : 0.3,
-            borderColor: "#ffffff",
-            // 01、09 业务首尾节点分割线加粗
-            borderWidth: stage.keyNode ? 2.5 : 2,
-            borderRadius: 3,
-          },
-        };
-      });
+    (): echarts.EChartsCoreOption => {
+      // ✅ 重点：value 全部为 1，强制 9 等分；realValue 保存真实词条数
+      const chartData = STAGES.map((stage, idx) => ({
+        name: stage.name,
+        value: 1, // 固定 1，保证 9 块扇形大小完全相等
+        realValue: rawData[idx].realValue,
+        itemStyle: {
+          color: stage.color,
+          // 0 值弱化：保留结构，透明度 0.3
+          opacity: rawData[idx].realValue > 0 ? 1 : 0.3,
+          borderColor: "#ffffff",
+          // 01、09 业务首尾节点分割线加粗
+          borderWidth: stage.keyNode ? 2.5 : 2,
+          borderRadius: 3,
+        },
+      }));
 
       return {
         title: { show: false },
@@ -131,10 +126,14 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
           borderColor: "transparent",
           textStyle: { color: "#fff", fontSize: 13 },
           padding: [8, 12],
-          formatter: (params: any) =>
-            params.value === 0
-              ? `${params.name}<br/>该阶段暂无词条`
-              : `${params.name}<br/>词条数量：${params.value}`,
+          // tooltip 读取自定义 realValue
+          formatter: (params: any) => {
+            const realVal = params.data?.realValue ?? 0;
+            if (realVal === 0) {
+              return `${params.name}<br/>该阶段暂无词条`;
+            }
+            return `${params.name}<br/>词条数量：${realVal}`;
+          },
         },
         series: [
           {
@@ -144,8 +143,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
             // 起始角 180°：01 从底部开始顺时针排布
             startAngle: 180,
             clockwise: true,
-            avoidLabelOverlap: true,
-            minAngle: 2,
+            avoidLabelOverlap: false,
+            minAngle: 0,
             itemStyle: {
               borderRadius: 3,
               borderColor: "#ffffff",
@@ -161,11 +160,15 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
               fontSize: 14,
               fontWeight: "bold",
               color: (params: any) => {
-                const s = STAGES[params.dataIndex];
+                const idx = params.dataIndex;
+                const s = STAGES[idx];
                 return s ? s.textColor : "#222";
               },
-              // 0 值隐藏内部数字
-              formatter: (p: any) => (p.value > 0 ? String(p.value) : ""),
+              // 读取自定义 realValue，0 值隐藏数字
+              formatter: (params: any) => {
+                const realVal = params.data?.realValue ?? 0;
+                return realVal > 0 ? String(realVal) : "";
+              },
             },
             labelLine: { show: false },
             emphasis: {
@@ -178,67 +181,26 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
               },
               label: { show: true, fontWeight: "bold", fontSize: 15 },
             },
-            data: seriesData,
+            data: chartData,
             animationType: "expansion",
             animationDuration: 600,
             animationEasing: "cubicOut",
           },
-          {
-            // 隐形第二层：仅承载外圈阶段标签 + 矢量引导线
-            type: "pie",
-            radius: ["60%", "88%"],
-            center: ["50%", "50%"],
-            startAngle: 180,
-            clockwise: true,
-            avoidLabelOverlap: true,
-            minAngle: 2,
-            silent: true,
-            z: 0,
-            // PC 显示外圈标签 + 引导线；移动端隐藏（信息走 tooltip）
-            label: {
-              show: !mobile,
-              position: "outside",
-              // 大号编号 + 小号英文，rich text 排版
-              formatter: (p: any) => {
-                const s = STAGES[p.dataIndex];
-                return `{num|${s.num}}\n{en|${s.en}}`;
-              },
-              rich: {
-                num: { fontSize: 13, fontWeight: "bold", color: "#2D3748", lineHeight: 16 },
-                en:  { fontSize: 9, color: "#A0AEC0", lineHeight: 11 },
-              },
-            },
-            labelLine: {
-              show: !mobile,
-              length: 8,
-              length2: 10,
-              smooth: false,
-              lineStyle: { color: "#bbb", width: 1 },
-            },
-            emphasis: { disabled: true },
-            animation: false,
-            data: STAGES.map((stage, idx) => ({
-              name: stage.name,
-              value: sectorValues[idx],
-              itemStyle: { color: "transparent", borderColor: "transparent", borderWidth: 0 },
-            })),
-          },
         ],
       };
     },
-    [sectorValues]
+    [rawData]
   );
 
   useEffect(() => {
     if (!chartRef.current || isEmpty) return;
     const chart = echarts.init(chartRef.current);
     chartInstance.current = chart;
-    chart.setOption(buildOption(isMobile));
+    chart.setOption(buildOption());
 
     const handleResize = () => {
       const w = chartRef.current!.clientWidth;
-      const mobile = w < 480;
-      setIsMobile(mobile);
+      setIsMobile(w < 480);
       chart.resize();
     };
     handleResize();
@@ -249,11 +211,11 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
 
     // 点击扇区 → 触发 onBlockClick 筛选词条
     const onChartClick = (params: any) => {
-      if (params.componentType !== "series" || params.seriesIndex !== 0) return;
+      if (params.componentType !== "series") return;
       const idx = params.dataIndex as number;
       const stage = STAGES[idx];
       if (!stage) return;
-      const count = sectorValues[idx];
+      const count = rawData[idx].realValue;
       if (stage.kind === "unlearned") {
         onBlockClick?.("UNLEARNED", count, stage.name);
       } else if (stage.kind === "mastered") {
@@ -271,7 +233,27 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
       chart.dispose();
       chartInstance.current = null;
     };
-  }, [buildOption, isEmpty, isMobile, onBlockClick, sectorValues]);
+  }, [buildOption, isEmpty, onBlockClick, rawData]);
+
+  /**
+   * 外圈标签 DOM 定位：9 等分，每份 40°
+   * 起始角度 -90°（底部，对应 01），顺时针每块 +40°
+   * 半径用 % 表示（相对容器），大于外环 88%
+   */
+  const labelRadius = 56; // % 距中心，外环是 44%（88%/2），标签放在 56%
+  const labelPositions = useMemo(
+    () =>
+      STAGES.map((_, idx) => {
+        // 起始 -90°（底部），顺时针 +40°
+        const angleDeg = -90 + idx * 40;
+        const angleRad = (angleDeg * Math.PI) / 180;
+        // left/top 用 % 表示，圆心在 50%
+        const left = 50 + labelRadius * Math.cos(angleRad);
+        const top = 50 + labelRadius * Math.sin(angleRad);
+        return { left, top, angleDeg };
+      }),
+    []
+  );
 
   /** 顶部可视化彩色图例 */
   const legendGroups = useMemo(
@@ -307,15 +289,51 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
           <p className="text-xs mt-1">快去添加知识点</p>
         </div>
       ) : (
-        /* 环形图 + 外发光 + 圆心 DOM 面板 */
+        /* 环形图 + 外发光 + 外圈 DOM 标签 + 圆心 DOM 面板 */
         <div
           className="relative aspect-square w-full"
           style={{
             // 外圈柔和淡黄色外发光光晕（CSS filter，不模糊分割线）
-            filter: "drop-shadow(0 0 12px rgba(255, 220, 120, 0.45))",
+            filter: "drop-shadow(0 0 14px rgba(255, 224, 110, 0.38))",
           }}
         >
           <div ref={chartRef} className="absolute inset-0 w-full h-full" />
+
+          {/* 外圈阶段标签：DOM + CSS 引导短线（非 ECharts label） */}
+          {!isMobile &&
+            STAGES.map((stage, idx) => {
+              const pos = labelPositions[idx];
+              // 引导短线方向：从圆心指向标签
+              const lineAngle = pos.angleDeg;
+              return (
+                <div
+                  key={idx}
+                  className="absolute pointer-events-none flex flex-col items-center"
+                  style={{
+                    left: `${pos.left}%`,
+                    top: `${pos.top}%`,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                >
+                  {/* 引导短线：CSS 伪元素，从标签指向圆环边缘 */}
+                  <div
+                    className="absolute"
+                    style={{
+                      width: "1px",
+                      height: "10px",
+                      backgroundColor: "#bbb",
+                      // 短线指向圆心方向
+                      transform: `translate(-50%, -100%) rotate(${lineAngle + 180}deg)`,
+                      transformOrigin: "bottom center",
+                      top: "-2px",
+                      left: "50%",
+                    }}
+                  />
+                  <div className="text-[13px] font-bold text-[#2D3748] leading-none">{stage.num}</div>
+                  <div className="text-[9px] text-[#A0AEC0] leading-none mt-0.5">{stage.en}</div>
+                </div>
+              );
+            })}
 
           {/* 圆心 DOM 面板：鼠标穿透，不挡 hover */}
           <div
@@ -334,17 +352,17 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
               <div className="flex items-center justify-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-[2px]" style={{ backgroundColor: STAGES[0].color }} />
                 <span>待学</span>
-                <span className="font-bold text-[13px] text-[#2D3748] tabular-nums">{unlearnedCount}</span>
+                <span className="font-bold text-[13px] text-[#2D3748] tabular-nums">{waitStudy}</span>
               </div>
               <div className="flex items-center justify-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-[2px]" style={{ backgroundColor: "#FFAA22" }} />
                 <span>复习中</span>
-                <span className="font-bold text-[13px] text-[#2D3748] tabular-nums">{reviewingCount}</span>
+                <span className="font-bold text-[13px] text-[#2D3748] tabular-nums">{reviewTotal}</span>
               </div>
               <div className="flex items-center justify-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-[2px]" style={{ backgroundColor: STAGES[8].color }} />
                 <span>已掌握</span>
-                <span className="font-bold text-[13px] text-[#2D3748] tabular-nums">{masteredCount}</span>
+                <span className="font-bold text-[13px] text-[#2D3748] tabular-nums">{masteredTotal}</span>
               </div>
             </div>
             <div className="mt-1 pt-1 border-t border-[#E2E8F0] text-[10px] text-[#718096]">
