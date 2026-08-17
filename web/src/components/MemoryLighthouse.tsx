@@ -50,15 +50,15 @@ interface StageDef {
 }
 
 const STAGES: StageDef[] = [
-  { num: "01", en: "First",   name: "01｜待学",         color: "#F24C4C", textColor: "#fff", kind: "unlearned", keyNode: true },
-  { num: "02", en: "Second",  name: "02｜第二复习阶段", color: "#FF7833", textColor: "#fff", kind: "box", boxIndex: 0 },
-  { num: "03", en: "Third",   name: "03｜第三复习阶段", color: "#FFAA22", textColor: "#fff", kind: "box", boxIndex: 1 },
-  { num: "04", en: "Fourth",  name: "04｜第四复习阶段", color: "#FFCC44", textColor: "#fff", kind: "box", boxIndex: 2 },
-  { num: "05", en: "Fifth",   name: "05｜第五复习阶段", color: "#F9E796", textColor: "#fff", kind: "box", boxIndex: 3 },
-  { num: "06", en: "Sixth",   name: "06｜第六复习阶段", color: "#A6D258", textColor: "#fff", kind: "box", boxIndex: 4 },
-  { num: "07", en: "Seventh", name: "07｜第七复习阶段", color: "#27BD62", textColor: "#fff", kind: "box", boxIndex: 5 },
-  { num: "08", en: "Eighth",  name: "08｜第八复习阶段", color: "#0E7D48", textColor: "#fff", kind: "box", boxIndex: 6 },
-  { num: "09", en: "Ninth",   name: "09｜已掌握",       color: "#00A88C", textColor: "#fff", kind: "mastered", keyNode: true },
+  { num: "01", en: "First",   name: "01｜待学",         color: "#F45448", textColor: "#fff", kind: "unlearned", keyNode: true },
+  { num: "02", en: "Second",  name: "02｜第二复习阶段", color: "#F77C2E", textColor: "#fff", kind: "box", boxIndex: 0 },
+  { num: "03", en: "Third",   name: "03｜第三复习阶段", color: "#FCAA22", textColor: "#fff", kind: "box", boxIndex: 1 },
+  { num: "04", en: "Fourth",  name: "04｜第四复习阶段", color: "#FCD046", textColor: "#fff", kind: "box", boxIndex: 2 },
+  { num: "05", en: "Fifth",   name: "05｜第五复习阶段", color: "#FCE79B", textColor: "#fff", kind: "box", boxIndex: 3 },
+  { num: "06", en: "Sixth",   name: "06｜第六复习阶段", color: "#A7D45C", textColor: "#fff", kind: "box", boxIndex: 4 },
+  { num: "07", en: "Seventh", name: "07｜第七复习阶段", color: "#28B864", textColor: "#fff", kind: "box", boxIndex: 5 },
+  { num: "08", en: "Eighth",  name: "08｜第八复习阶段", color: "#147C48", textColor: "#fff", kind: "box", boxIndex: 6 },
+  { num: "09", en: "Ninth",   name: "09｜已掌握",       color: "#17B3A6", textColor: "#fff", kind: "mastered", keyNode: true },
 ];
 const BOX_TYPES = ["BOX_0","BOX_1","BOX_2","BOX_3","BOX_4","BOX_5","BOX_6","BOX_7"];
 
@@ -360,18 +360,18 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
         /* 汇总统计：横行展示，待学/复习中/已掌握 一行排开 */
         <div className="mt-3 px-2">
           <div className="flex items-stretch justify-center gap-2 sm:gap-4">
-            <div className="flex-1 max-w-[180px] flex items-center gap-2 px-3 py-2 rounded-lg bg-[#FFF5F5]">
-              <span className="inline-block size-3 rounded-[3px] bg-[#F24C4C] shrink-0" />
+            <div className="flex-1 max-w-[180px] flex items-center gap-2 px-3 py-2 rounded-lg bg-[#FCEDEB]">
+              <span className="inline-block size-3 rounded-[3px] bg-[#F45448] shrink-0" />
               <span className="text-[13px] text-[#4A5568]">待学</span>
               <span className="ml-auto font-bold text-[20px] leading-none text-[#2D3748] tabular-nums">{waitStudy}</span>
             </div>
-            <div className="flex-1 max-w-[180px] flex items-center gap-2 px-3 py-2 rounded-lg bg-[#FFFAEB]">
-              <span className="inline-block size-3 rounded-[3px] bg-[#FFAA22] shrink-0" />
+            <div className="flex-1 max-w-[180px] flex items-center gap-2 px-3 py-2 rounded-lg bg-[#FEF3E0]">
+              <span className="inline-block size-3 rounded-[3px] bg-[#FCAA22] shrink-0" />
               <span className="text-[13px] text-[#4A5568]">复习中</span>
               <span className="ml-auto font-bold text-[20px] leading-none text-[#2D3748] tabular-nums">{reviewTotal}</span>
             </div>
-            <div className="flex-1 max-w-[180px] flex items-center gap-2 px-3 py-2 rounded-lg bg-[#E6FAF5]">
-              <span className="inline-block size-3 rounded-[3px] bg-[#00A88C] shrink-0" />
+            <div className="flex-1 max-w-[180px] flex items-center gap-2 px-3 py-2 rounded-lg bg-[#E5F8F6]">
+              <span className="inline-block size-3 rounded-[3px] bg-[#17B3A6] shrink-0" />
               <span className="text-[13px] text-[#4A5568]">已掌握</span>
               <span className="ml-auto font-bold text-[20px] leading-none text-[#2D3748] tabular-nums">{masteredTotal}</span>
             </div>
