@@ -128,7 +128,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
         series: [
           {
             type: "pie",
-            radius: ["44%", "66%"],
+            radius: ["38%", "70%"],
             center: ["50%", "50%"],
             // 起始角 270°（ECharts 角度约定，0=右/正东，逆时针为正）：
             // 与外圈标签角度公式 110+idx*40（屏幕角度，0=右，顺时针为正）精确对齐，
@@ -228,8 +228,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
    * 起始角度 120°（左下方，对应 01），顺时针每块 +40°
    * 半径用 % 表示（相对容器），大于外环 88%
    */
-  // 环形外缘在 33%（66%/2），移动端标签更紧凑，标签半径略微收窄避免溢出
-  const labelRadius = isMobile ? 44 : 47;
+  // 环形外缘在 35%（70%/2），移动端标签更紧凑，标签半径略微收窄避免溢出
+  const labelRadius = isMobile ? 41 : 44;
   const labelPositions = useMemo(
     () =>
       STAGES.map((_, idx) => {
@@ -321,13 +321,13 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
                 {/* 阶段编号与英文名，颜色与对应扇区颜色一致（1:1 对齐原型图） */}
                 <div
                   className="font-bold leading-none whitespace-nowrap"
-                  style={{ color: stage.color, fontSize: isMobile ? 14 : 18 }}
+                  style={{ color: stage.color, fontSize: isMobile ? 16 : 22 }}
                 >
                   {stage.num}
                 </div>
                 <div
                   className="leading-none whitespace-nowrap"
-                  style={{ color: stage.color, opacity: 0.85, fontSize: isMobile ? 9 : 12, marginTop: 3 }}
+                  style={{ color: stage.color, opacity: 0.85, fontSize: isMobile ? 11 : 15, marginTop: 4 }}
                 >
                   {stage.en}
                 </div>
@@ -340,8 +340,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
             // 接缝角度 = 扇区中心 + 半个扇区宽度 = 110 + idx*40 + 20 = 130 + idx*40
             const seamAngleDeg = 130 + idx * 40;
             const seamAngleRad = (seamAngleDeg * Math.PI) / 180;
-            // 内环半径 44%（ECharts pie inner radius），正方形容器下 = 22% 容器宽度
-            const dotRadius = 22;
+            // 内环半径 38%（ECharts pie inner radius），正方形容器下 = 19% 容器宽度
+            const dotRadius = 19;
             const left = 50 + dotRadius * Math.cos(seamAngleRad);
             const top = 50 + dotRadius * Math.sin(seamAngleRad);
             return (
