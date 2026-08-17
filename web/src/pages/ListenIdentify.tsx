@@ -68,7 +68,7 @@ export default function ListenIdentify() {
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate(mode === "review" ? getReviewReturnPath("/anti-forgetting") : "/word-practice");
+    else navigate(mode === "review" ? getReviewReturnPath("/word-training") : "/word-practice");
   };
 
   useEffect(() => {

@@ -93,6 +93,7 @@ export default function AntiForgetting() {
     sessionStorage.setItem("lb_review_wordbook_id", String(task.wordBookId));
     sessionStorage.setItem("lb_review_wordbook_name", task.vocabularyPack);
     sessionStorage.setItem("lb_review_date", selectedDate);
+    sessionStorage.setItem("lb_review_return", "/anti-forgetting");
     navigate(`/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}`);
   };
 

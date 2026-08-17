@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import { Volume2, Check, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { getReviewToday, startReviewSession } from "../api/review";
+import { getReviewToday, startReviewSession, completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import {
@@ -19,7 +19,7 @@ import {
   type WordViewMode,
 } from "../components/WordMarkView";
 import { nextWordTapState } from "../utils/wordReveal";
-import { beginReviewPractice, type ReviewPracticeWord } from "../utils/reviewPractice";
+import { getReviewReturnPath } from "../utils/reviewPractice";
 
 type ReviewWordItem = {
   id: number;
@@ -118,7 +118,7 @@ export default function ReviewWordList() {
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
-    else navigate("/anti-forgetting");
+    else navigate(getReviewReturnPath("/word-training"));
   };
 
   const handleStatusClick = useCallback((id: number, newStatus: "correct" | "wrong") => {
@@ -181,7 +181,7 @@ export default function ReviewWordList() {
       return;
     }
     if (markedCount === 0) {
-      setHint("请至少为一个单词选择 ✓ 或 × 后再开始学习");
+      setHint("请至少为一个单词选择 ✓ 或 × 后再提交");
       return;
     }
     setHint(null);
@@ -190,43 +190,32 @@ export default function ReviewWordList() {
       setSubmitting(true);
       try {
         const wordIds = markedWords.map((w) => w.id);
-        const res = await startReviewSession({ wordBookId, wordIds });
-        const sid = Number(res.data?.sessionId || 0);
+        const startRes = await startReviewSession({ wordBookId, wordIds });
+        const sid = Number(startRes.data?.sessionId || 0);
         if (!sid) {
+          setHint("无待复习单词，已返回");
+          setSubmitting(false);
           handleBack();
           return;
         }
 
-        const sessionWords = Array.isArray(res.data?.words) ? res.data!.words! : [];
-        const byId = new Map(
-          sessionWords.map((w: ReviewPracticeWord) => [Number(w.id), w] as const)
-        );
-        const practiceWords: ReviewPracticeWord[] = markedWords.map((w) => {
-          const full = byId.get(w.id);
-          return {
-            id: w.id,
-            word: w.word,
-            phonetic: full?.phonetic ? String(full.phonetic) : undefined,
-            phoneticUk: full?.phoneticUk ? String(full.phoneticUk) : undefined,
-            phoneticUs: full?.phoneticUs ? String(full.phoneticUs) : undefined,
-            translation: full?.translation
-              ? String(full.translation)
-              : w.translation,
-            audioUrl: full?.audioUrl
-              ? String(full.audioUrl)
-              : w.audioUrl,
-          };
-        });
-
-        beginReviewPractice({
-          sessionId: sid,
-          wordBookId,
-          words: practiceWords,
-          returnPath: "/anti-forgetting",
-        });
-        navigate("/word-practice", { replace: true });
+        // 直接提交复习结果：✓ = remembered, ✗ = forgot
+        const results = markedWords.map((w) => ({
+          wordId: w.id,
+          remembered: w.status === "correct",
+        }));
+        const res = await completeReviewSession(sid, results);
+        if (res.code !== 200) {
+          throw new Error(res.msg || "提交失败");
+        }
+        const returnPath = getReviewReturnPath("/word-training");
+        sessionStorage.removeItem("lb_review_return");
+        if (sessionStorage.getItem("lb_mode") === "review") {
+          sessionStorage.removeItem("lb_mode");
+        }
+        navigate(returnPath, { replace: true });
       } catch {
-        setHint("无法开始学习，请稍后重试");
+        setHint("提交复习结果失败，请稍后重试");
         setSubmitting(false);
       }
     })();
@@ -262,7 +251,7 @@ export default function ReviewWordList() {
           <p className="text-[#718096] text-sm">当前共有 {words.length} 个可选单词</p>
           {words.length === 0 && (
             <p className="text-xs text-amber-600 mt-1">
-              该日暂无待复习单词（可能已完成，或列表统计与取词日期不一致，请返回重进或换一天）
+              该日暂无待复习单词
             </p>
           )}
         </div>
@@ -383,10 +372,10 @@ export default function ReviewWordList() {
             onClick={handleSubmit}
             disabled={submitting}
             loading={submitting}
-            loadingText="准备中…"
+            loadingText="提交中…"
             className={`w-full ${markedCount === 0 && words.length > 0 ? "opacity-80" : ""}`}
           >
-            开始学习
+            提交复习
             {markedCount > 0 ? ` (${markedCount})` : ""}
           </CloudButton>
           {hint && (
@@ -394,7 +383,7 @@ export default function ReviewWordList() {
           )}
           {!hint && markedCount === 0 && words.length > 0 && (
             <p className="text-center text-xs text-[#A0AEC0]">
-              先勾选要复习的词，再进入跟课前检测一样的练习流程
+              勾选 ✓ 认识 / ✗ 忘记，提交后九宫格自动进退
             </p>
           )}
         </div>

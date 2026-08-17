@@ -39,7 +39,7 @@ export function beginReviewPractice(opts: {
   sessionStorage.removeItem("lb_study_recheck_from");
 }
 
-export function getReviewReturnPath(fallback = "/anti-forgetting") {
+export function getReviewReturnPath(fallback = "/word-training") {
   return sessionStorage.getItem("lb_review_return") || fallback;
 }
 
@@ -49,4 +49,8 @@ export function clearReviewPracticeSession() {
   sessionStorage.removeItem("lb_review_words");
   sessionStorage.removeItem("lb_review_session_id");
   sessionStorage.removeItem("lb_review_return");
+  // 结束复习后清掉 review 模式，避免后续页面误判
+  if (sessionStorage.getItem("lb_mode") === "review") {
+    sessionStorage.removeItem("lb_mode");
+  }
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { CloudButton } from "./cloudsteps";
+import { getReviewReturnPath } from "../utils/reviewPractice";
 
 type Props = {
   open: boolean;
@@ -10,7 +11,8 @@ type Props = {
 };
 
 /**
- * 练习流通用暂停菜单：返回主页 / 继续训练 / 结束训练→抗遗忘
+ * 练习流通用暂停菜单：返回主页 / 继续训练 / 结束训练
+ * 复习模式下回跳到进入复习前的页面（词训 → word-training；抗遗忘 → anti-forgetting）
  */
 export function PracticePauseMenu({
   open,
@@ -21,6 +23,17 @@ export function PracticePauseMenu({
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   if (!open) return null;
+
+  const isReview = sessionStorage.getItem("lb_mode") === "review";
+  const homePath = isReview
+    ? getReviewReturnPath("/word-training")
+    : "/word-training";
+  const endConfirmText = isReview
+    ? homePath.includes("anti-forgetting")
+      ? "确定结束复习并返回抗遗忘？"
+      : "确定结束复习并返回单词训练？"
+    : "确定结束训练并进入抗遗忘？";
+  const endPath = isReview ? homePath : "/anti-forgetting";
 
   return (
     <div
@@ -41,7 +54,7 @@ export function PracticePauseMenu({
               className="w-full justify-start rounded-none px-6 py-3 h-auto"
               onClick={() => {
                 onClose();
-                navigate("/word-training");
+                navigate(homePath);
               }}
             >
               返回主页
@@ -64,7 +77,7 @@ export function PracticePauseMenu({
         ) : (
           <>
             <div className="px-4 py-3 text-sm text-[#718096] border-b border-[#E2E8F0]">
-              确定结束训练并进入抗遗忘？
+              {endConfirmText}
             </div>
             <CloudButton
               variant="ghost"
@@ -78,7 +91,17 @@ export function PracticePauseMenu({
               className="w-full justify-start rounded-none px-6 py-3 h-auto text-[#E53E3E]"
               onClick={() => {
                 onClose();
-                navigate("/anti-forgetting");
+                if (isReview) {
+                  // 提前读出回跳路径，再清 session，避免 clear 后丢失
+                  const path = homePath;
+                  sessionStorage.removeItem("lb_review_return");
+                  if (sessionStorage.getItem("lb_mode") === "review") {
+                    sessionStorage.removeItem("lb_mode");
+                  }
+                  navigate(path, { replace: true });
+                  return;
+                }
+                navigate(endPath, { replace: true });
               }}
             >
               确定
