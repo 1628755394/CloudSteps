@@ -237,15 +237,16 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
 
   /**
    * 外圈标签 DOM 定位：9 等分，每份 40°
-   * 起始角度 -90°（底部，对应 01），顺时针每块 +40°
+   * 起始角度 120°（左下方，对应 01），顺时针每块 +40°
    * 半径用 % 表示（相对容器），大于外环 88%
    */
-  const labelRadius = 56; // % 距中心，外环是 44%（88%/2），标签放在 56%
+  const labelRadius = 57; // % 距中心，外环是 44%（88%/2），标签放在外环之外
   const labelPositions = useMemo(
     () =>
       STAGES.map((_, idx) => {
-        // 起始 -90°（底部），顺时针 +40°
-        const angleDeg = -90 + idx * 40;
+        // 原型标签中心：01 位于左下方约 120°，之后每块顺时针 +40°
+        // 01 → 02 → ... → 05(顶部) → ... → 09
+        const angleDeg = 120 + idx * 40;
         const angleRad = (angleDeg * Math.PI) / 180;
         // left/top 用 % 表示，圆心在 50%
         const left = 50 + labelRadius * Math.cos(angleRad);
@@ -266,7 +267,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
   );
 
   return (
-    <div className="w-full max-w-[440px] mx-auto">
+    <div className="w-full max-w-[520px] mx-auto">
       {/* 顶部彩色图例 */}
       <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 mb-2 text-xs text-[#555]">
         {legendGroups.map((g, i) => (
@@ -329,8 +330,12 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
                       left: "50%",
                     }}
                   />
-                  <div className="text-[13px] font-bold text-[#2D3748] leading-none">{stage.num}</div>
+                  <div className="text-[13px] font-bold leading-none" style={{ color: stage.color }}>{stage.num}</div>
                   <div className="text-[9px] text-[#A0AEC0] leading-none mt-0.5">{stage.en}</div>
+                  {/* 外圈数量与对应扇区内 realValue 保持一致，0 也显示 */}
+                  <div className="text-[12px] font-bold text-[#2D3748] leading-none mt-1 tabular-nums">
+                    {rawData[idx].realValue}
+                  </div>
                 </div>
               );
             })}
@@ -347,27 +352,33 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
           >
             <Brain className="mx-auto text-[#FFB300]" size={26} strokeWidth={1.8} />
             <div className="text-[14px] font-semibold text-[#2D3748] mt-1">记忆九宫格</div>
-            <div className="text-[9px] tracking-wider text-[#A0AEC0] mb-1.5">MEMORY NINE-GRID</div>
-            <div className="space-y-0.5 text-[11px] text-[#4A5568] leading-snug">
-              <div className="flex items-center justify-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-[2px]" style={{ backgroundColor: STAGES[0].color }} />
-                <span>待学</span>
-                <span className="font-bold text-[13px] text-[#2D3748] tabular-nums">{waitStudy}</span>
-              </div>
-              <div className="flex items-center justify-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-[2px]" style={{ backgroundColor: "#FFAA22" }} />
-                <span>复习中</span>
-                <span className="font-bold text-[13px] text-[#2D3748] tabular-nums">{reviewTotal}</span>
-              </div>
-              <div className="flex items-center justify-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-[2px]" style={{ backgroundColor: STAGES[8].color }} />
-                <span>已掌握</span>
-                <span className="font-bold text-[13px] text-[#2D3748] tabular-nums">{masteredTotal}</span>
-              </div>
+            <div className="text-[9px] tracking-wider text-[#A0AEC0]">MEMORY NINE-GRID</div>
+          </div>
+        </div>
+      )}
+
+      {!isEmpty && (
+        /* 汇总统计放在九宫格下方，避免挤占圆心视觉区域 */
+        <div className="mt-2 px-4 py-2 text-[13px] text-[#4A5568]">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="inline-block size-3 rounded-[3px] bg-[#F24C4C]" />
+              <span>待学</span>
+              <span className="font-bold text-[18px] leading-none text-[#2D3748] tabular-nums">{waitStudy}</span>
             </div>
-            <div className="mt-1 pt-1 border-t border-[#E2E8F0] text-[10px] text-[#718096]">
-              总词条 <span className="font-bold text-[12px] text-[#2D3748] tabular-nums">{totalCount}</span>
+            <div className="flex items-center gap-2">
+              <span className="inline-block size-3 rounded-[3px] bg-[#FFAA22]" />
+              <span>复习中</span>
+              <span className="font-bold text-[18px] leading-none text-[#2D3748] tabular-nums">{reviewTotal}</span>
             </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-block size-3 rounded-[3px] bg-[#00A88C]" />
+              <span>已掌握</span>
+              <span className="font-bold text-[18px] leading-none text-[#2D3748] tabular-nums">{masteredTotal}</span>
+            </div>
+          </div>
+          <div className="mt-2 pt-2 border-t border-[#EDF2F7] text-[#718096]">
+            总词条 <span className="font-bold text-[18px] text-[#2D3748] tabular-nums">{totalCount}</span>
           </div>
         </div>
       )}
