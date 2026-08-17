@@ -11,7 +11,9 @@ import {
   WordCardPanel,
   WordMarkStatsBar,
   WordViewModeToggle,
+  isWordCardTapped,
   markWordCardClass,
+  markWordCardStyle,
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
@@ -135,10 +137,7 @@ export default function ReviewCheck() {
         if (w.id === word.id) {
           return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
-        if (next.showTranslation) {
-          return { ...w, showTranslation: false };
-        }
-        return w;
+        return { ...w, heard: false, showTranslation: false };
       })
     );
     setDetailWord(syncDetailWordWithTap(detailMode, next, word));
@@ -285,27 +284,34 @@ export default function ReviewCheck() {
                 {words.map((word) => (
                   <div
                     key={word.id}
-                    className={`bg-white rounded-xl p-4 shadow-sm transition-all ${markWordCardClass(
+                    className={`rounded-xl p-4 shadow-sm transition-all cursor-pointer ${markWordCardClass(
                       word.status,
-                      word.heard || word.showTranslation
+                      isWordCardTapped(word)
                     )}`}
+                    style={markWordCardStyle(word.status, isWordCardTapped(word))}
+                    onClick={() => handleWordClick(word)}
                   >
                     <div className="flex items-center justify-between">
-                      <div
-                        className="flex items-center gap-3 flex-1 cursor-pointer"
-                        onClick={() => handleWordClick(word)}
-                      >
+                      <div className="flex items-center gap-3 flex-1">
                         <span className={PRACTICE_WORD_CLASS}>{word.word}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <CloudButton type="button" variant="ghost" size="iconRound">
+                        <CloudButton
+                          type="button"
+                          variant="ghost"
+                          size="iconRound"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Volume2 size={20} className="text-[#4ECDC4]" />
                         </CloudButton>
                         <CloudButton
                           type="button"
                           variant={word.status === "correct" ? "brand" : "ghost"}
                           size="iconRound"
-                          onClick={() => handleStatusClick(word.id, "correct")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStatusClick(word.id, "correct");
+                          }}
                           className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
                         >
                           <Check size={20} />
@@ -314,7 +320,10 @@ export default function ReviewCheck() {
                           type="button"
                           variant={word.status === "wrong" ? "destructive" : "ghost"}
                           size="iconRound"
-                          onClick={() => handleStatusClick(word.id, "wrong")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStatusClick(word.id, "wrong");
+                          }}
                         >
                           <X size={20} />
                         </CloudButton>

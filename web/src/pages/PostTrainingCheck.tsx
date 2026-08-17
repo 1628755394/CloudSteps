@@ -11,7 +11,9 @@ import {
   WordCardPanel,
   WordMarkStatsBar,
   WordViewModeToggle,
+  isWordCardTapped,
   markWordCardClass,
+  markWordCardStyle,
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
@@ -218,10 +220,8 @@ export default function PostTrainingCheck() {
         if (w.id === word.id) {
           return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
-        if (next.showTranslation) {
-          return { ...w, showTranslation: false };
-        }
-        return w;
+        // 只亮当前点的词：清掉其它词的点词态
+        return { ...w, heard: false, showTranslation: false };
       })
     );
     setDetailWord(syncDetailWordWithTap(detailMode, next, word));
@@ -474,16 +474,15 @@ export default function PostTrainingCheck() {
             {words.map((word) => (
               <div
                 key={word.id}
-                className={`bg-white rounded-xl p-4 shadow-sm transition-all ${markWordCardClass(
+                className={`rounded-xl p-4 shadow-sm transition-all cursor-pointer ${markWordCardClass(
                   word.status,
-                  word.heard || word.showTranslation
+                  isWordCardTapped(word, playingId, word.id)
                 )}`}
+                style={markWordCardStyle(word.status, isWordCardTapped(word, playingId, word.id))}
+                onClick={() => handleWordClick(word)}
               >
                 <div className="flex items-center justify-between">
-                <div
-                  className="flex items-center gap-3 flex-1 cursor-pointer"
-                  onClick={() => handleWordClick(word)}
-                >
+                <div className="flex items-center gap-3 flex-1">
                   <div>
                     <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
                       {word.word}
@@ -508,6 +507,13 @@ export default function PostTrainingCheck() {
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePlayAudio(word);
+                      setWords((prev) =>
+                        prev.map((w) =>
+                          w.id === word.id
+                            ? { ...w, heard: true }
+                            : { ...w, heard: false, showTranslation: false }
+                        )
+                      );
                     }}
                   >
                     <Volume2

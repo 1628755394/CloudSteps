@@ -13,7 +13,9 @@ import {
   WordCardPanel,
   WordMarkStatsBar,
   WordViewModeToggle,
+  isWordCardTapped,
   markWordCardClass,
+  markWordCardStyle,
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
@@ -242,10 +244,7 @@ export default function PreTrainingCheck() {
         if (w.id === word.id) {
           return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
-        if (next.showTranslation) {
-          return { ...w, showTranslation: false };
-        }
-        return w;
+        return { ...w, heard: false, showTranslation: false };
       })
     );
     // 拓展只增幅：释义出现时挂详情，收起时关掉
@@ -359,16 +358,15 @@ export default function PreTrainingCheck() {
 
   const renderWordItem = (word: WordItem) => (
     <div
-      className={`bg-white rounded-xl p-3.5 sm:p-4 shadow-sm transition-all ${markWordCardClass(
+      className={`rounded-xl p-3.5 sm:p-4 shadow-sm transition-all cursor-pointer ${markWordCardClass(
         word.status,
-        word.heard || word.showTranslation
+        isWordCardTapped(word, playingId, word.id)
       )}`}
+      style={markWordCardStyle(word.status, isWordCardTapped(word, playingId, word.id))}
+      onClick={() => handleWordClick(word)}
     >
       <div className="flex items-center justify-between gap-2">
-        <div
-          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-          onClick={() => handleWordClick(word)}
-        >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="min-w-0">
             <span className={`${PRACTICE_WORD_CLASS} transition-colors`}>
               {word.word}
@@ -386,7 +384,22 @@ export default function PreTrainingCheck() {
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => handlePlayAudio(word)}>
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="iconRound"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePlayAudio(word);
+              setWords((prev) =>
+                prev.map((w) =>
+                  w.id === word.id
+                    ? { ...w, heard: true }
+                    : { ...w, heard: false, showTranslation: false }
+                )
+              );
+            }}
+          >
             <Volume2
               size={20}
               className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
@@ -396,7 +409,10 @@ export default function PreTrainingCheck() {
             type="button"
             variant={word.status === "correct" ? "brand" : "ghost"}
             size="iconRound"
-            onClick={() => handleStatusClick(word.id, "correct")}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStatusClick(word.id, "correct");
+            }}
             className={word.status === "correct" ? "bg-[#66BB6A] hover:bg-[#66BB6A]/90" : ""}
           >
             <Check size={20} />
@@ -405,7 +421,10 @@ export default function PreTrainingCheck() {
             type="button"
             variant={word.status === "wrong" ? "destructive" : "ghost"}
             size="iconRound"
-            onClick={() => handleStatusClick(word.id, "wrong")}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleStatusClick(word.id, "wrong");
+            }}
           >
             <X size={20} />
           </CloudButton>

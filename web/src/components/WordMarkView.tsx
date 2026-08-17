@@ -18,15 +18,66 @@ export type MarkableWord = {
 
 export type WordViewMode = "list" | "card";
 
-/** 勾选态优先；点词第一次发音 / 第二次出释义用同一套青色边框 */
+/** 勾选态优先；当前点中的词用淡青浅底（边框色走 inline） */
 export function markWordCardClass(
   status: MarkableWord["status"],
   tapped?: boolean
 ): string {
-  if (status === "correct") return "border-2 border-[#66BB6A] bg-[#66BB6A]/5";
-  if (status === "wrong") return "border-2 border-[#FF6B6B] bg-[#FF6B6B]/5";
-  if (tapped) return "border-2 border-[#4ECDC4] bg-[#4ECDC4]/5";
-  return "border-2 border-transparent";
+  if (status === "correct") return "bg-[#66BB6A]/10";
+  if (status === "wrong") return "bg-[#FF6B6B]/10";
+  if (tapped) return "bg-[#4ECDC4]/[0.03]";
+  return "bg-white";
+}
+
+/** 完整 inline 边框，避免被 theme 里 `* { border-color }` 盖掉 */
+export function markWordCardStyle(
+  status: MarkableWord["status"],
+  tapped?: boolean
+): {
+  borderWidth: number;
+  borderStyle: "solid";
+  borderColor: string;
+  backgroundColor: string;
+} {
+  if (status === "correct") {
+    return {
+      borderWidth: 2,
+      borderStyle: "solid",
+      borderColor: "#66BB6A",
+      backgroundColor: "rgba(102, 187, 106, 0.1)",
+    };
+  }
+  if (status === "wrong") {
+    return {
+      borderWidth: 2,
+      borderStyle: "solid",
+      borderColor: "#FF6B6B",
+      backgroundColor: "rgba(255, 107, 107, 0.1)",
+    };
+  }
+  if (tapped) {
+    return {
+      borderWidth: 2,
+      borderStyle: "solid",
+      borderColor: "#4ECDC4",
+      backgroundColor: "rgba(78, 205, 196, 0.03)",
+    };
+  }
+  return {
+    borderWidth: 2,
+    borderStyle: "solid",
+    borderColor: "#E2E8F0",
+    backgroundColor: "#ffffff",
+  };
+}
+
+/** 仅当前交互中的词高亮（heard / 释义 / 正在播放），不累积多张 */
+export function isWordCardTapped(
+  word: Pick<MarkableWord, "heard" | "showTranslation">,
+  playingId?: number | null,
+  wordId?: number
+): boolean {
+  return !!(word.heard || word.showTranslation || (playingId != null && playingId === wordId));
 }
 
 type StatsBarProps = {
@@ -129,10 +180,11 @@ export function WordCardPanel({
         </CloudButton>
 
         <div
-          className={`flex-1 min-h-[220px] bg-card rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${markWordCardClass(
+          className={`flex-1 min-h-[220px] rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${markWordCardClass(
             word.status,
-            word.heard || word.showTranslation
+            isWordCardTapped(word, playingId, word.id)
           )}`}
+          style={markWordCardStyle(word.status, isWordCardTapped(word, playingId, word.id))}
           onClick={() => onWordClick(word)}
         >
           <p className="text-xs text-muted-foreground mb-4">
