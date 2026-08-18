@@ -7,7 +7,6 @@ import {
   Download,
   Eraser,
   Italic,
-  Moon,
   PaintBucket,
   Palette,
   Pencil,
@@ -163,7 +162,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
             <span className="truncate text-lg font-bold sm:text-xl">{title}</span><span className="hidden truncate text-xs text-[#9b927f] sm:inline">黑板笔记</span>
             <button type="button" className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]" onClick={() => setToolbarVisible((v) => !v)} title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"} aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}><PanelLeft size={17} /></button>
           </div>
-          {toolbarVisible && <div className="mx-1 mt-1 flex shrink-0 flex-wrap items-center gap-0.5 rounded-md bg-transparent px-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-2 sm:gap-1 sm:py-1">
+          {toolbarVisible && <div className="mx-1 mt-1 flex shrink-0 flex-wrap items-center justify-between gap-0.5 rounded-md bg-transparent px-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-2 sm:gap-1 sm:py-1">
             <button className={button(active()?.get("fontWeight") === "bold")} onClick={() => toggleActive("fontWeight", "bold", "normal")} title="粗体"><Bold size={16} /></button>
             <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
             <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
@@ -176,7 +175,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
             <button className={button()} onClick={() => updateActive({ textAlign: "left" })} title="左对齐"><AlignLeft size={16} /></button>
             <button className={button()} onClick={() => updateActive({ textAlign: "center" })} title="居中"><AlignCenter size={16} /></button>
             <button className={button()} onClick={() => updateActive({ textAlign: "right" })} title="右对齐"><AlignRight size={16} /></button>
-            <div className="ml-0 flex flex-wrap items-center gap-0.5 sm:ml-auto sm:gap-1"><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600" onClick={() => setSidePos((s) => s === "right" ? "left" : "right")} title="切换左右"><PanelLeft size={16} /></button><button className={button()} onClick={download} title="下载"><Download size={16} /></button><button className={button()} onClick={() => setToolbarVisible(false)} title="隐藏工具栏"><Moon size={16} /></button><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500" onClick={clearCanvas} title="清空"><Eraser size={16} /></button><CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton></div>
+            <div className="contents"><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => setSidePos((s) => s === "right" ? "left" : "right")} title="切换左右"><PanelLeft size={16} /></button><button className={button()} onClick={download} title="下载"><Download size={16} /></button><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空"><Eraser size={16} /></button><CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton></div>
           </div>}
           <div className="relative min-h-0 flex-1 p-1 sm:p-2"><canvas ref={canvasElement} className="h-full w-full" /><div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div></div>
         </div>
