@@ -330,13 +330,35 @@ func UpdateWordBook(db *gorm.DB, id uint, vals map[string]any) error {
 	return db.Model(&WordBook{}).Where("id = ?", id).Updates(vals).Error
 }
 
-// DeleteWordBook 软删除词库（同时下架）
+// DeleteWordBook 硬删除词库：直接删除词库行以及相关数据。
+// 注意：这里使用 Unscoped，确保不再依赖 is_deleted 软删除逻辑。
 func DeleteWordBook(db *gorm.DB, id uint, operator string) error {
-	return db.Model(&WordBook{}).Where("id = ?", id).Updates(map[string]any{
-		"is_deleted": SoftDeleteStatusDeleted,
-		"is_active":  false,
-		"update_by":  operator,
-	}).Error
+	_ = operator // operator currently only used for soft delete audit; keep signature compatibility
+
+	tx := db.Unscoped()
+
+	// 先删除子表，避免外键约束导致删除失败
+	if err := tx.Where("word_book_id = ?", id).Delete(&Word{}).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("word_book_id = ?", id).Delete(&UserWordBook{}).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("word_book_id = ?", id).Delete(&UserWordState{}).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("word_book_id = ?", id).Delete(&ReviewQueue{}).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("word_book_id = ?", id).Delete(&WordBookProgress{}).Error; err != nil {
+		return err
+	}
+	if err := tx.Where("word_book_id = ?", id).Delete(&UserWordProgress{}).Error; err != nil {
+		return err
+	}
+
+	// 最后删除词库主表
+	return tx.Where("id = ?", id).Delete(&WordBook{}).Error
 }
 
 // SetWordBookActive 上架 / 下架词库

@@ -485,7 +485,9 @@ func (h *Handlers) adminListWordBooks(c *gin.Context) {
 	group := c.Query("group")
 	sourceName := strings.TrimSpace(c.Query("sourceName"))
 
-	q := db.Model(&models.WordBook{}).Order("sort_order ASC, id DESC")
+	q := db.Model(&models.WordBook{}).
+		Where("is_deleted = ?", models.SoftDeleteStatusActive).
+		Order("sort_order ASC, id DESC")
 	if keyword != "" {
 		q = q.Where("name LIKE ?", "%"+keyword+"%")
 	}
