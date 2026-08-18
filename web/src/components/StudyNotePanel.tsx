@@ -154,10 +154,10 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
   return (
     <aside className="fixed z-50 max-w-[calc(100vw-16px)] max-h-[calc(100dvh-32px)]" style={{ top: "max(8px, env(safe-area-inset-top))", bottom: "max(8px, env(safe-area-inset-bottom))", [sidePos]: inset, width: `min(${width}px, calc(100vw - 16px))`, height: `min(${height}px, calc(100dvh - 32px))`, minWidth: "min(280px, calc(100vw - 16px))", minHeight: "min(360px, calc(100dvh - 32px))" }}>
       <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#1f2937] bg-[#fff8e8] p-0 shadow-[0_10px_24px_rgba(38,91,115,0.18)]">
-        <div className="pointer-events-none absolute -left-5 top-8 bottom-8 z-20 flex flex-col justify-between py-2">
+        <div className="pointer-events-none absolute -left-5 top-8 bottom-8 z-0 flex flex-col justify-between py-2">
           {Array.from({ length: 8 }).map((_, index) => <span key={index} className="relative block h-7 w-11 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[5px_0_0_#5c9bd7]" />)}
         </div>
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[28px] border-2 border-[#1f2937] bg-[#fff8e8]">
+        <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[28px] border-2 border-[#1f2937] bg-[#fff8e8]">
           <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] bg-[#fff8e8] px-4 text-[#25344a] sm:h-11 sm:gap-2 sm:px-5">
             <span className="truncate text-lg font-bold sm:text-xl">{title}</span><span className="hidden truncate text-xs text-[#9b927f] sm:inline">黑板笔记</span>
             <button type="button" className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]" onClick={() => setToolbarVisible((v) => !v)} title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"} aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}><PanelLeft size={17} /></button>
