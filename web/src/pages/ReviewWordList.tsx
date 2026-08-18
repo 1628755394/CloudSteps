@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { Volume2, Check, X, BookOpen } from "lucide-react";
+import { Volume2, Check, X, BookOpen, PanelTop, Languages, Layers3, Settings2, Star, NotebookPen } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getReviewToday, startReviewSession, completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
@@ -21,6 +21,7 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
+import { StudyNotePanel } from "../components/StudyNotePanel";
 
 type ReviewWordItem = {
   id: number;
@@ -52,6 +53,13 @@ export default function ReviewWordList() {
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
+  const [noteWord, setNoteWord] = useState<ReviewWordItem | null>(null);
+  const [globalNoteOpen, setGlobalNoteOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showPhonetic, setShowPhonetic] = useState(true);
+  const [showTranslation, setShowTranslation] = useState(true);
+  const [groupCollapsed, setGroupCollapsed] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const wordBookId = useMemo(() => {
     const url = new URL(window.location.href);
@@ -243,10 +251,9 @@ export default function ReviewWordList() {
         onBack={handleBack}
         rightSlot={
           <div className="flex items-center gap-0.5">
-            <AnnotationToggleButton
-              active={annotationOpen}
-              onClick={() => setAnnotationOpen((v) => !v)}
-            />
+            <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => setGlobalNoteOpen(true)} aria-label="黑板笔记" title="全局笔记"><PanelTop size={18} className="text-[#c45c78]" /></CloudButton>
+            <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => setSettingsOpen(true)} aria-label="显示配置"><Settings2 size={18} /></CloudButton>
+            <AnnotationToggleButton active={annotationOpen} onClick={() => setAnnotationOpen((v) => !v)} />
             <PracticeFontSettingsButton />
           </div>
         }
@@ -271,12 +278,18 @@ export default function ReviewWordList() {
         </div>
 
         {!viewOnly && (
-          <WordMarkStatsBar
-            correctCount={correctCount}
-            wrongCount={wrongCount}
-            total={words.length}
-          />
+          <WordMarkStatsBar correctCount={correctCount} wrongCount={wrongCount} total={words.length} />
         )}
+
+        <div className="sticky top-11 z-20 -mx-1 mb-2 flex items-center gap-1.5 overflow-x-auto rounded-xl bg-white/95 p-2 shadow-sm backdrop-blur">
+          <CloudButton size="pill" variant="outline" onClick={() => setShowTranslation((v) => !v)}><Languages size={15} />英汉</CloudButton>
+          <CloudButton size="pill" variant="outline" onClick={() => setGroupCollapsed((v) => !v)}><Layers3 size={15} />Unit {groupCollapsed ? "展开" : "收起"}</CloudButton>
+          <CloudButton size="pill" variant="outline" onClick={() => setShowPhonetic((v) => !v)}>音节</CloudButton>
+          <CloudButton size="pill" variant="outline"><Star size={15} />难词</CloudButton>
+          <CloudButton size="pill" variant={soundEnabled ? "brand" : "outline"} onClick={() => setSoundEnabled((v) => !v)}>音效 {soundEnabled ? "开" : "关"}</CloudButton>
+          <CloudButton size="pill" variant="outline" onClick={() => setGlobalNoteOpen(true)}><NotebookPen size={15} />黑板</CloudButton>
+        </div>
+        {settingsOpen && <div className="mb-3 rounded-xl border border-[#E2E8F0] bg-white p-3 shadow-sm"><div className="mb-2 flex items-center justify-between font-semibold text-[#1e3a5f]">显示配置 <button type="button" onClick={() => setSettingsOpen(false)}>×</button></div><div className="grid grid-cols-2 gap-2 text-sm"><label><input type="checkbox" checked={showPhonetic} onChange={(e) => setShowPhonetic(e.target.checked)} /> 直接显示音标</label><label><input type="checkbox" checked={showTranslation} onChange={(e) => setShowTranslation(e.target.checked)} /> 直接显示中文</label><label><input type="checkbox" /> 更多内容弹出</label><label><input type="checkbox" /> 显示笔记按钮</label></div></div>}
 
         {viewMode === "card" ? (
           <div className="mt-3">
@@ -288,6 +301,7 @@ export default function ReviewWordList() {
               onPlay={handlePlayAudio}
               onWordClick={handleWordClick}
               onStatus={handleStatusClick}
+              onNote={(word) => setNoteWord(word as ReviewWordItem)}
               hideStatus={viewOnly}
               amplifyDetail={detailMode}
               onDetailClose={() => setDetailWord(null)}
@@ -300,6 +314,7 @@ export default function ReviewWordList() {
                 <div
                   key={item.id}
                   className={`bg-white rounded-xl p-3.5 shadow-sm border border-transparent transition-all hover:shadow-md hover:border-[#4ECDC4]/35 ${
+                    cardIndex === index ? "ring-2 ring-[#4ECDC4]" : ""} ${
                     item.status === "correct"
                       ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/[0.06] hover:border-[#4ECDC4]"
                       : item.status === "wrong"
@@ -314,14 +329,15 @@ export default function ReviewWordList() {
                       </span>
                       <div
                         className="flex-1 min-w-0 cursor-pointer"
-                        onClick={() => handleWordClick(item)}
+                        onClick={() => { setCardIndex(index); handleWordClick(item); }}
                       >
+                        {cardIndex + 1 === index && <span className="mr-1 inline-block rounded bg-[#FFB347] px-1.5 py-0.5 align-middle text-[10px] text-white">下一步</span>}
                         <h3
                           className={`${PRACTICE_WORD_CLASS} !font-semibold hover:text-[#4ECDC4] transition-colors break-all`}
                         >
                           {item.word}
                         </h3>
-                        {item.showTranslation && item.translation && (
+                        {showTranslation && item.showTranslation && item.translation && (
                           <p
                             className={`${PRACTICE_TRANS_CLASS} mt-1.5 animate-in fade-in slide-in-from-top-1`}
                           >
@@ -340,6 +356,7 @@ export default function ReviewWordList() {
                       >
                         <Volume2 size={20} className={playingId === item.id ? "animate-pulse" : ""} />
                       </CloudButton>
+                      <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => setNoteWord(item)} aria-label="单词笔记"><NotebookPen size={17} className="text-[#c45c78]" /></CloudButton>
                       {!viewOnly && (
                         <>
                           <CloudButton
@@ -379,6 +396,9 @@ export default function ReviewWordList() {
         )}
       </div>
 
+      <div className="fixed bottom-[4.8rem] right-4 z-30 flex gap-2"><CloudButton type="button" variant="outline" size="pill" onClick={() => setWords((prev) => prev.map((w, i) => i === cardIndex ? { ...w, status: "wrong" } : w))}>强化当前</CloudButton><CloudButton type="button" variant="brand" size="pill" onClick={() => setCardIndex((i) => Math.min(i + 1, Math.max(0, words.length - 1)))}>下一组</CloudButton></div>
+      <StudyNotePanel open={!!noteWord} onClose={() => setNoteWord(null)} storageKey={noteWord ? `study-note:word:${noteWord.id}` : "study-note:word"} title={noteWord ? `${noteWord.word} · 笔记` : "单词笔记"} />
+      <StudyNotePanel open={globalNoteOpen} onClose={() => setGlobalNoteOpen(false)} storageKey={`study-note:global:${wordBookId}`} title="黑板 · 全局笔记" />
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
         <div className="max-w-2xl mx-auto w-full space-y-2.5">
           <div className="flex items-center gap-2 flex-wrap">

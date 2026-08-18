@@ -5,6 +5,7 @@ import { getWordDetail, type WordDetail } from "../api/wordbooks";
 import { formatTranslation, formatTranslationShort, withPartOfSpeech } from "../utils/wordFormat";
 import { playWordAudio } from "../utils/audioPlayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
+import { readStudyNote } from "./StudyNotePanel";
 
 function parseJSON<T>(raw?: string | null): T | null {
   if (!raw || raw === "[]" || raw === "") return null;
@@ -21,6 +22,7 @@ function stripTags(s: string): string {
 }
 
 type ExtKey =
+  | "notes"
   | "translation"
   | "examples"
   | "mnemonic"
@@ -37,6 +39,7 @@ type ExtKey =
 
 /** 简易模式下保留的标签（约一半） */
 const SIMPLE_KEYS = new Set<ExtKey>([
+  "notes",
   "translation",
   "examples",
   "mnemonic",
@@ -135,9 +138,12 @@ export function WordDetailPanel({
     };
   }, [detail]);
 
+  const word = detail?.word || wordText || "";
+  const noteText = readStudyNote(`study-note:word:${wordId}`);
   const tabs: ExtTab[] = useMemo(() => {
     if (!detail || !parsed) return [];
     const list: ExtTab[] = [];
+    if (noteText.trim()) list.push({ key: "notes", label: "笔记" });
     if (detail.translation?.trim()) list.push({ key: "translation", label: "释义" });
     if (parsed.examples?.length) list.push({ key: "examples", label: "例句" });
     if (detail.mnemonic?.trim()) list.push({ key: "mnemonic", label: "助记" });
@@ -153,9 +159,8 @@ export function WordDetailPanel({
     if (parsed.wordFamily?.length) list.push({ key: "family", label: "词族" });
     if (!simpleMode) return list;
     return list.filter((t) => SIMPLE_KEYS.has(t.key));
-  }, [detail, parsed, simpleMode]);
+  }, [detail, parsed, simpleMode, noteText]);
 
-  const word = detail?.word || wordText || "";
   const phonetic = detail?.phoneticUk || detail?.phoneticUs || detail?.phonetic || "";
   const shortMeaning = detail
     ? withPartOfSpeech(detail.partOfSpeech, formatTranslationShort(detail.translation))
@@ -202,7 +207,7 @@ export function WordDetailPanel({
 
           {active && active !== "translation" && (
             <div className="pt-2 border-t border-[#F1F5F9] max-h-[36vh] overflow-y-auto">
-              <ExtContent active={active} detail={detail} parsed={parsed} />
+              {active === "notes" ? <p className="whitespace-pre-wrap px-1 text-sm leading-relaxed">{noteText}</p> : <ExtContent active={active} detail={detail} parsed={parsed} />}
             </div>
           )}
           {active === "translation" && (
