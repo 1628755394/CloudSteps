@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/utils/cn.ts'
 
@@ -40,12 +41,39 @@ const Select: React.FC<SelectProps> = ({
                                        }) => {
     const [isOpen, setIsOpen] = useState(false);
     const selectRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({})
+
+    const updateMenuPosition = () => {
+        const el = selectRef.current
+        if (!el) return
+        const rect = el.getBoundingClientRect()
+        setMenuStyle({
+            position: 'fixed',
+            top: rect.bottom + 6,
+            left: rect.left,
+            width: Math.max(rect.width, 160),
+            zIndex: 9999,
+        })
+    }
+
+    useLayoutEffect(() => {
+        if (!isOpen) return
+        updateMenuPosition()
+        const onReposition = () => updateMenuPosition()
+        window.addEventListener('resize', onReposition)
+        window.addEventListener('scroll', onReposition, true)
+        return () => {
+            window.removeEventListener('resize', onReposition)
+            window.removeEventListener('scroll', onReposition, true)
+        }
+    }, [isOpen])
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
+            const target = event.target as Node
+            if (selectRef.current?.contains(target) || contentRef.current?.contains(target)) return
+            setIsOpen(false)
         };
 
         document.addEventListener('mousedown', handleClickOutside);
@@ -84,7 +112,9 @@ const Select: React.FC<SelectProps> = ({
                     } else if (child.type === SelectContent) {
                         return isOpen ? React.cloneElement(child, {
                             onItemClick: handleItemClick,
-                            selectedValue: value
+                            selectedValue: value,
+                            contentRef,
+                            menuStyle,
                         }) : null;
                     }
                 }
@@ -154,24 +184,28 @@ const SelectValue: React.FC<SelectValueProps & { selectedValue?: string; selecte
 };
 
 
-const SelectContent: React.FC<SelectContentProps & { onItemClick?: (value: string) => void; selectedValue?: string }> = ({
-                                                                                                                             children,
-                                                                                                                             className = '',
-                                                                                                                             onItemClick,
-                                                                                                                             selectedValue}) => {
-    // Find the text for selected value
-    let selectedText = '';
-    React.Children.forEach(children, (child) => {
-        if (React.isValidElement(child) && child.type === SelectItem && child.props.value === selectedValue) {
-            selectedText = typeof child.props.children === 'string' ? child.props.children : '';
-        }
-    });
-
-    return (
-        <div className={cn(
-            'absolute top-full left-0 right-0 z-[9999] mt-1.5 max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1.5 shadow-xl ring-1 ring-black ring-opacity-5 transition-all duration-200',
-            className
-        )}>
+const SelectContent: React.FC<SelectContentProps & {
+    onItemClick?: (value: string) => void
+    selectedValue?: string
+    contentRef?: React.RefObject<HTMLDivElement | null>
+    menuStyle?: React.CSSProperties
+}> = ({
+    children,
+    className = '',
+    onItemClick,
+    selectedValue,
+    contentRef,
+    menuStyle,
+}) => {
+    const menu = (
+        <div
+            ref={contentRef}
+            style={menuStyle}
+            className={cn(
+                'max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1.5 shadow-xl ring-1 ring-black ring-opacity-5',
+                className
+            )}
+        >
             {React.Children.map(children, (child) => {
                 if (React.isValidElement(child) && child.type === SelectItem) {
                     return React.cloneElement(child, {
@@ -182,7 +216,10 @@ const SelectContent: React.FC<SelectContentProps & { onItemClick?: (value: strin
                 return child;
             })}
         </div>
-    );
+    )
+
+    if (typeof document === 'undefined') return menu
+    return createPortal(menu, document.body)
 };
 const SelectItem: React.FC<SelectItemProps & { onClick?: () => void; isSelected?: boolean }> = ({
                                                                                                     children,

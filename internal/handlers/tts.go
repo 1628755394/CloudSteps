@@ -23,7 +23,9 @@ type ttsRequest struct {
 }
 
 // synthesizeTextToURL 合成语音并写入对象存储，返回公开 URL。
+// voice 参数已忽略，始终使用默认音色 DefaultQCloudVoiceType。
 func synthesizeTextToURL(ctx context.Context, text, voice, lang string) (string, error) {
+	_ = voice
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return "", fmt.Errorf("文本为空")
@@ -33,8 +35,7 @@ func synthesizeTextToURL(ctx context.Context, text, voice, lang string) (string,
 	}
 
 	cfg, err := synthesizer.NewQCloudConfig(synthesizer.QCloudOverrides{
-		VoiceType: strings.TrimSpace(voice),
-		Lang:      strings.TrimSpace(lang),
+		Lang: strings.TrimSpace(lang),
 	})
 	if err != nil {
 		return "", err

@@ -17,6 +17,7 @@ import (
 
 const (
 	batchAudioIdle    = "idle"
+	batchAudioQueued  = "queued"
 	batchAudioRunning = "running"
 	batchAudioDone    = "done"
 	batchAudioFailed  = "failed"

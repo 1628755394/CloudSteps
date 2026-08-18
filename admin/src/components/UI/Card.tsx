@@ -128,7 +128,7 @@ const Card = ({
       {(title || subtitle || actions) && (
         <motion.div 
           className={cn('mb-2 relative z-10', headerClassName)}
-          initial={{ opacity: 0, y: -10 }}
+          initial={animation === 'none' ? false : { opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: delay + 0.1 }}
         >
@@ -170,7 +170,7 @@ const Card = ({
       
       <motion.div 
         className={cn('min-h-0 relative z-10', bodyClassName)}
-        initial={{ opacity: 0, y: 10 }}
+        initial={animation === 'none' ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: delay + 0.2 }}
       >
@@ -180,7 +180,7 @@ const Card = ({
       {footer && (
         <motion.div 
           className={cn('mt-2 pt-2 border-t border-gray-200 relative z-10', footerClassName)}
-          initial={{ opacity: 0, y: 10 }}
+          initial={animation === 'none' ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: delay + 0.4 }}
         >

@@ -1,12 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import AdminLayout from '@/components/Layout/AdminLayout'
+import Card from '@/components/UI/Card'
+import Button from '@/components/UI/Button'
+import Input from '@/components/UI/Input'
+import Badge from '@/components/UI/Badge'
+import EmptyState from '@/components/UI/EmptyState'
+import Modal, { ModalFooter } from '@/components/UI/Modal'
 import ConfirmDialog from '@/components/UI/ConfirmDialog'
+import Pagination from '@/components/UI/Pagination'
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/UI/Select'
 import { get, post, put, del } from '@/utils/request'
 import { getApiBaseURL } from '@/config/apiConfig'
 import { showAlert } from '@/utils/notification'
-import { Plus, Pencil, Trash2, Search, X, Upload, Download, AlertTriangle, Wand2, Volume2, VolumeX, Loader2 } from 'lucide-react'
-import LingechoTTS from '@/components/UI/LingechoTTS'
+import { Plus, Pencil, Trash2, Search, Upload, Download, AlertTriangle, Wand2, Volume2, VolumeX, Loader2, RefreshCw } from 'lucide-react'
 import { fetchTTS } from '@/utils/lingechoTts'
 
 interface VocabQuestion {
@@ -58,6 +65,8 @@ export default function VocabQuestions() {
   const [purgingAllAudio, setPurgingAllAudio] = useState(false)
   const [showPurgeAllConfirm, setShowPurgeAllConfirm] = useState(false)
   const [purgeAllProgress, setPurgeAllProgress] = useState<{ processed: number; total: number } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<VocabQuestion | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const handleGenerateAudio = async () => {
     if (!form.word?.trim()) {
@@ -389,10 +398,23 @@ export default function VocabQuestions() {
     setModalOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('确认删除该题目？')) return
-    await del(`${getApiBaseURL()}/vocab/questions/${id}`)
-    fetchList()
+  const handleDelete = (q: VocabQuestion) => {
+    setDeleteTarget(q)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      await del(`${getApiBaseURL()}/vocab/questions/${deleteTarget.id}`)
+      showAlert('删除成功', 'success')
+      setDeleteTarget(null)
+      fetchList()
+    } catch (e: any) {
+      showAlert(e?.message || '删除失败', 'error')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const handleSave = async () => {
@@ -521,306 +543,320 @@ export default function VocabQuestions() {
 
   return (
     <AdminLayout>
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">词汇测评题库</h1>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            <button onClick={() => setShowPurgeConfirm(true)} disabled={loading || purgingAudio || purgingAllAudio}
-              className="flex items-center gap-2 px-3 py-2 border border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300 rounded-lg text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50">
-              <VolumeX className="w-4 h-4" /> {purgingAudio ? '检测中...' : '检测音频是否可用'}
-            </button>
-            <button onClick={() => setShowPurgeAllConfirm(true)} disabled={loading || purgingAudio || purgingAllAudio}
-              className="flex items-center gap-2 px-3 py-2 border border-red-300 dark:border-red-600 text-red-600 dark:text-red-300 rounded-lg text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50">
-              {purgingAllAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-              {purgingAllAudio
-                ? (purgeAllProgress
-                  ? `清除中 (${purgeAllProgress.processed}/${purgeAllProgress.total})`
-                  : '清除中...')
-                : '清除全部音频'}
-            </button>
-            <button
-              onClick={handleBatchAudio}
-              disabled={loading && !batchRunning}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:pointer-events-none ${
-                batchRunning
-                  ? 'border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-                  : 'border border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20'
-              }`}
-            >
-              {batchRunning && !batchProgress ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Wand2 className="w-4 h-4" />
-              )}
-              {!batchRunning
-                ? '批量生成音频'
-                : batchProgress
-                  ? `停止 (${batchProgress.done}/${batchProgress.total})`
-                  : '启动中...'}
-            </button>
-            <button onClick={downloadTemplate}
-              className="flex items-center gap-2 px-3 py-2 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-              <Download className="w-4 h-4" /> 下载模板
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} disabled={parsing}
-              className="flex items-center gap-2 px-3 py-2 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50">
-              <Upload className="w-4 h-4" /> {parsing ? '解析中...' : 'Excel 导入'}
-            </button>
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
-            <button onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors">
-              <Plus className="w-4 h-4" /> 新增题目
-            </button>
-          </div>
-        </div>
-
-        {/* 筛选栏 */}
-        <div className="flex gap-3 flex-wrap">
-          <select value={level} onChange={e => { setLevel(e.target.value); setPage(1) }}
-            className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-300">
-            {LEVELS.map(l => <option key={l} value={l}>{l || '全部等级'}</option>)}
-          </select>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input value={keyword} onChange={e => { setKeyword(e.target.value); setPage(1) }} placeholder="搜索单词..."
-              className="pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-700 dark:text-slate-300 w-48" />
-          </div>
-        </div>
-
-        {/* 表格 */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3 text-left">单词</th>
-                <th className="px-4 py-3 text-left">正确答案</th>
-                <th className="px-4 py-3 text-left">等级</th>
-                <th className="px-4 py-3 text-left">难度分</th>
-                <th className="px-4 py-3 text-left">选项数</th>
-                <th className="px-4 py-3 text-left">音频</th>
-                <th className="px-4 py-3 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {loading ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">加载中...</td></tr>
-              ) : list.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">暂无数据</td></tr>
-              ) : list.map(q => {
-                let optCount = 0
-                try { optCount = JSON.parse(q.options).length } catch {}
-                return (
-                  <tr key={q.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{q.word}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400 max-w-xs truncate">{q.correctAnswer}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">{q.level}</span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{q.difficultyScore}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{optCount}</td>
-                    <td className="px-4 py-3">
-                      {q.audioUrl ? (
-                        <button
-                          onClick={() => {
-                            const audio = new Audio(q.audioUrl)
-                            audio.play()
-                          }}
-                          className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-blue-600"
-                        >
-                          <Volume2 className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 text-xs">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openEdit(q)} className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(q.id)} className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* 分页 */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>共 {total} 条</span>
-            <div className="flex gap-2">
-              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                className="px-3 py-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40">上一页</button>
-              <span className="px-3 py-1">{page} / {totalPages}</span>
-              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}
-                className="px-3 py-1 rounded border border-slate-200 dark:border-slate-700 disabled:opacity-40">下一页</button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 新建/编辑弹窗 */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-              <h2 className="font-semibold text-slate-900 dark:text-slate-100">{editing ? '编辑题目' : '新增题目'}</h2>
-              <button onClick={() => setModalOpen(false)}><X className="w-5 h-5 text-slate-400" /></button>
-            </div>
-            <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+      <div className="space-y-6">
+        <Card className="relative z-20">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">单词 *</label>
-                <div className="flex gap-2">
-                  <input value={form.word || ''} onChange={e => setForm(f => ({ ...f, word: e.target.value }))}
-                    className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm" />
-                  <button
-                    type="button"
-                    onClick={handleGenerateAudio}
-                    disabled={generatingAudio || !form.word?.trim()}
-                    className="px-3 py-2 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                  >
-                    <Wand2 className="w-4 h-4" />
-                    {generatingAudio ? '生成中...' : '生成音频'}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">正确答案 *</label>
-                <input value={form.correctAnswer || ''} onChange={e => setForm(f => ({ ...f, correctAnswer: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm" />
-              </div>
-              {form.audioUrl && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">音频 URL</label>
-                  <div className="flex gap-2">
-                    <input value={form.audioUrl || ''} onChange={e => setForm(f => ({ ...f, audioUrl: e.target.value }))}
-                      className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-xs" readOnly />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (form.audioUrl) {
-                          const audio = new Audio(form.audioUrl)
-                          audio.play()
-                        }
-                      }}
-                      className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                    >
-                      <Volume2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">干扰选项（4个）</label>
-                {optionsArr.map((opt, i) => (
-                  <input key={i} value={opt} onChange={e => setOptionsArr(arr => arr.map((v, j) => j === i ? e.target.value : v))}
-                    placeholder={`选项 ${i + 1}`}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm mb-2" />
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">等级 *</label>
-                  <select value={form.level || 'A1'} onChange={e => setForm(f => ({ ...f, level: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm">
-                    {LEVELS.filter(Boolean).map(l => <option key={l} value={l}>{l}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">难度分值</label>
-                  <input type="number" min={1} value={form.difficultyScore || 1}
-                    onChange={e => setForm(f => ({ ...f, difficultyScore: Number(e.target.value) }))}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm" />
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-800">
-              <button onClick={() => setModalOpen(false)}
-                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-400">取消</button>
-              <button onClick={handleSave} disabled={saving}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-50">
-                {saving ? '保存中...' : '保存'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 导入预览弹窗 */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-3xl flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-              <div>
-                <h2 className="font-semibold text-slate-900 dark:text-slate-100">导入预览</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  共 {importRows.length} 条，已选 {selectedCount} 条
-                  {dupCount > 0 && <span className="ml-2 text-amber-500 flex items-center gap-1 inline-flex"><AlertTriangle className="w-3 h-3" />{dupCount} 条重复</span>}
+                <h1 className="text-lg font-semibold text-foreground">词汇测评题库</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {loading ? '加载中…' : `共 ${total.toLocaleString()} 题`}
                 </p>
               </div>
-              <button onClick={() => setShowImportModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowPurgeConfirm(true)} disabled={loading || purgingAudio || purgingAllAudio} leftIcon={<VolumeX className="w-4 h-4" />}>
+                  {purgingAudio ? '检测中...' : '检测音频是否可用'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPurgeAllConfirm(true)}
+                  disabled={loading || purgingAudio || purgingAllAudio}
+                  leftIcon={purgingAllAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  className="text-destructive border-destructive/30"
+                >
+                  {purgingAllAudio
+                    ? (purgeAllProgress ? `清除中 (${purgeAllProgress.processed}/${purgeAllProgress.total})` : '清除中...')
+                    : '清除全部音频'}
+                </Button>
+                <Button
+                  variant={batchRunning ? 'destructive' : 'outline'}
+                  size="sm"
+                  onClick={handleBatchAudio}
+                  disabled={loading && !batchRunning}
+                  leftIcon={batchRunning && !batchProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                >
+                  {!batchRunning
+                    ? '批量生成音频'
+                    : batchProgress
+                      ? `停止 (${batchProgress.done}/${batchProgress.total})`
+                      : '启动中...'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={downloadTemplate} leftIcon={<Download className="w-4 h-4" />}>
+                  下载模板
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={parsing} loading={parsing} leftIcon={<Upload className="w-4 h-4" />}>
+                  Excel 导入
+                </Button>
+                <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
+                <Button variant="primary" size="sm" onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />}>
+                  新增题目
+                </Button>
+              </div>
             </div>
-
-            <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0 flex gap-3">
-              <button onClick={() => toggleAll(true)} className="text-xs text-blue-600 hover:underline">全选</button>
-              <button onClick={() => toggleAll(false)} className="text-xs text-slate-500 hover:underline">全不选</button>
-              <button onClick={() => setImportRows(rows => rows.map(r => ({ ...r, selected: !r.isDuplicate })))}
-                className="text-xs text-slate-500 hover:underline">仅选非重复</button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Select value={level} onValueChange={(v) => { setLevel(v); setPage(1) }}>
+                <SelectTrigger className="w-full sm:w-36">
+                  <SelectValue placeholder="等级" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEVELS.map(l => (
+                    <SelectItem key={l || 'all'} value={l}>{l || '全部等级'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="搜索单词..."
+                value={keyword}
+                onValueChange={(v) => { setKeyword(v); setPage(1) }}
+                className="w-full sm:w-64"
+                size="sm"
+                leftIcon={<Search className="w-4 h-4" />}
+                clearable
+                onClear={() => { setKeyword(''); setPage(1) }}
+              />
             </div>
+          </div>
+        </Card>
 
-            <div className="overflow-auto flex-1">
+        <Card padding="none">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">加载题目列表…</p>
+            </div>
+          ) : list.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title={keyword || level ? '没有匹配的题目' : '暂无题目'}
+              description={keyword || level ? '试试调整筛选条件。' : '新增题目或通过 Excel 导入。'}
+              action={keyword || level ? undefined : { label: '新增题目', onClick: openCreate }}
+            />
+          ) : (
+            <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-2 text-left w-10"></th>
-                    <th className="px-4 py-2 text-left">单词</th>
-                    <th className="px-4 py-2 text-left">正确答案</th>
-                    <th className="px-4 py-2 text-left">等级</th>
-                    <th className="px-4 py-2 text-left">难度</th>
-                    <th className="px-4 py-2 text-left">状态</th>
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">单词</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">正确答案</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">等级</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">难度分</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">选项数</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">音频</th>
+                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">操作</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {importRows.map((r, i) => (
-                    <tr key={i} className={r.isDuplicate ? 'bg-amber-50 dark:bg-amber-900/10' : ''}>
-                      <td className="px-4 py-2">
-                        <input type="checkbox" checked={r.selected} onChange={() => toggleRow(i)}
-                          className="rounded border-slate-300" />
-                      </td>
-                      <td className="px-4 py-2 font-medium text-slate-900 dark:text-slate-100">{r.word}</td>
-                      <td className="px-4 py-2 text-slate-600 dark:text-slate-400 max-w-[160px] truncate">{r.correctAnswer}</td>
-                      <td className="px-4 py-2">
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">{r.level}</span>
-                      </td>
-                      <td className="px-4 py-2 text-slate-500">{r.difficultyScore}</td>
-                      <td className="px-4 py-2">
-                        {r.isDuplicate
-                          ? <span className="text-xs text-amber-600 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />重复</span>
-                          : <span className="text-xs text-green-600">新增</span>}
-                      </td>
-                    </tr>
-                  ))}
+                <tbody>
+                  {list.map(q => {
+                    let optCount = 0
+                    try { optCount = JSON.parse(q.options).length } catch {}
+                    return (
+                      <tr key={q.id} className="border-b border-border/60 hover:bg-muted/40">
+                        <td className="px-4 py-3 font-medium text-foreground">{q.word}</td>
+                        <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{q.correctAnswer}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="primary" size="xs" shape="pill">{q.level}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{q.difficultyScore}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{optCount}</td>
+                        <td className="px-4 py-3">
+                          {q.audioUrl ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => { const audio = new Audio(q.audioUrl); audio.play() }}
+                              aria-label="播放音频"
+                            >
+                              <Volume2 className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => openEdit(q)} aria-label="编辑">
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(q)} className="text-destructive hover:text-destructive" aria-label="删除">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
+          )}
+        </Card>
 
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
-              <button onClick={() => setShowImportModal(false)}
-                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-600 dark:text-slate-400">取消</button>
-              <button onClick={confirmImport} disabled={importing || selectedCount === 0}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-50">
-                {importing ? '导入中...' : `导入 ${selectedCount} 条`}
-              </button>
+        <Pagination
+          currentPage={page}
+          totalPages={Math.max(1, totalPages)}
+          totalItems={total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          showQuickJumper
+        />
+      </div>
+
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => !saving && setModalOpen(false)}
+        title={editing ? '编辑题目' : '新增题目'}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input
+                label="单词"
+                required
+                value={form.word || ''}
+                onValueChange={(v) => setForm(f => ({ ...f, word: v }))}
+                size="sm"
+              />
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateAudio}
+              disabled={generatingAudio || !form.word?.trim()}
+              loading={generatingAudio}
+              leftIcon={<Wand2 className="w-4 h-4" />}
+              className="mb-1.5"
+            >
+              生成音频
+            </Button>
+          </div>
+          <Input
+            label="正确答案"
+            required
+            value={form.correctAnswer || ''}
+            onValueChange={(v) => setForm(f => ({ ...f, correctAnswer: v }))}
+            size="sm"
+          />
+          {form.audioUrl && (
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <Input label="音频 URL" value={form.audioUrl || ''} readOnly size="sm" />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mb-1.5"
+                onClick={() => { if (form.audioUrl) new Audio(form.audioUrl).play() }}
+                aria-label="播放音频"
+              >
+                <Volume2 className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-foreground">干扰选项（4个）</p>
+            {optionsArr.map((opt, i) => (
+              <Input
+                key={i}
+                value={opt}
+                onValueChange={(v) => setOptionsArr(arr => arr.map((item, j) => j === i ? v : item))}
+                placeholder={`选项 ${i + 1}`}
+                size="sm"
+                className="mb-2"
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">等级 *</label>
+              <Select value={form.level || 'A1'} onValueChange={(v) => setForm(f => ({ ...f, level: v }))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="选择等级" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEVELS.filter(Boolean).map(l => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Input
+              label="难度分值"
+              type="number"
+              min={1}
+              value={String(form.difficultyScore || 1)}
+              onValueChange={(v) => setForm(f => ({ ...f, difficultyScore: Number(v) }))}
+              size="sm"
+            />
           </div>
         </div>
-      )}
+        <ModalFooter className="-mx-6 mt-4 px-6">
+          <Button variant="outline" onClick={() => setModalOpen(false)} disabled={saving}>取消</Button>
+          <Button variant="primary" onClick={handleSave} loading={saving}>
+            {saving ? '保存中...' : '保存'}
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        isOpen={showImportModal}
+        onClose={() => !importing && setShowImportModal(false)}
+        title="导入预览"
+        size="lg"
+      >
+        <p className="text-xs text-muted-foreground -mt-2 mb-3">
+          共 {importRows.length} 条，已选 {selectedCount} 条
+          {dupCount > 0 && (
+            <span className="ml-2 inline-flex items-center gap-1 text-amber-600">
+              <AlertTriangle className="w-3 h-3" />{dupCount} 条重复
+            </span>
+          )}
+        </p>
+        <div className="flex items-center gap-2 mb-3">
+          <Button variant="ghost" size="sm" onClick={() => toggleAll(true)}>全选</Button>
+          <Button variant="ghost" size="sm" onClick={() => toggleAll(false)}>全不选</Button>
+          <Button variant="ghost" size="sm" onClick={() => setImportRows(rows => rows.map(r => ({ ...r, selected: !r.isDuplicate })))}>仅选非重复</Button>
+        </div>
+        <div className="overflow-auto max-h-[50vh] rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-background border-b border-border">
+              <tr>
+                <th className="px-4 py-2 text-left w-10"></th>
+                <th className="px-4 py-2 text-left font-medium text-muted-foreground">单词</th>
+                <th className="px-4 py-2 text-left font-medium text-muted-foreground">正确答案</th>
+                <th className="px-4 py-2 text-left font-medium text-muted-foreground">等级</th>
+                <th className="px-4 py-2 text-left font-medium text-muted-foreground">难度</th>
+                <th className="px-4 py-2 text-left font-medium text-muted-foreground">状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {importRows.map((r, i) => (
+                <tr key={i} className="border-b border-border/60">
+                  <td className="px-4 py-2">
+                    <input type="checkbox" checked={r.selected} onChange={() => toggleRow(i)} className="rounded" />
+                  </td>
+                  <td className="px-4 py-2 font-medium">{r.word}</td>
+                  <td className="px-4 py-2 text-muted-foreground max-w-[160px] truncate">{r.correctAnswer}</td>
+                  <td className="px-4 py-2"><Badge variant="primary" size="xs" shape="pill">{r.level}</Badge></td>
+                  <td className="px-4 py-2 text-muted-foreground">{r.difficultyScore}</td>
+                  <td className="px-4 py-2">
+                    {r.isDuplicate
+                      ? <Badge variant="warning" size="xs">重复</Badge>
+                      : <Badge variant="success" size="xs">新增</Badge>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <ModalFooter className="-mx-6 mt-4 px-6">
+          <Button variant="outline" onClick={() => setShowImportModal(false)} disabled={importing}>取消</Button>
+          <Button variant="primary" onClick={confirmImport} disabled={importing || selectedCount === 0} loading={importing}>
+            {importing ? '导入中...' : `导入 ${selectedCount} 条`}
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       <ConfirmDialog
         isOpen={showPurgeConfirm}
@@ -850,6 +886,17 @@ export default function VocabQuestions() {
         loading={purgingAllAudio}
       />
 
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => { if (!deleting) setDeleteTarget(null) }}
+        onConfirm={confirmDelete}
+        title="删除题目"
+        message={`确定删除题目「${deleteTarget?.word || ''}」？`}
+        confirmText="删除"
+        cancelText="取消"
+        variant="danger"
+        loading={deleting}
+      />
     </AdminLayout>
   )
 }

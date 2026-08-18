@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"regexp"
 	"strconv"
@@ -23,18 +24,20 @@ import (
 var posPrefixRe = regexp.MustCompile(`(?i)^[a-z]+\.\s+`)
 
 type wordBookBatchAudioJob struct {
-	mu         sync.Mutex
-	BookID     uint   `json:"bookId"`
-	Status     string `json:"status"`
-	Total      int    `json:"total"`
-	Processed  int    `json:"processed"`
-	Success    int    `json:"success"`
-	Failed     int    `json:"failed"`
-	Error      string `json:"error,omitempty"`
-	Keyword    string `json:"keyword,omitempty"`
-	StartedAt  time.Time
-	FinishedAt time.Time
-	cancel     context.CancelFunc
+	mu            sync.Mutex
+	BookID        uint   `json:"bookId"`
+	Status        string `json:"status"`
+	Total         int    `json:"total"`
+	Processed     int    `json:"processed"`
+	Success       int    `json:"success"`
+	Failed        int    `json:"failed"`
+	Error         string `json:"error,omitempty"`
+	Keyword       string `json:"keyword,omitempty"`
+	TaskID        string `json:"taskId,omitempty"`
+	StartedAt     time.Time
+	FinishedAt    time.Time
+	cancel        context.CancelFunc
+	stopRequested bool
 }
 
 var wordBookBatchAudioJobs sync.Map // bookID -> *wordBookBatchAudioJob
@@ -57,6 +60,64 @@ func wordBookTTSRequestGap() time.Duration {
 		}
 	}
 	return time.Duration(ms) * time.Millisecond
+}
+
+// wordBookTTSMaxAttempts 单词合成最大尝试次数（含首次），默认 3。
+func wordBookTTSMaxAttempts() int {
+	n := 3
+	if v := os.Getenv("WORDBOOK_TTS_MAX_RETRIES"); v != "" {
+		// 兼容：既可配「重试次数」也可配「总尝试次数」；这里按「额外重试次数」理解
+		if extra, err := strconv.Atoi(v); err == nil && extra >= 0 {
+			n = extra + 1
+		}
+	}
+	if v := os.Getenv("WORDBOOK_TTS_MAX_ATTEMPTS"); v != "" {
+		if a, err := strconv.Atoi(v); err == nil && a > 0 {
+			n = a
+		}
+	}
+	if n < 1 {
+		n = 1
+	}
+	return n
+}
+
+func wordBookTTSRetryBase() time.Duration {
+	ms := 800
+	if v := os.Getenv("WORDBOOK_TTS_RETRY_BASE_MS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			ms = n
+		}
+	}
+	return time.Duration(ms) * time.Millisecond
+}
+
+// isPermanentTTSError 不可重试的错误（额度/鉴权/未开通等）。
+func isPermanentTTSError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	s := err.Error()
+	permanents := []string{
+		"ServerNotOpen",
+		"PkgExhausted",
+		"Unauthorized",
+		"AuthorizationFailed",
+		"AuthFailure",
+		"InvalidParameter",
+		"文本为空",
+		"文本过长",
+		"缺少腾讯云 TTS 凭证",
+	}
+	for _, p := range permanents {
+		if strings.Contains(s, p) {
+			return true
+		}
+	}
+	return false
 }
 
 func getWordBookBatchAudioJob(bookID uint) *wordBookBatchAudioJob {
@@ -83,6 +144,9 @@ func (j *wordBookBatchAudioJob) snapshot() gin.H {
 	if j.Keyword != "" {
 		out["keyword"] = j.Keyword
 	}
+	if j.TaskID != "" {
+		out["taskId"] = j.TaskID
+	}
 	if !j.StartedAt.IsZero() {
 		out["startedAt"] = j.StartedAt.UTC().Format(time.RFC3339)
 	}
@@ -92,32 +156,61 @@ func (j *wordBookBatchAudioJob) snapshot() gin.H {
 	return out
 }
 
-func (j *wordBookBatchAudioJob) tryStart(total int, keyword string) (context.Context, bool) {
+func (j *wordBookBatchAudioJob) isActiveLocked() bool {
+	return j.Status == batchAudioQueued || j.Status == batchAudioRunning
+}
+
+// tryQueue 将任务标记为排队中（尚未真正开始合成）。
+func (j *wordBookBatchAudioJob) tryQueue(total int, keyword, taskID string) bool {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	if j.Status == batchAudioRunning {
-		return nil, false
+	if j.isActiveLocked() {
+		return false
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	j.Status = batchAudioRunning
+	j.Status = batchAudioQueued
 	j.Total = total
 	j.Processed = 0
 	j.Success = 0
 	j.Failed = 0
 	j.Error = ""
 	j.Keyword = keyword
+	j.TaskID = taskID
 	j.StartedAt = time.Now()
 	j.FinishedAt = time.Time{}
+	j.cancel = nil
+	j.stopRequested = false
+	return true
+}
+
+// beginRun 由队列 worker 取出任务后调用，queued → running。
+func (j *wordBookBatchAudioJob) beginRun() (context.Context, bool) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if j.Status != batchAudioQueued || j.stopRequested {
+		return nil, false
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	j.Status = batchAudioRunning
 	j.cancel = cancel
 	return ctx, true
 }
 
 func (j *wordBookBatchAudioJob) requestStop() bool {
 	j.mu.Lock()
+	status := j.Status
 	cancel := j.cancel
-	running := j.Status == batchAudioRunning
+	taskID := j.TaskID
+	if status == batchAudioQueued {
+		j.stopRequested = true
+		j.Status = batchAudioStopped
+		j.FinishedAt = time.Now()
+		j.cancel = nil
+		j.mu.Unlock()
+		cancelQueuedWordBookBatchAudio(taskID)
+		return true
+	}
 	j.mu.Unlock()
-	if running && cancel != nil {
+	if status == batchAudioRunning && cancel != nil {
 		cancel()
 		return true
 	}
@@ -139,6 +232,57 @@ func (j *wordBookBatchAudioJob) finish(status, errMsg string) {
 	j.Error = errMsg
 	j.FinishedAt = time.Now()
 	j.cancel = nil
+	j.stopRequested = false
+}
+
+// adminListWordBookBatchAudioJobs GET /wordbooks/batch-audio/jobs
+// 一次返回所有排队/运行中的词库批量 TTS 任务，供列表页轮询（避免对每本书各打一次状态接口）。
+func (h *Handlers) adminListWordBookBatchAudioJobs(c *gin.Context) {
+	jobs := make([]gin.H, 0, 8)
+	wordBookBatchAudioJobs.Range(func(_, value any) bool {
+		job, ok := value.(*wordBookBatchAudioJob)
+		if !ok || job == nil {
+			return true
+		}
+		snap := job.snapshot()
+		status, _ := snap["status"].(string)
+		if status != batchAudioQueued && status != batchAudioRunning {
+			return true
+		}
+		if status == batchAudioQueued {
+			wordBookBatchAudioQueueMu.Lock()
+			q := wordBookBatchAudioQ
+			workers := wordBookBatchAudioWorkers
+			wordBookBatchAudioQueueMu.Unlock()
+			snap["queueWorkers"] = workers
+			if q != nil {
+				if taskID, _ := snap["taskId"].(string); taskID != "" {
+					if pos, err := q.Position(context.Background(), taskID); err == nil && pos >= 0 {
+						snap["queuePosition"] = pos
+					}
+				}
+			}
+		}
+		jobs = append(jobs, snap)
+		return true
+	})
+
+	wordBookBatchAudioQueueMu.Lock()
+	workers := wordBookBatchAudioWorkers
+	q := wordBookBatchAudioQ
+	wordBookBatchAudioQueueMu.Unlock()
+
+	out := gin.H{
+		"jobs":         jobs,
+		"queueWorkers": workers,
+	}
+	if q != nil {
+		if stats, err := q.Stats(context.Background()); err == nil {
+			out["queuePending"] = stats.Pending
+			out["queueRunning"] = stats.Running
+		}
+	}
+	response.SuccessMsg(c, "success", out)
 }
 
 type wordBookBatchAudioReq struct {
@@ -154,7 +298,7 @@ func (h *Handlers) adminBatchWordBookAudio(c *gin.Context) {
 		return
 	}
 	job := getWordBookBatchAudioJob(bookID)
-	if snap := job.snapshot(); snap["status"] == batchAudioRunning {
+	if snap := job.snapshot(); snap["status"] == batchAudioRunning || snap["status"] == batchAudioQueued {
 		response.SuccessMsg(c, "任务进行中", snap)
 		return
 	}
@@ -185,17 +329,16 @@ func (h *Handlers) adminBatchWordBookAudio(c *gin.Context) {
 		return
 	}
 
-	ctx, ok := job.tryStart(int(total), keyword)
-	if !ok {
-		response.SuccessMsg(c, "任务进行中", job.snapshot())
+	out, err := enqueueWordBookBatchAudio(bookID, keyword, int(total))
+	if err != nil {
+		if out != nil {
+			response.SuccessMsg(c, "任务进行中", out)
+			return
+		}
+		response.Fail(c, err.Error(), nil)
 		return
 	}
-
-	go runWordBookBatchAudioJob(ctx, db, bookID, keyword, job)
-
-	out := job.snapshot()
-	out["started"] = true
-	response.SuccessMsg(c, "已在后台开始生成", out)
+	response.SuccessMsg(c, "已加入生成队列", out)
 }
 
 // adminBatchWordBookAudioStatus GET /wordbooks/:id/words/batch-audio
@@ -206,7 +349,26 @@ func (h *Handlers) adminBatchWordBookAudioStatus(c *gin.Context) {
 		return
 	}
 	job := getWordBookBatchAudioJob(bookID)
-	response.SuccessMsg(c, "success", job.snapshot())
+	out := job.snapshot()
+	if status, _ := out["status"].(string); status == batchAudioQueued {
+		wordBookBatchAudioQueueMu.Lock()
+		q := wordBookBatchAudioQ
+		workers := wordBookBatchAudioWorkers
+		wordBookBatchAudioQueueMu.Unlock()
+		out["queueWorkers"] = workers
+		if q != nil {
+			if taskID, _ := out["taskId"].(string); taskID != "" {
+				if pos, err := q.Position(context.Background(), taskID); err == nil && pos >= 0 {
+					out["queuePosition"] = pos
+				}
+			}
+			if stats, err := q.Stats(context.Background()); err == nil {
+				out["queuePending"] = stats.Pending
+				out["queueRunning"] = stats.Running
+			}
+		}
+	}
+	response.SuccessMsg(c, "success", out)
 }
 
 // adminBatchWordBookAudioStop POST /wordbooks/:id/words/batch-audio/stop
@@ -264,7 +426,7 @@ func runWordBookBatchAudioJob(ctx context.Context, db *gorm.DB, bookID uint, key
 		}
 
 		reqCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
-		audioURL, err := synthesizeWordBookAudioURLs(reqCtx, w.Word, w.Translation, segGap)
+		audioURL, err := synthesizeWordBookAudioURLsWithRetry(reqCtx, w.Word, w.Translation, segGap)
 		cancel()
 		if err != nil {
 			failed++
@@ -309,6 +471,48 @@ func runWordBookBatchAudioJob(ctx context.Context, db *gorm.DB, bookID uint, key
 		zap.Int("success", success),
 		zap.Int("failed", failed),
 	)
+}
+
+func synthesizeWordBookAudioURLsWithRetry(ctx context.Context, word, translation string, segGap time.Duration) (string, error) {
+	attempts := wordBookTTSMaxAttempts()
+	base := wordBookTTSRetryBase()
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+		url, err := synthesizeWordBookAudioURLs(ctx, word, translation, segGap)
+		if err == nil {
+			if attempt > 1 {
+				logger.Info("wordbook batch-audio tts retry succeeded",
+					zap.String("word", word),
+					zap.Int("attempt", attempt),
+				)
+			}
+			return url, nil
+		}
+		lastErr = err
+		if isPermanentTTSError(err) || attempt >= attempts {
+			break
+		}
+		delay := base * time.Duration(1<<(attempt-1)) // 0.8s, 1.6s, 3.2s...
+		if delay > 8*time.Second {
+			delay = 8 * time.Second
+		}
+		logger.Warn("wordbook batch-audio tts retrying",
+			zap.String("word", word),
+			zap.Int("attempt", attempt),
+			zap.Int("maxAttempts", attempts),
+			zap.Duration("backoff", delay),
+			zap.Error(err),
+		)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(delay):
+		}
+	}
+	return "", lastErr
 }
 
 func synthesizeWordBookAudioURLs(ctx context.Context, word, translation string, segGap time.Duration) (string, error) {

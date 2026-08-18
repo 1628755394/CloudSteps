@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"strconv"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 
 const (
 	wordBookPurgeIdle    = "idle"
+	wordBookPurgeQueued  = "queued"
 	wordBookPurgeRunning = "running"
 	wordBookPurgeDone    = "done"
 	wordBookPurgeFailed  = "failed"
@@ -32,6 +34,7 @@ type wordBookPurgeAudioJob struct {
 	ObjectsAttempted int    `json:"objectsAttempted"`
 	ObjectsFailed    int    `json:"objectsFailed"`
 	Error            string `json:"error,omitempty"`
+	TaskID           string `json:"taskId,omitempty"`
 	StartedAt        time.Time
 	FinishedAt       time.Time
 }
@@ -60,6 +63,9 @@ func (j *wordBookPurgeAudioJob) snapshot() gin.H {
 		"objectsFailed":    j.ObjectsFailed,
 		"error":            j.Error,
 	}
+	if j.TaskID != "" {
+		out["taskId"] = j.TaskID
+	}
 	if !j.StartedAt.IsZero() {
 		out["startedAt"] = j.StartedAt.UTC().Format(time.RFC3339)
 	}
@@ -69,21 +75,36 @@ func (j *wordBookPurgeAudioJob) snapshot() gin.H {
 	return out
 }
 
-func (j *wordBookPurgeAudioJob) tryStart(total int) bool {
+func (j *wordBookPurgeAudioJob) isActiveLocked() bool {
+	return j.Status == wordBookPurgeQueued || j.Status == wordBookPurgeRunning
+}
+
+func (j *wordBookPurgeAudioJob) tryQueue(total int, taskID string) bool {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	if j.Status == wordBookPurgeRunning {
+	if j.isActiveLocked() {
 		return false
 	}
-	j.Status = wordBookPurgeRunning
+	j.Status = wordBookPurgeQueued
 	j.Total = total
 	j.Processed = 0
 	j.Cleared = 0
 	j.ObjectsAttempted = 0
 	j.ObjectsFailed = 0
 	j.Error = ""
+	j.TaskID = taskID
 	j.StartedAt = time.Now()
 	j.FinishedAt = time.Time{}
+	return true
+}
+
+func (j *wordBookPurgeAudioJob) beginRun() bool {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if j.Status != wordBookPurgeQueued {
+		return false
+	}
+	j.Status = wordBookPurgeRunning
 	return true
 }
 
@@ -96,23 +117,15 @@ func (j *wordBookPurgeAudioJob) markProgress(processed, cleared, attempted, fail
 	j.ObjectsFailed = failed
 }
 
-func (j *wordBookPurgeAudioJob) markDone(cleared, attempted, failed int) {
+func (j *wordBookPurgeAudioJob) finish(status, errMsg string) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	j.Status = wordBookPurgeDone
-	j.Processed = j.Total
-	j.Cleared = cleared
-	j.ObjectsAttempted = attempted
-	j.ObjectsFailed = failed
-	j.FinishedAt = time.Now()
-}
-
-func (j *wordBookPurgeAudioJob) markFailed(errMsg string) {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	j.Status = wordBookPurgeFailed
+	j.Status = status
 	j.Error = errMsg
 	j.FinishedAt = time.Now()
+	if status == wordBookPurgeDone {
+		j.Processed = j.Total
+	}
 }
 
 // adminPurgeWordBookAudio POST /wordbooks/:id/words/purge-all-audio
@@ -125,7 +138,7 @@ func (h *Handlers) adminPurgeWordBookAudio(c *gin.Context) {
 	}
 	job := getWordBookPurgeJob(bookID)
 
-	if snap := job.snapshot(); snap["status"] == wordBookPurgeRunning {
+	if snap := job.snapshot(); snap["status"] == wordBookPurgeRunning || snap["status"] == wordBookPurgeQueued {
 		response.SuccessMsg(c, "任务进行中", snap)
 		return
 	}
@@ -148,16 +161,16 @@ func (h *Handlers) adminPurgeWordBookAudio(c *gin.Context) {
 		return
 	}
 
-	if !job.tryStart(int(total)) {
-		response.SuccessMsg(c, "任务进行中", job.snapshot())
+	out, err := enqueueWordBookPurgeAudio(bookID, int(total))
+	if err != nil {
+		if out != nil {
+			response.SuccessMsg(c, "任务进行中", out)
+			return
+		}
+		response.Fail(c, err.Error(), nil)
 		return
 	}
-
-	go runWordBookPurgeAudioJob(db, bookID, job)
-
-	out := job.snapshot()
-	out["started"] = true
-	response.SuccessMsg(c, "已在后台开始清除", out)
+	response.SuccessMsg(c, "已加入清除队列", out)
 }
 
 // adminPurgeWordBookAudioStatus GET /wordbooks/:id/words/purge-all-audio
@@ -168,14 +181,33 @@ func (h *Handlers) adminPurgeWordBookAudioStatus(c *gin.Context) {
 		return
 	}
 	job := getWordBookPurgeJob(bookID)
-	response.SuccessMsg(c, "success", job.snapshot())
+	out := job.snapshot()
+	if status, _ := out["status"].(string); status == wordBookPurgeQueued {
+		wordBookPurgeAudioQueueMu.Lock()
+		q := wordBookPurgeAudioQ
+		workers := wordBookPurgeAudioWorkers
+		wordBookPurgeAudioQueueMu.Unlock()
+		out["queueWorkers"] = workers
+		if q != nil {
+			if taskID, _ := out["taskId"].(string); taskID != "" {
+				if pos, err := q.Position(context.Background(), taskID); err == nil && pos >= 0 {
+					out["queuePosition"] = pos
+				}
+			}
+			if stats, err := q.Stats(context.Background()); err == nil {
+				out["queuePending"] = stats.Pending
+				out["queueRunning"] = stats.Running
+			}
+		}
+	}
+	response.SuccessMsg(c, "success", out)
 }
 
 func runWordBookPurgeAudioJob(db *gorm.DB, bookID uint, job *wordBookPurgeAudioJob) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Error("wordbook purge-audio panic", zap.Uint("bookId", bookID), zap.Any("recover", r))
-			job.markFailed("内部错误")
+			job.finish(wordBookPurgeFailed, "内部错误")
 		}
 	}()
 
@@ -184,7 +216,7 @@ func runWordBookPurgeAudioJob(db *gorm.DB, bookID uint, job *wordBookPurgeAudioJ
 		Where("word_book_id = ? AND audio_url IS NOT NULL AND audio_url <> ''", bookID).
 		Find(&words).Error; err != nil {
 		logger.Error("wordbook purge-audio query failed", zap.Uint("bookId", bookID), zap.Error(err))
-		job.markFailed(err.Error())
+		job.finish(wordBookPurgeFailed, err.Error())
 		return
 	}
 
@@ -213,7 +245,13 @@ func runWordBookPurgeAudioJob(db *gorm.DB, bookID uint, job *wordBookPurgeAudioJ
 		job.markProgress(i+1, cleared, objectsAttempted, objectsFailed)
 	}
 
-	job.markDone(cleared, objectsAttempted, objectsFailed)
+	job.mu.Lock()
+	job.Cleared = cleared
+	job.ObjectsAttempted = objectsAttempted
+	job.ObjectsFailed = objectsFailed
+	job.mu.Unlock()
+	job.finish(wordBookPurgeDone, "")
+
 	logger.Info("wordbook purge-audio finished",
 		zap.Uint("bookId", bookID),
 		zap.Int("total", len(words)),

@@ -17,8 +17,11 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+# 该工作流来自分叉仓库的 GitHub Pages 预览，核心仓库 LingByte/CloudSteps 未启用 Pages。
+# 在官方仓库跳过，避免 deploy-pages 404；fork 仍可自行部署。
 jobs:
   build:
+    if: github.repository != 'LingByte/CloudSteps'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +57,7 @@ jobs:
           path: web/dist
 
   deploy:
+    if: github.repository != 'LingByte/CloudSteps'
     needs: build
     runs-on: ubuntu-latest
     environment:

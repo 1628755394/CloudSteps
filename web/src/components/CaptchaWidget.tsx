@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getCaptcha, type CaptchaResponse, type CaptchaFields } from "../api/auth";
 
 interface CaptchaWidgetProps {
@@ -8,31 +8,24 @@ interface CaptchaWidgetProps {
   className?: string;
 }
 
+const SKIPPED_CAPTCHA_TYPES = new Set(["click", "jigsaw", "rotate", "slider"]);
+
 /**
- * CaptchaWidget renders whatever captcha challenge the backend returns.
- * Supported types: image, math, click, jigsaw, rotate.
- * Slider is excluded server-side for mobile H5 convenience.
+ * CaptchaWidget renders login captcha challenges (image + math only).
  */
 export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProps) {
   const [captcha, setCaptcha] = useState<CaptchaResponse | null>(null);
   const [value, setValue] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [jigsawOffset, setJigsawOffset] = useState(0);
-  const [rotateAngle, setRotateAngle] = useState(0);
-  const jigsawDragRef = useRef<HTMLDivElement>(null);
-  const dragStartXRef = useRef(0);
 
   const refresh = useCallback(async () => {
     setError(null);
     setValue(null);
-    setJigsawOffset(0);
-    setRotateAngle(0);
     onChange(null);
     try {
       const res = await getCaptcha();
       if (res.code === 200 && res.data) {
-        // click 类型在移动端 H5 不好操作，自动跳过
-        if (res.data.type === "click") {
+        if (SKIPPED_CAPTCHA_TYPES.has(res.data.type)) {
           refresh();
           return;
         }
@@ -61,7 +54,6 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
     [captcha, onChange],
   );
 
-  // ─── image captcha ───
   const renderImage = () => {
     const img = (captcha?.data?.image as string) || "";
     return (
@@ -85,7 +77,6 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
     );
   };
 
-  // ─── math captcha ───
   const renderMath = () => {
     const q = (captcha?.data?.question as string) || "";
     return (
@@ -100,93 +91,6 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
         />
         <button type="button" onClick={refresh} className="text-xs text-muted-foreground hover:text-foreground">
           换一题
-        </button>
-      </div>
-    );
-  };
-
-  // ─── jigsaw captcha ───
-  const renderJigsaw = () => {
-    const data = captcha?.data;
-    if (!data) return null;
-    const width = (data.width as number) || 300;
-    const height = (data.height as number) || 150;
-    const bg = (data.background as string) || "";
-    const piece = (data.piece as string) || "";
-    const pieceSize = (data.pieceSize as number) || 40;
-
-    const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-      dragStartXRef.current = e.clientX - jigsawOffset;
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    };
-    const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.buttons !== 1) return;
-      const raw = e.clientX - dragStartXRef.current;
-      const clamped = Math.max(0, Math.min(raw, width - pieceSize));
-      setJigsawOffset(clamped);
-    };
-    const onPointerUp = () => {
-      reportValue(jigsawOffset);
-    };
-
-    return (
-      <div className="space-y-2">
-        <div className="relative rounded-xl overflow-hidden border border-input" style={{ width, height }}>
-          {bg ? <img src={bg} alt="jigsaw-bg" className="w-full h-full" /> : <div className="w-full h-full bg-muted" />}
-          <div
-            ref={jigsawDragRef}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            className="absolute top-0 cursor-grab active:cursor-grabbing touch-none"
-            style={{ left: jigsawOffset, width: pieceSize, height }}
-          >
-            {piece ? <img src={piece} alt="jigsaw-piece" className="w-full h-full" draggable={false} /> : null}
-          </div>
-        </div>
-        <div className="text-xs text-muted-foreground">拖动拼图块到缺口位置</div>
-        <button type="button" onClick={refresh} className="text-xs text-muted-foreground hover:text-foreground">
-          换一张
-        </button>
-      </div>
-    );
-  };
-
-  // ─── rotate captcha ───
-  const renderRotate = () => {
-    const data = captcha?.data;
-    if (!data) return null;
-    const img = (data.image as string) || "";
-
-    return (
-      <div className="space-y-2">
-        <div className="flex justify-center">
-          {img ? (
-            <img
-              src={img}
-              alt="rotate-captcha"
-              className="rounded-xl border border-input"
-              style={{ transform: `rotate(${rotateAngle}deg)`, transition: "transform 0.1s" }}
-            />
-          ) : (
-            <div className="w-32 h-32 bg-muted rounded-xl" />
-          )}
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={360}
-          value={rotateAngle}
-          onChange={(e) => {
-            const a = Number(e.target.value);
-            setRotateAngle(a);
-            reportValue(a);
-          }}
-          className="w-full"
-        />
-        <div className="text-xs text-muted-foreground text-center">拖动滑块旋转图片到正确方向 ({rotateAngle}°)</div>
-        <button type="button" onClick={refresh} className="text-xs text-muted-foreground hover:text-foreground">
-          换一张
         </button>
       </div>
     );
@@ -215,8 +119,6 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
     <div className={className}>
       {captcha.type === "image" && renderImage()}
       {captcha.type === "math" && renderMath()}
-      {captcha.type === "jigsaw" && renderJigsaw()}
-      {captcha.type === "rotate" && renderRotate()}
     </div>
   );
 }

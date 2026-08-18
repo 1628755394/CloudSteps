@@ -2,11 +2,19 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import AdminLayout from '@/components/Layout/AdminLayout'
+import Card from '@/components/UI/Card'
+import Button from '@/components/UI/Button'
+import Input from '@/components/UI/Input'
+import Badge from '@/components/UI/Badge'
+import EmptyState from '@/components/UI/EmptyState'
+import Modal, { ModalFooter } from '@/components/UI/Modal'
 import ConfirmDialog from '@/components/UI/ConfirmDialog'
+import Pagination from '@/components/UI/Pagination'
 import { get, post, put, del } from '@/utils/request'
 import { getApiBaseURL } from '@/config/apiConfig'
 import { showAlert } from '@/utils/notification'
-import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight, ArrowLeft, Upload, Download, AlertTriangle, Wand2, VolumeX, Loader2 } from 'lucide-react'
+import { cn } from '@/utils/cn'
+import { Plus, Pencil, Trash2, Search, ArrowLeft, Upload, Download, AlertTriangle, Wand2, VolumeX, Loader2, RefreshCw } from 'lucide-react'
 import LingechoTTS from '@/components/UI/LingechoTTS'
 import VoicePlayer from '@/components/VoicePlayer'
 
@@ -126,6 +134,8 @@ export default function WordBookWords() {
   const [purgeAllProgress, setPurgeAllProgress] = useState<{ processed: number; total: number } | null>(null)
   const [batchRunning, setBatchRunning] = useState(false)
   const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Word | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // 导入预览弹窗
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -186,7 +196,7 @@ export default function WordBookWords() {
           `${getApiBaseURL()}/wordbooks/${id}/words/batch-audio`
         )
         if (cancelled || res.code !== 200) return
-        if (res.data?.status === 'running') {
+        if (res.data?.status === 'running' || res.data?.status === 'queued') {
           setBatchRunning(true)
           setBatchProgress({
             done: res.data.processed ?? 0,
@@ -268,12 +278,25 @@ export default function WordBookWords() {
     finally { setSaving(false) }
   }
 
-  const handleDelete = async (w: Word) => {
-    if (!confirm(`确定删除单词「${w.word}」？`)) return
+  const handleDelete = (w: Word) => {
+    setDeleteTarget(w)
+  }
+
+  const confirmDelete = async () => {
+    const w = deleteTarget
+    if (!w || deleting) return
+    setDeleting(true)
     try {
       await del(`${getApiBaseURL()}/wordbooks/${id}/words/${w.id}`)
-      showAlert('删除成功', 'success'); loadWords(); loadBook()
-    } catch (e: any) { showAlert(e?.message || '删除失败', 'error') }
+      showAlert('删除成功', 'success')
+      setDeleteTarget(null)
+      loadWords()
+      loadBook()
+    } catch (e: any) {
+      showAlert(e?.message || '删除失败', 'error')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const pollPurgeAllAudioStatus = async () => {
@@ -298,7 +321,7 @@ export default function WordBookWords() {
         }
         const data = res.data || {}
         const status = data.status || 'idle'
-        if (status === 'running') {
+        if (status === 'running' || status === 'queued') {
           setPurgingAllAudio(true)
           setPurgeAllProgress({
             processed: data.processed ?? 0,
@@ -411,7 +434,7 @@ export default function WordBookWords() {
         }
         const data = res.data || {}
         const status = data.status || 'idle'
-        if (status === 'running') {
+        if (status === 'running' || status === 'queued') {
           setBatchRunning(true)
           setBatchProgress({
             done: data.processed ?? 0,
@@ -480,14 +503,14 @@ export default function WordBookWords() {
         return
       }
       const data = res.data || {}
-      if (data.status === 'running' && !data.started) {
+      if ((data.status === 'running' || data.status === 'queued') && !data.started) {
         showAlert('已有生成任务进行中', 'info')
       } else if (data.started === false && (data.total ?? 0) === 0) {
         showAlert('所有单词已有音频', 'success')
         setBatchRunning(false)
         return
       } else {
-        showAlert(res.msg || '已在后台开始生成', 'info')
+        showAlert(res.msg || '已加入生成队列', 'info')
       }
       await pollBatchAudioStatus()
     } catch (e: any) {
@@ -587,217 +610,218 @@ export default function WordBookWords() {
 
   return (
     <AdminLayout>
-      <div className="p-6 space-y-5">
-        {/* 面包屑 */}
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/wordbooks')} className="flex items-center gap-1 text-sm text-slate-500 hover:text-blue-600 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> 词库列表
-          </button>
-          <span className="text-slate-300 dark:text-slate-600">/</span>
-          <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
-            {book?.name || '词库详情'}
-            {book && <span className="ml-2 text-xs text-slate-400">共 {book.wordCount} 词</span>}
-          </span>
-        </div>
-
-        {/* 操作栏 */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input value={keyword} onChange={e => { setKeyword(e.target.value); setPage(1) }} placeholder="搜索单词或释义..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={downloadTemplate} className="flex items-center gap-2 px-3 py-2 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-              <Download className="w-4 h-4" /> 下载模板
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} disabled={parsing} className="flex items-center gap-2 px-3 py-2 border border-green-500 text-green-600 dark:text-green-400 rounded-lg text-sm hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50">
-              <Upload className="w-4 h-4" /> {parsing ? '解析中...' : 'Excel 导入'}
-            </button>
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
-            <button
-              onClick={() => setShowPurgeAllConfirm(true)}
-              disabled={loading || purgingAllAudio || dedupingAudio}
-              className="flex items-center gap-2 px-3 py-2 border border-red-300 dark:border-red-600 text-red-600 dark:text-red-300 rounded-lg text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
-            >
-              {purgingAllAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <VolumeX className="w-4 h-4" />}
-              {purgingAllAudio
-                ? (purgeAllProgress
-                  ? `清除中 (${purgeAllProgress.processed}/${purgeAllProgress.total})`
-                  : '清除中...')
-                : '清除全部音频'}
-            </button>
-            <button
-              onClick={handleDeduplicateAudio}
-              disabled={loading || dedupingAudio}
-              className="flex items-center gap-2 px-3 py-2 border border-amber-400 text-amber-700 dark:text-amber-300 rounded-lg text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50"
-            >
-              {dedupingAudio ? '清理中...' : '清理重复音频'}
-            </button>
-            <button
-              onClick={handleBatchAudio}
-              disabled={loading || purgingAllAudio}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50 ${
-                batchRunning
-                  ? 'border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-                  : 'border border-indigo-400 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
-              }`}
-            >
-              {batchRunning && !batchProgress ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Wand2 className="w-4 h-4" />
-              )}
-              {!batchRunning
-                ? '批量生成音频'
-                : batchProgress
-                  ? `停止 (${batchProgress.done}/${batchProgress.total})`
-                  : '启动中...'}
-            </button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">
-              <Plus className="w-4 h-4" /> 添加单词
-            </button>
-          </div>
-        </div>
-
-        {/* 单词表格 */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400 w-8">#</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">单词</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">音标</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400 max-w-xs">释义</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400 w-14">CEFR</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">难度</th>
-                <th className="text-right px-4 py-3 font-medium text-slate-600 dark:text-slate-400">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={7} className="text-center py-12 text-slate-400">加载中...</td></tr>
-              ) : words.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-slate-400">暂无单词</td></tr>
-              ) : words.map((w, i) => (
-                <tr key={w.id} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                  <td className="px-4 py-3 text-slate-400 text-xs">{(page - 1) * pageSize + i + 1}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{w.word}</td>
-                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono text-xs">{w.phonetic || '-'}</td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300 max-w-xs truncate">{w.translation || '-'}</td>
-                  <td className="px-4 py-3 text-slate-500 text-xs font-medium">{w.cefrLevel || '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className="flex gap-0.5">
-                      {[1,2,3,4,5].map(n => <span key={n} className={`w-2 h-2 rounded-full ${n <= w.difficulty ? 'bg-blue-500' : 'bg-slate-200 dark:bg-slate-600'}`} />)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openEdit(w)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => handleDelete(w)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-500 hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>共 {total} 条</span>
-            <div className="flex items-center gap-2">
-              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"><ChevronLeft className="w-4 h-4" /></button>
-              <span>{page} / {totalPages}</span>
-              <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"><ChevronRight className="w-4 h-4" /></button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 导入预览弹窗 */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">导入预览</h2>
-                <p className="text-xs text-slate-500 mt-0.5">共 {importRows.length} 条，{dupCount > 0 && <span className="text-amber-500">{dupCount} 条重复（已默认取消勾选）</span>}，已选 {selectedCount} 条</p>
+      <div className="space-y-6">
+        <Card className="relative z-20">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="min-w-0">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/wordbooks')} leftIcon={<ArrowLeft className="w-4 h-4" />}>
+                  词库列表
+                </Button>
+                <h1 className="text-lg font-semibold text-foreground mt-1 truncate">
+                  {book?.name || '词库详情'}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {loading ? '加载中…' : `共 ${total.toLocaleString()} 词`}
+                  {book?.level ? ` · ${book.level}` : ''}
+                </p>
               </div>
-              <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={downloadTemplate} leftIcon={<Download className="w-4 h-4" />}>
+                  下载模板
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={parsing} loading={parsing} leftIcon={<Upload className="w-4 h-4" />}>
+                  Excel 导入
+                </Button>
+                <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowPurgeAllConfirm(true)}
+                  disabled={loading || purgingAllAudio || dedupingAudio}
+                  leftIcon={purgingAllAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <VolumeX className="w-4 h-4" />}
+                  className="text-destructive border-destructive/30"
+                >
+                  {purgingAllAudio
+                    ? (purgeAllProgress ? `清除中 (${purgeAllProgress.processed}/${purgeAllProgress.total})` : '清除中...')
+                    : '清除全部音频'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleDeduplicateAudio} disabled={loading || dedupingAudio} loading={dedupingAudio}>
+                  清理重复音频
+                </Button>
+                <Button
+                  variant={batchRunning ? 'destructive' : 'outline'}
+                  size="sm"
+                  onClick={handleBatchAudio}
+                  disabled={loading || purgingAllAudio}
+                  leftIcon={batchRunning && !batchProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                >
+                  {!batchRunning
+                    ? '批量生成音频'
+                    : batchProgress && batchProgress.total > 0
+                      ? `停止 (${batchProgress.done}/${batchProgress.total})`
+                      : '排队中...'}
+                </Button>
+                <Button variant="primary" size="sm" onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />}>
+                  添加单词
+                </Button>
+              </div>
             </div>
+            <Input
+              placeholder="搜索单词或释义..."
+              value={keyword}
+              onValueChange={(v) => { setKeyword(v); setPage(1) }}
+              className="w-full sm:w-72"
+              size="sm"
+              leftIcon={<Search className="w-4 h-4" />}
+              clearable
+              onClear={() => { setKeyword(''); setPage(1) }}
+            />
+          </div>
+        </Card>
 
-            {/* 全选/反选 */}
-            <div className="flex items-center gap-4 px-5 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={importRows.every(r => r.selected)} onChange={e => toggleAll(e.target.checked)} className="rounded" />
-                全选
-              </label>
-              <button onClick={() => toggleAll(false)} className="text-slate-500 hover:text-slate-700">全不选</button>
-              <button onClick={() => setImportRows(rows => rows.map(r => ({ ...r, selected: !r.isDuplicate })))} className="text-slate-500 hover:text-slate-700">仅选非重复</button>
-              {dupCount > 0 && (
-                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                  <AlertTriangle className="w-3.5 h-3.5" /> {dupCount} 条已存在于词库中
-                </span>
-              )}
+        <Card padding="none">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">加载单词列表…</p>
             </div>
-
-            {/* 预览表格 */}
-            <div className="overflow-auto flex-1">
+          ) : words.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title={keyword ? '没有匹配的单词' : '暂无单词'}
+              description={keyword ? '试试换个关键词，或清空搜索。' : '添加单词或通过 Excel 导入。'}
+              action={keyword ? undefined : { label: '添加单词', onClick: openCreate }}
+            />
+          ) : (
+            <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                  <tr>
-                    <th className="px-4 py-2 w-10"></th>
-                    <th className="text-left px-4 py-2 font-medium text-slate-600 dark:text-slate-400">单词</th>
-                    <th className="text-left px-4 py-2 font-medium text-slate-600 dark:text-slate-400">音标</th>
-                    <th className="text-left px-4 py-2 font-medium text-slate-600 dark:text-slate-400">释义</th>
-                    <th className="text-left px-4 py-2 font-medium text-slate-600 dark:text-slate-400">例句</th>
-                    <th className="text-left px-4 py-2 font-medium text-slate-600 dark:text-slate-400 w-16">难度</th>
-                    <th className="text-left px-4 py-2 font-medium text-slate-600 dark:text-slate-400 w-16">状态</th>
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground w-12">#</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">单词</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">音标</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">释义</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground w-16">CEFR</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">难度</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {importRows.map((row, i) => (
-                    <tr key={i} onClick={() => toggleRow(i)} className={`border-b border-slate-100 dark:border-slate-700/50 cursor-pointer transition-colors ${row.selected ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/50 dark:bg-slate-900/30 opacity-60'} hover:bg-blue-50/30 dark:hover:bg-blue-900/10`}>
-                      <td className="px-4 py-2 text-center">
-                        <input type="checkbox" checked={row.selected} onChange={() => toggleRow(i)} onClick={e => e.stopPropagation()} className="rounded" />
+                  {words.map((w, i) => (
+                    <tr key={w.id} className="border-b border-border/60 hover:bg-muted/40 transition-colors">
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{(page - 1) * pageSize + i + 1}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{w.word}</td>
+                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{w.phonetic || '-'}</td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-xs truncate">{w.translation || '-'}</td>
+                      <td className="px-4 py-3">
+                        {w.cefrLevel ? <Badge variant="primary" size="xs" shape="pill">{w.cefrLevel}</Badge> : <span className="text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-4 py-2 font-medium text-slate-800 dark:text-slate-100">{row.word}</td>
-                      <td className="px-4 py-2 text-slate-500 font-mono text-xs">{row.phonetic || '-'}</td>
-                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300 max-w-[180px] truncate">{row.translation || '-'}</td>
-                      <td className="px-4 py-2 text-slate-500 max-w-[200px] truncate">{row.exampleSentence || '-'}</td>
-                      <td className="px-4 py-2 text-slate-500">{row.difficulty}</td>
-                      <td className="px-4 py-2">
-                        {row.isDuplicate
-                          ? <span className="px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">重复</span>
-                          : <span className="px-1.5 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">新增</span>
-                        }
+                      <td className="px-4 py-3">
+                        <span className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <span key={n} className={cn('w-2 h-2 rounded-full', n <= w.difficulty ? 'bg-primary' : 'bg-muted')} />
+                          ))}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(w)} aria-label="编辑">
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(w)} className="text-destructive hover:text-destructive" aria-label="删除">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          )}
+        </Card>
 
-            <div className="flex justify-end gap-3 p-5 border-t border-slate-200 dark:border-slate-700">
-              <button onClick={() => setShowImportModal(false)} className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">取消</button>
-              <button onClick={confirmImport} disabled={importing || selectedCount === 0} className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                {importing ? '导入中...' : `确认导入 ${selectedCount} 条`}
-              </button>
-            </div>
-          </div>
+        <Pagination
+          currentPage={page}
+          totalPages={Math.max(1, totalPages)}
+          totalItems={total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          showQuickJumper
+        />
+      </div>
+
+      <Modal
+        isOpen={showImportModal}
+        onClose={() => !importing && setShowImportModal(false)}
+        title="导入预览"
+        size="xl"
+      >
+        <p className="text-xs text-muted-foreground -mt-2 mb-3">
+          共 {importRows.length} 条
+          {dupCount > 0 && <span className="text-amber-600">，{dupCount} 条重复（已默认取消勾选）</span>}
+          ，已选 {selectedCount} 条
+        </p>
+        <div className="flex items-center gap-3 mb-3 text-sm">
+          <Button variant="ghost" size="sm" onClick={() => toggleAll(true)}>全选</Button>
+          <Button variant="ghost" size="sm" onClick={() => toggleAll(false)}>全不选</Button>
+          <Button variant="ghost" size="sm" onClick={() => setImportRows(rows => rows.map(r => ({ ...r, selected: !r.isDuplicate })))}>仅选非重复</Button>
+          {dupCount > 0 && (
+            <span className="inline-flex items-center gap-1 text-amber-600 text-xs">
+              <AlertTriangle className="w-3.5 h-3.5" /> {dupCount} 条已存在于词库中
+            </span>
+          )}
         </div>
-      )}
+        <div className="overflow-auto max-h-[50vh] rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-background border-b border-border">
+              <tr>
+                <th className="px-4 py-2 w-10"></th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">单词</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">音标</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">释义</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">例句</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground w-16">难度</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground w-16">状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              {importRows.map((row, i) => (
+                <tr key={i} onClick={() => toggleRow(i)} className={cn('border-b border-border/60 cursor-pointer', row.selected ? 'bg-background' : 'opacity-60')}>
+                  <td className="px-4 py-2 text-center">
+                    <input type="checkbox" checked={row.selected} onChange={() => toggleRow(i)} onClick={e => e.stopPropagation()} className="rounded" />
+                  </td>
+                  <td className="px-4 py-2 font-medium">{row.word}</td>
+                  <td className="px-4 py-2 text-muted-foreground font-mono text-xs">{row.phonetic || '-'}</td>
+                  <td className="px-4 py-2 text-muted-foreground max-w-[180px] truncate">{row.translation || '-'}</td>
+                  <td className="px-4 py-2 text-muted-foreground max-w-[200px] truncate">{row.exampleSentence || '-'}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{row.difficulty}</td>
+                  <td className="px-4 py-2">
+                    {row.isDuplicate
+                      ? <Badge variant="warning" size="xs">重复</Badge>
+                      : <Badge variant="success" size="xs">新增</Badge>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <ModalFooter className="-mx-6 mt-4 px-6">
+          <Button variant="outline" onClick={() => setShowImportModal(false)} disabled={importing}>取消</Button>
+          <Button variant="primary" onClick={confirmImport} disabled={importing || selectedCount === 0} loading={importing}>
+            {importing ? '导入中...' : `确认导入 ${selectedCount} 条`}
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       {/* 新建/编辑弹窗 */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shrink-0">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{editing ? '编辑单词' : '添加单词'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
+      <Modal
+        isOpen={showModal}
+        onClose={() => !saving && setShowModal(false)}
+        title={editing ? '编辑单词' : '添加单词'}
+        size="xl"
+      >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -999,14 +1023,13 @@ export default function WordBookWords() {
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="flex justify-end gap-3 p-6 border-t border-slate-200 dark:border-slate-700 shrink-0 bg-white dark:bg-slate-800">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">取消</button>
-              <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{saving ? '保存中...' : '保存'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+        <ModalFooter className="-mx-6 mt-4 px-6">
+          <Button variant="outline" onClick={() => setShowModal(false)} disabled={saving}>取消</Button>
+          <Button variant="primary" onClick={handleSave} loading={saving}>
+            {saving ? '保存中...' : '保存'}
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       <ConfirmDialog
         isOpen={showPurgeAllConfirm}
@@ -1020,6 +1043,18 @@ export default function WordBookWords() {
         cancelText="取消"
         variant="danger"
         loading={purgingAllAudio}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => { if (!deleting) setDeleteTarget(null) }}
+        onConfirm={confirmDelete}
+        title="删除单词"
+        message={`确定删除单词「${deleteTarget?.word || ''}」？`}
+        confirmText="删除"
+        cancelText="取消"
+        variant="danger"
+        loading={deleting}
       />
     </AdminLayout>
   )

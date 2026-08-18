@@ -2,16 +2,14 @@
 //
 // 环境变量：
 //
-//	TTS_PROVIDER        可选，默认 qcloud
-//	QCLOUD_APP_ID       腾讯云必填
-//	QCLOUD_SECRET_ID    腾讯云必填
-//	QCLOUD_SECRET       腾讯云必填（也可用 QCLOUD_SECRET_KEY）
-//	QCLOUD_VOICE_TYPE   可选，默认 1005
+//	TTS_PROVIDER          可选，默认 qcloud
+//	QCLOUD_TTS_ACCOUNTS   腾讯云账号 JSON 数组，如
+//	                      [{"appId":"...","secretId":"...","secret":"..."}]
 //
 // 基本用法：
 //
 //	go run ./cmd/tts-gen -text "hello" -o out.mp3
-//	go run ./cmd/tts-gen -batch -out-dir ./audio -voice 1005 < words.txt
+//	go run ./cmd/tts-gen -batch -out-dir ./audio < words.txt
 package main
 
 import (
@@ -31,10 +29,10 @@ import (
 func main() {
 	var (
 		provider   = flag.String("provider", "", "TTS 厂商；为空则读 TTS_PROVIDER，默认 qcloud")
-		appID      = flag.String("app-id", "", "腾讯云 AppId；为空则读 QCLOUD_APP_ID")
-		secretID   = flag.String("secret-id", "", "腾讯云 SecretId；为空则读 QCLOUD_SECRET_ID")
-		secretKey  = flag.String("secret", "", "腾讯云 SecretKey；为空则读 QCLOUD_SECRET")
-		voice      = flag.String("voice", "", "音色（腾讯云为 VoiceType 数字）；为空则读环境默认")
+		appID      = flag.String("app-id", "", "腾讯云 AppId；为空则从 QCLOUD_TTS_ACCOUNTS 轮询")
+		secretID   = flag.String("secret-id", "", "腾讯云 SecretId；为空则从账号配置读取")
+		secretKey  = flag.String("secret", "", "腾讯云 SecretKey；为空则从账号配置读取")
+		voice      = flag.String("voice", "", "音色（腾讯云 VoiceType）；为空则用默认 1005")
 		sampleRate = flag.Int("rate", synthesizer.DefaultSampleRate, "采样率：8000 / 16000（腾讯云）")
 		speed      = flag.Int64("speed", 0, "语速（腾讯云；0 为默认）")
 		text       = flag.String("text", "", "要合成的文本（单条模式）")

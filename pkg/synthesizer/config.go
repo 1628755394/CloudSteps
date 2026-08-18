@@ -1,9 +1,11 @@
 package synthesizer
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/LingByte/ling-base/common"
 	aliyuntts "github.com/LingByte/ling-base/synthesizer/aliyun"
@@ -24,6 +26,18 @@ import (
 	xunfeitts "github.com/LingByte/ling-base/synthesizer/xunfei"
 	pollytypes "github.com/aws/aws-sdk-go-v2/service/polly/types"
 )
+
+// DefaultQCloudVoiceType 腾讯云默认音色（智莉），不从环境变量读取。
+const DefaultQCloudVoiceType int64 = 1005
+
+// QCloudAccount 腾讯云 TTS 账号凭证（来自 QCLOUD_TTS_ACCOUNTS JSON 数组）。
+type QCloudAccount struct {
+	AppID     string `json:"appId"`
+	SecretID  string `json:"secretId"`
+	SecretKey string `json:"secret"`
+}
+
+var qcloudAccountCursor atomic.Uint64
 
 // ConfigFromEnv 按厂商从环境变量拼装 ling-base Config（指针，满足 GetProvider）。
 func ConfigFromEnv(provider Provider) (Config, error) {
@@ -145,22 +159,14 @@ func ConfigFromEnv(provider Provider) (Config, error) {
 }
 
 func qcloudConfigFromEnv() *qcloudtts.QCloudTTSConfig {
-	appID := common.GetEnv("QCLOUD_APP_ID")
-	secretID := common.GetEnv("QCLOUD_SECRET_ID")
-	secretKey := firstNonEmpty(common.GetEnv("QCLOUD_SECRET"), common.GetEnv("QCLOUD_SECRET_KEY"))
-	voiceType := int64(1005)
-	if v := strings.TrimSpace(common.GetEnv("QCLOUD_VOICE_TYPE")); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
-			voiceType = n
-		}
-	}
+	acc := pickQCloudAccount()
 	sample := DefaultSampleRate
 	if v := strings.TrimSpace(common.GetEnv("QCLOUD_TTS_SAMPLE_RATE")); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			sample = n
 		}
 	}
-	cfg := qcloudtts.NewQcloudTTSConfig(appID, secretID, secretKey, voiceType, "pcm", sample)
+	cfg := qcloudtts.NewQcloudTTSConfig(acc.AppID, acc.SecretID, acc.SecretKey, DefaultQCloudVoiceType, "pcm", sample)
 	if v := common.GetEnv("QCLOUD_TTS_LANG"); v != "" {
 		cfg.Language = v
 	}
@@ -172,18 +178,80 @@ func qcloudConfigFromEnv() *qcloudtts.QCloudTTSConfig {
 	return &cfg
 }
 
-// QCloudOverrides 覆盖腾讯云环境默认配置（管理端 / CLI 用）。
+// LoadQCloudAccounts 解析 QCLOUD_TTS_ACCOUNTS JSON 数组。
+// 示例：[{"appId":"123","secretId":"...","secret":"..."}]
+// 字段兼容：appId/app_id、secretId/secret_id、secret/secretKey/secret_key。
+func LoadQCloudAccounts() ([]QCloudAccount, error) {
+	raw := strings.TrimSpace(common.GetEnv("QCLOUD_TTS_ACCOUNTS"))
+	if raw == "" {
+		return nil, nil
+	}
+	var loose []map[string]any
+	if err := json.Unmarshal([]byte(raw), &loose); err != nil {
+		return nil, fmt.Errorf("解析 QCLOUD_TTS_ACCOUNTS 失败: %w", err)
+	}
+	out := make([]QCloudAccount, 0, len(loose))
+	for _, m := range loose {
+		acc := QCloudAccount{
+			AppID:     stringifyJSONField(m, "appId", "app_id", "AppId"),
+			SecretID:  stringifyJSONField(m, "secretId", "secret_id", "SecretId"),
+			SecretKey: stringifyJSONField(m, "secret", "secretKey", "secret_key", "SecretKey"),
+		}
+		if acc.AppID == "" || acc.SecretID == "" || acc.SecretKey == "" {
+			continue
+		}
+		out = append(out, acc)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("QCLOUD_TTS_ACCOUNTS 无有效账号（需要 appId / secretId / secret）")
+	}
+	return out, nil
+}
+
+func pickQCloudAccount() QCloudAccount {
+	accounts, err := LoadQCloudAccounts()
+	if err != nil || len(accounts) == 0 {
+		return QCloudAccount{}
+	}
+	if len(accounts) == 1 {
+		return accounts[0]
+	}
+	idx := qcloudAccountCursor.Add(1) - 1
+	return accounts[int(idx%uint64(len(accounts)))]
+}
+
+func stringifyJSONField(m map[string]any, keys ...string) string {
+	for _, k := range keys {
+		if v, ok := m[k]; ok {
+			switch t := v.(type) {
+			case string:
+				return strings.TrimSpace(t)
+			case float64:
+				// JSON 数字（appId 可能被写成数字）
+				return strconv.FormatInt(int64(t), 10)
+			case json.Number:
+				return strings.TrimSpace(t.String())
+			default:
+				return strings.TrimSpace(fmt.Sprint(t))
+			}
+		}
+	}
+	return ""
+}
+
+// QCloudOverrides 覆盖腾讯云账号选择与合成参数（管理端 / CLI 用）。
+// VoiceType 留空则始终使用 DefaultQCloudVoiceType。
 type QCloudOverrides struct {
 	AppID      string
 	SecretID   string
 	SecretKey  string
-	VoiceType  string // 数字字符串，如 "1005"
+	VoiceType  string // 可选覆盖；空则默认 1005
 	Lang       string
 	SampleRate int
 	Speed      int64
 }
 
-// NewQCloudConfig 基于环境变量生成腾讯云配置，并应用可选覆盖。
+// NewQCloudConfig 从 QCLOUD_TTS_ACCOUNTS 轮询选取账号，并应用可选覆盖。
 func NewQCloudConfig(o QCloudOverrides) (*qcloudtts.QCloudTTSConfig, error) {
 	cfg := qcloudConfigFromEnv()
 	if v := strings.TrimSpace(o.AppID); v != "" {
@@ -197,6 +265,7 @@ func NewQCloudConfig(o QCloudOverrides) (*qcloudtts.QCloudTTSConfig, error) {
 	if v := strings.TrimSpace(o.SecretKey); v != "" {
 		cfg.SecretKey = v
 	}
+	cfg.VoiceType = DefaultQCloudVoiceType
 	if v := strings.TrimSpace(o.VoiceType); v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
 			cfg.VoiceType = n
@@ -212,7 +281,7 @@ func NewQCloudConfig(o QCloudOverrides) (*qcloudtts.QCloudTTSConfig, error) {
 		cfg.Speed = o.Speed
 	}
 	if cfg.AppID == 0 || cfg.SecretID == "" || cfg.SecretKey == "" {
-		return nil, fmt.Errorf("缺少腾讯云 TTS 凭证：请设置 QCLOUD_APP_ID / QCLOUD_SECRET_ID / QCLOUD_SECRET")
+		return nil, fmt.Errorf("缺少腾讯云 TTS 凭证：请设置 QCLOUD_TTS_ACCOUNTS JSON 数组")
 	}
 	switch cfg.SampleRate {
 	case 8000, 16000:

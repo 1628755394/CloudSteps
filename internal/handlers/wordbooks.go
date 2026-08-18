@@ -124,6 +124,7 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 		admin.Use(h.requireAdmin)
 		{
 			admin.GET("/list", h.adminListWordBooks)
+			admin.GET("/batch-audio/jobs", h.adminListWordBookBatchAudioJobs)
 			admin.POST("/:id/recount-count", h.adminRecountWordBookCount)
 			admin.POST("", h.adminCreateWordBook)
 			admin.PUT("/:id", h.adminUpdateWordBook)
@@ -472,8 +473,17 @@ func (h *Handlers) adminListWordBooks(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	keyword := c.Query("keyword")
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 1000 {
+		pageSize = 20
+	}
+	keyword := strings.TrimSpace(c.Query("keyword"))
 	level := c.Query("level")
+	isActiveQuery := c.Query("isActive")
+	group := c.Query("group")
+	sourceName := strings.TrimSpace(c.Query("sourceName"))
 
 	q := db.Model(&models.WordBook{}).Order("sort_order ASC, id DESC")
 	if keyword != "" {
@@ -482,13 +492,48 @@ func (h *Handlers) adminListWordBooks(c *gin.Context) {
 	if level != "" {
 		q = q.Where("level = ?", level)
 	}
+	switch isActiveQuery {
+	case "true":
+		q = q.Where("is_active = ?", true)
+	case "false":
+		q = q.Where("is_active = ?", false)
+	}
+	if group != "" {
+		patterns := models.GroupPatterns(group)
+		if len(patterns) > 0 {
+			orClauses := make([]string, len(patterns))
+			args := make([]interface{}, len(patterns))
+			for i, p := range patterns {
+				orClauses[i] = "name LIKE ?"
+				args[i] = "%" + p + "%"
+			}
+			q = q.Where(strings.Join(orClauses, " OR "), args...)
+		}
+	}
+	if sourceName != "" {
+		q = q.Where("source_name = ?", sourceName)
+	}
 
 	var total int64
 	q.Count(&total)
 	var books []models.WordBook
 	q.Offset((page - 1) * pageSize).Limit(pageSize).Find(&books)
 
-	response.SuccessMsg(c, "success", gin.H{"list": books, "total": total, "page": page, "pageSize": pageSize})
+	var sources []string
+	db.Model(&models.WordBook{}).
+		Where("source_name IS NOT NULL AND source_name != ''").
+		Distinct().
+		Order("source_name ASC").
+		Pluck("source_name", &sources)
+
+	response.SuccessMsg(c, "success", gin.H{
+		"list":     books,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"groups":   models.GroupNames(),
+		"sources":  sources,
+	})
 }
 
 func (h *Handlers) adminRecountWordBookCount(c *gin.Context) {

@@ -146,6 +146,26 @@ func main() {
 	task.StartEmailCleaner(db)
 	task.StartCoachingAutoEnd(db)
 
+	// 15.5 Wordbook batch-audio queue（并发 = QCloud 账号数 × 9）
+	if err := handlers.StartWordBookBatchAudioQueue(db); err != nil {
+		logger.Error("wordbook batch-audio queue start failed", zap.Error(err))
+		return
+	}
+	app.AddShutdownHook("wordbook-batch-audio-queue", func(ctx context.Context) error {
+		logger.Info("stopping wordbook batch-audio queue...")
+		return handlers.StopWordBookBatchAudioQueue()
+	})
+
+	// 15.6 Wordbook purge-audio queue（默认 16 并发，与 TTS 独立）
+	if err := handlers.StartWordBookPurgeAudioQueue(db); err != nil {
+		logger.Error("wordbook purge-audio queue start failed", zap.Error(err))
+		return
+	}
+	app.AddShutdownHook("wordbook-purge-audio-queue", func(ctx context.Context) error {
+		logger.Info("stopping wordbook purge-audio queue...")
+		return handlers.StopWordBookPurgeAudioQueue()
+	})
+
 	// 15. Initialize Gin Routing
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()        // Use gin.New() instead of gin.Default() to avoid automatic redirects
