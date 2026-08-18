@@ -98,6 +98,12 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
     canvasRef.current?.renderAll();
     persist();
   };
+  const toggleActive = (property: string, activeValue: unknown, normalValue: unknown) => {
+    const object = active();
+    if (!object) return;
+    const current = object.get(property);
+    updateActive({ [property]: current === activeValue ? normalValue : activeValue });
+  };
   const addText = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -129,9 +135,9 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
             <button type="button" className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10" onClick={() => setToolbarVisible((v) => !v)} title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"} aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}><PanelLeft size={17} /></button>
           </div>
           {toolbarVisible && <div className="mx-1 mt-1 flex shrink-0 flex-wrap items-center gap-0.5 rounded-md bg-transparent px-0 py-0.5 text-white sm:mx-2 sm:mt-2 sm:gap-1 sm:py-1">
-            <button className={button()} onClick={() => updateActive({ fontWeight: "bold" })} title="粗体"><Bold size={16} /></button>
-            <button className={button()} onClick={() => updateActive({ fontStyle: "italic" })} title="斜体"><Italic size={16} /></button>
-            <button className={button()} onClick={() => updateActive({ underline: true })} title="下划线"><Underline size={16} /></button>
+            <button className={button(active()?.get("fontWeight") === "bold")} onClick={() => toggleActive("fontWeight", "bold", "normal")} title="粗体"><Bold size={16} /></button>
+            <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
+            <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
             <div className="mx-1 h-5 w-px bg-white/20" />
             <div className="flex items-center gap-1"><Type size={15} /><select value={fontSize} onChange={(e) => { const value = Number(e.target.value); setFontSize(value); updateActive({ fontSize: value }); }} className="h-7 rounded-md bg-white/10 px-1 text-xs text-white"><option className="text-black" value={20}>字号 20</option><option className="text-black" value={28}>字号 28</option><option className="text-black" value={36}>字号 36</option><option className="text-black" value={48}>字号 48</option></select></div>
             <label className={button()} title="文字颜色"><Palette size={16} /><input className="sr-only" type="color" value={color} onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }} /></label>
