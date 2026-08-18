@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Check, ChevronLeft, ChevronRight, LayoutGrid, List, NotebookPen, Volume2, X } from "lucide-react";
+import { BookOpen, Check, ChevronLeft, ChevronRight, LayoutGrid, List, Volume2, X } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import { WordDetailPanel } from "./WordDetailPanel";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
@@ -118,7 +118,6 @@ type CardProps = {
   onPlay: (word: MarkableWord) => void;
   onWordClick: (word: MarkableWord) => void;
   onStatus: (id: number, status: "correct" | "wrong") => void;
-  onNote?: (word: MarkableWord) => void;
   /** 外部控制：展开该词的拓展面板（页内，非模态） */
   detailWordId?: number | null;
   onDetailClose?: () => void;
@@ -140,7 +139,6 @@ export function WordCardPanel({
   onPlay,
   onWordClick,
   onStatus,
-  onNote,
   detailWordId,
   onDetailClose,
   simpleMode = true,
@@ -229,7 +227,6 @@ export function WordCardPanel({
         <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => onPlay(word)}>
           <Volume2 size={20} className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"} />
         </CloudButton>
-        {onNote && <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => onNote(word)} aria-label="单词笔记" title="单词笔记"><NotebookPen size={18} className="text-[#c45c78]" /></CloudButton>}
         <CloudButton
           type="button"
           variant="ghost"
