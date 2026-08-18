@@ -397,8 +397,8 @@ export default function ReviewWordList() {
       </div>
 
       <div className="fixed bottom-[4.8rem] right-4 z-30 flex gap-2"><CloudButton type="button" variant="outline" size="pill" onClick={() => setWords((prev) => prev.map((w, i) => i === cardIndex ? { ...w, status: "wrong" } : w))}>强化当前</CloudButton><CloudButton type="button" variant="brand" size="pill" onClick={() => setCardIndex((i) => Math.min(i + 1, Math.max(0, words.length - 1)))}>下一组</CloudButton></div>
-      <StudyNotePanel open={!!noteWord} onClose={() => setNoteWord(null)} storageKey={noteWord ? `study-note:word:${noteWord.id}` : "study-note:word"} title={noteWord ? `${noteWord.word} · 笔记` : "单词笔记"} />
-      <StudyNotePanel open={globalNoteOpen} onClose={() => setGlobalNoteOpen(false)} storageKey={`study-note:global:${wordBookId}`} title="黑板 · 全局笔记" />
+      <StudyNotePanel open={!!noteWord} onClose={() => setNoteWord(null)} storageKey={noteWord ? `study-note:word:${noteWord.id}` : "study-note:word"} title={noteWord ? `${noteWord.word}` : "单词笔记"} subtitle={noteWord ? `${noteWord.translation || ""}` : undefined} />
+      <StudyNotePanel open={globalNoteOpen} onClose={() => setGlobalNoteOpen(false)} storageKey={`study-note:global:${wordBookId}`} title="黑板" />
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
         <div className="max-w-2xl mx-auto w-full space-y-2.5">
           <div className="flex items-center gap-2 flex-wrap">
