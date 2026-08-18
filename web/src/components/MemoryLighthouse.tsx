@@ -18,7 +18,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as echarts from "echarts";
 import { Brain } from "lucide-react";
-import { triggerPageRipple } from "../stores/pageTransitionStore";
 
 export interface LighthouseBox {
   count: number;
@@ -198,8 +197,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
     ro.observe(chartRef.current);
     window.addEventListener("resize", handleResize);
 
-    // 点击扇区 → 该扇区颜色的圆点从点击位置放大铺满全屏、淡出后再触发 onBlockClick 跳转，
-    // 整个过渡动画控制在 0.5 秒内（放大 0.3s + 淡出 0.2s）
+    // 点击扇区后直接触发对应的词条跳转
     const onChartClick = (params: any) => {
       if (params.componentType !== "series") return;
       const idx = params.dataIndex as number;
@@ -215,11 +213,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
           onBlockClick?.(BOX_TYPES[stage.boxIndex!], count, stage.name);
         }
       };
-      const nativeEvt = params.event?.event as MouseEvent | undefined;
-      const rect = chartRef.current!.getBoundingClientRect();
-      const clientX = nativeEvt?.clientX ?? rect.left + (params.event?.offsetX ?? rect.width / 2);
-      const clientY = nativeEvt?.clientY ?? rect.top + (params.event?.offsetY ?? rect.height / 2);
-      triggerPageRipple(clientX, clientY, stage.color, fireBlockClick);
+      fireBlockClick();
     };
     chart.on("click", onChartClick);
 
