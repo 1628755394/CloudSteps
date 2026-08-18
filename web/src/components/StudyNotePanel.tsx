@@ -21,7 +21,7 @@ import { CloudButton } from "./cloudsteps";
 
 type NoteData = { json?: string; text: string; color: string; background: string };
 type Props = { open: boolean; onClose: () => void; storageKey: string; title?: string; subtitle?: string; side?: "left" | "right" };
-const emptyNote: NoteData = { text: "", color: "#ffffff", background: "#175b37" };
+const emptyNote: NoteData = { text: "", color: "#25344a", background: "#fff8e8" };
 
 function loadNote(key: string): NoteData {
   try { return { ...emptyNote, ...JSON.parse(localStorage.getItem(key) || "{}") }; } catch { return emptyNote; }
@@ -36,8 +36,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
   const [width, setWidth] = useState(640);
   const [height, setHeight] = useState(600);
   const [fontSize, setFontSize] = useState(28);
-  const [color, setColor] = useState("#ffffff");
-  const [fill, setFill] = useState("#175b37");
+  const [color, setColor] = useState("#25344a");
+  const [fill, setFill] = useState("#fff8e8");
   const [drawing, setDrawing] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(true);
 
@@ -123,23 +123,26 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
     link.href = canvas.toDataURL({ format: "png", multiplier: 2 });
     link.click();
   };
-  const button = (activeState = false) => `flex h-8 w-8 items-center justify-center rounded-lg ${activeState ? "bg-white/20 text-white" : "text-white/75 hover:bg-white/10 hover:text-white"}`;
+  const button = (activeState = false) => `flex h-8 w-8 items-center justify-center rounded-lg ${activeState ? "bg-[#d8cdb8] text-[#25344a]" : "text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a]"}`;
 
   if (!open) return null;
   return (
     <aside className="fixed z-50 max-w-[calc(100vw-16px)] max-h-[calc(100dvh-32px)]" style={{ top: "max(8px, env(safe-area-inset-top))", bottom: "max(8px, env(safe-area-inset-bottom))", [sidePos]: 8, width: `min(${width}px, calc(100vw - 16px))`, height: `min(${height}px, calc(100dvh - 32px))`, minWidth: "min(280px, calc(100vw - 16px))", minHeight: "min(360px, calc(100dvh - 32px))" }}>
-      <div className="relative h-full w-full rounded-2xl bg-[#8c582b] p-2 shadow-2xl sm:p-3">
-        <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border-4 border-[#70431f] bg-[#175b37]">
-          <div className="flex h-10 shrink-0 items-center gap-1.5 border-b-2 border-[#f1c40f] bg-[#176b42] px-2 text-white sm:h-11 sm:gap-2 sm:px-3">
-            <span className="truncate text-lg font-bold sm:text-xl">{title}</span><span className="hidden truncate text-xs text-white/65 sm:inline">黑板笔记</span>
-            <button type="button" className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-white/80 hover:bg-white/10" onClick={() => setToolbarVisible((v) => !v)} title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"} aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}><PanelLeft size={17} /></button>
+      <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#1f2937] bg-[#dff4fb] p-0 shadow-[0_10px_24px_rgba(38,91,115,0.18)]" style={{ backgroundImage: "repeating-linear-gradient(0deg, rgba(116,190,213,.18) 0 2px, transparent 2px 26px), repeating-linear-gradient(90deg, rgba(116,190,213,.12) 0 2px, transparent 2px 26px)" }}>
+        <div className="pointer-events-none absolute -left-5 top-8 bottom-8 z-20 flex flex-col justify-between py-2">
+          {Array.from({ length: 8 }).map((_, index) => <span key={index} className="relative block h-7 w-11 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[5px_0_0_#5c9bd7]" />)}
+        </div>
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[28px] border-2 border-[#1f2937] bg-[#fff8e8]">
+          <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] bg-[#fff8e8] px-4 text-[#25344a] sm:h-11 sm:gap-2 sm:px-5">
+            <span className="truncate text-lg font-bold sm:text-xl">{title}</span><span className="hidden truncate text-xs text-[#9b927f] sm:inline">黑板笔记</span>
+            <button type="button" className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]" onClick={() => setToolbarVisible((v) => !v)} title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"} aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}><PanelLeft size={17} /></button>
           </div>
-          {toolbarVisible && <div className="mx-1 mt-1 flex shrink-0 flex-wrap items-center gap-0.5 rounded-md bg-transparent px-0 py-0.5 text-white sm:mx-2 sm:mt-2 sm:gap-1 sm:py-1">
+          {toolbarVisible && <div className="mx-1 mt-1 flex shrink-0 flex-wrap items-center gap-0.5 rounded-md bg-transparent px-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-2 sm:gap-1 sm:py-1">
             <button className={button(active()?.get("fontWeight") === "bold")} onClick={() => toggleActive("fontWeight", "bold", "normal")} title="粗体"><Bold size={16} /></button>
             <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
             <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
             <div className="mx-1 h-5 w-px bg-white/20" />
-            <div className="flex items-center gap-1"><Type size={15} /><select value={fontSize} onChange={(e) => { const value = Number(e.target.value); setFontSize(value); updateActive({ fontSize: value }); }} className="h-7 rounded-md bg-white/10 px-1 text-xs text-white"><option className="text-black" value={20}>字号 20</option><option className="text-black" value={28}>字号 28</option><option className="text-black" value={36}>字号 36</option><option className="text-black" value={48}>字号 48</option></select></div>
+            <div className="flex items-center gap-1"><Type size={15} /><select value={fontSize} onChange={(e) => { const value = Number(e.target.value); setFontSize(value); updateActive({ fontSize: value }); }} className="h-7 rounded-md bg-[#eee5d5] px-1 text-xs text-[#25344a]"><option className="text-black" value={20}>字号 20</option><option className="text-black" value={28}>字号 28</option><option className="text-black" value={36}>字号 36</option><option className="text-black" value={48}>字号 48</option></select></div>
             <label className={button()} title="文字颜色"><Palette size={16} /><input className="sr-only" type="color" value={color} onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }} /></label>
             <label className={button()} title="画布填充"><PaintBucket size={16} /><input className="sr-only" type="color" value={fill} onChange={(e) => setBackground(e.target.value)} /></label>
             <button className={button(drawing)} onClick={() => setDrawing((v) => !v)} title="画板"><Pencil size={16} /></button>
