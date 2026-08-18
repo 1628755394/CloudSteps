@@ -6,43 +6,45 @@ require (
 	github.com/LingByte/ling-base v0.2.0
 	github.com/LingByte/ling-base/bootstrap v0.1.1
 	github.com/LingByte/ling-base/cache v0.1.0
-	github.com/LingByte/ling-base/captcha v0.2.0
+	github.com/LingByte/ling-base/captcha v0.2.2
 	github.com/LingByte/ling-base/common v0.3.0
 	github.com/LingByte/ling-base/common/config v0.1.1
 	github.com/LingByte/ling-base/common/random v0.1.0
 	github.com/LingByte/ling-base/common/response/gin v0.1.0
 	github.com/LingByte/ling-base/notification/email v0.1.0
 	github.com/LingByte/ling-base/notification/inbox v0.1.0
-	github.com/LingByte/ling-base/realtime v0.0.0
-	github.com/LingByte/ling-base/realtime/aliyunomni v0.0.0
-	github.com/LingByte/ling-base/realtime/volcdialogue v0.0.0
-	github.com/LingByte/ling-base/stores v0.1.0
+	github.com/LingByte/ling-base/queue v0.1.0
+	github.com/LingByte/ling-base/queue/memory v0.1.0
+	github.com/LingByte/ling-base/realtime v0.1.0
+	github.com/LingByte/ling-base/realtime/aliyunomni v0.1.0
+	github.com/LingByte/ling-base/realtime/volcdialogue v0.1.0
+	github.com/LingByte/ling-base/stores v0.1.1
 	github.com/LingByte/ling-base/stores/cos v0.1.0
-	github.com/LingByte/ling-base/stores/kodo v0.1.0
+	github.com/LingByte/ling-base/stores/kodo v0.1.1
 	github.com/LingByte/ling-base/stores/ks3 v0.1.0
-	github.com/LingByte/ling-base/stores/local v0.1.0
+	github.com/LingByte/ling-base/stores/local v0.1.1
 	github.com/LingByte/ling-base/stores/minio v0.1.0
 	github.com/LingByte/ling-base/stores/obs v0.1.0
 	github.com/LingByte/ling-base/stores/oss v0.1.0
 	github.com/LingByte/ling-base/stores/s3 v0.1.0
 	github.com/LingByte/ling-base/stores/tos v0.1.0
-	github.com/LingByte/ling-base/synthesizer v0.0.0
-	github.com/LingByte/ling-base/synthesizer/aliyun v0.0.0
-	github.com/LingByte/ling-base/synthesizer/aws v0.0.0
-	github.com/LingByte/ling-base/synthesizer/azure v0.0.0
-	github.com/LingByte/ling-base/synthesizer/baidu v0.0.0
-	github.com/LingByte/ling-base/synthesizer/coqui v0.0.0
-	github.com/LingByte/ling-base/synthesizer/elevenlabs v0.0.0
-	github.com/LingByte/ling-base/synthesizer/fishaudio v0.0.0
-	github.com/LingByte/ling-base/synthesizer/fishspeech v0.0.0
-	github.com/LingByte/ling-base/synthesizer/google v0.0.0
-	github.com/LingByte/ling-base/synthesizer/local v0.0.0
-	github.com/LingByte/ling-base/synthesizer/minimax v0.0.0
-	github.com/LingByte/ling-base/synthesizer/openai v0.0.0
-	github.com/LingByte/ling-base/synthesizer/qcloud v0.0.0
-	github.com/LingByte/ling-base/synthesizer/qiniu v0.0.0
-	github.com/LingByte/ling-base/synthesizer/volcengine v0.0.0
-	github.com/LingByte/ling-base/synthesizer/xunfei v0.0.0
+	github.com/LingByte/ling-base/synthesizer v0.1.0
+	github.com/LingByte/ling-base/synthesizer/aliyun v0.1.0
+	github.com/LingByte/ling-base/synthesizer/aws v0.1.0
+	github.com/LingByte/ling-base/synthesizer/azure v0.1.0
+	github.com/LingByte/ling-base/synthesizer/baidu v0.1.0
+	github.com/LingByte/ling-base/synthesizer/coqui v0.1.0
+	github.com/LingByte/ling-base/synthesizer/elevenlabs v0.1.0
+	github.com/LingByte/ling-base/synthesizer/fishaudio v0.1.0
+	github.com/LingByte/ling-base/synthesizer/fishspeech v0.1.0
+	github.com/LingByte/ling-base/synthesizer/google v0.1.0
+	github.com/LingByte/ling-base/synthesizer/local v0.1.0
+	github.com/LingByte/ling-base/synthesizer/minimax v0.1.0
+	github.com/LingByte/ling-base/synthesizer/openai v0.1.0
+	github.com/LingByte/ling-base/synthesizer/qcloud v0.1.0
+	github.com/LingByte/ling-base/synthesizer/qiniu v0.1.0
+	github.com/LingByte/ling-base/synthesizer/volcengine v0.1.0
+	github.com/LingByte/ling-base/synthesizer/xunfei v0.1.0
 	github.com/LingByte/lingllm v1.2.0
 	github.com/aws/aws-sdk-go-v2/service/polly v1.58.2
 	github.com/coze-dev/coze-go v0.0.0-20260303032728-01875f396c48
@@ -74,6 +76,7 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/LingByte/ling-base/common/idgen v0.1.0 // indirect
+	github.com/LingByte/ling-base/common/pool v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/response v0.1.0 // indirect
 	github.com/LingByte/ling-base/constants v0.1.0 // indirect
 	github.com/LingByte/ling-base/eventbus v0.1.0 // indirect
@@ -225,27 +228,4 @@ require (
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect
 	modernc.org/sqlite v1.23.1 // indirect
-)
-
-replace (
-	github.com/LingByte/ling-base/realtime => /Users/cetide/Desktop/ling-base/realtime
-	github.com/LingByte/ling-base/realtime/aliyunomni => /Users/cetide/Desktop/ling-base/realtime/aliyunomni
-	github.com/LingByte/ling-base/realtime/volcdialogue => /Users/cetide/Desktop/ling-base/realtime/volcdialogue
-	github.com/LingByte/ling-base/synthesizer => /Users/cetide/Desktop/ling-base/synthesizer
-	github.com/LingByte/ling-base/synthesizer/aliyun => /Users/cetide/Desktop/ling-base/synthesizer/aliyun
-	github.com/LingByte/ling-base/synthesizer/aws => /Users/cetide/Desktop/ling-base/synthesizer/aws
-	github.com/LingByte/ling-base/synthesizer/azure => /Users/cetide/Desktop/ling-base/synthesizer/azure
-	github.com/LingByte/ling-base/synthesizer/baidu => /Users/cetide/Desktop/ling-base/synthesizer/baidu
-	github.com/LingByte/ling-base/synthesizer/coqui => /Users/cetide/Desktop/ling-base/synthesizer/coqui
-	github.com/LingByte/ling-base/synthesizer/elevenlabs => /Users/cetide/Desktop/ling-base/synthesizer/elevenlabs
-	github.com/LingByte/ling-base/synthesizer/fishaudio => /Users/cetide/Desktop/ling-base/synthesizer/fishaudio
-	github.com/LingByte/ling-base/synthesizer/fishspeech => /Users/cetide/Desktop/ling-base/synthesizer/fishspeech
-	github.com/LingByte/ling-base/synthesizer/google => /Users/cetide/Desktop/ling-base/synthesizer/google
-	github.com/LingByte/ling-base/synthesizer/local => /Users/cetide/Desktop/ling-base/synthesizer/local
-	github.com/LingByte/ling-base/synthesizer/minimax => /Users/cetide/Desktop/ling-base/synthesizer/minimax
-	github.com/LingByte/ling-base/synthesizer/openai => /Users/cetide/Desktop/ling-base/synthesizer/openai
-	github.com/LingByte/ling-base/synthesizer/qcloud => /Users/cetide/Desktop/ling-base/synthesizer/qcloud
-	github.com/LingByte/ling-base/synthesizer/qiniu => /Users/cetide/Desktop/ling-base/synthesizer/qiniu
-	github.com/LingByte/ling-base/synthesizer/volcengine => /Users/cetide/Desktop/ling-base/synthesizer/volcengine
-	github.com/LingByte/ling-base/synthesizer/xunfei => /Users/cetide/Desktop/ling-base/synthesizer/xunfei
 )
