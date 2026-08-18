@@ -33,6 +33,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
   const canvasRef = useRef<Canvas | null>(null);
   const [note, setNote] = useState<NoteData>(() => loadNote(storageKey));
   const [sidePos, setSidePos] = useState(side);
+  const [inset, setInset] = useState(8);
   const [width, setWidth] = useState(640);
   const [height, setHeight] = useState(600);
   const [fontSize, setFontSize] = useState(28);
@@ -53,7 +54,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
 
   useEffect(() => {
     if (!open || !canvasElement.current) return;
-    const saved = loadNote(storageKey);
+    const stored = loadNote(storageKey);
+    const saved = stored.background === "#175b37" ? { ...stored, background: "#fff8e8" } : stored;
     setNote(saved);
     setColor(saved.color);
     setFill(saved.background);
@@ -124,11 +126,35 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
     link.click();
   };
   const button = (activeState = false) => `flex h-8 w-8 items-center justify-center rounded-lg ${activeState ? "bg-[#d8cdb8] text-[#25344a]" : "text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a]"}`;
+  const startEdgeResize = (edge: "left" | "right" | "bottom", event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startWidth = width;
+    const startHeight = height;
+    const startInset = inset;
+    const move = (next: PointerEvent) => {
+      if (edge === "bottom") {
+        setHeight(Math.max(360, Math.min(900, startHeight + next.clientY - startY)));
+        return;
+      }
+      const delta = next.clientX - startX;
+      if (edge === "left") {
+        setWidth(Math.max(280, Math.min(1000, startWidth + (sidePos === "right" ? -delta : delta))));
+      } else {
+        setWidth(Math.max(280, Math.min(1000, startWidth + (sidePos === "right" ? delta : -delta))));
+        setInset(Math.max(8, startInset - (sidePos === "right" ? delta : -delta)));
+      }
+    };
+    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop);
+  };
 
   if (!open) return null;
   return (
-    <aside className="fixed z-50 max-w-[calc(100vw-16px)] max-h-[calc(100dvh-32px)]" style={{ top: "max(8px, env(safe-area-inset-top))", bottom: "max(8px, env(safe-area-inset-bottom))", [sidePos]: 8, width: `min(${width}px, calc(100vw - 16px))`, height: `min(${height}px, calc(100dvh - 32px))`, minWidth: "min(280px, calc(100vw - 16px))", minHeight: "min(360px, calc(100dvh - 32px))" }}>
-      <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#1f2937] bg-[#dff4fb] p-0 shadow-[0_10px_24px_rgba(38,91,115,0.18)]" style={{ backgroundImage: "repeating-linear-gradient(0deg, rgba(116,190,213,.18) 0 2px, transparent 2px 26px), repeating-linear-gradient(90deg, rgba(116,190,213,.12) 0 2px, transparent 2px 26px)" }}>
+    <aside className="fixed z-50 max-w-[calc(100vw-16px)] max-h-[calc(100dvh-32px)]" style={{ top: "max(8px, env(safe-area-inset-top))", bottom: "max(8px, env(safe-area-inset-bottom))", [sidePos]: inset, width: `min(${width}px, calc(100vw - 16px))`, height: `min(${height}px, calc(100dvh - 32px))`, minWidth: "min(280px, calc(100vw - 16px))", minHeight: "min(360px, calc(100dvh - 32px))" }}>
+      <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#1f2937] bg-[#fff8e8] p-0 shadow-[0_10px_24px_rgba(38,91,115,0.18)]">
         <div className="pointer-events-none absolute -left-5 top-8 bottom-8 z-20 flex flex-col justify-between py-2">
           {Array.from({ length: 8 }).map((_, index) => <span key={index} className="relative block h-7 w-11 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[5px_0_0_#5c9bd7]" />)}
         </div>
@@ -141,7 +167,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
             <button className={button(active()?.get("fontWeight") === "bold")} onClick={() => toggleActive("fontWeight", "bold", "normal")} title="粗体"><Bold size={16} /></button>
             <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
             <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
-            <div className="mx-1 h-5 w-px bg-white/20" />
+            <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
             <div className="flex items-center gap-1"><Type size={15} /><select value={fontSize} onChange={(e) => { const value = Number(e.target.value); setFontSize(value); updateActive({ fontSize: value }); }} className="h-7 rounded-md bg-[#eee5d5] px-1 text-xs text-[#25344a]"><option className="text-black" value={20}>字号 20</option><option className="text-black" value={28}>字号 28</option><option className="text-black" value={36}>字号 36</option><option className="text-black" value={48}>字号 48</option></select></div>
             <label className={button()} title="文字颜色"><Palette size={16} /><input className="sr-only" type="color" value={color} onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }} /></label>
             <label className={button()} title="画布填充"><PaintBucket size={16} /><input className="sr-only" type="color" value={fill} onChange={(e) => setBackground(e.target.value)} /></label>
@@ -150,11 +176,13 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
             <button className={button()} onClick={() => updateActive({ textAlign: "left" })} title="左对齐"><AlignLeft size={16} /></button>
             <button className={button()} onClick={() => updateActive({ textAlign: "center" })} title="居中"><AlignCenter size={16} /></button>
             <button className={button()} onClick={() => updateActive({ textAlign: "right" })} title="右对齐"><AlignRight size={16} /></button>
-            <div className="ml-0 flex flex-wrap items-center gap-0.5 sm:ml-auto sm:gap-1"><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600" onClick={() => setSidePos((s) => s === "right" ? "left" : "right")} title="切换左右"><PanelLeft size={16} /></button><button className={button()} onClick={download} title="下载"><Download size={16} /></button><button className={button()} onClick={() => setToolbarVisible(false)} title="隐藏工具栏"><Moon size={16} /></button><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500" onClick={clearCanvas} title="清空"><Eraser size={16} /></button><CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-white" aria-label="关闭"><X size={16} /></CloudButton></div>
+            <div className="ml-0 flex flex-wrap items-center gap-0.5 sm:ml-auto sm:gap-1"><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-600" onClick={() => setSidePos((s) => s === "right" ? "left" : "right")} title="切换左右"><PanelLeft size={16} /></button><button className={button()} onClick={download} title="下载"><Download size={16} /></button><button className={button()} onClick={() => setToolbarVisible(false)} title="隐藏工具栏"><Moon size={16} /></button><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500" onClick={clearCanvas} title="清空"><Eraser size={16} /></button><CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton></div>
           </div>}
           <div className="relative min-h-0 flex-1 p-1 sm:p-2"><canvas ref={canvasElement} className="h-full w-full" /><div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div></div>
         </div>
-        <div className={`${sidePos === "right" ? "-left-1" : "-right-1"} absolute top-1/2 h-20 w-3 touch-none -translate-y-1/2 cursor-ew-resize rounded-full bg-[#f0a060] shadow-[0_0_0_2px_rgba(255,255,255,0.18)]`} title="拖拽调节区域大小" onPointerDown={(e) => { e.currentTarget.setPointerCapture?.(e.pointerId); const start = e.clientX; const initial = width; const move = (event: PointerEvent) => setWidth(Math.max(280, Math.min(1000, initial + (sidePos === "right" ? start - event.clientX : event.clientX - start)))); const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); }; window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); }} />
+        <div className="absolute -left-1 top-0 bottom-0 z-40 w-2 touch-none cursor-ew-resize" onPointerDown={(e) => startEdgeResize("left", e)} aria-label="拖动左边缘调整宽度" />
+        <div className="absolute -right-1 top-0 bottom-0 z-40 w-2 touch-none cursor-ew-resize" onPointerDown={(e) => startEdgeResize("right", e)} aria-label="拖动右边缘调整宽度" />
+        <div className="absolute bottom-0 left-0 right-0 z-40 h-2 touch-none cursor-ns-resize" onPointerDown={(e) => startEdgeResize("bottom", e)} aria-label="拖动底边调整高度" />
       </div>
     </aside>
   );
