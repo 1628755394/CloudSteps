@@ -15,14 +15,14 @@ echo "==> 安装 web 前端依赖 (pnpm)"
 (cd web && pnpm install)
 
 echo "==> 安装 admin 后台依赖 (pnpm)"
-(cd admin && pnpm install)
+(cd admin-v1 && pnpm install)
 
 cat <<'EOF'
 
 环境准备完成！常用命令：
   go run ./cmd/server        # 启动后端 (http://localhost:7080)
   cd web && pnpm dev         # 启动 web 前端 (http://localhost:3000)
-  cd admin && pnpm dev       # 启动 admin 后台 (http://localhost:5174)
+  cd admin-v1 && pnpm dev    # 启动 admin 后台 (http://localhost:5175)
   make test                  # 运行全部测试
 
 默认使用 sqlite（DB_DRIVER=sqlite，DSN=./ling.db），无需额外配置数据库即可跑通。

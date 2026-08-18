@@ -33,7 +33,7 @@ PLATFORMS := \
 
 # 前端目录
 WEB_DIR   := web
-ADMIN_DIR := admin
+ADMIN_DIR := admin-v1
 
 # 颜色
 COLOR_RESET := \033[0m
@@ -67,9 +67,9 @@ web: ## 构建前端 (web)
 	cd $(WEB_DIR) && npm run build
 	@echo "$(COLOR_GREEN)==> web 构建完成: $(WEB_DIR)/dist/$(COLOR_RESET)"
 
-admin: ## 构建管理后台 (admin)
+admin: ## 构建管理后台 (admin-v1)
 	@echo "$(COLOR_CYAN)==> 构建 admin 前端$(COLOR_RESET)"
-	cd $(ADMIN_DIR) && npm run build
+	cd $(ADMIN_DIR) && pnpm run build
 	@echo "$(COLOR_GREEN)==> admin 构建完成: $(ADMIN_DIR)/dist/$(COLOR_RESET)"
 
 frontend: web admin ## 构建所有前端 (web + admin)
@@ -180,7 +180,7 @@ dev-web: ## 启动 web 开发服务器
 	cd $(WEB_DIR) && npm run dev
 
 dev-admin: ## 启动 admin 开发服务器
-	cd $(ADMIN_DIR) && npm run dev
+	cd $(ADMIN_DIR) && pnpm run dev
 
 dev-server: ## 启动后端开发服务器
 	go run ./cmd/server
@@ -199,7 +199,7 @@ test-web: ## 运行 web 前端测试
 	cd $(WEB_DIR) && npm run test -- --passWithNoTests 2>/dev/null || echo "web: 无测试脚本"
 
 test-admin: ## 运行 admin 前端测试
-	cd $(ADMIN_DIR) && npm run test -- --passWithNoTests 2>/dev/null || echo "admin: 无测试脚本"
+	cd $(ADMIN_DIR) && pnpm run test -- --passWithNoTests 2>/dev/null || echo "admin: 无测试脚本"
 
 # ============================================================
 # 依赖安装
@@ -215,7 +215,7 @@ deps-web: ## 安装 web 前端依赖
 	cd $(WEB_DIR) && npm install
 
 deps-admin: ## 安装 admin 前端依赖
-	cd $(ADMIN_DIR) && npm install
+	cd $(ADMIN_DIR) && pnpm install
 
 # ============================================================
 # Docker (可选)

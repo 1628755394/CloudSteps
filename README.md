@@ -40,7 +40,7 @@
 | 基础库 | [ling-base](https://github.com/LingByte/ling-base)（多 module：bootstrap / cache / common / captcha / stores / synthesizer / realtime / queue / notification …） |
 | LLM | [lingllm](https://github.com/LingByte/lingllm) |
 | web 前端 | React 18 · Vite 6 · TypeScript · Tailwind · shadcn/ui · Zustand · React Router 7 |
-| admin 后台 | React 18 · Vite · TypeScript · Arco Design · Tailwind · Zustand |
+| admin 后台 | React 19 · Vite · TypeScript · shadcn/ui · Tailwind · Zustand · TanStack Router |
 | CI | GitHub Actions（go test / vet + web & admin 构建 + GitHub Pages 部署） |
 | 设计规范 | 见 [DESIGN.md](./DESIGN.md)（Warm Mint 主题） |
 
@@ -74,7 +74,7 @@ CloudSteps/
 │  ├─ constants/              # 常量
 │  └─ utils/                  # 工具
 ├─ web/                       # 学员端 H5 前端（React + Vite）
-├─ admin/                     # 运营后台前端（React + Arco）
+├─ admin-v1/                  # 运营后台前端（React + shadcn/ui）
 ├─ templates/                 # 邮件模板 / favicon
 ├─ i18n/                      # 国际化翻译
 ├─ scripts/                   # 运维脚本
@@ -131,7 +131,7 @@ go mod download
 
 # 前端（web + admin）
 cd web && pnpm install
-cd ../admin && pnpm install
+cd ../admin-v1 && pnpm install
 ```
 
 或一键：
@@ -158,7 +158,7 @@ make dev-server        # 等价于 go run ./cmd/server
 # web 学员端（:3000）
 make dev-web
 
-# admin 后台（:5174）
+# admin 后台（:5175）
 make dev-admin
 ```
 
@@ -198,7 +198,7 @@ go vet ./...         # 静态检查（CI 同款）
 
 - **go-test**：`go vet ./...` + `go test ./... -count=1`
 - **web-build**：`pnpm install --frozen-lockfile` + `pnpm run build`
-- **admin-build**：同上
+- **admin-ci**：`admin-v1` 的 lint / format / test / build
 
 [`deploy-pages.yml`](./.github/workflows/deploy-pages.yml) 在 `web/**` 变更时把学员端部署到 GitHub Pages。
 

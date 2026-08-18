@@ -11,12 +11,12 @@
     }
   },
 
-  // 后端(7080)、web 前端(3000)、admin 后台(5174)
-  "forwardPorts": [7080, 3000, 5174],
+  // 后端(7080)、web 前端(3000)、admin 后台(5175)
+  "forwardPorts": [7080, 3000, 5175],
   "portsAttributes": {
     "7080": { "label": "后端 API (cmd/server)" },
     "3000": { "label": "web 前端 (vite dev)" },
-    "5174": { "label": "admin 后台 (vite dev)" }
+    "5175": { "label": "admin 后台 (vite dev)" }
   },
 
   "postCreateCommand": "corepack enable && bash .devcontainer/setup.sh",

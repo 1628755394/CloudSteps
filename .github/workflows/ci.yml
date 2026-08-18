@@ -48,9 +48,12 @@ jobs:
         working-directory: web
         run: pnpm run build
 
-  admin-build:
-    name: admin 后台构建
+  admin-ci:
+    name: admin 后台 lint / test / 构建
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-v1
     steps:
       - uses: actions/checkout@v4
 
@@ -62,12 +65,22 @@ jobs:
         with:
           node-version: "20"
           cache: pnpm
-          cache-dependency-path: admin/pnpm-lock.yaml
+          cache-dependency-path: admin-v1/pnpm-lock.yaml
 
       - name: 安装依赖
-        working-directory: admin
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
+      - name: Prettier
+        run: pnpm format:check
+
+      - name: 安装浏览器
+        run: pnpm test:browser:install
+
+      - name: 测试
+        run: pnpm test
+
       - name: 构建
-        working-directory: admin
-        run: pnpm run build
+        run: pnpm build
