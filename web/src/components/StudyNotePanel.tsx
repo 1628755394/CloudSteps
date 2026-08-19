@@ -158,11 +158,11 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
           {Array.from({ length: 8 }).map((_, index) => <span key={index} className="relative block h-7 w-11 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[5px_0_0_#5c9bd7]" />)}
         </div>
         <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[28px] border-2 border-[#1f2937] bg-[#fff8e8]">
-          <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] bg-[#fff8e8] px-4 text-[#25344a] sm:h-11 sm:gap-2 sm:px-5">
+          <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] bg-[#fff8e8] pl-10 pr-2 text-[#25344a] sm:h-11 sm:gap-2 sm:pl-12 sm:pr-3">
             <span className="truncate text-lg font-bold sm:text-xl">{title}</span><span className="hidden truncate text-xs text-[#9b927f] sm:inline">黑板笔记</span>
             <button type="button" className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]" onClick={() => setToolbarVisible((v) => !v)} title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"} aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}><PanelLeft size={17} /></button>
           </div>
-          {toolbarVisible && <div className="mx-1 mt-1 flex shrink-0 flex-wrap items-center justify-between gap-0.5 rounded-md bg-transparent px-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-2 sm:gap-1 sm:py-1">
+          {toolbarVisible && <div className="mx-1 mt-1 flex shrink-0 flex-wrap items-center justify-between gap-0.5 rounded-md bg-transparent pl-10 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-2 sm:gap-1 sm:pl-12 sm:pr-0 sm:py-1">
             <button className={button(active()?.get("fontWeight") === "bold")} onClick={() => toggleActive("fontWeight", "bold", "normal")} title="粗体"><Bold size={16} /></button>
             <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
             <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
