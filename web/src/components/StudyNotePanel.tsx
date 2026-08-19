@@ -21,6 +21,7 @@ import { CloudButton } from "./cloudsteps";
 type NoteData = { json?: string; text: string; color: string; background: string };
 type Props = { open: boolean; onClose: () => void; storageKey: string; title?: string; subtitle?: string; side?: "left" | "right" };
 const emptyNote: NoteData = { text: "", color: "#25344a", background: "#fff8e8" };
+const initialPanelWidth = typeof window === "undefined" ? 420 : Math.min(640, Math.max(320, Math.round(window.innerWidth * 0.4)));
 
 function loadNote(key: string): NoteData {
   try { return { ...emptyNote, ...JSON.parse(localStorage.getItem(key) || "{}") }; } catch { return emptyNote; }
@@ -32,7 +33,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
   const canvasRef = useRef<Canvas | null>(null);
   const [note, setNote] = useState<NoteData>(() => loadNote(storageKey));
   const [sidePos, setSidePos] = useState(side);
-  const [width, setWidth] = useState(640);
+  const [width, setWidth] = useState(initialPanelWidth);
   const [fontSize, setFontSize] = useState(28);
   const [color, setColor] = useState("#25344a");
   const [fill, setFill] = useState("#fff8e8");
