@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Bold,
-  Download,
   Eraser,
   Italic,
   PaintBucket,
@@ -180,14 +179,6 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     const canvas = canvasRef.current;
     if (canvas) { canvas.backgroundColor = value; canvas.renderAll(); persist(); }
   };
-  const download = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const link = document.createElement("a");
-    link.download = `${title}-黑板.png`;
-    link.href = canvas.toDataURL({ format: "png", multiplier: 2 });
-    link.click();
-  };
   const button = (activeState = false) => `flex h-8 w-8 items-center justify-center rounded-lg ${activeState ? "bg-[#d8cdb8] text-[#25344a]" : "text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a]"}`;
   const startEdgeResize = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -271,7 +262,6 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <button className={button()} onClick={addText} title="添加文本"><Type size={16} /></button>
                 <div className="contents">
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title="切换左右"><PanelLeft size={16} /></button>
-                  <button className={button()} onClick={download} title="下载"><Download size={16} /></button>
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空"><Eraser size={16} /></button>
                   <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton>
                 </div>
