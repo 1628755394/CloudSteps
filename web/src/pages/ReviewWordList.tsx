@@ -261,7 +261,11 @@ export default function ReviewWordList() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 pt-3 pb-4 max-w-2xl mx-auto w-full">
+      <div
+        className={`px-4 pt-3 pb-4 w-full transition-[margin,max-width] duration-200 ${
+          globalNoteOpen ? "lg:ml-[50%] lg:max-w-[50%]" : "max-w-2xl mx-auto"
+        }`}
+      >
         <div className="mb-3">
           <p className="text-[#718096] text-sm">
             {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
@@ -382,7 +386,14 @@ export default function ReviewWordList() {
         )}
       </div>
 
-      <StudyNotePanel open={globalNoteOpen} onClose={() => setGlobalNoteOpen(false)} storageKey={`study-note:global:${wordBookId}`} title="黑板" />
+      <StudyNotePanel
+        open={globalNoteOpen}
+        onClose={() => setGlobalNoteOpen(false)}
+        storageKey={`study-note:global:${wordBookId}`}
+        title="黑板"
+        side="left"
+        split
+      />
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
         <div className="max-w-2xl mx-auto w-full space-y-2.5">
           <div className="flex items-center gap-2 flex-wrap">

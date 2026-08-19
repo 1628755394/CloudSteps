@@ -19,7 +19,7 @@ import { Canvas, PencilBrush, Textbox } from "fabric";
 import { CloudButton } from "./cloudsteps";
 
 type NoteData = { json?: string; text: string; color: string; background: string };
-type Props = { open: boolean; onClose: () => void; storageKey: string; title?: string; subtitle?: string; side?: "left" | "right" };
+type Props = { open: boolean; onClose: () => void; storageKey: string; title?: string; subtitle?: string; side?: "left" | "right"; split?: boolean };
 const emptyNote: NoteData = { text: "", color: "#25344a", background: "#fff8e8" };
 const initialPanelWidth = typeof window === "undefined" ? 420 : Math.min(640, Math.max(320, Math.round(window.innerWidth * 0.4)));
 
@@ -28,7 +28,7 @@ function loadNote(key: string): NoteData {
 }
 export function readStudyNote(key: string) { return loadNote(key).text; }
 
-export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", subtitle = "", side = "right" }: Props) {
+export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", subtitle = "", side = "right", split = false }: Props) {
   const canvasElement = useRef<HTMLCanvasElement>(null);
   const canvasRef = useRef<Canvas | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -208,18 +208,20 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
   if (!open) return null;
   return (
     <aside
-      className="fixed z-50 box-border max-w-[calc(100vw-16px)]"
+      className={`fixed z-50 box-border max-w-[calc(100vw-16px)] ${split ? "w-full lg:w-1/2 lg:max-w-[50vw]" : ""}`}
       style={{
         top: "3.5rem",
         bottom: "4.5rem",
         [sidePos]: 0,
-        width: `min(${width}px, calc(100vw - 16px))`,
-        maxWidth: "calc(100vw - 16px)",
-        minWidth: "min(280px, calc(100vw - 16px))",
+        ...(split ? {} : {
+          width: `min(${width}px, calc(100vw - 16px))`,
+          maxWidth: "calc(100vw - 16px)",
+          minWidth: "min(280px, calc(100vw - 16px))",
+        }),
       }}
     >
       {/* Binder rings sit outside the paper, centered on its left edge. */}
-      <div className="pointer-events-none absolute -left-4 top-8 bottom-8 z-30 flex flex-col justify-between py-1">
+      <div className={`${sidePos === "left" ? "-right-4 left-auto" : "-left-4"} pointer-events-none absolute top-8 bottom-8 z-30 flex flex-col justify-between py-1`}>
         {Array.from({ length: 8 }).map((_, index) => (
           <span
             key={index}
