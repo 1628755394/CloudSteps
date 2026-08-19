@@ -216,24 +216,23 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
         width: `min(${width}px, calc(100vw - 16px))`,
         maxWidth: "calc(100vw - 16px)",
         minWidth: "min(280px, calc(100vw - 16px))",
-        background: fill,
       }}
     >
-      {/* Single beige board with one black rounded border. No outer blue grid. */}
+      {/* Binder rings sit outside the paper, centered on its left edge. */}
+      <div className="pointer-events-none absolute -left-4 top-8 bottom-8 z-30 flex flex-col justify-between py-1">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <span
+            key={index}
+            className="block h-9 w-14 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[4px_0_0_#5c9bd7]"
+          />
+        ))}
+      </div>
+
+      {/* Single rounded board clips its own background at every corner. */}
       <div
-        className="relative h-full w-full overflow-hidden rounded-[28px] border-2 border-[#1f2937] shadow-[0_10px_24px_rgba(38,91,115,0.18)]"
+        className="relative z-10 h-full w-full overflow-hidden rounded-[28px] border-2 border-[#1f2937] shadow-[0_10px_24px_rgba(38,91,115,0.18)]"
         style={{ background: fill }}
       >
-        {/* Blue binder rings on the left edge (decorative, above content) */}
-        <div className="pointer-events-none absolute left-1.5 top-8 bottom-8 z-30 flex flex-col justify-between py-1">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <span
-              key={index}
-              className="block h-6 w-9 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[4px_0_0_#5c9bd7]"
-            />
-          ))}
-        </div>
-
         {/* Content column: toolbar + canvas host. Fills the whole board. */}
         <div className="relative z-10 flex h-full w-full flex-col overflow-hidden">
           {/* Title bar */}
