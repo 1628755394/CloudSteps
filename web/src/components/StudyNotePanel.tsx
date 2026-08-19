@@ -32,9 +32,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
   const canvasRef = useRef<Canvas | null>(null);
   const [note, setNote] = useState<NoteData>(() => loadNote(storageKey));
   const [sidePos, setSidePos] = useState(side);
-  const [inset, setInset] = useState(8);
   const [width, setWidth] = useState(640);
-  const [height, setHeight] = useState(600);
   const [fontSize, setFontSize] = useState(28);
   const [color, setColor] = useState("#25344a");
   const [fill, setFill] = useState("#fff8e8");
@@ -125,25 +123,13 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
     link.click();
   };
   const button = (activeState = false) => `flex h-8 w-8 items-center justify-center rounded-lg ${activeState ? "bg-[#d8cdb8] text-[#25344a]" : "text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a]"}`;
-  const startEdgeResize = (edge: "left" | "right" | "bottom", event: React.PointerEvent<HTMLDivElement>) => {
+  const startEdgeResize = (edge: "left" | "right", event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startX = event.clientX;
-    const startY = event.clientY;
     const startWidth = width;
-    const startHeight = height;
-    const startInset = inset;
     const move = (next: PointerEvent) => {
-      if (edge === "bottom") {
-        setHeight(Math.max(360, Math.min(900, startHeight + next.clientY - startY)));
-        return;
-      }
       const delta = next.clientX - startX;
-      if (edge === "left") {
-        setWidth(Math.max(280, Math.min(1000, startWidth + (sidePos === "right" ? -delta : delta))));
-      } else {
-        setWidth(Math.max(280, Math.min(1000, startWidth + (sidePos === "right" ? delta : -delta))));
-        setInset(Math.max(8, startInset - (sidePos === "right" ? delta : -delta)));
-      }
+      setWidth(Math.max(280, Math.min(1000, startWidth + (sidePos === "right" ? -delta : delta))));
     };
     const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
     window.addEventListener("pointermove", move);
@@ -152,13 +138,13 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
 
   if (!open) return null;
   return (
-    <aside className="fixed z-50 max-w-[calc(100vw-16px)] max-h-[calc(100dvh-32px)]" style={{ top: "max(8px, env(safe-area-inset-top))", bottom: "max(8px, env(safe-area-inset-bottom))", [sidePos]: inset, width: `min(${width}px, calc(100vw - 16px))`, height: `min(${height}px, calc(100dvh - 32px))`, minWidth: "min(280px, calc(100vw - 16px))", minHeight: "min(360px, calc(100dvh - 32px))" }}>
-      <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#1f2937] bg-[#fff8e8] p-0 shadow-[0_10px_24px_rgba(38,91,115,0.18)]">
+    <aside className="fixed z-50 max-w-[calc(100vw-16px)]" style={{ top: "3.5rem", bottom: "4.5rem", [sidePos]: 0, width: `min(${width}px, calc(100vw - 16px))`, minWidth: "min(280px, calc(100vw - 16px))", background: fill }}>
+      <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#1f2937] p-0 shadow-[0_10px_24px_rgba(38,91,115,0.18)]" style={{ background: fill }}>
         <div className="pointer-events-none absolute -left-5 top-8 bottom-8 z-0 flex flex-col justify-between py-2">
           {Array.from({ length: 8 }).map((_, index) => <span key={index} className="relative block h-7 w-11 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[5px_0_0_#5c9bd7]" />)}
         </div>
-        <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[28px] border-2 border-[#1f2937] bg-[#fff8e8]">
-          <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] bg-[#fff8e8] pl-10 pr-2 text-[#25344a] sm:h-11 sm:gap-2 sm:pl-12 sm:pr-3">
+        <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[28px] border-2 border-[#1f2937]" style={{ background: fill }}>
+          <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-2 text-[#25344a] sm:h-11 sm:gap-2 sm:pl-12 sm:pr-3">
             <span className="truncate text-lg font-bold sm:text-xl">{title}</span><span className="hidden truncate text-xs text-[#9b927f] sm:inline">黑板笔记</span>
             <button type="button" className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]" onClick={() => setToolbarVisible((v) => !v)} title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"} aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}><PanelLeft size={17} /></button>
           </div>
@@ -179,9 +165,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
           </div>}
           <div className="relative min-h-0 flex-1 p-1 sm:p-2"><canvas ref={canvasElement} className="h-full w-full" /><div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div></div>
         </div>
-        <div className="absolute -left-1 top-0 bottom-0 z-40 w-2 touch-none cursor-ew-resize" onPointerDown={(e) => startEdgeResize("left", e)} aria-label="拖动左边缘调整宽度" />
-        <div className="absolute -right-1 top-0 bottom-0 z-40 w-2 touch-none cursor-ew-resize" onPointerDown={(e) => startEdgeResize("right", e)} aria-label="拖动右边缘调整宽度" />
-        <div className="absolute bottom-0 left-0 right-0 z-40 h-2 touch-none cursor-ns-resize" onPointerDown={(e) => startEdgeResize("bottom", e)} aria-label="拖动底边调整高度" />
+        <div className={`${sidePos === "right" ? "-left-1" : "-right-1"} absolute top-0 bottom-0 z-40 w-2 touch-none cursor-ew-resize`} onPointerDown={(e) => startEdgeResize("left", e)} aria-label="拖动分屏边缘调整宽度" />
       </div>
     </aside>
   );
