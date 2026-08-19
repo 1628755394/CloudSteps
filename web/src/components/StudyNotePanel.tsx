@@ -68,7 +68,18 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
       layer.style.width = "100%";
       layer.style.height = "100%";
     });
-    if (saved.json) canvas.loadFromJSON(saved.json).then(() => { canvas.backgroundColor = saved.background; canvas.renderAll(); });
+    const host = canvasElement.current.parentElement;
+    const syncCanvasSize = () => {
+      if (!host) return;
+      const nextWidth = Math.max(1, host.clientWidth);
+      const nextHeight = Math.max(1, host.clientHeight);
+      canvas.setDimensions({ width: nextWidth, height: nextHeight });
+      canvas.renderAll();
+    };
+    const resizeObserver = new ResizeObserver(syncCanvasSize);
+    resizeObserver.observe(host);
+    requestAnimationFrame(syncCanvasSize);
+    if (saved.json) canvas.loadFromJSON(saved.json).then(() => { canvas.backgroundColor = saved.background; syncCanvasSize(); });
     canvas.on("object:added", persist);
     canvas.on("object:modified", persist);
     canvas.on("object:removed", persist);
@@ -81,7 +92,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
       text.enterEditing();
       persist();
     });
-    return () => { canvas.dispose(); canvasRef.current = null; };
+    return () => { resizeObserver.disconnect(); canvas.dispose(); canvasRef.current = null; };
     // Canvas is intentionally recreated when the panel opens or storage target changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, storageKey]);
@@ -147,7 +158,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
 
   if (!open) return null;
   return (
-    <aside className="fixed z-50 max-w-[calc(100vw-16px)]" style={{ top: "3.5rem", bottom: "4.5rem", [sidePos]: 0, width: `min(${width}px, calc(100vw - 16px))`, minWidth: "min(280px, calc(100vw - 16px))", background: fill }}>
+    <aside className="fixed z-50 box-border max-w-[calc(100vw-16px)]" style={{ top: "3.5rem", bottom: "4.5rem", [sidePos]: 0, width: `min(${width}px, calc(100vw - 16px))`, maxWidth: "calc(100vw - 16px)", minWidth: "min(280px, calc(100vw - 16px))", background: fill }}>
       <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#1f2937] p-0 shadow-[0_10px_24px_rgba(38,91,115,0.18)]" style={{ background: fill }}>
         <div className="pointer-events-none absolute -left-5 top-8 bottom-8 z-0 flex flex-col justify-between py-2">
           {Array.from({ length: 8 }).map((_, index) => <span key={index} className="relative block h-7 w-11 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[5px_0_0_#5c9bd7]" />)}
