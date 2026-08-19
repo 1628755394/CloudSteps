@@ -160,8 +160,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
   if (!open) return null;
   return (
     <aside className="fixed z-50 box-border max-w-[calc(100vw-16px)]" style={{ top: "3.5rem", bottom: "4.5rem", [sidePos]: 0, width: `min(${width}px, calc(100vw - 16px))`, maxWidth: "calc(100vw - 16px)", minWidth: "min(280px, calc(100vw - 16px))", background: fill }}>
-      <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#1f2937] p-0 shadow-[0_10px_24px_rgba(38,91,115,0.18)]" style={{ background: fill }}>
-        <div className="pointer-events-none absolute -left-5 top-8 bottom-8 z-0 flex flex-col justify-between py-2">
+      <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#c5eaf5] p-4 shadow-[0_10px_24px_rgba(38,91,115,0.18)] sm:p-6" style={{ backgroundColor: "#dff4fb", backgroundImage: "repeating-linear-gradient(0deg, rgba(116,190,213,.18) 0 2px, transparent 2px 26px), repeating-linear-gradient(90deg, rgba(116,190,213,.12) 0 2px, transparent 2px 26px)" }}>
+        <div className="pointer-events-none absolute left-1 top-8 bottom-8 z-20 flex flex-col justify-between py-2">
           {Array.from({ length: 8 }).map((_, index) => <span key={index} className="relative block h-7 w-11 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[5px_0_0_#5c9bd7]" />)}
         </div>
         <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[28px] border-2 border-[#1f2937]" style={{ background: fill }}>
