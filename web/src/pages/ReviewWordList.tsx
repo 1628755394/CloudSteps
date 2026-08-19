@@ -54,6 +54,13 @@ export default function ReviewWordList() {
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
   const [globalNoteOpen, setGlobalNoteOpen] = useState(false);
+  const [noteSide, setNoteSide] = useState<"left" | "right">("right");
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const wordBookId = useMemo(() => {
     const url = new URL(window.location.href);
@@ -245,7 +252,7 @@ export default function ReviewWordList() {
         onBack={handleBack}
         rightSlot={
           <div className="flex items-center gap-0.5">
-            <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => setGlobalNoteOpen(true)} aria-label="打开黑板" title="打开黑板"><PanelTop size={18} className="text-[#c45c78]" /></CloudButton>
+            <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => setGlobalNoteOpen(true)} aria-label="打开随心记" title="打开随心记"><PanelTop size={18} className="text-[#c45c78]" /></CloudButton>
             <AnnotationToggleButton
               active={annotationOpen}
               onClick={() => setAnnotationOpen((v) => !v)}
@@ -261,21 +268,20 @@ export default function ReviewWordList() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div
-        className={`px-4 pt-3 pb-4 w-full transition-[margin,max-width] duration-200 ${
-          globalNoteOpen ? "lg:ml-[50%] lg:max-w-[50%]" : "max-w-2xl mx-auto"
-        }`}
-      >
-        <div className="mb-3">
-          <p className="text-[#718096] text-sm">
-            {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
-          </p>
-          {words.length === 0 && (
-            <p className="text-xs text-amber-600 mt-1">
-              该日暂无待复习单词
+      {/* Split container: word content + note panel on the same layer. */}
+      <div className={`px-4 pt-3 pb-4 w-full ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "max-w-2xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
+        {/* Word content pane */}
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto lg:pr-2" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
+          <div className="mb-3">
+            <p className="text-[#718096] text-sm">
+              {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
             </p>
-          )}
-        </div>
+            {words.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                该日暂无待复习单词
+              </p>
+            )}
+          </div>
 
         {!viewOnly && (
           <WordMarkStatsBar
@@ -384,16 +390,35 @@ export default function ReviewWordList() {
             })}
           </div>
         )}
+        </div>
+
+        {/* Note panel pane — same layer as word content (desktop split only) */}
+        {globalNoteOpen && isDesktop && (
+          <div className={`lg:flex lg:w-[42%] lg:min-w-[280px] lg:max-w-[50vw] lg:flex-col ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}>
+            <StudyNotePanel
+              open={globalNoteOpen}
+              onClose={() => setGlobalNoteOpen(false)}
+              storageKey={`study-note:global:${wordBookId}`}
+              title="随心记"
+              side={noteSide}
+              split
+              onSideChange={setNoteSide}
+            />
+          </div>
+        )}
       </div>
 
-      <StudyNotePanel
-        open={globalNoteOpen}
-        onClose={() => setGlobalNoteOpen(false)}
-        storageKey={`study-note:global:${wordBookId}`}
-        title="黑板"
-        side="left"
-        split
-      />
+      {/* Mobile: note panel as floating overlay */}
+      {globalNoteOpen && !isDesktop && (
+        <StudyNotePanel
+          open={globalNoteOpen}
+          onClose={() => setGlobalNoteOpen(false)}
+          storageKey={`study-note:global:${wordBookId}`}
+          title="随心记"
+          side={noteSide}
+          onSideChange={setNoteSide}
+        />
+      )}
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
         <div className="max-w-2xl mx-auto w-full space-y-2.5">
           <div className="flex items-center gap-2 flex-wrap">

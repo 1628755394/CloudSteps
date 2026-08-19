@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
   Bold,
   Download,
   Eraser,
@@ -19,7 +16,7 @@ import { Canvas, PencilBrush, Textbox } from "fabric";
 import { CloudButton } from "./cloudsteps";
 
 type NoteData = { json?: string; text: string; color: string; background: string };
-type Props = { open: boolean; onClose: () => void; storageKey: string; title?: string; subtitle?: string; side?: "left" | "right"; split?: boolean };
+type Props = { open: boolean; onClose: () => void; storageKey: string; title?: string; subtitle?: string; side?: "left" | "right"; split?: boolean; onSideChange?: (side: "left" | "right") => void };
 const emptyNote: NoteData = { text: "", color: "#25344a", background: "#fff8e8" };
 const initialPanelWidth = typeof window === "undefined" ? 420 : Math.min(640, Math.max(320, Math.round(window.innerWidth * 0.4)));
 
@@ -28,12 +25,12 @@ function loadNote(key: string): NoteData {
 }
 export function readStudyNote(key: string) { return loadNote(key).text; }
 
-export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", subtitle = "", side = "right", split = false }: Props) {
+export function StudyNotePanel({ open, onClose, storageKey, title = "随心记", subtitle = "", side = "right", split = false, onSideChange }: Props) {
   const canvasElement = useRef<HTMLCanvasElement>(null);
   const canvasRef = useRef<Canvas | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const [note, setNote] = useState<NoteData>(() => loadNote(storageKey));
-  const [sidePos, setSidePos] = useState(side);
+  const sidePos = side;
   const [width, setWidth] = useState(initialPanelWidth);
   const [fontSize, setFontSize] = useState(28);
   const [color, setColor] = useState("#25344a");
@@ -206,56 +203,45 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
   };
 
   if (!open) return null;
-  return (
-    <aside
-      className={`fixed z-50 box-border max-w-[calc(100vw-16px)] ${split ? "w-full lg:w-1/2 lg:max-w-[50vw]" : ""}`}
-      style={{
-        top: "3.5rem",
-        bottom: "4.5rem",
-        [sidePos]: 0,
-        ...(split ? {} : {
-          width: `min(${width}px, calc(100vw - 16px))`,
-          maxWidth: "calc(100vw - 16px)",
-          minWidth: "min(280px, calc(100vw - 16px))",
-        }),
-      }}
-    >
-      {/* Binder rings sit outside the paper, centered on its left edge. */}
-      <div className={`${sidePos === "left" ? "-right-4 left-auto" : "-left-4"} pointer-events-none absolute top-8 bottom-8 z-30 flex flex-col justify-between py-1`}>
+
+  // Inner board content shared by both modes.
+  const board = (
+    <>
+      {/* Binder rings sit outside the paper, centered on its outer edge. */}
+      <div className={`${sidePos === "left" ? "-right-4 left-auto" : "-left-4"} pointer-events-none absolute top-6 bottom-6 z-30 flex flex-col justify-between py-1`}>
         {Array.from({ length: 8 }).map((_, index) => (
           <span
             key={index}
-            className="block h-9 w-14 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[4px_0_0_#5c9bd7]"
+            className="block h-8 w-12 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[4px_0_0_#5c9bd7]"
           />
         ))}
       </div>
 
       {/* Single rounded board clips its own background at every corner. */}
       <div
-        className="relative z-10 h-full w-full overflow-hidden rounded-[28px] border-2 border-[#1f2937] shadow-[0_10px_24px_rgba(38,91,115,0.18)]"
+        className="relative z-10 h-full w-full overflow-hidden rounded-[24px] border-2 border-[#1f2937] shadow-[0_10px_24px_rgba(38,91,115,0.18)]"
         style={{ background: fill }}
       >
-        {/* Content column: toolbar + canvas host. Fills the whole board. */}
         <div className="relative z-10 flex h-full w-full flex-col overflow-hidden">
           {/* Title bar */}
-          <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-11 pr-2 text-[#25344a] sm:h-11 sm:gap-2 sm:pl-12 sm:pr-3">
-            <span className="truncate text-lg font-bold sm:text-xl">{title}</span>
-            <span className="hidden truncate text-xs text-[#9b927f] sm:inline">黑板笔记</span>
+          <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-2 text-[#25344a] sm:h-10 sm:gap-2 sm:pl-11 sm:pr-3">
+            <span className="truncate text-base font-bold sm:text-lg">{title}</span>
+            <span className="hidden truncate text-xs text-[#9b927f] sm:inline">随心笔记</span>
             <button
               type="button"
-              className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
+              className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
               onClick={() => setToolbarVisible((v) => !v)}
               title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
               aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
             >
-              <PanelLeft size={17} />
+              <PanelLeft size={16} />
             </button>
           </div>
 
           {/* Toolbar */}
           <div className={`shrink-0 overflow-hidden transition-[max-height] duration-200 ease-out ${toolbarVisible ? "max-h-64" : "max-h-0"}`}>
             {toolbarVisible && (
-              <div className="mx-1 mt-1 flex flex-wrap items-center gap-0.5 pl-11 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-2 sm:gap-1 sm:pl-12 sm:pr-0 sm:py-1">
+              <div className="mx-1 mt-1 flex flex-wrap items-center gap-0.5 pl-10 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-1.5 sm:gap-1 sm:pl-11 sm:pr-0 sm:py-1">
                 <button className={button(active()?.get("fontWeight") === "bold")} onClick={() => toggleActive("fontWeight", "bold", "normal")} title="粗体"><Bold size={16} /></button>
                 <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
                 <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
@@ -283,11 +269,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
                 </label>
                 <button className={button(drawing)} onClick={() => setDrawing((v) => !v)} title="画板"><Pencil size={16} /></button>
                 <button className={button()} onClick={addText} title="添加文本"><Type size={16} /></button>
-                <button className={button()} onClick={() => updateActive({ textAlign: "left" })} title="左对齐"><AlignLeft size={16} /></button>
-                <button className={button()} onClick={() => updateActive({ textAlign: "center" })} title="居中"><AlignCenter size={16} /></button>
-                <button className={button()} onClick={() => updateActive({ textAlign: "right" })} title="右对齐"><AlignRight size={16} /></button>
                 <div className="contents">
-                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => setSidePos((s) => s === "right" ? "left" : "right")} title="切换左右"><PanelLeft size={16} /></button>
+                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title="切换左右"><PanelLeft size={16} /></button>
                   <button className={button()} onClick={download} title="下载"><Download size={16} /></button>
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空"><Eraser size={16} /></button>
                   <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton>
@@ -310,6 +293,32 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
           aria-label="拖动分屏边缘调整宽度"
         />
       </div>
+    </>
+  );
+
+  if (split) {
+    // In split mode, render as a flex child (same layer as word content).
+    return (
+      <div className="relative h-full w-full box-border">
+        {board}
+      </div>
+    );
+  }
+
+  // Standalone floating mode.
+  return (
+    <aside
+      className="fixed z-50 box-border max-w-[calc(100vw-16px)]"
+      style={{
+        top: "3.5rem",
+        bottom: "5.5rem",
+        [sidePos]: 0,
+        width: `min(${width}px, calc(100vw - 16px))`,
+        maxWidth: "calc(100vw - 16px)",
+        minWidth: "min(280px, calc(100vw - 16px))",
+      }}
+    >
+      {board}
     </aside>
   );
 }
