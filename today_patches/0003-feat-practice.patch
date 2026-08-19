@@ -1,0 +1,527 @@
+From 9f10a8978cb64d0fbc3b99e673861a4052550f4e Mon Sep 17 00:00:00 2001
+From: heathcetide <2148582258@qq.com>
+Date: Mon, 17 Aug 2026 10:39:24 +0800
+Subject: [PATCH 03/30] =?UTF-8?q?feat(practice):=20=E6=8B=93=E5=B1=95?=
+ =?UTF-8?q?=E8=B7=9F=E9=9A=8F=E7=82=B9=E8=AF=8D=E9=87=8A=E4=B9=89=E8=8A=82?=
+ =?UTF-8?q?=E5=A5=8F=EF=BC=8C=E5=BF=AB=E9=97=AA=E8=A1=A5=E9=BD=90=E7=AE=80?=
+ =?UTF-8?q?=E8=AF=91=E5=88=87=E6=8D=A2?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+开启拓展后不再劫持第一次发音；快闪默认简译，可切全部意思，避免与拓展释义重复。
+
+Co-authored-by: Cursor <cursoragent@cursor.com>
+---
+ web/src/components/WordMarkView.tsx | 16 +++++-
+ web/src/pages/FlashReview.tsx       | 79 ++++++++++++++++-------------
+ web/src/pages/PostTrainingCheck.tsx | 17 +++----
+ web/src/pages/PreTrainingCheck.tsx  | 14 ++---
+ web/src/pages/ReviewCheck.tsx       | 16 +++---
+ web/src/pages/WordPractice.tsx      | 17 +++----
+ web/src/utils/wordReveal.ts         | 13 +++++
+ 7 files changed, 96 insertions(+), 76 deletions(-)
+
+diff --git a/web/src/components/WordMarkView.tsx b/web/src/components/WordMarkView.tsx
+index 02a8047..9cd906c 100644
+--- a/web/src/components/WordMarkView.tsx
++++ b/web/src/components/WordMarkView.tsx
+@@ -60,6 +60,11 @@ type CardProps = {
+   detailWordId?: number | null;
+   onDetailClose?: () => void;
+   simpleMode?: boolean;
++  /**
++   * 拓展增幅：跟点词节奏联动，仅在 showTranslation 时展示详情，
++   * 不单独劫持第一次读音。
++   */
++  amplifyDetail?: boolean;
+ };
+ 
+ export function WordCardPanel({
+@@ -73,13 +78,18 @@ export function WordCardPanel({
+   detailWordId,
+   onDetailClose,
+   simpleMode = true,
++  amplifyDetail = false,
+ }: CardProps) {
+   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
+   const word = words[safeIndex];
+   const [localDetail, setLocalDetail] = useState(false);
+ 
+   const detailControlled = detailWordId !== undefined;
+-  const detailOpen = detailControlled ? detailWordId === word?.id : localDetail;
++  const detailOpen = amplifyDetail
++    ? !!word?.showTranslation
++    : detailControlled
++      ? detailWordId === word?.id
++      : localDetail;
+ 
+   // 切换单词时收起本地详情
+   useEffect(() => {
+@@ -159,6 +169,7 @@ export function WordCardPanel({
+           variant="ghost"
+           size="iconRound"
+           onClick={() => {
++            if (amplifyDetail) return;
+             if (detailControlled) {
+               if (detailOpen) onDetailClose?.();
+               else onWordClick(word);
+@@ -167,7 +178,8 @@ export function WordCardPanel({
+             }
+           }}
+           aria-label="单词详情"
+-          className="text-[#4ECDC4] hover:bg-[#4ECDC4]/10"
++          className={`text-[#4ECDC4] hover:bg-[#4ECDC4]/10 ${amplifyDetail ? "opacity-60" : ""}`}
++          title={amplifyDetail ? "拓展已开启：点单词显示释义时自动展开" : "单词详情"}
+         >
+           <BookOpen size={20} />
+         </CloudButton>
+diff --git a/web/src/pages/FlashReview.tsx b/web/src/pages/FlashReview.tsx
+index 4426e18..1460235 100644
+--- a/web/src/pages/FlashReview.tsx
++++ b/web/src/pages/FlashReview.tsx
+@@ -10,8 +10,8 @@ import { useNavigate } from "react-router";
+ import { useState, useEffect, useMemo, useRef } from "react";
+ import confetti from "canvas-confetti";
+ import { playFirstWordAudio, playSecondWordAudio } from "../utils/audioPlayer";
+-import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
+-import { nextWordTapState } from "../utils/wordReveal";
++import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
++import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+ import {
+   clearStudyRetryFlash,
+   getStudyRetryWords,
+@@ -30,6 +30,7 @@ type FlashWord = {
+   word: string;
+   phonetic: string;
+   translation: string;
++  translationShort: string;
+   audioUrl?: string;
+   scissorCount: number;
+   showTranslation: boolean;
+@@ -42,12 +43,14 @@ function newUid(id: number): string {
+ 
+ function mapToFlashWord(w: Record<string, unknown>): FlashWord {
+   const id = Number(w.id);
++  const rawTranslation = w.translation as string;
+   return {
+     uid: newUid(id),
+     id,
+     word: String(w.word || ""),
+     phonetic: pickPhoneticDisplay(w as { phonetic?: string; phoneticUk?: string; phoneticUs?: string }),
+-    translation: formatTranslation(w.translation as string),
++    translation: formatTranslation(rawTranslation),
++    translationShort: formatTranslationShort(rawTranslation),
+     audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
+     scissorCount: 0,
+     showTranslation: false,
+@@ -65,6 +68,8 @@ export default function FlashReview() {
+   const [cardIndex, setCardIndex] = useState(0);
+   const [detailMode, setDetailMode] = useState(false);
+   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
++  /** false=简译（默认），true=全部意思；与单词练习/听音辨义一致 */
++  const [fullMeaning, setFullMeaning] = useState(false);
+ 
+   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
+ 
+@@ -82,7 +87,7 @@ export default function FlashReview() {
+       return;
+     }
+     if (window.history.length > 1) navigate(-1);
+-    else navigate(mode === "review" ? getReviewReturnPath("/anti-forgetting") : "/word-practice");
++    else navigate(mode === "review" ? getReviewReturnPath("/word-training") : "/word-practice");
+   };
+ 
+   useEffect(() => {
+@@ -121,6 +126,7 @@ export default function FlashReview() {
+     if (!word.audioUrl) return;
+     abortRef.current?.();
+     setPlayingId(word.id);
++    // 快闪喇叭固定播第 2 段（单词三遍）；按分号槽位取，避免空段压缩后误播第 3 段
+     const abort = playSecondWordAudio(word.audioUrl, () => setPlayingId(null));
+     abortRef.current = abort;
+   };
+@@ -131,12 +137,6 @@ export default function FlashReview() {
+   };
+ 
+   const handleWordTap = (word: FlashWord) => {
+-    if (detailMode) {
+-      setDetailWord((prev) =>
+-        prev?.id === word.id ? null : { id: word.id, word: word.word }
+-      );
+-      return;
+-    }
+     const next = nextWordTapState({
+       showTranslation: word.showTranslation,
+       heard: word.heard,
+@@ -158,6 +158,7 @@ export default function FlashReview() {
+         return w;
+       })
+     );
++    setDetailWord(syncDetailWordWithTap(detailMode, next, { id: word.id, word: word.word }));
+   };
+ 
+   const allCut = words.length > 0 && words.every((word) => word.scissorCount > 0);
+@@ -266,6 +267,36 @@ export default function FlashReview() {
+   const uncutCount = words.filter((w) => w.scissorCount === 0).length;
+   const visibleWords = words.filter((w) => w.scissorCount === 0);
+ 
++  const meaningText = (word: FlashWord) =>
++    fullMeaning ? word.translation || word.translationShort : word.translationShort || word.translation;
++
++  const renderMeaning = (word: FlashWord, opts?: { centered?: boolean }) => {
++    if (!word.showTranslation) return null;
++    const meaning = meaningText(word);
++    return (
++      <div className={`animate-in fade-in slide-in-from-top-1 ${opts?.centered ? "text-center mt-2" : ""}`}>
++        {word.phonetic ? (
++          <div className={`text-sm text-[#718096] font-mono ${opts?.centered ? "mb-0.5" : "mb-0.5"}`}>
++            {word.phonetic}
++          </div>
++        ) : null}
++        {meaning ? <div className={PRACTICE_TRANS_CLASS}>{meaning}</div> : null}
++        {(word.translation || word.translationShort) && (
++          <button
++            type="button"
++            className="text-xs text-[#4ECDC4] hover:underline mt-1"
++            onClick={(e) => {
++              e.stopPropagation();
++              setFullMeaning((v) => !v);
++            }}
++          >
++            {fullMeaning ? "简译" : "全部意思"}
++          </button>
++        )}
++      </div>
++    );
++  };
++
+   return (
+     <div className="min-h-screen bg-gray-50 pb-24">
+       <TopBar
+@@ -327,18 +358,7 @@ export default function FlashReview() {
+                 <div className={`${PRACTICE_WORD_CLASS} text-center break-all`}>
+                   {visibleWords[cardIndex].word}
+                 </div>
+-                {visibleWords[cardIndex].showTranslation && (
+-                  <div className="animate-in fade-in slide-in-from-top-1 text-center mt-2">
+-                    {visibleWords[cardIndex].phonetic ? (
+-                      <div className="text-sm text-[#718096] font-mono mb-0.5">
+-                        {visibleWords[cardIndex].phonetic}
+-                      </div>
+-                    ) : null}
+-                    {visibleWords[cardIndex].translation ? (
+-                      <div className={PRACTICE_TRANS_CLASS}>{visibleWords[cardIndex].translation}</div>
+-                    ) : null}
+-                  </div>
+-                )}
++                {renderMeaning(visibleWords[cardIndex], { centered: true })}
+               </div>
+               <CloudButton
+                 type="button"
+@@ -382,7 +402,7 @@ export default function FlashReview() {
+                 <Scissors size={20} className="text-[#66BB6A]" />
+               </CloudButton>
+             </div>
+-            {detailMode && detailWord?.id === visibleWords[cardIndex].id && (
++            {detailMode && visibleWords[cardIndex]?.showTranslation && (
+               <div className="w-full">
+                 <WordDetailPanel
+                   wordId={visibleWords[cardIndex].id}
+@@ -409,16 +429,7 @@ export default function FlashReview() {
+                       <div className={`${PRACTICE_WORD_CLASS} mb-1 hover:text-[#4ECDC4] transition-colors`}>
+                         {word.word}
+                       </div>
+-                      {word.showTranslation && (
+-                        <div className="animate-in fade-in slide-in-from-top-1">
+-                          {word.phonetic ? (
+-                            <div className="text-sm text-[#718096] font-mono mb-0.5">{word.phonetic}</div>
+-                          ) : null}
+-                          {word.translation ? (
+-                            <div className={PRACTICE_TRANS_CLASS}>{word.translation}</div>
+-                          ) : null}
+-                        </div>
+-                      )}
++                      {renderMeaning(word)}
+                     </div>
+                   </div>
+                   <div className="flex items-center gap-3">
+@@ -464,7 +475,7 @@ export default function FlashReview() {
+                     </CloudButton>
+                   </div>
+                 </div>
+-                {detailMode && detailWord?.id === word.id && (
++                {detailMode && word.showTranslation && (
+                   <div className="mt-3 pt-3 border-t border-[#E2E8F0]" onClick={(e) => e.stopPropagation()}>
+                     <WordDetailPanel
+                       wordId={word.id}
+diff --git a/web/src/pages/PostTrainingCheck.tsx b/web/src/pages/PostTrainingCheck.tsx
+index 3b58145..36fef64 100644
+--- a/web/src/pages/PostTrainingCheck.tsx
++++ b/web/src/pages/PostTrainingCheck.tsx
+@@ -18,7 +18,7 @@ import { completeStudySession } from "../api/study";
+ import { completeReviewSession } from "../api/review";
+ import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
+ import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
+-import { nextWordTapState } from "../utils/wordReveal";
++import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+ import {
+   clearStudyRecheck,
+   getCheckPhaseLabel,
+@@ -145,7 +145,7 @@ export default function PostTrainingCheck() {
+ 
+   const handleBack = () => {
+     if (mode === "review") {
+-      navigate(getReviewReturnPath("/anti-forgetting"));
++      navigate(getReviewReturnPath("/word-training"));
+       return;
+     }
+     if (window.history.length > 1) navigate(-1);
+@@ -203,12 +203,6 @@ export default function PostTrainingCheck() {
+   };
+ 
+   const handleWordClick = (word: CheckWord) => {
+-    if (detailMode) {
+-      setDetailWord((prev) =>
+-        prev?.id === word.id ? null : { id: word.id, word: word.word }
+-      );
+-      return;
+-    }
+     const next = nextWordTapState({
+       showTranslation: !!word.showTranslation,
+       heard: !!word.heard,
+@@ -230,6 +224,7 @@ export default function PostTrainingCheck() {
+         return w;
+       })
+     );
++    setDetailWord(syncDetailWordWithTap(detailMode, next, word));
+   };
+ 
+   const handleShuffle = () => {
+@@ -364,7 +359,7 @@ export default function PostTrainingCheck() {
+           if (res.code !== 200) {
+             throw new Error(res.msg || "提交失败");
+           }
+-          const returnPath = getReviewReturnPath("/anti-forgetting");
++          const returnPath = getReviewReturnPath("/word-training");
+           clearReviewPracticeSession();
+           navigate(returnPath, { replace: true });
+           return;
+@@ -481,7 +476,7 @@ export default function PostTrainingCheck() {
+             onPlay={handlePlayAudio}
+             onWordClick={handleWordClick}
+             onStatus={handleStatusClick}
+-            detailWordId={detailMode ? detailWord?.id ?? null : undefined}
++            amplifyDetail={detailMode}
+             onDetailClose={() => setDetailWord(null)}
+           />
+         ) : (
+@@ -558,7 +553,7 @@ export default function PostTrainingCheck() {
+                   </CloudButton>
+                 </div>
+                 </div>
+-                {detailMode && detailWord?.id === word.id && (
++                {detailMode && word.showTranslation && (
+                   <WordDetailPanel
+                     wordId={word.id}
+                     wordText={word.word}
+diff --git a/web/src/pages/PreTrainingCheck.tsx b/web/src/pages/PreTrainingCheck.tsx
+index 5d6d539..75869de 100644
+--- a/web/src/pages/PreTrainingCheck.tsx
++++ b/web/src/pages/PreTrainingCheck.tsx
+@@ -18,7 +18,7 @@ import { WordDetailPanel } from "../components/WordDetailPanel";
+ import { ClassTimerBadge, ClassTimerSetupDialog } from "../components/ClassSessionTimer";
+ import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
+ import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
+-import { nextWordTapState } from "../utils/wordReveal";
++import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+ 
+ type WordItem = {
+   id: number;
+@@ -227,12 +227,6 @@ export default function PreTrainingCheck() {
+   }, []);
+ 
+   const handleWordClick = useCallback((word: WordItem) => {
+-    if (detailMode) {
+-      setDetailWord((prev) =>
+-        prev?.id === word.id ? null : { id: word.id, word: word.word }
+-      );
+-      return;
+-    }
+     const next = nextWordTapState({
+       showTranslation: !!word.showTranslation,
+       heard: !!word.heard,
+@@ -254,6 +248,8 @@ export default function PreTrainingCheck() {
+         return w;
+       })
+     );
++    // 拓展只增幅：释义出现时挂详情，收起时关掉
++    setDetailWord(syncDetailWordWithTap(detailMode, next, word));
+   }, [detailMode]);
+ 
+   /** 后端乱序：换 seed 后从第 1 页重新拉取 */
+@@ -418,7 +414,7 @@ export default function PreTrainingCheck() {
+           </CloudButton>
+         </div>
+       </div>
+-      {detailMode && detailWord?.id === word.id && (
++      {detailMode && word.showTranslation && (
+         <WordDetailPanel
+           wordId={word.id}
+           wordText={word.word}
+@@ -497,7 +493,7 @@ export default function PreTrainingCheck() {
+             onPlay={handlePlayAudio}
+             onWordClick={handleWordClick}
+             onStatus={handleStatusClick}
+-            detailWordId={detailMode ? detailWord?.id ?? null : undefined}
++            amplifyDetail={detailMode}
+             onDetailClose={() => setDetailWord(null)}
+             simpleMode={simpleDetail}
+           />
+diff --git a/web/src/pages/ReviewCheck.tsx b/web/src/pages/ReviewCheck.tsx
+index 9eef62b..29e10d5 100644
+--- a/web/src/pages/ReviewCheck.tsx
++++ b/web/src/pages/ReviewCheck.tsx
+@@ -15,7 +15,7 @@ import {
+ import { WordDetailPanel } from "../components/WordDetailPanel";
+ 
+ import { startReviewSession } from "../api/review";
+-import { nextWordTapState } from "../utils/wordReveal";
++import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+ import { beginReviewPractice, type ReviewPracticeWord } from "../utils/reviewPractice";
+ 
+ type ReviewWord = {
+@@ -121,16 +121,13 @@ export default function ReviewCheck() {
+   };
+ 
+   const handleWordClick = (word: ReviewWord) => {
+-    if (detailMode) {
+-      setDetailWord((prev) =>
+-        prev?.id === word.id ? null : { id: word.id, word: word.word }
+-      );
+-      return;
+-    }
+     const next = nextWordTapState({
+       showTranslation: !!word.showTranslation,
+       heard: !!word.heard,
+     });
++    if (next.shouldPlay && word.audioUrl) {
++      // 有音频时按同一节奏发音
++    }
+     setWords((prev) =>
+       prev.map((w) => {
+         if (w.id === word.id) {
+@@ -142,6 +139,7 @@ export default function ReviewCheck() {
+         return w;
+       })
+     );
++    setDetailWord(syncDetailWordWithTap(detailMode, next, word));
+   };
+ 
+   const handlePlayAudio = (_word: ReviewWord) => {
+@@ -290,7 +288,7 @@ export default function ReviewCheck() {
+                 onPlay={handlePlayAudio}
+                 onWordClick={handleWordClick}
+                 onStatus={handleStatusClick}
+-                detailWordId={detailMode ? detailWord?.id ?? null : undefined}
++                amplifyDetail={detailMode}
+                 onDetailClose={() => setDetailWord(null)}
+               />
+             ) : (
+@@ -336,7 +334,7 @@ export default function ReviewCheck() {
+                         </CloudButton>
+                       </div>
+                     </div>
+-                    {detailMode && detailWord?.id === word.id && (
++                    {detailMode && word.showTranslation && (
+                       <WordDetailPanel
+                         wordId={word.id}
+                         wordText={word.word}
+diff --git a/web/src/pages/WordPractice.tsx b/web/src/pages/WordPractice.tsx
+index a16ea0f..d1e88ee 100644
+--- a/web/src/pages/WordPractice.tsx
++++ b/web/src/pages/WordPractice.tsx
+@@ -11,7 +11,7 @@ import { WordDetailPanel } from "../components/WordDetailPanel";
+ import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
+ import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls } from "../utils/audioPlayer";
+ import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
+-import { nextWordTapState } from "../utils/wordReveal";
++import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+ import { getReviewReturnPath } from "../utils/reviewPractice";
+ 
+ type PracticeWord = {
+@@ -63,7 +63,7 @@ export default function WordPractice() {
+ 
+   const handleBack = () => {
+     if (window.history.length > 1) navigate(-1);
+-    else navigate(mode === "review" ? getReviewReturnPath("/review-check") : "/pre-training-check");
++    else navigate(mode === "review" ? getReviewReturnPath("/word-training") : "/pre-training-check");
+   };
+ 
+   const batchIdx = useMemo(() => {
+@@ -149,14 +149,8 @@ export default function WordPractice() {
+     setCurrentIndex(activeIndex);
+   }, [activeIndex, words.length]);
+ 
+-  /** 点单词：第一次发音，第二次显示音标+释义 */
++  /** 点单词：第一次发音，第二次显示音标+释义；拓展仅在释义时增幅 */
+   const handleWordTap = (word: PracticeWord) => {
+-    if (detailMode) {
+-      setDetailWord((prev) =>
+-        prev?.id === word.id ? null : { id: word.id, word: word.word }
+-      );
+-      return;
+-    }
+     const next = nextWordTapState({
+       showTranslation: word.showTranslation,
+       heard: word.heard,
+@@ -178,6 +172,7 @@ export default function WordPractice() {
+         return w;
+       })
+     );
++    setDetailWord(syncDetailWordWithTap(detailMode, next, word));
+   };
+ 
+   const handleCountClick = (id: number) => {
+@@ -342,7 +337,7 @@ export default function WordPractice() {
+                 </CloudButton>
+               </div>
+             )}
+-            {detailMode && detailWord?.id === cardWord.id && (
++            {detailMode && cardWord.showTranslation && (
+               <div className="w-full">
+                 <WordDetailPanel
+                   wordId={cardWord.id}
+@@ -393,7 +388,7 @@ export default function WordPractice() {
+                     </div>
+                   )}
+                 </div>
+-                {detailMode && detailWord?.id === word.id && (
++                {detailMode && word.showTranslation && (
+                   <WordDetailPanel
+                     wordId={word.id}
+                     wordText={word.word}
+diff --git a/web/src/utils/wordReveal.ts b/web/src/utils/wordReveal.ts
+index 376713e..95550f9 100644
+--- a/web/src/utils/wordReveal.ts
++++ b/web/src/utils/wordReveal.ts
+@@ -13,3 +13,16 @@ export function nextWordTapState(opts: {
+   }
+   return { heard: true, showTranslation: true, shouldPlay: false };
+ }
++
++/**
++ * 拓展模式不打断点词节奏：仅在「展示释义」时同步打开详情，收起释义时关掉。
++ */
++export function syncDetailWordWithTap(
++  detailMode: boolean,
++  next: { showTranslation: boolean },
++  word: { id: number; word: string }
++): { id: number; word: string } | null {
++  if (!detailMode) return null;
++  if (next.showTranslation) return { id: word.id, word: word.word };
++  return null;
++}
+-- 
+2.55.0.windows.3
+

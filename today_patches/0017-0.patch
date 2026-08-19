@@ -1,0 +1,95 @@
+From 493e9a295d0509158c4c61745ab9f3922081bad4 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E9=99=88=E6=9D=B0?= <17793426456@163.com>
+Date: Mon, 17 Aug 2026 14:45:52 +0800
+Subject: [PATCH 17/30] =?UTF-8?q?=E6=94=BE=E5=A4=A7=E7=8E=AF=E5=BD=A2?=
+ =?UTF-8?q?=E5=B9=B6=E6=98=BE=E7=A4=BA=E6=89=80=E6=9C=89=E6=89=87=E5=8C=BA?=
+ =?UTF-8?q?=E6=95=B0=E5=AD=97(=E5=90=AB0=E5=80=BC=E7=99=BD=E8=89=B2)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+环形半径从38%-58%放大到44%-66%；扇区内数字始终显示(0也显示)，统一白色；外圈标签编号按阶段颜色对齐，数量用对应阶段色块包裹白字显示。
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+---
+ web/src/components/MemoryLighthouse.tsx | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/web/src/components/MemoryLighthouse.tsx b/web/src/components/MemoryLighthouse.tsx
+index 7eb910d..77df927 100644
+--- a/web/src/components/MemoryLighthouse.tsx
++++ b/web/src/components/MemoryLighthouse.tsx
+@@ -137,7 +137,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+         series: [
+           {
+             type: "pie",
+-            radius: ["38%", "58%"],
++            radius: ["44%", "66%"],
+             center: ["50%", "50%"],
+             // 起始角 180°：01 从底部开始顺时针排布
+             startAngle: 180,
+@@ -149,7 +149,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+               borderColor: "#ffffff",
+               borderWidth: 2,
+             },
+-            // 扇区内数字：几何居中、水平正向、不旋转
++            // 扇区内数字：几何居中、水平正向、不旋转，0 值也显示
+             label: {
+               show: true,
+               position: "inside",
+@@ -158,15 +158,11 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+               verticalAlign: "middle",
+               fontSize: 14,
+               fontWeight: "bold",
+-              color: (params: any) => {
+-                const idx = params.dataIndex;
+-                const s = STAGES[idx];
+-                return s ? s.textColor : "#222";
+-              },
+-              // 读取自定义 realValue，0 值隐藏数字
++              color: "#ffffff",
++              // 读取自定义 realValue，0 值也显示数字
+               formatter: (params: any) => {
+                 const realVal = params.data?.realValue ?? 0;
+-                return realVal > 0 ? String(realVal) : "";
++                return String(realVal);
+               },
+             },
+             labelLine: { show: false },
+@@ -239,7 +235,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+    * 起始角度 120°（左下方，对应 01），顺时针每块 +40°
+    * 半径用 % 表示（相对容器），大于外环 88%
+    */
+-  const labelRadius = 43; // % 距中心，环形外缘在 29%（58%/2），标签放在 43% 留足空间
++  const labelRadius = 47; // % 距中心，环形外缘在 33%（66%/2），标签放在 47% 留足空间
+   const labelPositions = useMemo(
+     () =>
+       STAGES.map((_, idx) => {
+@@ -320,7 +316,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+                     className="absolute"
+                     style={{
+                       width: "1px",
+-                      height: "22px",
++                      height: "16px",
+                       backgroundColor: "#bbb",
+                       // 短线指向圆心方向
+                       transform: `translate(-50%, -100%) rotate(${lineAngle + 180}deg)`,
+@@ -329,10 +325,10 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+                       left: "50%",
+                     }}
+                   />
+-                  <div className="text-[13px] font-bold leading-none" style={{ color: stage.color }}>{stage.num}</div>
++                  <div className="text-[14px] font-bold leading-none" style={{ color: stage.color }}>{stage.num}</div>
+                   <div className="text-[9px] text-[#A0AEC0] leading-none mt-0.5">{stage.en}</div>
+-                  {/* 外圈数量与对应扇区内 realValue 保持一致，0 也显示 */}
+-                  <div className="text-[12px] font-bold text-[#2D3748] leading-none mt-1 tabular-nums">
++                  {/* 外圈数量与对应扇区内 realValue 保持一致，0 也显示，白色 */}
++                  <div className="text-[13px] font-bold leading-none mt-1 tabular-nums px-1.5 py-0.5 rounded" style={{ color: "#fff", backgroundColor: stage.color }}>
+                     {rawData[idx].realValue}
+                   </div>
+                 </div>
+-- 
+2.55.0.windows.3
+

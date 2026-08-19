@@ -1,0 +1,86 @@
+From 759dbec73bbbe971dd62e1f1479234a6a5956233 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E9=99=88=E6=9D=B0?= <17793426456@163.com>
+Date: Mon, 17 Aug 2026 11:29:53 +0800
+Subject: [PATCH 05/30] Fix static asset paths for GitHub Pages subpath
+ deployment
+
+Hardcoded absolute paths (/logo.png, /course/nine_grid_alt.png) in
+index.html and components broke when served from a GitHub Pages
+project subpath (https://<user>.github.io/CloudSteps/), because the
+browser resolved them against the domain root instead of the subpath.
+
+- index.html: use Vite's %BASE_URL% placeholder for logo/og/twitter
+  image paths so they get rewritten at build time.
+- Login.tsx, header.tsx, MemoryLighthouse.tsx: prefix public asset
+  src with import.meta.env.BASE_URL so they resolve correctly under
+  any base path.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+---
+ web/index.html                          | 6 +++---
+ web/src/components/MemoryLighthouse.tsx | 2 +-
+ web/src/components/header.tsx           | 2 +-
+ web/src/pages/Login.tsx                 | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/web/index.html b/web/index.html
+index 073946e..aefd6a9 100644
+--- a/web/index.html
++++ b/web/index.html
+@@ -17,9 +17,9 @@
+         rel="stylesheet"
+       />
+ 
+-      <link rel="icon" type="image/png" href="/logo.png" />
+-      <meta property="og:image" content="/logo.png" />
+-      <meta name="twitter:image" content="/logo.png" />
++      <link rel="icon" type="image/png" href="%BASE_URL%logo.png" />
++      <meta property="og:image" content="%BASE_URL%logo.png" />
++      <meta name="twitter:image" content="%BASE_URL%logo.png" />
+ 
+       <meta property="og:type" content="website" />
+       <meta property="og:title" content="云阶" />
+diff --git a/web/src/components/MemoryLighthouse.tsx b/web/src/components/MemoryLighthouse.tsx
+index 6390526..ff87f93 100644
+--- a/web/src/components/MemoryLighthouse.tsx
++++ b/web/src/components/MemoryLighthouse.tsx
+@@ -97,7 +97,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+   return (
+     <div className="relative w-full max-w-[400px] mx-auto aspect-[1190/1322]">
+       <img
+-        src="/course/nine_grid_alt.png"
++        src={`${import.meta.env.BASE_URL}course/nine_grid_alt.png`}
+         alt="记忆灯塔"
+         className="w-full h-full object-contain select-none pointer-events-none"
+         draggable={false}
+diff --git a/web/src/components/header.tsx b/web/src/components/header.tsx
+index 2ebd42b..e296f35 100644
+--- a/web/src/components/header.tsx
++++ b/web/src/components/header.tsx
+@@ -48,7 +48,7 @@ export function Header({
+             aria-label="云阶首页"
+           >
+             <img
+-              src="/logo.png"
++              src={`${import.meta.env.BASE_URL}logo.png`}
+               alt=""
+               className="w-7 h-7 rounded-md object-contain shrink-0"
+               loading="eager"
+diff --git a/web/src/pages/Login.tsx b/web/src/pages/Login.tsx
+index b586de2..27d2b02 100644
+--- a/web/src/pages/Login.tsx
++++ b/web/src/pages/Login.tsx
+@@ -185,7 +185,7 @@ export default function Login() {
+       <div className="w-full max-w-md rounded-xl p-8 bg-card border border-border">
+         <div className="mb-6">
+           <img
+-            src="/logo.png"
++            src={`${import.meta.env.BASE_URL}logo.png`}
+             alt="CloudSteps"
+             className="w-12 h-12 rounded-xl object-contain mb-5"
+           />
+-- 
+2.55.0.windows.3
+

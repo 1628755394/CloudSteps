@@ -31,6 +31,7 @@ export function readStudyNote(key: string) { return loadNote(key).text; }
 export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", subtitle = "", side = "right" }: Props) {
   const canvasElement = useRef<HTMLCanvasElement>(null);
   const canvasRef = useRef<Canvas | null>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const [note, setNote] = useState<NoteData>(() => loadNote(storageKey));
   const [sidePos, setSidePos] = useState(side);
   const [width, setWidth] = useState(initialPanelWidth);
@@ -50,6 +51,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
     localStorage.setItem(storageKey, JSON.stringify(next));
   };
 
+  // ---- Canvas init / destroy ----
   useEffect(() => {
     if (!open || !canvasElement.current) return;
     const stored = loadNote(storageKey);
@@ -57,49 +59,83 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
     setNote(saved);
     setColor(saved.color);
     setFill(saved.background);
-    const canvas = new Canvas(canvasElement.current, { width: 800, height: 600, preserveObjectStacking: true, selection: true });
+
+    // Create Fabric canvas with a tiny initial size; the real size is set by syncSize().
+    const canvas = new Canvas(canvasElement.current, {
+      width: 10,
+      height: 10,
+      preserveObjectStacking: true,
+      selection: true,
+    });
     canvas.backgroundColor = saved.background;
     canvasRef.current = canvas;
+
+    // Force the Fabric wrapper + both canvas layers to fill the host container.
+    // Fabric sets inline pixel styles on the layers; we override them after every render.
     const wrapper = canvas.wrapperEl;
-    wrapper.style.position = "absolute";
-    wrapper.style.inset = "0";
-    wrapper.style.width = "100%";
-    wrapper.style.height = "100%";
-    wrapper.style.overflow = "hidden";
-    wrapper.querySelectorAll("canvas").forEach((layer) => {
-      layer.style.width = "100%";
-      layer.style.height = "100%";
-    });
-    const host = canvasElement.current.parentElement;
-    const syncCanvasSize = () => {
-      if (!host) return;
-      const nextWidth = Math.max(1, host.clientWidth);
-      const nextHeight = Math.max(1, host.clientHeight);
-      canvas.setDimensions({ width: nextWidth, height: nextHeight });
-      canvas.calcOffset();
-      canvas.renderAll();
+    const applyFillStyle = () => {
+      wrapper.style.position = "absolute";
+      wrapper.style.inset = "0";
+      wrapper.style.width = "100%";
+      wrapper.style.height = "100%";
+      wrapper.style.overflow = "hidden";
+      const layers = wrapper.querySelectorAll("canvas");
+      layers.forEach((layer) => {
+        layer.style.width = "100%";
+        layer.style.height = "100%";
+        layer.style.display = "block";
+      });
     };
-    const resizeObserver = new ResizeObserver(syncCanvasSize);
-    resizeObserver.observe(host);
-    requestAnimationFrame(syncCanvasSize);
-    if (saved.json) canvas.loadFromJSON(saved.json).then(() => { canvas.backgroundColor = saved.background; syncCanvasSize(); });
+    applyFillStyle();
+
+    // Sync the drawing buffer to the host's pixel size so coordinates match.
+    const host = hostRef.current;
+    const syncSize = () => {
+      if (!host) return;
+      const w = Math.max(1, host.clientWidth);
+      const h = Math.max(1, host.clientHeight);
+      canvas.setDimensions({ width: w, height: h });
+      applyFillStyle();
+      canvas.calcOffset();
+      canvas.requestRenderAll();
+    };
+    const ro = new ResizeObserver(syncSize);
+    if (host) ro.observe(host);
+    requestAnimationFrame(syncSize);
+
+    // Restore saved content, then re-sync (loadFromJSON resets dimensions).
+    const restore = async () => {
+      if (saved.json) {
+        await canvas.loadFromJSON(saved.json);
+        canvas.backgroundColor = saved.background;
+      }
+      syncSize();
+    };
+    restore();
+
     canvas.on("object:added", persist);
     canvas.on("object:modified", persist);
     canvas.on("object:removed", persist);
     canvas.on("text:changed", persist);
     canvas.on("mouse:dblclick", (event) => {
       if (event.target) return;
-      const text = new Textbox("双击编辑文字", { left: 120, top: 160, width: 300, fill: color, fontSize, editable: true, fontFamily: "Arial", padding: 8 });
+      const pointer = canvas.getViewportPoint(event.e);
+      const text = new Textbox("双击编辑文字", { left: pointer.x, top: pointer.y, width: 300, fill: color, fontSize, editable: true, fontFamily: "Arial", padding: 8 });
       canvas.add(text);
       canvas.setActiveObject(text);
       text.enterEditing();
       persist();
     });
-    return () => { resizeObserver.disconnect(); canvas.dispose(); canvasRef.current = null; };
-    // Canvas is intentionally recreated when the panel opens or storage target changes.
+
+    return () => {
+      ro.disconnect();
+      canvas.dispose();
+      canvasRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, storageKey]);
 
+  // ---- Drawing mode ----
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -135,8 +171,18 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
     text.enterEditing();
     persist();
   };
-  const clearCanvas = () => { canvasRef.current?.clear(); if (canvasRef.current) canvasRef.current.backgroundColor = fill; persist(); };
-  const setBackground = (value: string) => { setFill(value); if (canvasRef.current) { canvasRef.current.backgroundColor = value; canvasRef.current.renderAll(); persist(); } };
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.clear();
+    canvas.backgroundColor = fill;
+    persist();
+  };
+  const setBackground = (value: string) => {
+    setFill(value);
+    const canvas = canvasRef.current;
+    if (canvas) { canvas.backgroundColor = value; canvas.renderAll(); persist(); }
+  };
   const download = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -146,7 +192,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
     link.click();
   };
   const button = (activeState = false) => `flex h-8 w-8 items-center justify-center rounded-lg ${activeState ? "bg-[#d8cdb8] text-[#25344a]" : "text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a]"}`;
-  const startEdgeResize = (edge: "left" | "right", event: React.PointerEvent<HTMLDivElement>) => {
+  const startEdgeResize = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startX = event.clientX;
     const startWidth = width;
@@ -161,36 +207,107 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
 
   if (!open) return null;
   return (
-    <aside className="fixed z-50 box-border max-w-[calc(100vw-16px)]" style={{ top: "3.5rem", bottom: "4.5rem", [sidePos]: 0, width: `min(${width}px, calc(100vw - 16px))`, maxWidth: "calc(100vw - 16px)", minWidth: "min(280px, calc(100vw - 16px))", background: fill }}>
-      <div className="relative h-full w-full overflow-visible rounded-[30px] border-2 border-[#1f2937] p-0 shadow-[0_10px_24px_rgba(38,91,115,0.18)]" style={{ background: fill }}>
-        <div className="pointer-events-none absolute left-1 top-8 bottom-8 z-20 flex flex-col justify-between py-2">
-          {Array.from({ length: 8 }).map((_, index) => <span key={index} className="relative block h-7 w-11 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[5px_0_0_#5c9bd7]" />)}
+    <aside
+      className="fixed z-50 box-border max-w-[calc(100vw-16px)]"
+      style={{
+        top: "3.5rem",
+        bottom: "4.5rem",
+        [sidePos]: 0,
+        width: `min(${width}px, calc(100vw - 16px))`,
+        maxWidth: "calc(100vw - 16px)",
+        minWidth: "min(280px, calc(100vw - 16px))",
+        background: fill,
+      }}
+    >
+      {/* Single beige board with one black rounded border. No outer blue grid. */}
+      <div
+        className="relative h-full w-full overflow-hidden rounded-[28px] border-2 border-[#1f2937] shadow-[0_10px_24px_rgba(38,91,115,0.18)]"
+        style={{ background: fill }}
+      >
+        {/* Blue binder rings on the left edge (decorative, above content) */}
+        <div className="pointer-events-none absolute left-1.5 top-8 bottom-8 z-30 flex flex-col justify-between py-1">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <span
+              key={index}
+              className="block h-6 w-9 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[4px_0_0_#5c9bd7]"
+            />
+          ))}
         </div>
-        <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[28px] border-2 border-[#1f2937]" style={{ background: fill }}>
-          <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-2 text-[#25344a] sm:h-11 sm:gap-2 sm:pl-12 sm:pr-3">
-            <span className="truncate text-lg font-bold sm:text-xl">{title}</span><span className="hidden truncate text-xs text-[#9b927f] sm:inline">黑板笔记</span>
-            <button type="button" className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]" onClick={() => setToolbarVisible((v) => !v)} title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"} aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}><PanelLeft size={17} /></button>
+
+        {/* Content column: toolbar + canvas host. Fills the whole board. */}
+        <div className="relative z-10 flex h-full w-full flex-col overflow-hidden">
+          {/* Title bar */}
+          <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-11 pr-2 text-[#25344a] sm:h-11 sm:gap-2 sm:pl-12 sm:pr-3">
+            <span className="truncate text-lg font-bold sm:text-xl">{title}</span>
+            <span className="hidden truncate text-xs text-[#9b927f] sm:inline">黑板笔记</span>
+            <button
+              type="button"
+              className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
+              onClick={() => setToolbarVisible((v) => !v)}
+              title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
+              aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
+            >
+              <PanelLeft size={17} />
+            </button>
           </div>
+
+          {/* Toolbar */}
           <div className={`shrink-0 overflow-hidden transition-[max-height] duration-200 ease-out ${toolbarVisible ? "max-h-64" : "max-h-0"}`}>
-          {toolbarVisible && <div className="mx-1 mt-1 flex flex-wrap items-center justify-between gap-0.5 rounded-md bg-transparent pl-10 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-2 sm:gap-1 sm:pl-12 sm:pr-0 sm:py-1">
-            <button className={button(active()?.get("fontWeight") === "bold")} onClick={() => toggleActive("fontWeight", "bold", "normal")} title="粗体"><Bold size={16} /></button>
-            <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
-            <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
-            <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
-            <div className="flex items-center gap-1"><Type size={15} /><select value={fontSize} onChange={(e) => { const value = Number(e.target.value); setFontSize(value); updateActive({ fontSize: value }); }} className="h-7 rounded-md bg-[#eee5d5] px-1 text-xs text-[#25344a]"><option className="text-black" value={20}>字号 20</option><option className="text-black" value={28}>字号 28</option><option className="text-black" value={36}>字号 36</option><option className="text-black" value={48}>字号 48</option></select></div>
-            <label className={button()} title="文字颜色"><Palette size={16} /><input className="sr-only" type="color" value={color} onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }} /></label>
-            <label className={button()} title="画布填充"><PaintBucket size={16} /><input className="sr-only" type="color" value={fill} onChange={(e) => setBackground(e.target.value)} /></label>
-            <button className={button(drawing)} onClick={() => setDrawing((v) => !v)} title="画板"><Pencil size={16} /></button>
-            <button className={button()} onClick={addText} title="添加文本"><Type size={16} /></button>
-            <button className={button()} onClick={() => updateActive({ textAlign: "left" })} title="左对齐"><AlignLeft size={16} /></button>
-            <button className={button()} onClick={() => updateActive({ textAlign: "center" })} title="居中"><AlignCenter size={16} /></button>
-            <button className={button()} onClick={() => updateActive({ textAlign: "right" })} title="右对齐"><AlignRight size={16} /></button>
-            <div className="contents"><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => setSidePos((s) => s === "right" ? "left" : "right")} title="切换左右"><PanelLeft size={16} /></button><button className={button()} onClick={download} title="下载"><Download size={16} /></button><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空"><Eraser size={16} /></button><CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton></div>
-          </div>}
+            {toolbarVisible && (
+              <div className="mx-1 mt-1 flex flex-wrap items-center gap-0.5 pl-11 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-2 sm:gap-1 sm:pl-12 sm:pr-0 sm:py-1">
+                <button className={button(active()?.get("fontWeight") === "bold")} onClick={() => toggleActive("fontWeight", "bold", "normal")} title="粗体"><Bold size={16} /></button>
+                <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
+                <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
+                <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
+                <div className="flex items-center gap-1">
+                  <Type size={15} />
+                  <select
+                    value={fontSize}
+                    onChange={(e) => { const value = Number(e.target.value); setFontSize(value); updateActive({ fontSize: value }); }}
+                    className="h-7 rounded-md bg-[#eee5d5] px-1 text-xs text-[#25344a]"
+                  >
+                    <option className="text-black" value={20}>字号 20</option>
+                    <option className="text-black" value={28}>字号 28</option>
+                    <option className="text-black" value={36}>字号 36</option>
+                    <option className="text-black" value={48}>字号 48</option>
+                  </select>
+                </div>
+                <label className={button()} title="文字颜色">
+                  <Palette size={16} />
+                  <input className="sr-only" type="color" value={color} onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }} />
+                </label>
+                <label className={button()} title="画布填充">
+                  <PaintBucket size={16} />
+                  <input className="sr-only" type="color" value={fill} onChange={(e) => setBackground(e.target.value)} />
+                </label>
+                <button className={button(drawing)} onClick={() => setDrawing((v) => !v)} title="画板"><Pencil size={16} /></button>
+                <button className={button()} onClick={addText} title="添加文本"><Type size={16} /></button>
+                <button className={button()} onClick={() => updateActive({ textAlign: "left" })} title="左对齐"><AlignLeft size={16} /></button>
+                <button className={button()} onClick={() => updateActive({ textAlign: "center" })} title="居中"><AlignCenter size={16} /></button>
+                <button className={button()} onClick={() => updateActive({ textAlign: "right" })} title="右对齐"><AlignRight size={16} /></button>
+                <div className="contents">
+                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => setSidePos((s) => s === "right" ? "left" : "right")} title="切换左右"><PanelLeft size={16} /></button>
+                  <button className={button()} onClick={download} title="下载"><Download size={16} /></button>
+                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空"><Eraser size={16} /></button>
+                  <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="relative min-h-0 flex-1 overflow-hidden p-1 sm:p-2"><canvas ref={canvasElement} className="h-full w-full" /><div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div></div>
+
+          {/* Canvas host: fills remaining space. Fabric canvas syncs to this. */}
+          <div ref={hostRef} className="relative min-h-0 flex-1 overflow-hidden">
+            <canvas ref={canvasElement} className="block h-full w-full" />
+            {subtitle && <div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div>}
+          </div>
         </div>
-        <div className={`${sidePos === "right" ? "-left-1" : "-right-1"} absolute top-0 bottom-0 z-40 hidden w-2 touch-none cursor-ew-resize sm:block`} onPointerDown={(e) => startEdgeResize("left", e)} aria-label="拖动分屏边缘调整宽度" />
+
+        {/* Edge resize handle */}
+        <div
+          className={`${sidePos === "right" ? "-left-1" : "-right-1"} absolute top-0 bottom-0 z-40 hidden w-2 touch-none cursor-ew-resize sm:block`}
+          onPointerDown={startEdgeResize}
+          aria-label="拖动分屏边缘调整宽度"
+        />
       </div>
     </aside>
   );
