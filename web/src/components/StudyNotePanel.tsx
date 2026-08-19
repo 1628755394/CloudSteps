@@ -59,6 +59,15 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
     const canvas = new Canvas(canvasElement.current, { width: 800, height: 600, preserveObjectStacking: true, selection: true });
     canvas.backgroundColor = saved.background;
     canvasRef.current = canvas;
+    const wrapper = canvas.wrapperEl;
+    wrapper.style.position = "absolute";
+    wrapper.style.inset = "0";
+    wrapper.style.width = "100%";
+    wrapper.style.height = "100%";
+    wrapper.querySelectorAll("canvas").forEach((layer) => {
+      layer.style.width = "100%";
+      layer.style.height = "100%";
+    });
     if (saved.json) canvas.loadFromJSON(saved.json).then(() => { canvas.backgroundColor = saved.background; canvas.renderAll(); });
     canvas.on("object:added", persist);
     canvas.on("object:modified", persist);
@@ -163,7 +172,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "黑板", su
             <button className={button()} onClick={() => updateActive({ textAlign: "right" })} title="右对齐"><AlignRight size={16} /></button>
             <div className="contents"><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => setSidePos((s) => s === "right" ? "left" : "right")} title="切换左右"><PanelLeft size={16} /></button><button className={button()} onClick={download} title="下载"><Download size={16} /></button><button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空"><Eraser size={16} /></button><CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton></div>
           </div>}
-          <div className="relative min-h-0 flex-1 p-1 sm:p-2"><canvas ref={canvasElement} className="h-full w-full" /><div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div></div>
+          <div className="relative min-h-0 flex-1 overflow-hidden p-1 sm:p-2"><canvas ref={canvasElement} className="h-full w-full" /><div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div></div>
         </div>
         <div className={`${sidePos === "right" ? "-left-1" : "-right-1"} absolute top-0 bottom-0 z-40 w-2 touch-none cursor-ew-resize`} onPointerDown={(e) => startEdgeResize("left", e)} aria-label="拖动分屏边缘调整宽度" />
       </div>
