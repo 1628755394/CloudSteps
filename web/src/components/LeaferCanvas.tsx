@@ -36,6 +36,7 @@ interface Props {
   storageKey: string;
   onBlankClick?: () => void;
   onContentChange?: () => void;
+  onDrawingEnd?: () => void;
 }
 
 interface Pt { x: number; y: number }
@@ -128,7 +129,7 @@ interface Snapshot {
 }
 
 export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function LeaferCanvas(
-  { tool, color, brushWidth, eraserWidth, eraserTrailColor, eraserTrailOpacity, brushStyle, background, fontSize, storageKey, onBlankClick, onContentChange },
+  { tool, color, brushWidth, eraserWidth, eraserTrailColor, eraserTrailOpacity, brushStyle, background, fontSize, storageKey, onBlankClick, onContentChange, onDrawingEnd },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -231,7 +232,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       strokeLinecap: "round",
       strokeLinejoin: "round",
       fill: "",
-      draggable: true,
+      draggable: false,
       opacity,
     });
     drawLayerRef.current?.add(path);
@@ -484,7 +485,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button === 2 || isDrawingRef.current) return;
+      if (e.button !== 0 || !e.isPrimary || isDrawingRef.current) return;
       const t = toolRef.current;
       const pt = getPoint(e);
 
@@ -509,7 +510,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           fill: colorRef.current,
           fontSize: fontSizeRef.current,
           editable: true,
-          draggable: true,
+          draggable: false,
         });
         drawLayer.add(text);
         pushUndo();
@@ -648,7 +649,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         shapeStartRef.current = null;
         if (shapePreviewRef.current) {
           (shapePreviewRef.current as unknown as { hittable: boolean }).hittable = true;
-          (shapePreviewRef.current as unknown as { draggable: boolean }).draggable = true;
+          (shapePreviewRef.current as unknown as { draggable: boolean }).draggable = false;
           shapePreviewRef.current = null;
           pushUndo();
           onContentChange?.();
@@ -677,9 +678,12 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
             ? `${colorRef.current}88`
             : colorRef.current;
         const w = isHighlighter ? Math.max(brushWidthRef.current * 3, 12) : brushWidthRef.current;
-        createStrokePath(pts, strokeColor, w, isHighlighter ? 0.5 : 1);
-        pushUndo();
-        onContentChange?.();
+        if (pts.length > 1) {
+          createStrokePath(pts, strokeColor, w, isHighlighter ? 0.5 : 1);
+          pushUndo();
+          onContentChange?.();
+        }
+        onDrawingEnd?.();
       } else if (t === "eraser") {
         // Remove the light gray preview trail
         if (eraserPreviewRef.current) {
@@ -759,12 +763,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   useEffect(() => {
     const app = appRef.current;
     if (!app) return;
-    if (tool === "select") {
-      app.editor.hittable = true;
-      app.tree.hittable = true;
-    } else {
+    const canDrag = tool === "select";
+    app.editor.hittable = canDrag;
+    app.tree.hittable = canDrag;
+    for (const child of drawLayerRef.current?.children || []) {
+      (child as unknown as { draggable: boolean }).draggable = canDrag;
+    }
+    if (!canDrag) {
       app.editor.target = undefined;
-      app.editor.hittable = false;
     }
   }, [tool]);
 
@@ -833,9 +839,9 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     clear: () => {
       const layer = drawLayerRef.current;
       if (!layer) return;
+      pushUndo();
       layer.removeAll(true);
       strokePointsMap.current.clear();
-      pushUndo();
       onContentChange?.();
     },
     setBackground: (bgColor: string) => {

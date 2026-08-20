@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BookOpen, Check, ChevronLeft, ChevronRight, LayoutGrid, List, Volume2, X } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import { WordDetailPanel } from "./WordDetailPanel";
+import { StudyNoteLauncher } from "./StudyNotePanel";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
 
 export type MarkableWord = {
@@ -129,6 +130,8 @@ type CardProps = {
   amplifyDetail?: boolean;
   /** 只看单词，不显示 ✓ / ✗ */
   hideStatus?: boolean;
+  /** 单词级笔记存储 key 生成器 */
+  noteStorageKey?: (word: MarkableWord) => string;
 };
 
 export function WordCardPanel({
@@ -144,6 +147,7 @@ export function WordCardPanel({
   simpleMode = true,
   amplifyDetail = false,
   hideStatus = false,
+  noteStorageKey,
 }: CardProps) {
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
@@ -169,7 +173,7 @@ export function WordCardPanel({
 
   return (
     <div className="flex flex-col items-center gap-5 py-4">
-      <div className="flex items-center gap-3 w-full max-w-2xl">
+      <div className="flex items-center gap-3 w-full max-w-2xl lg:max-w-4xl">
         <CloudButton
           type="button"
           variant="ghost"
@@ -227,6 +231,14 @@ export function WordCardPanel({
         <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => onPlay(word)}>
           <Volume2 size={20} className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"} />
         </CloudButton>
+        {noteStorageKey && (
+          <StudyNoteLauncher
+            storageKey={noteStorageKey(word)}
+            title={`笔记 · ${word.word}`}
+            label="笔记"
+            className="h-9 px-2"
+          />
+        )}
         <CloudButton
           type="button"
           variant="ghost"

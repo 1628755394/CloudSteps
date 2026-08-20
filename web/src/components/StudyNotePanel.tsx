@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
   Bold,
+  Download,
+  Save,
   Trash2,
   Circle as CircleIcon,
   Eraser,
@@ -34,6 +39,41 @@ function loadNote(key: string): NoteData {
   try { return { ...emptyNote, ...JSON.parse(localStorage.getItem(key) || "{}") }; } catch { return emptyNote; }
 }
 export function readStudyNote(key: string) { return loadNote(key).text; }
+
+type StudyNoteLauncherProps = {
+  storageKey: string;
+  title?: string;
+  label?: string;
+  className?: string;
+};
+
+export function StudyNoteLauncher({ storageKey, title = "随心记", label = "随心记", className = "" }: StudyNoteLauncherProps) {
+  const [open, setOpen] = useState(false);
+  const [side, setSide] = useState<"left" | "right">("right");
+  return (
+    <>
+      <button
+        type="button"
+        className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
+        onClick={() => setOpen(true)}
+        title={`打开${label}`}
+      >
+        <BookOpen size={15} />
+        {label}
+      </button>
+      {open && (
+        <StudyNotePanel
+          open={open}
+          onClose={() => setOpen(false)}
+          storageKey={storageKey}
+          title={title}
+          side={side}
+          onSideChange={setSide}
+        />
+      )}
+    </>
+  );
+}
 
 export function StudyNotePanel({ open, onClose, storageKey, title = "随心记", subtitle = "", side = "right", split = false, onSideChange }: Props) {
   const leaferRef = useRef<LeaferCanvasHandle>(null);
@@ -445,8 +485,10 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
                 <button className={button()} onClick={undo} title="撤销（上一步）" aria-label="撤销"><Undo2 size={16} /></button>
                 <button className={button()} onClick={redo} title="重做（下一步）" aria-label="重做"><Redo2 size={16} /></button>
+                <button className={button()} onClick={persist} title="保存笔记" aria-label="保存笔记"><Save size={16} /></button>
+                <button className={button()} onClick={() => leaferRef.current?.exportImage(`${title || "随心记"}.png`)} title="下载图片" aria-label="下载图片"><Download size={16} /></button>
                 <div className="contents">
-                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title="切换左右"><PanelLeft size={16} /></button>
+                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title={sidePos === "right" ? "移到左侧" : "移到右侧"} aria-label={sidePos === "right" ? "移到左侧" : "移到右侧"}>{sidePos === "right" ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}</button>
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空 一键清空全部" aria-label="清空"><Trash2 size={16} /></button>
                   <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton>
                 </div>
@@ -470,6 +512,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
               storageKey={storageKey}
               onBlankClick={() => { setTool("select"); }}
               onContentChange={persist}
+              onDrawingEnd={() => setTool("select")}
             />
             {subtitle && <div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div>}
           </div>

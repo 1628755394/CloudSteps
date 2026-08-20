@@ -17,6 +17,7 @@ import {
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import { completeStudySession } from "../api/study";
 import { completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
@@ -87,6 +88,7 @@ export default function PostTrainingCheck() {
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
+  const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
 
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
@@ -448,7 +450,7 @@ export default function PostTrainingCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-4 pb-36 max-w-2xl mx-auto w-full">
+      <div className="px-4 mt-4 pb-36 max-w-2xl lg:max-w-5xl mx-auto w-full">
         {mode === "study" && phaseLabels.hint && (
           <p className="text-center text-sm text-[#718096] mb-4">{phaseLabels.hint}</p>
         )}
@@ -468,6 +470,7 @@ export default function PostTrainingCheck() {
             onStatus={handleStatusClick}
             amplifyDetail={detailMode}
             onDetailClose={() => setDetailWord(null)}
+            noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
           />
         ) : (
           <div className="space-y-3 mb-6">
@@ -500,6 +503,14 @@ export default function PostTrainingCheck() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <StudyNoteLauncher
+                      storageKey={`study-note:word:${wordBookId}:${word.id}`}
+                      title={`笔记 · ${word.word}`}
+                      label="笔记"
+                      className="h-9 px-2"
+                    />
+                  </div>
                   <CloudButton
                     type="button"
                     variant="ghost"
@@ -560,9 +571,13 @@ export default function PostTrainingCheck() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-2xl mx-auto w-full">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
+            <StudyNoteLauncher
+              storageKey={`study-note:global:${wordBookId}`}
+              label="随心记"
+            />
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />

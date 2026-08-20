@@ -19,6 +19,7 @@ import {
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
@@ -384,6 +385,14 @@ export default function PreTrainingCheck() {
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div onClick={(e) => e.stopPropagation()}>
+            <StudyNoteLauncher
+              storageKey={`study-note:word:${wordBookId}:${word.id}`}
+              title={`笔记 · ${word.word}`}
+              label="笔记"
+              className="h-9 px-2"
+            />
+          </div>
           <CloudButton
             type="button"
             variant="ghost"
@@ -470,7 +479,7 @@ export default function PreTrainingCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-4 pb-36 max-w-2xl mx-auto w-full">
+      <div className="px-4 mt-4 pb-36 max-w-2xl lg:max-w-5xl mx-auto w-full">
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm mb-4">
             {error}
@@ -504,6 +513,7 @@ export default function PreTrainingCheck() {
             amplifyDetail={detailMode}
             onDetailClose={() => setDetailWord(null)}
             simpleMode={simpleDetail}
+            noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
           />
         ) : (
           <div className="space-y-2.5 mb-6">
@@ -539,9 +549,13 @@ export default function PreTrainingCheck() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
-        <div className="max-w-2xl mx-auto w-full">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
+            <StudyNoteLauncher
+              storageKey={`study-note:global:${wordBookId}`}
+              label="随心记"
+            />
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
               variant={detailMode ? "brand" : "outline"}

@@ -20,7 +20,7 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
-import { StudyNotePanel } from "../components/StudyNotePanel";
+import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 
 type ReviewWordItem = {
   id: number;
@@ -294,7 +294,7 @@ export default function ReviewWordList() {
       />
 
       {/* Split container: word content + note panel on the same layer. */}
-      <div className={`px-4 pt-3 pb-4 w-full ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "max-w-2xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
+      <div className={`px-4 pt-3 pb-4 w-full ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
         {/* Word content pane */}
         <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
@@ -329,6 +329,7 @@ export default function ReviewWordList() {
               hideStatus={viewOnly}
               amplifyDetail={detailMode}
               onDetailClose={() => setDetailWord(null)}
+              noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
             />
           </div>
         ) : (
@@ -369,6 +370,14 @@ export default function ReviewWordList() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <StudyNoteLauncher
+                          storageKey={`study-note:word:${wordBookId}:${item.id}`}
+                          title={`笔记 · ${item.word}`}
+                          label="笔记"
+                          className="h-9 px-2"
+                        />
+                      </div>
                       <CloudButton
                         type="button"
                         variant="ghost"
@@ -460,7 +469,7 @@ export default function ReviewWordList() {
         />
       )}
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
-        <div className="max-w-2xl mx-auto w-full space-y-2.5">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             {!viewOnly && (
               <>
@@ -479,6 +488,15 @@ export default function ReviewWordList() {
               </>
             )}
             <div className="flex-1" />
+            <CloudButton
+              type="button"
+              variant={globalNoteOpen ? "brand" : "outline"}
+              size="pill"
+              onClick={() => setGlobalNoteOpen(true)}
+              aria-label="打开随心记"
+            >
+              随心记
+            </CloudButton>
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
               type="button"
