@@ -108,7 +108,10 @@ export default function ReviewWordList() {
     const startX = e.clientX;
     const startW = noteWidth;
     let latestW = startW;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "ew-resize";
     const onMove = (ev: PointerEvent) => {
+      ev.preventDefault();
       const delta = ev.clientX - startX;
       // right side: drag left increases width; left side: drag right increases width
       const next = Math.max(280, Math.min(720, startW + (noteSide === "right" ? -delta : delta)));
@@ -118,6 +121,8 @@ export default function ReviewWordList() {
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
       try { localStorage.setItem("lb_review_note_width", String(latestW)); } catch { /* ignore */ }
     };
     window.addEventListener("pointermove", onMove);
@@ -429,13 +434,13 @@ export default function ReviewWordList() {
           <>
             {/* Drag handle between word content and note panel */}
             <div
-              className={`hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}
-              style={{ width: "6px" }}
+              className={`group hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none lg:select-none ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}
+              style={{ width: "10px", flexShrink: 0 }}
               onPointerDown={startNoteResize}
               title="拖动调整随心记宽度"
               aria-label="拖动调整随心记宽度"
             >
-              <span className="h-12 w-1 rounded-full bg-[#A0AEC0]/40 hover:bg-[#A0AEC0]/70 transition-colors" />
+              <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 group-hover:bg-[#4ECDC4]/60 group-hover:w-1.5 transition-all" />
             </div>
             <div
               className={`lg:flex lg:min-w-[280px] lg:flex-col ${noteSide === "right" ? "lg:order-3" : "lg:order-1"}`}

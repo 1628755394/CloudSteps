@@ -381,15 +381,18 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
         </div>
       </div>
 
-      {/* Edge resize handle — outside overflow-hidden so it is never clipped */}
-      <div
-        className={`${sidePos === "right" ? "-left-1.5" : "-right-1.5"} absolute top-0 bottom-0 z-50 flex w-3 touch-none cursor-ew-resize items-center justify-center`}
-        onPointerDown={startEdgeResize}
-        aria-label="拖动分屏边缘调整宽度"
-        title="拖动调整宽度"
-      >
-        <span className="h-10 w-0.5 rounded-full bg-[#5f7890]/40" />
-      </div>
+      {/* Edge resize handle — only in standalone floating mode.
+          In split mode the parent (ReviewWordList) controls width via its own drag handle. */}
+      {!split && (
+        <div
+          className={`${sidePos === "right" ? "-left-1.5" : "-right-1.5"} absolute top-0 bottom-0 z-50 flex w-3 touch-none cursor-ew-resize items-center justify-center`}
+          onPointerDown={startEdgeResize}
+          aria-label="拖动分屏边缘调整宽度"
+          title="拖动调整宽度"
+        >
+          <span className="h-10 w-0.5 rounded-full bg-[#5f7890]/40" />
+        </div>
+      )}
     </>
   );
 
