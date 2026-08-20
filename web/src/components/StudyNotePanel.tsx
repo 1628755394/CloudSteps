@@ -99,6 +99,18 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [bgPopupPos, setBgPopupPos] = useState({ x: 0, y: 0 });
   const [toolbarVisible, setToolbarVisible] = useState(true);
 
+  const closePopups = () => {
+    setPenPopupOpen(false);
+    setEraserPopupOpen(false);
+    setBgPopupOpen(false);
+    setFontPopupOpen(false);
+  };
+
+  const activateTool = (next: Tool) => {
+    closePopups();
+    setTool(next);
+  };
+
   const openPopupAt = (
     e: React.MouseEvent<HTMLButtonElement>,
     setOpen: (v: boolean) => void,
@@ -220,14 +232,18 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
           <div className={`shrink-0 overflow-hidden transition-[max-height] duration-200 ease-out ${toolbarVisible ? "max-h-64" : "max-h-0"}`}>
             {toolbarVisible && (
               <div className="mx-1 mt-1 flex flex-wrap items-center gap-0.5 pl-10 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-1.5 sm:gap-1 sm:pl-11 sm:pr-0 sm:py-1">
-                <button className={button()} onClick={() => setFontPopupOpen(true)} title="字体设置（或右键文字）"><Bold size={16} /></button>
-                <button className={button()} onClick={() => setFontPopupOpen(true)} title="字体设置"><Italic size={16} /></button>
-                <button className={button()} onClick={() => setFontPopupOpen(true)} title="字体设置"><Underline size={16} /></button>
+                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置（或右键文字）"><Bold size={16} /></button>
+                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置"><Italic size={16} /></button>
+                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置"><Underline size={16} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
                 <div className="relative">
                   <button
                     className={button(bgPopupOpen)}
-                    onClick={(e) => openPopupAt(e, setBgPopupOpen, setBgPopupPos, bgPopupOpen)}
+                    onClick={(e) => {
+                      const wasOpen = bgPopupOpen;
+                      closePopups();
+                      if (!wasOpen) openPopupAt(e, setBgPopupOpen, setBgPopupPos, false);
+                    }}
                     title="画布背景颜色"
                   >
                     <PaintBucket size={16} />
@@ -276,11 +292,19 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     </>
                   )}
                 </div>
-                <button className={button(tool === "select")} onClick={() => setTool("select")} title="选择"><MousePointer2 size={16} /></button>
+                <button className={button(tool === "select")} onClick={() => activateTool("select")} title="选择"><MousePointer2 size={16} /></button>
                 <div className="relative">
                   <button
                     className={button(tool === "pen" || penPopupOpen)}
-                    onClick={(e) => { setTool("pen"); openPopupAt(e, setPenPopupOpen, setPenPopupPos, penPopupOpen); }}
+                    onClick={(e) => {
+                      const wasOpen = penPopupOpen;
+                      setTool("pen");
+                      setEraserPopupOpen(false);
+                      setBgPopupOpen(false);
+                      setFontPopupOpen(false);
+                      if (!wasOpen) openPopupAt(e, setPenPopupOpen, setPenPopupPos, false);
+                      else setPenPopupOpen(false);
+                    }}
                     title="画笔（点击弹出设置）"
                   >
                     <Pencil size={16} />
@@ -403,7 +427,15 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <div className="relative">
                   <button
                     className={button(tool === "eraser" || eraserPopupOpen)}
-                    onClick={(e) => { setTool("eraser"); openPopupAt(e, setEraserPopupOpen, setEraserPopupPos, eraserPopupOpen); }}
+                    onClick={(e) => {
+                      const wasOpen = eraserPopupOpen;
+                      setTool("eraser");
+                      setPenPopupOpen(false);
+                      setBgPopupOpen(false);
+                      setFontPopupOpen(false);
+                      if (!wasOpen) openPopupAt(e, setEraserPopupOpen, setEraserPopupPos, false);
+                      else setEraserPopupOpen(false);
+                    }}
                     title="橡皮（点击打开设置）"
                   >
                     <Eraser size={16} />
@@ -479,9 +511,9 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     </>
                   )}
                 </div>
-                <button className={button(tool === "circle")} onClick={() => setTool("circle")} title="圆形"><CircleIcon size={16} /></button>
-                <button className={button(tool === "rect")} onClick={() => setTool("rect")} title="矩形"><SquareIcon size={16} /></button>
-                <button className={button()} onClick={addText} title="添加文字（居中）"><Type size={16} /></button>
+                <button className={button(tool === "circle")} onClick={() => activateTool("circle")} title="圆形"><CircleIcon size={16} /></button>
+                <button className={button(tool === "rect")} onClick={() => activateTool("rect")} title="矩形"><SquareIcon size={16} /></button>
+                <button className={button()} onClick={() => { closePopups(); addText(); }} title="添加文字（居中）"><Type size={16} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
                 <button className={button()} onClick={undo} title="撤销（上一步）" aria-label="撤销"><Undo2 size={16} /></button>
                 <button className={button()} onClick={redo} title="重做（下一步）" aria-label="重做"><Redo2 size={16} /></button>
@@ -489,7 +521,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <button className={button()} onClick={() => leaferRef.current?.exportImage(`${title || "随心记"}.png`)} title="下载图片" aria-label="下载图片"><Download size={16} /></button>
                 <div className="contents">
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title={sidePos === "right" ? "移到左侧" : "移到右侧"} aria-label={sidePos === "right" ? "移到左侧" : "移到右侧"}>{sidePos === "right" ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}</button>
-                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空 一键清空全部" aria-label="清空"><Trash2 size={16} /></button>
+                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { closePopups(); clearCanvas(); }} title="清空 一键清空全部" aria-label="清空"><Trash2 size={16} /></button>
                   <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton>
                 </div>
               </div>
@@ -510,9 +542,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
               background={fill}
               fontSize={fontSize}
               storageKey={storageKey}
-              onBlankClick={() => { setTool("select"); }}
               onContentChange={persist}
-              onDrawingEnd={() => setTool("select")}
             />
             {subtitle && <div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div>}
           </div>

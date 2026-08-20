@@ -34,9 +34,7 @@ interface Props {
   background: string;
   fontSize: number;
   storageKey: string;
-  onBlankClick?: () => void;
   onContentChange?: () => void;
-  onDrawingEnd?: () => void;
 }
 
 interface Pt { x: number; y: number }
@@ -129,7 +127,7 @@ interface Snapshot {
 }
 
 export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function LeaferCanvas(
-  { tool, color, brushWidth, eraserWidth, eraserTrailColor, eraserTrailOpacity, brushStyle, background, fontSize, storageKey, onBlankClick, onContentChange, onDrawingEnd },
+  { tool, color, brushWidth, eraserWidth, eraserTrailColor, eraserTrailOpacity, brushStyle, background, fontSize, storageKey, onContentChange },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -489,15 +487,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       const t = toolRef.current;
       const pt = getPoint(e);
 
-      if (t === "select") {
-        const target = app.editor?.list?.[0];
-        if (!target) {
-          setTimeout(() => {
-            if (!app.editor?.list?.length) onBlankClick?.();
-          }, 0);
-        }
-        return;
-      }
+      if (t === "select") return;
 
       if (t === "text") {
         // Add text at center of visible canvas area
@@ -683,7 +673,6 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           pushUndo();
           onContentChange?.();
         }
-        onDrawingEnd?.();
       } else if (t === "eraser") {
         // Remove the light gray preview trail
         if (eraserPreviewRef.current) {
@@ -842,6 +831,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       pushUndo();
       layer.removeAll(true);
       strokePointsMap.current.clear();
+      appRef.current?.editor && (appRef.current.editor.target = undefined);
+      appRef.current?.tree.forceUpdate();
       onContentChange?.();
     },
     setBackground: (bgColor: string) => {
