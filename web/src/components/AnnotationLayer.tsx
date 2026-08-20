@@ -22,7 +22,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 
-type Tool = "pen" | "eraser" | "highlighter" | "select" | "circle" | "rect" | "text";
+type Tool = "pen" | "eraser" | "select" | "circle" | "rect" | "text";
 type BrushMode = "fountain" | "pencil";
 type DockSide = "left" | "right";
 
@@ -158,21 +158,13 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
 
   if (s.points.length < 2) return;
 
-  if (s.tool === "highlighter") {
-    ctx.lineCap = "butt";
-    ctx.lineJoin = "miter";
-  } else {
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-  }
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
 
   ctx.lineWidth = s.width;
   if (s.tool === "eraser") {
     ctx.globalCompositeOperation = "destination-out";
     ctx.strokeStyle = "rgba(0,0,0,1)";
-  } else if (s.tool === "highlighter") {
-    ctx.globalCompositeOperation = "source-over";
-    ctx.strokeStyle = s.color.length === 7 ? `${s.color}66` : s.color;
   } else if (s.tool === "pen" && s.brush === "pencil") {
     ctx.globalCompositeOperation = "source-over";
     ctx.strokeStyle = hexToRgba(s.color, 0.55);
@@ -362,9 +354,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     drawingRef.current = true;
     const p = getPos(e);
     let strokeWidth = width;
-    if (tool === "highlighter") {
-      strokeWidth = Math.max(width * 3, 12);
-    } else if (tool === "pen" && brushMode === "pencil") {
+    if (tool === "pen" && brushMode === "pencil") {
       strokeWidth = Math.max(1, width * 0.65);
     }
     currentRef.current = {
@@ -462,7 +452,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
   );
 
   const brushChip = (
-    id: BrushMode | "highlighter",
+    id: BrushMode,
     label: string,
     active: boolean,
     onClick: () => void

@@ -239,7 +239,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <button className={button(tool === "select")} onClick={() => setTool("select")} title="选择"><MousePointer2 size={16} /></button>
                 <div className="relative">
                   <button
-                    className={button(tool === "pen" || tool === "highlighter" || penPopupOpen)}
+                    className={button(tool === "pen" || penPopupOpen)}
                     onClick={(e) => { setTool("pen"); openPopupAt(e, setPenPopupOpen, setPenPopupPos, penPopupOpen); }}
                     title="画笔（点击弹出设置）"
                   >
@@ -331,13 +331,6 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                             >
                               铅笔
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => setTool("highlighter")}
-                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${tool === "highlighter" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
-                            >
-                              荧光笔
-                            </button>
                           </div>
                         </div>
 
@@ -348,8 +341,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                             <path
                               d="M 10 28 Q 50 8 100 18 T 190 14"
                               fill="none"
-                              stroke={tool === "highlighter" ? `${color}55` : brushStyle === "pencil" ? `${color}88` : color}
-                              strokeWidth={tool === "highlighter" ? Math.max(brushWidth * 3, 12) : brushWidth}
+                              stroke={brushStyle === "pencil" ? `${color}88` : color}
+                              strokeWidth={brushWidth}
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             />
@@ -363,14 +356,14 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                   <button
                     className={button(tool === "eraser" || eraserPopupOpen)}
                     onClick={(e) => { setTool("eraser"); openPopupAt(e, setEraserPopupOpen, setEraserPopupPos, eraserPopupOpen); }}
-                    title="橡皮（点击弹出大小设置）"
+                    title="橡皮（点击打开设置）"
                   >
                     <Eraser size={16} />
                   </button>
                   {eraserPopupOpen && (
                     <>
                       <div className="fixed inset-0 z-[9998]" onClick={() => setEraserPopupOpen(false)} />
-                      <div className="fixed z-[9999] w-44 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl" style={{ left: eraserPopupPos.x, top: eraserPopupPos.y }}>
+                      <div className="fixed z-[9999] w-48 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl" style={{ left: eraserPopupPos.x, top: eraserPopupPos.y }}>
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-xs font-bold text-[#25344a]">橡皮大小</span>
                           <button

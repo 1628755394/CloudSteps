@@ -10,7 +10,7 @@ import OverlayOp from "jsts/org/locationtech/jts/operation/overlay/OverlayOp.js"
 import RBush from "rbush";
 
 // ---- Types ----
-export type Tool = "select" | "pen" | "eraser" | "highlighter" | "circle" | "rect" | "text";
+export type Tool = "select" | "pen" | "eraser" | "circle" | "rect" | "text";
 
 export interface LeaferCanvasHandle {
   exportJSON: () => string;
@@ -484,7 +484,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button === 2) return;
+      if (e.button === 2 || isDrawingRef.current) return;
       const t = toolRef.current;
       const pt = getPoint(e);
 
@@ -526,9 +526,12 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         return;
       }
 
-      // pen / highlighter / eraser: start drawing
+      // pen / eraser: start drawing
       isDrawingRef.current = true;
       currentPointsRef.current = [pt];
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {}
       e.preventDefault();
     };
 
@@ -578,21 +581,23 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
 
       if (!isDrawingRef.current) return;
       const t = toolRef.current;
-      if (t !== "pen" && t !== "highlighter" && t !== "eraser") return;
+      if (t !== "pen" && t !== "eraser") return;
 
       const pt = getPoint(e);
+      const last = currentPointsRef.current[currentPointsRef.current.length - 1];
+      if (last && Math.hypot(pt.x - last.x, pt.y - last.y) < 0.5) return;
       currentPointsRef.current.push(pt);
 
-      // For pen/highlighter: update live preview path
-      if (t === "pen" || t === "highlighter") {
+      // Pen: update live preview path
+      if (t === "pen") {
         if (currentPathRef.current) {
           currentPathRef.current.remove();
         }
         const pathStr = pointsToPathString(currentPointsRef.current, brushWidthRef.current);
-        const strokeColor = t === "highlighter"
-          ? (colorRef.current.length === 7 ? `${colorRef.current}55` : colorRef.current)
-          : (brushStyleRef.current === "pencil" ? `${colorRef.current}88` : colorRef.current);
-        const w = t === "highlighter" ? Math.max(brushWidthRef.current * 3, 12) : brushWidthRef.current;
+        const strokeColor = brushStyleRef.current === "pencil"
+          ? `${colorRef.current}88`
+          : colorRef.current;
+        const w = brushWidthRef.current;
         const path = new Path({
           x: 0,
           y: 0,
@@ -633,7 +638,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       }
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (e: PointerEvent) => {
       // Finalize shape
       if (shapeStartRef.current && (toolRef.current === "circle" || toolRef.current === "rect")) {
         shapeStartRef.current = null;
@@ -649,21 +654,22 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
 
       if (!isDrawingRef.current) return;
       isDrawingRef.current = false;
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
       const t = toolRef.current;
       const pts = currentPointsRef.current;
 
-      if (t === "pen" || t === "highlighter") {
+      if (t === "pen") {
         // Replace preview with permanent stroke
         if (currentPathRef.current) {
           currentPathRef.current.remove();
           currentPathRef.current = null;
         }
-        const strokeColor = t === "highlighter"
-          ? (colorRef.current.length === 7 ? `${colorRef.current}55` : colorRef.current)
-          : (brushStyleRef.current === "pencil" ? `${colorRef.current}88` : colorRef.current);
-        const w = t === "highlighter" ? Math.max(brushWidthRef.current * 3, 12) : brushWidthRef.current;
-        const opacity = t === "highlighter" ? 0.5 : 1;
-        createStrokePath(pts, strokeColor, w, opacity);
+        const strokeColor = brushStyleRef.current === "pencil"
+          ? `${colorRef.current}88`
+          : colorRef.current;
+        createStrokePath(pts, strokeColor, brushWidthRef.current, 1);
         pushUndo();
         onContentChange?.();
       } else if (t === "eraser") {
@@ -716,9 +722,9 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     el.addEventListener("pointerup", onPointerUp);
     el.addEventListener("contextmenu", onContextMenu);
     window.addEventListener("keydown", onKeyDown);
-    // 编辑器平移结束（MoveEvent.END）与缩放/旋转/skew 拖动结束（DragEvent.END）
-    // 都会冒泡到 app；在此时把完整变换烘焙进点位，保证笔迹不变量。
-    // 操作幂等：烘焙后变换归一为 identity，重复触发时检测到 identity 直接跳过。
+    // 编辑器拖动平移结束（MoveEvent.END）与缩放/旋转拖动结束（DragEvent.END）
+    // 都会冒泡到 app；在此时合并位移，保证笔迹不变量。
+    // 操作幂等：合并后 x/y 归零，重复触发不会二次位移。
     app.on(LeaferMoveEvent.END, onStrokeDragEnd);
     app.on(LeaferDragEvent.END, onStrokeDragEnd);
 
