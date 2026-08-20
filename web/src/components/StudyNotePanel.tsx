@@ -1,23 +1,60 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bold,
   Trash2,
+  Circle as CircleIcon,
+  Eraser,
+  Highlighter,
   Italic,
   PaintBucket,
   Palette,
   Pencil,
   PanelLeft,
+  Redo2,
+  Square as SquareIcon,
   Type,
   Underline,
+  Undo2,
   X,
 } from "lucide-react";
-import { Canvas, PencilBrush, Point, Textbox } from "fabric";
+import { Canvas, PencilBrush, Point, Textbox, Path } from "fabric";
 
-type PanelTool = "select" | "pen" | "eraser";
+type PanelTool = "select" | "pen" | "eraser" | "highlighter" | "circle" | "rect" | "text";
 type BrushStyle = "fountain" | "pencil";
 
 const PEN_COLORS = ["#25344a", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#a855f7", "#111827", "#ffffff"];
 import { CloudButton } from "./cloudsteps";
+
+/**
+ * Pixel-level eraser brush: extends PencilBrush but renders with
+ * globalCompositeOperation = "destination-out" so it erases pixels
+ * from existing objects instead of deleting whole objects.
+ */
+class EraserBrush extends PencilBrush {
+  constructor(canvas: Canvas) {
+    super(canvas);
+    this.color = "rgba(0,0,0,1)";
+  }
+
+  _render(ctx?: CanvasRenderingContext2D): void {
+    const target = ctx ?? this.canvas.contextTop;
+    const prev = target.globalCompositeOperation;
+    target.globalCompositeOperation = "destination-out";
+    super._render(ctx);
+    target.globalCompositeOperation = prev;
+  }
+
+  _finalizeAndAddPath(): void {
+    const pathData = this.convertPointsToSVGPath(this._points);
+    if (!pathData) return;
+    const path = this.createPath(pathData) as Path;
+    // Mark as eraser stroke so it renders with destination-out on the lower canvas too
+    (path as unknown as { globalCompositeOperation: string }).globalCompositeOperation = "destination-out";
+    path.set({ stroke: "rgba(0,0,0,1)", fill: "", selectable: false, evented: false, hoverCursor: "not-allowed" });
+    this.canvas.add(path);
+    this.canvas.requestRenderAll();
+  }
+}
 
 type NoteData = { json?: string; text: string; color: string; background: string };
 type Props = { open: boolean; onClose: () => void; storageKey: string; title?: string; subtitle?: string; side?: "left" | "right"; split?: boolean; onSideChange?: (side: "left" | "right") => void };
@@ -44,6 +81,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [brushStyle, setBrushStyle] = useState<BrushStyle>("fountain");
   const [penPopupOpen, setPenPopupOpen] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(true);
+  const shapeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const shapePreviewRef = useRef<Path | null>(null);
 
   const persist = () => {
     const canvas = canvasRef.current;
@@ -117,7 +156,14 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     };
     restore();
 
-    canvas.on("object:added", persist);
+    canvas.on("object:added", () => {
+      if (!skipSnapshotRef.current) {
+        pushUndoSnapshot();
+      } else {
+        skipSnapshotRef.current = false;
+      }
+      persist();
+    });
     canvas.on("object:modified", persist);
     canvas.on("object:removed", persist);
     canvas.on("text:changed", persist);
@@ -143,48 +189,77 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const drawing = tool === "pen";
+    const drawing = tool === "pen" || tool === "eraser" || tool === "highlighter";
     canvas.isDrawingMode = drawing;
     canvas.selection = tool === "select";
     if (drawing) {
-      const brush = new PencilBrush(canvas);
-      // pencil style: semi-transparent stroke for a softer look
-      brush.color = brushStyle === "pencil" ? `${color}88` : color;
-      brush.width = brushWidth;
-      canvas.freeDrawingBrush = brush;
+      if (tool === "eraser") {
+        const brush = new EraserBrush(canvas);
+        brush.width = brushWidth * 2;
+        canvas.freeDrawingBrush = brush;
+      } else if (tool === "highlighter") {
+        const brush = new PencilBrush(canvas);
+        brush.color = color.length === 7 ? `${color}55` : color;
+        brush.width = Math.max(brushWidth * 3, 12);
+        canvas.freeDrawingBrush = brush;
+      } else {
+        const brush = new PencilBrush(canvas);
+        brush.color = brushStyle === "pencil" ? `${color}88` : color;
+        brush.width = brushWidth;
+        canvas.freeDrawingBrush = brush;
+      }
     }
-    // Eraser works via pointer handler below; no free drawing brush needed.
   }, [tool, color, brushWidth, brushStyle]);
 
-  // Local eraser: remove the topmost object under the pointer on each click/drag tick.
+  // ---- Shape drawing (circle / rect) ----
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || tool !== "eraser") return;
-    const eraseAt = (point: { x: number; y: number }) => {
-      const pt = new Point(point.x, point.y);
-      const targets = canvas.getObjects().filter((o) => {
-        try {
-          return o.containsPoint(pt) && o.selectable !== false;
-        } catch {
-          return false;
-        }
-      });
-      if (targets.length) {
-        canvas.remove(targets[targets.length - 1]);
-        canvas.requestRenderAll();
-        persist();
-      }
-    };
-    let dragging = false;
+    if (!canvas || (tool !== "circle" && tool !== "rect")) return;
+    canvas.selection = false;
     const onMouseDown = (opt: { viewportPoint: Point }) => {
-      dragging = true;
-      eraseAt(opt.viewportPoint);
+      shapeStartRef.current = { x: opt.viewportPoint.x, y: opt.viewportPoint.y };
     };
     const onMouseMove = (opt: { viewportPoint: Point }) => {
-      if (!dragging) return;
-      eraseAt(opt.viewportPoint);
+      if (!shapeStartRef.current) return;
+      const start = shapeStartRef.current;
+      const cur = opt.viewportPoint;
+      // Remove previous preview
+      if (shapePreviewRef.current) {
+        canvas.remove(shapePreviewRef.current);
+      }
+      const w = cur.x - start.x;
+      const h = cur.y - start.y;
+      let pathStr: string;
+      if (tool === "circle") {
+        const cx = start.x + w / 2;
+        const cy = start.y + h / 2;
+        const rx = Math.abs(w) / 2;
+        const ry = Math.abs(h) / 2;
+        pathStr = `M ${cx - rx} ${cy} a ${rx} ${ry} 0 1 0 ${rx * 2} 0 a ${rx} ${ry} 0 1 0 ${-rx * 2} 0`;
+      } else {
+        pathStr = `M ${start.x} ${start.y} L ${start.x + w} ${start.y} L ${start.x + w} ${start.y + h} L ${start.x} ${start.y + h} Z`;
+      }
+      const preview = new Path(pathStr, {
+        stroke: color,
+        strokeWidth: brushWidth,
+        fill: "",
+        strokeLineCap: "round",
+        strokeLineJoin: "round",
+        selectable: false,
+        evented: false,
+      });
+      shapePreviewRef.current = preview;
+      canvas.add(preview);
     };
-    const onMouseUp = () => { dragging = false; };
+    const onMouseUp = () => {
+      if (shapePreviewRef.current) {
+        const final = shapePreviewRef.current;
+        final.set({ selectable: true, evented: true });
+        shapePreviewRef.current = null;
+        persist();
+      }
+      shapeStartRef.current = null;
+    };
     canvas.on("mouse:down", onMouseDown);
     canvas.on("mouse:move", onMouseMove);
     canvas.on("mouse:up", onMouseUp);
@@ -192,9 +267,10 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
       canvas.off("mouse:down", onMouseDown);
       canvas.off("mouse:move", onMouseMove);
       canvas.off("mouse:up", onMouseUp);
+      canvas.selection = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tool]);
+  }, [tool, color, brushWidth]);
 
   const active = () => canvasRef.current?.getActiveObject();
   const updateActive = (patch: Record<string, unknown>) => {
@@ -226,6 +302,45 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     canvas.backgroundColor = fill;
     persist();
   };
+
+  // ---- Undo / Redo via JSON snapshots ----
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  const skipSnapshotRef = useRef(false);
+
+  const pushUndoSnapshot = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const json = JSON.stringify(canvas.toJSON());
+    undoStackRef.current.push(json);
+    if (undoStackRef.current.length > 50) undoStackRef.current.shift();
+  }, []);
+
+  const undo = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || undoStackRef.current.length === 0) return;
+    const current = JSON.stringify(canvas.toJSON());
+    redoStackRef.current.push(current);
+    const prev = undoStackRef.current.pop()!;
+    skipSnapshotRef.current = true;
+    canvas.loadFromJSON(prev).then(() => {
+      canvas.backgroundColor = fill;
+      canvas.renderAll();
+    });
+  }, [fill]);
+
+  const redo = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || redoStackRef.current.length === 0) return;
+    const current = JSON.stringify(canvas.toJSON());
+    undoStackRef.current.push(current);
+    const next = redoStackRef.current.pop()!;
+    skipSnapshotRef.current = true;
+    canvas.loadFromJSON(next).then(() => {
+      canvas.backgroundColor = fill;
+      canvas.renderAll();
+    });
+  }, [fill]);
   const setBackground = (value: string) => {
     setFill(value);
     const canvas = canvasRef.current;
@@ -238,7 +353,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     const startWidth = width;
     const move = (next: PointerEvent) => {
       const delta = next.clientX - startX;
-      setWidth(Math.max(280, Math.min(1000, startWidth + (sidePos === "right" ? -delta : delta))));
+      setWidth(Math.max(200, startWidth + (sidePos === "right" ? -delta : delta)));
     };
     const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
     window.addEventListener("pointermove", move);
@@ -313,7 +428,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <button className={button(tool === "select")} onClick={() => setTool("select")} title="选择"><Type size={16} /></button>
                 <div className="relative">
                   <button
-                    className={button(tool === "pen" || penPopupOpen)}
+                    className={button(tool === "pen" || tool === "highlighter" || penPopupOpen)}
                     onClick={() => { setTool("pen"); setPenPopupOpen((v) => !v); }}
                     title="画笔（点击弹出设置）"
                   >
@@ -393,17 +508,24 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                           <div className="flex gap-1.5">
                             <button
                               type="button"
-                              onClick={() => setBrushStyle("fountain")}
-                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${brushStyle === "fountain" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                              onClick={() => { setBrushStyle("fountain"); setTool("pen"); }}
+                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${tool === "pen" && brushStyle === "fountain" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
                             >
                               钢笔
                             </button>
                             <button
                               type="button"
-                              onClick={() => setBrushStyle("pencil")}
-                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${brushStyle === "pencil" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                              onClick={() => { setBrushStyle("pencil"); setTool("pen"); }}
+                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${tool === "pen" && brushStyle === "pencil" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
                             >
                               铅笔
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTool("highlighter")}
+                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${tool === "highlighter" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                            >
+                              荧光笔
                             </button>
                           </div>
                         </div>
@@ -415,8 +537,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                             <path
                               d="M 10 28 Q 50 8 100 18 T 190 14"
                               fill="none"
-                              stroke={brushStyle === "pencil" ? `${color}88` : color}
-                              strokeWidth={brushWidth}
+                              stroke={tool === "highlighter" ? `${color}55` : brushStyle === "pencil" ? `${color}88` : color}
+                              strokeWidth={tool === "highlighter" ? Math.max(brushWidth * 3, 12) : brushWidth}
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             />
@@ -426,8 +548,14 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     </>
                   )}
                 </div>
-                <button className={button(tool === "eraser")} onClick={() => setTool("eraser")} title="橡皮 局部擦除" aria-label="橡皮"><span className="text-sm font-bold leading-none">橡皮</span></button>
+                <button className={button(tool === "highlighter")} onClick={() => setTool("highlighter")} title="荧光笔"><Highlighter size={16} /></button>
+                <button className={button(tool === "eraser")} onClick={() => setTool("eraser")} title="橡皮 局部擦除" aria-label="橡皮"><Eraser size={16} /></button>
+                <button className={button(tool === "circle")} onClick={() => setTool("circle")} title="圆形"><CircleIcon size={16} /></button>
+                <button className={button(tool === "rect")} onClick={() => setTool("rect")} title="矩形"><SquareIcon size={16} /></button>
                 <button className={button()} onClick={addText} title="添加文本"><Type size={16} /></button>
+                <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
+                <button className={button()} onClick={undo} title="撤销"><Undo2 size={16} /></button>
+                <button className={button()} onClick={redo} title="重做"><Redo2 size={16} /></button>
                 <div className="contents">
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title="切换左右"><PanelLeft size={16} /></button>
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空 一键清空全部" aria-label="清空"><Trash2 size={16} /></button>

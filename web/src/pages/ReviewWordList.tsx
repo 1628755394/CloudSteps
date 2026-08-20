@@ -3,7 +3,6 @@ import { Volume2, Check, X, BookOpen, PanelTop } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getReviewToday, startReviewSession, completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
-import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import {
   PracticeFontSettingsButton,
   PRACTICE_TRANS_CLASS,
@@ -48,7 +47,6 @@ const formatTranslation = (raw?: string): string => {
 export default function ReviewWordList() {
   const navigate = useNavigate();
   const [words, setWords] = useState<ReviewWordItem[]>([]);
-  const [annotationOpen, setAnnotationOpen] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
@@ -60,7 +58,7 @@ export default function ReviewWordList() {
       const raw = localStorage.getItem("lb_review_note_width");
       if (raw) {
         const n = Number(raw);
-        if (Number.isFinite(n)) return Math.max(280, Math.min(720, n));
+        if (Number.isFinite(n)) return Math.max(200, n);
       }
     } catch { /* ignore */ }
     return 420;
@@ -114,7 +112,7 @@ export default function ReviewWordList() {
       ev.preventDefault();
       const delta = ev.clientX - startX;
       // right side: drag left increases width; left side: drag right increases width
-      const next = Math.max(280, Math.min(720, startW + (noteSide === "right" ? -delta : delta)));
+      const next = Math.max(200, startW + (noteSide === "right" ? -delta : delta));
       latestW = next;
       setNoteWidth(next);
     };
@@ -290,19 +288,9 @@ export default function ReviewWordList() {
         rightSlot={
           <div className="flex items-center gap-0.5">
             <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => setGlobalNoteOpen(true)} aria-label="打开随心记" title="打开随心记"><PanelTop size={18} className="text-[#c45c78]" /></CloudButton>
-            <AnnotationToggleButton
-              active={annotationOpen}
-              onClick={() => setAnnotationOpen((v) => !v)}
-            />
             <PracticeFontSettingsButton />
           </div>
         }
-      />
-
-      <AnnotationLayer
-        storageKey={`review-list:${wordBookId}`}
-        open={annotationOpen}
-        onOpenChange={setAnnotationOpen}
       />
 
       {/* Split container: word content + note panel on the same layer. */}
@@ -443,7 +431,7 @@ export default function ReviewWordList() {
               <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 group-hover:bg-[#4ECDC4]/60 group-hover:w-1.5 transition-all" />
             </div>
             <div
-              className={`lg:flex lg:min-w-[280px] lg:flex-col ${noteSide === "right" ? "lg:order-3" : "lg:order-1"}`}
+              className={`lg:flex lg:flex-col ${noteSide === "right" ? "lg:order-3" : "lg:order-1"}`}
               style={{ width: `${noteWidth}px`, flexShrink: 0 }}
             >
               <StudyNotePanel
