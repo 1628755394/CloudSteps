@@ -478,18 +478,6 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
                 <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
-                <button
-                  className={button(fontPopupOpen)}
-                  onClick={(e) => openPopupAt(e, setFontPopupOpen, setFontPopupPos, fontPopupOpen)}
-                  title="字体设置（或右键文字）"
-                >
-                  <Type size={15} />
-                  <span className="ml-0.5 text-[10px] tabular-nums">{fontSize}</span>
-                </button>
-                <label className={button()} title="文字颜色">
-                  <Palette size={16} />
-                  <input className="sr-only" type="color" value={color} onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }} />
-                </label>
                 <div className="relative">
                   <button
                     className={button(bgPopupOpen)}
