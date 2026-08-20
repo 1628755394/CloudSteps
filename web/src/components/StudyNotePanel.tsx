@@ -103,6 +103,26 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [bgPopupOpen, setBgPopupOpen] = useState(false);
   const [fontPopupOpen, setFontPopupOpen] = useState(false);
   const [fontPopupPos, setFontPopupPos] = useState({ x: 0, y: 0 });
+  const [penPopupPos, setPenPopupPos] = useState({ x: 0, y: 0 });
+  const [eraserPopupPos, setEraserPopupPos] = useState({ x: 0, y: 0 });
+  const [bgPopupPos, setBgPopupPos] = useState({ x: 0, y: 0 });
+
+  const openPopupAt = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    setOpen: (v: boolean) => void,
+    setPos: (p: { x: number; y: number }) => void,
+    isOpen: boolean,
+  ) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (isOpen) {
+      setOpen(false);
+      return;
+    }
+    const x = Math.min(rect.left, window.innerWidth - 240);
+    const y = Math.min(rect.bottom + 4, window.innerHeight - 200);
+    setPos({ x, y });
+    setOpen(true);
+  };
   const [toolbarVisible, setToolbarVisible] = useState(true);
   const shapeStartRef = useRef<{ x: number; y: number } | null>(null);
   const shapePreviewRef = useRef<Path | null>(null);
@@ -460,7 +480,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
                 <button
                   className={button(fontPopupOpen)}
-                  onClick={(e) => { setFontPopupPos({ x: e.currentTarget.getBoundingClientRect().left, y: e.currentTarget.getBoundingClientRect().bottom + 4 }); setFontPopupOpen((v) => !v); }}
+                  onClick={(e) => openPopupAt(e, setFontPopupOpen, setFontPopupPos, fontPopupOpen)}
                   title="字体设置（或右键文字）"
                 >
                   <Type size={15} />
@@ -473,7 +493,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <div className="relative">
                   <button
                     className={button(bgPopupOpen)}
-                    onClick={() => setBgPopupOpen((v) => !v)}
+                    onClick={(e) => openPopupAt(e, setBgPopupOpen, setBgPopupPos, bgPopupOpen)}
                     title="画布背景颜色"
                   >
                     <PaintBucket size={16} />
@@ -481,7 +501,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                   {bgPopupOpen && (
                     <>
                       <div className="fixed inset-0 z-[9998]" onClick={() => setBgPopupOpen(false)} />
-                      <div className="absolute top-9 left-0 z-[9999] w-48 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl">
+                      <div className="fixed z-[9999] w-48 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl" style={{ left: bgPopupPos.x, top: bgPopupPos.y }}>
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-xs font-bold text-[#25344a]">背景颜色</span>
                           <button
@@ -526,7 +546,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <div className="relative">
                   <button
                     className={button(tool === "pen" || tool === "highlighter" || penPopupOpen)}
-                    onClick={() => { setTool("pen"); setPenPopupOpen((v) => !v); }}
+                    onClick={(e) => { setTool("pen"); openPopupAt(e, setPenPopupOpen, setPenPopupPos, penPopupOpen); }}
                     title="画笔（点击弹出设置）"
                   >
                     <Pencil size={16} />
@@ -536,7 +556,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                       {/* 点击外部关闭 */}
                       <div className="fixed inset-0 z-[9998]" onClick={() => setPenPopupOpen(false)} />
                       {/* PS 风格画笔设置弹窗 — 最顶层 */}
-                      <div className="absolute top-9 left-0 z-[9999] w-56 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl">
+                      <div className="fixed z-[9999] w-56 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl" style={{ left: penPopupPos.x, top: penPopupPos.y }}>
                         {/* 标题栏 */}
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-xs font-bold text-[#25344a]">画笔设置</span>
@@ -649,7 +669,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <div className="relative">
                   <button
                     className={button(tool === "eraser" || eraserPopupOpen)}
-                    onClick={() => { setTool("eraser"); setEraserPopupOpen((v) => !v); }}
+                    onClick={(e) => { setTool("eraser"); openPopupAt(e, setEraserPopupOpen, setEraserPopupPos, eraserPopupOpen); }}
                     title="橡皮（点击弹出大小设置）"
                   >
                     <Eraser size={16} />
@@ -657,7 +677,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                   {eraserPopupOpen && (
                     <>
                       <div className="fixed inset-0 z-[9998]" onClick={() => setEraserPopupOpen(false)} />
-                      <div className="absolute top-9 left-0 z-[9999] w-44 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl">
+                      <div className="fixed z-[9999] w-44 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl" style={{ left: eraserPopupPos.x, top: eraserPopupPos.y }}>
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-xs font-bold text-[#25344a]">橡皮大小</span>
                           <button
