@@ -30,7 +30,7 @@ interface Props {
   eraserWidth: number;
   eraserTrailColor: string;
   eraserTrailOpacity: number;
-  brushStyle: "fountain" | "pencil";
+  brushStyle: "fountain" | "pencil" | "highlighter";
   background: string;
   fontSize: number;
   storageKey: string;
@@ -593,11 +593,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         if (currentPathRef.current) {
           currentPathRef.current.remove();
         }
-        const pathStr = pointsToPathString(currentPointsRef.current, brushWidthRef.current);
-        const strokeColor = brushStyleRef.current === "pencil"
-          ? `${colorRef.current}88`
-          : colorRef.current;
-        const w = brushWidthRef.current;
+        const isHighlighter = brushStyleRef.current === "highlighter";
+        const w = isHighlighter ? Math.max(brushWidthRef.current * 3, 12) : brushWidthRef.current;
+        const pathStr = pointsToPathString(currentPointsRef.current, w);
+        const strokeColor = isHighlighter
+          ? `${colorRef.current}55`
+          : brushStyleRef.current === "pencil"
+            ? `${colorRef.current}88`
+            : colorRef.current;
         const path = new Path({
           x: 0,
           y: 0,
@@ -608,6 +611,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           strokeLinejoin: "round",
           fill: "",
           hittable: false,
+          opacity: isHighlighter ? 0.5 : 1,
         });
         currentPathRef.current = path;
         drawLayer.add(path);
@@ -666,10 +670,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           currentPathRef.current.remove();
           currentPathRef.current = null;
         }
-        const strokeColor = brushStyleRef.current === "pencil"
-          ? `${colorRef.current}88`
-          : colorRef.current;
-        createStrokePath(pts, strokeColor, brushWidthRef.current, 1);
+        const isHighlighter = brushStyleRef.current === "highlighter";
+        const strokeColor = isHighlighter
+          ? `${colorRef.current}55`
+          : brushStyleRef.current === "pencil"
+            ? `${colorRef.current}88`
+            : colorRef.current;
+        const w = isHighlighter ? Math.max(brushWidthRef.current * 3, 12) : brushWidthRef.current;
+        createStrokePath(pts, strokeColor, w, isHighlighter ? 0.5 : 1);
         pushUndo();
         onContentChange?.();
       } else if (t === "eraser") {
@@ -754,6 +762,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       app.tree.hittable = true;
     } else {
       app.editor.target = undefined;
+      app.editor.hittable = false;
     }
   }, [tool]);
 

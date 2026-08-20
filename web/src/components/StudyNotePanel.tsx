@@ -20,7 +20,7 @@ import {
 import { LeaferCanvas, LeaferCanvasHandle, Tool } from "./LeaferCanvas";
 import { CloudButton } from "./cloudsteps";
 
-type BrushStyle = "fountain" | "pencil";
+type BrushStyle = "fountain" | "pencil" | "highlighter";
 
 const PEN_COLORS = ["#25344a", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#a855f7", "#111827", "#ffffff"];
 const BG_COLORS = ["#fff8e8", "#ffffff", "#f0f4f8", "#e8f5e9", "#fff3e0", "#fce4ec", "#f3e5f5", "#e0f7fa", "#1a1a2e", "#16213e"];
@@ -331,6 +331,13 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                             >
                               铅笔
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => { setBrushStyle("highlighter"); setTool("pen"); }}
+                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${tool === "pen" && brushStyle === "highlighter" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                            >
+                              荧光笔
+                            </button>
                           </div>
                         </div>
 
@@ -341,8 +348,9 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                             <path
                               d="M 10 28 Q 50 8 100 18 T 190 14"
                               fill="none"
-                              stroke={brushStyle === "pencil" ? `${color}88` : color}
-                              strokeWidth={brushWidth}
+                              stroke={brushStyle === "highlighter" ? `${color}55` : brushStyle === "pencil" ? `${color}88` : color}
+                              strokeWidth={brushStyle === "highlighter" ? Math.max(brushWidth * 3, 12) : brushWidth}
+                              opacity={brushStyle === "highlighter" ? 0.5 : 1}
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             />
