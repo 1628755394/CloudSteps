@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Bold,
-  Eraser,
+  Trash2,
   Italic,
   PaintBucket,
   Palette,
@@ -11,7 +11,9 @@ import {
   Underline,
   X,
 } from "lucide-react";
-import { Canvas, PencilBrush, Textbox } from "fabric";
+import { Canvas, PencilBrush, Point, Textbox } from "fabric";
+
+type PanelTool = "select" | "pen" | "eraser";
 import { CloudButton } from "./cloudsteps";
 
 type NoteData = { json?: string; text: string; color: string; background: string };
@@ -34,7 +36,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [fontSize, setFontSize] = useState(28);
   const [color, setColor] = useState("#25344a");
   const [fill, setFill] = useState("#fff8e8");
-  const [drawing, setDrawing] = useState(false);
+  const [tool, setTool] = useState<PanelTool>("select");
+  const [brushWidth, setBrushWidth] = useState(4);
   const [toolbarVisible, setToolbarVisible] = useState(true);
 
   const persist = () => {
@@ -131,18 +134,61 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, storageKey]);
 
-  // ---- Drawing mode ----
+  // ---- Drawing / erasing mode ----
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const drawing = tool === "pen";
     canvas.isDrawingMode = drawing;
+    canvas.selection = tool === "select";
     if (drawing) {
       const brush = new PencilBrush(canvas);
       brush.color = color;
-      brush.width = 4;
+      brush.width = brushWidth;
       canvas.freeDrawingBrush = brush;
     }
-  }, [drawing, color]);
+    // Eraser works via pointer handler below; no free drawing brush needed.
+  }, [tool, color, brushWidth]);
+
+  // Local eraser: remove the topmost object under the pointer on each click/drag tick.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || tool !== "eraser") return;
+    const eraseAt = (point: { x: number; y: number }) => {
+      const pt = new Point(point.x, point.y);
+      const targets = canvas.getObjects().filter((o) => {
+        try {
+          return o.containsPoint(pt) && o.selectable !== false;
+        } catch {
+          return false;
+        }
+      });
+      if (targets.length) {
+        canvas.remove(targets[targets.length - 1]);
+        canvas.requestRenderAll();
+        persist();
+      }
+    };
+    let dragging = false;
+    const onMouseDown = (opt: { viewportPoint: Point }) => {
+      dragging = true;
+      eraseAt(opt.viewportPoint);
+    };
+    const onMouseMove = (opt: { viewportPoint: Point }) => {
+      if (!dragging) return;
+      eraseAt(opt.viewportPoint);
+    };
+    const onMouseUp = () => { dragging = false; };
+    canvas.on("mouse:down", onMouseDown);
+    canvas.on("mouse:move", onMouseMove);
+    canvas.on("mouse:up", onMouseUp);
+    return () => {
+      canvas.off("mouse:down", onMouseDown);
+      canvas.off("mouse:move", onMouseMove);
+      canvas.off("mouse:up", onMouseUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool]);
 
   const active = () => canvasRef.current?.getActiveObject();
   const updateActive = (patch: Record<string, unknown>) => {
@@ -213,7 +259,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
         className="relative z-10 h-full w-full overflow-hidden rounded-[24px] border-2 border-[#1f2937] shadow-[0_10px_24px_rgba(38,91,115,0.18)]"
         style={{ background: fill }}
       >
-        <div className="relative z-10 flex h-full w-full flex-col overflow-hidden">
+        <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[22px]">
           {/* Title bar */}
           <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-2 text-[#25344a] sm:h-10 sm:gap-2 sm:pl-11 sm:pr-3">
             <span className="truncate text-base font-bold sm:text-lg">{title}</span>
@@ -258,11 +304,24 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                   <PaintBucket size={16} />
                   <input className="sr-only" type="color" value={fill} onChange={(e) => setBackground(e.target.value)} />
                 </label>
-                <button className={button(drawing)} onClick={() => setDrawing((v) => !v)} title="画板"><Pencil size={16} /></button>
+                <button className={button(tool === "select")} onClick={() => setTool("select")} title="选择"><Type size={16} /></button>
+                <button className={button(tool === "pen")} onClick={() => setTool("pen")} title="画笔"><Pencil size={16} /></button>
+                <div className={`${button(tool === "pen")} px-1`} title="画笔粗细">
+                  <span className="text-[10px] tabular-nums">{brushWidth}</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={40}
+                    value={brushWidth}
+                    onChange={(e) => setBrushWidth(Number(e.target.value))}
+                    className="ml-1 h-1 w-16 cursor-pointer accent-[#25344a]"
+                  />
+                </div>
+                <button className={button(tool === "eraser")} onClick={() => setTool("eraser")} title="橡皮 局部擦除" aria-label="橡皮"><span className="text-sm font-bold leading-none">橡皮</span></button>
                 <button className={button()} onClick={addText} title="添加文本"><Type size={16} /></button>
                 <div className="contents">
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title="切换左右"><PanelLeft size={16} /></button>
-                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空"><Eraser size={16} /></button>
+                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空 一键清空全部" aria-label="清空"><Trash2 size={16} /></button>
                   <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton>
                 </div>
               </div>
@@ -275,13 +334,16 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
             {subtitle && <div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div>}
           </div>
         </div>
+      </div>
 
-        {/* Edge resize handle */}
-        <div
-          className={`${sidePos === "right" ? "-left-1" : "-right-1"} absolute top-0 bottom-0 z-40 hidden w-2 touch-none cursor-ew-resize sm:block`}
-          onPointerDown={startEdgeResize}
-          aria-label="拖动分屏边缘调整宽度"
-        />
+      {/* Edge resize handle — outside overflow-hidden so it is never clipped */}
+      <div
+        className={`${sidePos === "right" ? "-left-1.5" : "-right-1.5"} absolute top-0 bottom-0 z-50 flex w-3 touch-none cursor-ew-resize items-center justify-center`}
+        onPointerDown={startEdgeResize}
+        aria-label="拖动分屏边缘调整宽度"
+        title="拖动调整宽度"
+      >
+        <span className="h-10 w-0.5 rounded-full bg-[#5f7890]/40" />
       </div>
     </>
   );

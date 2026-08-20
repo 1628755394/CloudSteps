@@ -40,7 +40,10 @@ const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6"
 const CUSTOM_COLORS_KEY = "lb_anno_custom_colors";
 const LAST_COLOR_KEY = "lb_anno_last_color";
 const DOCK_SIDE_KEY = "lb_anno_dock_side";
+const PANEL_WIDTH_KEY = "lb_anno_panel_width";
 const MAX_CUSTOM_COLORS = 8;
+const MIN_PANEL_WIDTH = 200;
+const MAX_PANEL_WIDTH = 480;
 
 type AnnotationLayerProps = {
   storageKey: string;
@@ -78,6 +81,19 @@ function loadDockSide(): DockSide {
     // ignore
   }
   return "right";
+}
+
+function loadPanelWidth(): number {
+  try {
+    const raw = localStorage.getItem(PANEL_WIDTH_KEY);
+    if (raw) {
+      const n = Number(raw);
+      if (Number.isFinite(n)) return Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, n));
+    }
+  } catch {
+    // ignore
+  }
+  return 260;
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -185,10 +201,12 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
   const [width, setWidth] = useState(4);
   const [collapsed, setCollapsed] = useState(false);
   const [dockSide, setDockSide] = useState<DockSide>(loadDockSide);
+  const [panelWidth, setPanelWidth] = useState(loadPanelWidth);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [redoStack, setRedoStack] = useState<Stroke[]>([]);
   const drawingRef = useRef(false);
   const currentRef = useRef<Stroke | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
   const selectColor = useCallback((c: string) => {
     setColor(c);
@@ -226,6 +244,37 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
       return next;
     });
   }, []);
+
+  const startPanelResize = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startW = panelWidth;
+      let latestW = startW;
+      const onMove = (ev: PointerEvent) => {
+        const delta = ev.clientX - startX;
+        const next = Math.max(
+          MIN_PANEL_WIDTH,
+          Math.min(MAX_PANEL_WIDTH, startW + (dockSide === "right" ? -delta : delta))
+        );
+        latestW = next;
+        setPanelWidth(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        try {
+          localStorage.setItem(PANEL_WIDTH_KEY, String(latestW));
+        } catch {
+          // ignore
+        }
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [panelWidth, dockSide]
+  );
 
   const redraw = useCallback((list: Stroke[]) => {
     const canvas = canvasRef.current;
@@ -379,6 +428,18 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     setRedoStack([]);
   };
 
+  // Click on blank area (outside the toolbar panel) deselects color -> switch to select tool.
+  useEffect(() => {
+    if (!open) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const panel = panelRef.current;
+      if (panel && panel.contains(e.target as Node)) return;
+      setTool("select");
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [open]);
+
   if (!open) return null;
 
   const toolBtn = (
@@ -463,7 +524,16 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
           )}
         </button>
 
-        <div className="w-[260px] rounded-xl border border-border bg-card shadow-lg overflow-hidden">
+        <div ref={panelRef} className="rounded-xl border border-border bg-card shadow-lg overflow-hidden" style={{ width: `${panelWidth}px` }}>
+          {/* Width resize handle — inner edge (left if docked right, right if docked left) */}
+          <div
+            className={`${isRight ? "-left-1.5" : "-right-1.5"} absolute top-0 bottom-0 z-50 flex w-3 touch-none cursor-ew-resize items-center justify-center`}
+            onPointerDown={startPanelResize}
+            aria-label="拖动调整面板宽度"
+            title="拖动调整宽度"
+          >
+            <span className="h-10 w-0.5 rounded-full bg-muted-foreground/30" />
+          </div>
           <div className="flex items-center justify-between px-3 py-2 border-b border-border">
             <span className="text-sm font-semibold text-foreground">画笔工具</span>
             <div className="flex items-center gap-0.5">
