@@ -3,6 +3,11 @@ import { App, Group, Path, Text, Rect, Ellipse, UI } from "leafer-ui";
 import "@leafer-in/editor";
 import "@leafer-in/text-editor";
 import "@leafer-in/export";
+import GeometryFactory from "jsts/org/locationtech/jts/geom/GeometryFactory.js";
+import Coordinate from "jsts/org/locationtech/jts/geom/Coordinate.js";
+import BufferOp from "jsts/org/locationtech/jts/operation/buffer/BufferOp.js";
+import OverlayOp from "jsts/org/locationtech/jts/operation/overlay/OverlayOp.js";
+import RBush from "rbush";
 
 // ---- Types ----
 export type Tool = "select" | "pen" | "eraser" | "highlighter" | "circle" | "rect" | "text";
@@ -55,32 +60,55 @@ function pointsToPathString(points: Pt[], width: number): string {
   return d;
 }
 
-// ---- Geometry helpers for precision eraser ----
+// ---- jsts geometry helpers for precision eraser ----
+const geoFactory = new GeometryFactory();
 
-// Distance from point P to line segment (A, B)
-function distToSegment(p: Pt, a: Pt, b: Pt): number {
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const len2 = dx * dx + dy * dy;
-  if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
-  t = Math.max(0, Math.min(1, t));
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+// RBush item type for spatial indexing of strokes
+interface StrokeBBox {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  id: string;
 }
 
-// Minimum distance from point P to a polyline (list of points)
-function minDistToPolyline(p: Pt, points: Pt[]): number {
-  if (points.length === 0) return Infinity;
-  if (points.length === 1) return Math.hypot(p.x - points[0].x, p.y - points[0].y);
-  let min = Infinity;
-  for (let i = 0; i < points.length - 1; i++) {
-    const d = distToSegment(p, points[i], points[i + 1]);
-    if (d < min) min = d;
+// Convert points to jsts LineString
+function pointsToLineString(points: Pt[]): unknown {
+  const coords = points.map(p => new Coordinate(p.x, p.y));
+  return geoFactory.createLineString(coords);
+}
+
+// Create eraser capsule: buffer of eraser polyline by radius → Polygon
+function createEraserCapsule(eraserPoints: Pt[], radius: number): unknown {
+  if (eraserPoints.length === 1) {
+    // Single point: create a point and buffer it
+    const pt = geoFactory.createPoint(new Coordinate(eraserPoints[0].x, eraserPoints[0].y));
+    return BufferOp.bufferOp(pt, radius);
   }
-  return min;
+  const line = pointsToLineString(eraserPoints);
+  return BufferOp.bufferOp(line, radius);
+}
+
+// Boolean difference: stroke LineString − eraser capsule Polygon → MultiLineString
+function diffStrokeWithEraser(strokePoints: Pt[], eraserCapsule: unknown): Pt[][] {
+  if (strokePoints.length < 2) return [strokePoints];
+  const strokeLine = pointsToLineString(strokePoints);
+  const diff = OverlayOp.difference(strokeLine, eraserCapsule);
+  if (!diff || diff.isEmpty()) return [];
+
+  const segments: Pt[][] = [];
+  const numGeoms = (diff as { getNumGeometries: () => number }).getNumGeometries();
+  for (let i = 0; i < numGeoms; i++) {
+    const g = (diff as { getGeometryN: (n: number) => { getCoordinates: () => { x: number; y: number }[] } }).getGeometryN(i);
+    const coords = g.getCoordinates();
+    if (coords.length < 2) continue;
+    segments.push(coords.map(c => ({ x: c.x, y: c.y })));
+  }
+  return segments;
 }
 
 // Bounding box of a point list
-function getPointsBounds(points: Pt[]): { x: number; y: number; width: number; height: number } {
+function getPointsBounds(points: Pt[]): { minX: number; minY: number; maxX: number; maxY: number } {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of points) {
     if (p.x < minX) minX = p.x;
@@ -88,48 +116,7 @@ function getPointsBounds(points: Pt[]): { x: number; y: number; width: number; h
     if (p.x > maxX) maxX = p.x;
     if (p.y > maxY) maxY = p.y;
   }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
-// Check if two axis-aligned bounding boxes intersect
-function boundsIntersect(
-  a: { x: number; y: number; width: number; height: number },
-  b: { x: number; y: number; width: number; height: number },
-): boolean {
-  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
-}
-
-// Densify a polyline: insert interpolated points so no gap exceeds maxGap
-function densifyPoints(points: Pt[], maxGap: number): Pt[] {
-  if (points.length <= 1) return [...points];
-  const result: Pt[] = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const d = Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-    const steps = Math.max(1, Math.ceil(d / maxGap));
-    for (let s = 1; s <= steps; s++) {
-      const t = s / steps;
-      result.push({
-        x: points[i - 1].x + (points[i].x - points[i - 1].x) * t,
-        y: points[i - 1].y + (points[i].y - points[i - 1].y) * t,
-      });
-    }
-  }
-  return result;
-}
-
-// Binary search for the exact point on segment (p1→p2) where dist to eraser == radius.
-// p1 is outside (dist > radius), p2 is inside (dist < radius).
-function findCutPoint(p1: Pt, p2: Pt, eraserPoints: Pt[], radius: number): Pt {
-  let lo = 0, hi = 1;
-  for (let iter = 0; iter < 15; iter++) {
-    const mid = (lo + hi) / 2;
-    const px = p1.x + (p2.x - p1.x) * mid;
-    const py = p1.y + (p2.y - p1.y) * mid;
-    if (minDistToPolyline({ x: px, y: py }, eraserPoints) < radius) hi = mid;
-    else lo = mid;
-  }
-  const t = (lo + hi) / 2;
-  return { x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t };
+  return { minX, minY, maxX, maxY };
 }
 
 // ---- Undo/Redo stack ----
@@ -246,79 +233,63 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     return path;
   }, []);
 
-  // ---- Precision eraser: path boolean difference ----
+  // ---- Precision eraser: jsts boolean difference + rbush spatial index ----
   // Only erases the geometrically overlapping portion of strokes.
   // Strokes that don't intersect the eraser capsule are left completely untouched.
   const eraseStrokes = useCallback((eraserPoints: Pt[], eraserRadius: number) => {
     const layer = drawLayerRef.current;
     if (!layer || eraserPoints.length === 0) return;
 
-    // Compute eraser capsule bounding box (expanded by radius)
-    const eraserBounds = getPointsBounds(eraserPoints);
-    const expandedEraserBounds = {
-      x: eraserBounds.x - eraserRadius,
-      y: eraserBounds.y - eraserRadius,
-      width: eraserBounds.width + eraserRadius * 2,
-      height: eraserBounds.height + eraserRadius * 2,
-    };
+    // Build eraser capsule: buffer of eraser polyline by radius → Polygon
+    const eraserCapsule = createEraserCapsule(eraserPoints, eraserRadius);
 
-    // Copy children since we'll modify the list
-    const children = [...layer.children];
-
-    for (const child of children) {
+    // Build rbush spatial index of all strokes for fast bbox filtering
+    const tree = new RBush<StrokeBBox>();
+    const strokeByChild = new Map<string, Path>();
+    for (const child of layer.children) {
       if (!(child instanceof Path)) continue;
       const pathId = (child as unknown as { id?: string }).id;
       if (!pathId || !strokePointsMap.current.has(pathId)) continue;
+      const pts = strokePointsMap.current.get(pathId)!;
+      const b = getPointsBounds(pts);
+      tree.insert({ minX: b.minX, minY: b.minY, maxX: b.maxX, maxY: b.maxY, id: pathId });
+      strokeByChild.set(pathId, child);
+    }
 
-      const originalPoints = strokePointsMap.current.get(pathId)!;
+    // Query rbush for strokes whose bbox intersects eraser capsule bbox
+    const eraserB = getPointsBounds(eraserPoints);
+    const candidates = tree.search({
+      minX: eraserB.minX - eraserRadius,
+      minY: eraserB.minY - eraserRadius,
+      maxX: eraserB.maxX + eraserRadius,
+      maxY: eraserB.maxY + eraserRadius,
+    });
 
-      // Bounding box filter (performance): skip strokes that can't possibly intersect
-      const strokeBounds = getPointsBounds(originalPoints);
-      // Expand stroke bounds by half stroke width for safety
-      const sw = (child as unknown as { strokeWidth?: number }).strokeWidth || 1;
-      const expandedStrokeBounds = {
-        x: strokeBounds.x - sw / 2,
-        y: strokeBounds.y - sw / 2,
-        width: strokeBounds.width + sw,
-        height: strokeBounds.height + sw,
-      };
-      if (!boundsIntersect(expandedStrokeBounds, expandedEraserBounds)) continue;
+    for (const candidate of candidates) {
+      const child = strokeByChild.get(candidate.id);
+      if (!child) continue;
+      const pathId = candidate.id;
+      const originalPoints = strokePointsMap.current.get(pathId);
+      if (!originalPoints) continue;
 
-      // Densify stroke points to prevent missing thin eraser intersections
-      const densified = densifyPoints(originalPoints, eraserRadius / 3);
-
-      // Check each densified point: is it inside the eraser capsule?
-      const erased: boolean[] = densified.map(p =>
-        minDistToPolyline(p, eraserPoints) < eraserRadius,
-      );
-
-      // Split into segments with cut-point interpolation for clean cuts
-      const segments: Pt[][] = [];
-      let current: Pt[] = [];
-
-      if (!erased[0]) {
-        current.push(densified[0]);
-      }
-
-      for (let i = 1; i < densified.length; i++) {
-        if (!erased[i] && !erased[i - 1]) {
-          current.push(densified[i]);
-        } else if (!erased[i] && erased[i - 1]) {
-          // Transition from erased to non-erased: add cut point
-          const cut = findCutPoint(densified[i - 1], densified[i], eraserPoints, eraserRadius);
-          current = [cut, densified[i]];
-        } else if (erased[i] && !erased[i - 1]) {
-          // Transition from non-erased to erased: add cut point, close segment
-          const cut = findCutPoint(densified[i - 1], densified[i], eraserPoints, eraserRadius);
-          current.push(cut);
-          if (current.length >= 2) segments.push(current);
-          current = [];
-        }
-      }
-      if (current.length >= 2) segments.push(current);
+      // jsts boolean difference: stroke LineString − eraser capsule Polygon
+      const segments = diffStrokeWithEraser(originalPoints, eraserCapsule);
 
       // If nothing was erased, skip this stroke entirely
-      if (segments.length === 1 && segments[0].length === densified.length) continue;
+      if (segments.length === 1 &&
+          segments[0].length === originalPoints.length) {
+        // Check if points are identical (no change)
+        let same = true;
+        for (let i = 0; i < segments[0].length; i++) {
+          if (Math.abs(segments[0][i].x - originalPoints[i].x) > 0.01 ||
+              Math.abs(segments[0][i].y - originalPoints[i].y) > 0.01) {
+            same = false;
+            break;
+          }
+        }
+        if (same) continue;
+      }
+
       // If no segments remain, the entire stroke was erased
       if (segments.length === 0) {
         child.remove();
