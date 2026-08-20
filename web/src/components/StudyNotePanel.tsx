@@ -108,6 +108,11 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     persist();
   };
 
+  const addText = () => {
+    leaferRef.current?.addTextAtCenter();
+    persist();
+  };
+
   const undo = () => {
     leaferRef.current?.undo();
     persist();
@@ -232,7 +237,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <button className={button(tool === "select")} onClick={() => setTool("select")} title="选择"><MousePointer2 size={16} /></button>
                 <div className="relative">
                   <button
-                    className={button(tool === "pen" || penPopupOpen)}
+                    className={button(tool === "pen" || tool === "highlighter" || penPopupOpen)}
                     onClick={(e) => { setTool("pen"); openPopupAt(e, setPenPopupOpen, setPenPopupPos, penPopupOpen); }}
                     title="画笔（点击弹出设置）"
                   >
@@ -324,6 +329,13 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                             >
                               铅笔
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => setTool("highlighter")}
+                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${tool === "highlighter" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                            >
+                              荧光笔
+                            </button>
                           </div>
                         </div>
 
@@ -334,8 +346,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                             <path
                               d="M 10 28 Q 50 8 100 18 T 190 14"
                               fill="none"
-                              stroke={brushStyle === "pencil" ? `${color}88` : color}
-                              strokeWidth={brushWidth}
+                              stroke={tool === "highlighter" ? `${color}55` : brushStyle === "pencil" ? `${color}88` : color}
+                              strokeWidth={tool === "highlighter" ? Math.max(brushWidth * 3, 12) : brushWidth}
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             />
@@ -395,13 +407,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 </div>
                 <button className={button(tool === "circle")} onClick={() => setTool("circle")} title="圆形"><CircleIcon size={16} /></button>
                 <button className={button(tool === "rect")} onClick={() => setTool("rect")} title="矩形"><SquareIcon size={16} /></button>
-                <button
-                  className={button(tool === "text" || fontPopupOpen)}
-                  onClick={(e) => { setTool("text"); openPopupAt(e, setFontPopupOpen, setFontPopupPos, fontPopupOpen); }}
-                  title="文字（点击弹出设置，再点击画布添加）"
-                >
-                  <Type size={16} />
-                </button>
+                <button className={button()} onClick={addText} title="添加文字（居中）"><Type size={16} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
                 <button className={button()} onClick={undo} title="撤销（上一步）" aria-label="撤销"><Undo2 size={16} /></button>
                 <button className={button()} onClick={redo} title="重做（下一步）" aria-label="重做"><Redo2 size={16} /></button>

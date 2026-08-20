@@ -15,6 +15,7 @@ export interface LeaferCanvasHandle {
   redo: () => void;
   clear: () => void;
   setBackground: (color: string) => void;
+  addTextAtCenter: () => void;
 }
 
 interface Props {
@@ -413,10 +414,13 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       }
 
       if (t === "text") {
+        // Add text at center of visible canvas area
+        const cw = containerRef.current!.clientWidth;
+        const ch = containerRef.current!.clientHeight;
         const text = new Text({
           text: "双击编辑文字",
-          x: pt.x,
-          y: pt.y,
+          x: cw / 2 - 80,
+          y: ch / 2 - fontSizeRef.current / 2,
           fill: colorRef.current,
           fontSize: fontSizeRef.current,
           editable: true,
@@ -597,17 +601,39 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       e.preventDefault();
     };
 
+    // Delete selected element on Backspace/Delete (skip while editing text)
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Backspace" && e.key !== "Delete") return;
+      // Don't intercept while typing in a text editor or input field
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      const editor = app.editor;
+      const list = editor?.list;
+      if (!list || list.length === 0) return;
+      e.preventDefault();
+      for (const item of [...list]) {
+        const id = (item as unknown as { id?: string }).id;
+        if (id) strokePointsMap.current.delete(id);
+        item.remove();
+      }
+      editor.target = undefined;
+      pushUndo();
+      onContentChange?.();
+    };
+
     const el = containerRef.current;
     el.addEventListener("pointerdown", onPointerDown);
     el.addEventListener("pointermove", onPointerMove);
     el.addEventListener("pointerup", onPointerUp);
     el.addEventListener("contextmenu", onContextMenu);
+    window.addEventListener("keydown", onKeyDown);
 
     return () => {
       el.removeEventListener("pointerdown", onPointerDown);
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("contextmenu", onContextMenu);
+      window.removeEventListener("keydown", onKeyDown);
       resizeObserver.disconnect();
       app.destroy();
       appRef.current = null;
@@ -704,6 +730,30 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       if (appRef.current) {
         appRef.current.tree.set({ fill: bgColor });
       }
+    },
+    addTextAtCenter: () => {
+      const app = appRef.current;
+      const layer = drawLayerRef.current;
+      const container = containerRef.current;
+      if (!app || !layer || !container) return;
+      const cw = container.clientWidth;
+      const ch = container.clientHeight;
+      const text = new Text({
+        text: "双击编辑文字",
+        x: cw / 2 - 80,
+        y: ch / 2 - fontSizeRef.current / 2,
+        fill: colorRef.current,
+        fontSize: fontSizeRef.current,
+        editable: true,
+        draggable: true,
+      });
+      layer.add(text);
+      pushUndo();
+      onContentChange?.();
+      app.editor.target = text;
+      setTimeout(() => {
+        (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
+      }, 50);
     },
   }), [captureSnapshot, restoreSnapshot, pushUndo, onContentChange]);
 
