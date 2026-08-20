@@ -230,6 +230,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     const id = `stroke-${strokeIdCounter.current++}`;
     const path = new Path({
       id,
+      x: 0,
+      y: 0,
       path: pathStr,
       stroke: strokeColor,
       strokeWidth,
@@ -317,18 +319,28 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
 
       // If nothing was erased, skip this stroke entirely
       if (segments.length === 1 && segments[0].length === densified.length) continue;
+      // If no segments remain, the entire stroke was erased
+      if (segments.length === 0) {
+        child.remove();
+        strokePointsMap.current.delete(pathId);
+        continue;
+      }
 
       // Get original style for new segments
       const strokeColor = (child as unknown as { stroke?: string }).stroke || "#000";
       const strokeWidth = (child as unknown as { strokeWidth?: number }).strokeWidth || 1;
       const opacity = (child as unknown as { opacity?: number }).opacity ?? 1;
 
-      // Remove original stroke
-      child.remove();
-      strokePointsMap.current.delete(pathId);
+      // Update the first segment in-place on the existing path element
+      // This preserves the element's identity and prevents position shifts
+      const firstSeg = segments[0];
+      const firstPathStr = pointsToPathString(firstSeg, strokeWidth);
+      (child as unknown as { path: string }).path = firstPathStr;
+      strokePointsMap.current.set(pathId, firstSeg);
 
-      // Add remaining segments as new strokes
-      for (const seg of segments) {
+      // Create new Path elements for any additional segments
+      for (let si = 1; si < segments.length; si++) {
+        const seg = segments[si];
         if (seg.length < 2) continue;
         createStrokePath(seg, strokeColor, strokeWidth, opacity);
       }
@@ -509,6 +521,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           : (brushStyleRef.current === "pencil" ? `${colorRef.current}88` : colorRef.current);
         const w = t === "highlighter" ? Math.max(brushWidthRef.current * 3, 12) : brushWidthRef.current;
         const path = new Path({
+          x: 0,
+          y: 0,
           path: pathStr,
           stroke: strokeColor,
           strokeWidth: w,
@@ -529,6 +543,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         const pathStr = pointsToPathString(currentPointsRef.current, eraserWidthRef.current);
         if (pathStr) {
           const preview = new Path({
+            x: 0,
+            y: 0,
             path: pathStr,
             stroke: "rgba(120, 130, 145, 0.25)",
             strokeWidth: eraserWidthRef.current,
