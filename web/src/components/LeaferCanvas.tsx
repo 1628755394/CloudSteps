@@ -1,11 +1,11 @@
 import { useEffect, useRef, useCallback, useState, forwardRef, useImperativeHandle } from "react";
-import { App, Group, Path, Pen, Text, Rect, Ellipse, UI } from "leafer-ui";
+import { App, Group, Path, Text, Rect, Ellipse, UI } from "leafer-ui";
 import "@leafer-in/editor";
 import "@leafer-in/text-editor";
 import "@leafer-in/export";
 
 // ---- Types ----
-export type Tool = "select" | "pen" | "highlighter" | "eraser" | "circle" | "rect" | "text";
+export type Tool = "select" | "pen" | "eraser" | "highlighter" | "circle" | "rect" | "text";
 
 export interface LeaferCanvasHandle {
   exportJSON: () => string;
@@ -30,11 +30,12 @@ interface Props {
   onContentChange?: () => void;
 }
 
+interface Pt { x: number; y: number }
+
 // ---- Stroke smoothing: Catmull-Rom to Bezier ----
-function pointsToPathString(points: { x: number; y: number }[], width: number): string {
+function pointsToPathString(points: Pt[], width: number): string {
   if (points.length === 0) return "";
   if (points.length === 1) {
-    // Single point: draw a dot
     const r = width / 2;
     return `M ${points[0].x - r} ${points[0].y} a ${r} ${r} 0 1 0 ${r * 2} 0 a ${r} ${r} 0 1 0 ${-r * 2} 0`;
   }
@@ -44,7 +45,6 @@ function pointsToPathString(points: { x: number; y: number }[], width: number): 
     const p1 = points[i];
     const p2 = points[i + 1];
     const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
-    // Catmull-Rom to Bezier conversion
     const cp1x = p1.x + (p2.x - p0.x) / 6;
     const cp1y = p1.y + (p2.y - p0.y) / 6;
     const cp2x = p2.x - (p3.x - p1.x) / 6;
@@ -54,9 +54,87 @@ function pointsToPathString(points: { x: number; y: number }[], width: number): 
   return d;
 }
 
+// ---- Geometry helpers for precision eraser ----
+
+// Distance from point P to line segment (A, B)
+function distToSegment(p: Pt, a: Pt, b: Pt): number {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+// Minimum distance from point P to a polyline (list of points)
+function minDistToPolyline(p: Pt, points: Pt[]): number {
+  if (points.length === 0) return Infinity;
+  if (points.length === 1) return Math.hypot(p.x - points[0].x, p.y - points[0].y);
+  let min = Infinity;
+  for (let i = 0; i < points.length - 1; i++) {
+    const d = distToSegment(p, points[i], points[i + 1]);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+// Bounding box of a point list
+function getPointsBounds(points: Pt[]): { x: number; y: number; width: number; height: number } {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of points) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+// Check if two axis-aligned bounding boxes intersect
+function boundsIntersect(
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+// Densify a polyline: insert interpolated points so no gap exceeds maxGap
+function densifyPoints(points: Pt[], maxGap: number): Pt[] {
+  if (points.length <= 1) return [...points];
+  const result: Pt[] = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const d = Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+    const steps = Math.max(1, Math.ceil(d / maxGap));
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      result.push({
+        x: points[i - 1].x + (points[i].x - points[i - 1].x) * t,
+        y: points[i - 1].y + (points[i].y - points[i - 1].y) * t,
+      });
+    }
+  }
+  return result;
+}
+
+// Binary search for the exact point on segment (p1→p2) where dist to eraser == radius.
+// p1 is outside (dist > radius), p2 is inside (dist < radius).
+function findCutPoint(p1: Pt, p2: Pt, eraserPoints: Pt[], radius: number): Pt {
+  let lo = 0, hi = 1;
+  for (let iter = 0; iter < 15; iter++) {
+    const mid = (lo + hi) / 2;
+    const px = p1.x + (p2.x - p1.x) * mid;
+    const py = p1.y + (p2.y - p1.y) * mid;
+    if (minDistToPolyline({ x: px, y: py }, eraserPoints) < radius) hi = mid;
+    else lo = mid;
+  }
+  const t = (lo + hi) / 2;
+  return { x: p1.x + (p2.x - p1.x) * t, y: p1.y + (p2.y - p1.y) * t };
+}
+
 // ---- Undo/Redo stack ----
 interface Snapshot {
   children: unknown[];
+  strokePoints: Record<string, number[][]>;
 }
 
 export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function LeaferCanvas(
@@ -67,10 +145,10 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   const appRef = useRef<App | null>(null);
   const drawLayerRef = useRef<Group | null>(null);
   const isDrawingRef = useRef(false);
-  const currentPointsRef = useRef<{ x: number; y: number }[]>([]);
+  const currentPointsRef = useRef<Pt[]>([]);
   const currentPathRef = useRef<Path | null>(null);
   const eraserPreviewRef = useRef<Path | null>(null);
-  const shapeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const shapeStartRef = useRef<Pt | null>(null);
   const shapePreviewRef = useRef<UI | null>(null);
   const toolRef = useRef(tool);
   const colorRef = useRef(color);
@@ -82,6 +160,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   const isUndoRedoRef = useRef(false);
   const undoStackRef = useRef<Snapshot[]>([]);
   const redoStackRef = useRef<Snapshot[]>([]);
+  const strokePointsMap = useRef<Map<string, Pt[]>>(new Map());
+  const strokeIdCounter = useRef(0);
   const [eraserCursor, setEraserCursor] = useState<{ x: number; y: number; show: boolean }>({ x: 0, y: 0, show: false });
 
   // Keep refs in sync
@@ -101,9 +181,16 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   // ---- Snapshot helpers ----
   const captureSnapshot = useCallback((): Snapshot => {
     const layer = drawLayerRef.current;
-    if (!layer) return { children: [] };
+    if (!layer) return { children: [], strokePoints: {} };
     const json = layer.toJSON();
-    return { children: (json as { children?: unknown[] }).children || [] };
+    const strokePoints: Record<string, number[][]> = {};
+    for (const [id, pts] of strokePointsMap.current) {
+      strokePoints[id] = pts.map(p => [p.x, p.y]);
+    }
+    return {
+      children: (json as { children?: unknown[] }).children || [],
+      strokePoints,
+    };
   }, []);
 
   const pushUndo = useCallback(() => {
@@ -121,8 +208,131 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     (layer as unknown as { set: (data: unknown) => void }).set({ children: snap.children });
     appRef.current?.tree.forceUpdate();
     isUndoRedoRef.current = false;
+    // Restore stroke points map
+    strokePointsMap.current.clear();
+    for (const [id, pts] of Object.entries(snap.strokePoints)) {
+      strokePointsMap.current.set(id, pts.map(([x, y]) => ({ x, y })));
+    }
     onContentChange?.();
   }, [onContentChange]);
+
+  // ---- Create a stroke Path from points and register in map ----
+  const createStrokePath = useCallback((
+    pts: Pt[],
+    strokeColor: string,
+    strokeWidth: number,
+    opacity: number,
+  ): Path | null => {
+    if (pts.length < 2) return null;
+    const pathStr = pointsToPathString(pts, strokeWidth);
+    if (!pathStr) return null;
+    const id = `stroke-${strokeIdCounter.current++}`;
+    const path = new Path({
+      id,
+      path: pathStr,
+      stroke: strokeColor,
+      strokeWidth,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      fill: "",
+      draggable: true,
+      opacity,
+    });
+    drawLayerRef.current?.add(path);
+    strokePointsMap.current.set(id, pts);
+    return path;
+  }, []);
+
+  // ---- Precision eraser: path boolean difference ----
+  // Only erases the geometrically overlapping portion of strokes.
+  // Strokes that don't intersect the eraser capsule are left completely untouched.
+  const eraseStrokes = useCallback((eraserPoints: Pt[], eraserRadius: number) => {
+    const layer = drawLayerRef.current;
+    if (!layer || eraserPoints.length === 0) return;
+
+    // Compute eraser capsule bounding box (expanded by radius)
+    const eraserBounds = getPointsBounds(eraserPoints);
+    const expandedEraserBounds = {
+      x: eraserBounds.x - eraserRadius,
+      y: eraserBounds.y - eraserRadius,
+      width: eraserBounds.width + eraserRadius * 2,
+      height: eraserBounds.height + eraserRadius * 2,
+    };
+
+    // Copy children since we'll modify the list
+    const children = [...layer.children];
+
+    for (const child of children) {
+      if (!(child instanceof Path)) continue;
+      const pathId = (child as unknown as { id?: string }).id;
+      if (!pathId || !strokePointsMap.current.has(pathId)) continue;
+
+      const originalPoints = strokePointsMap.current.get(pathId)!;
+
+      // Bounding box filter (performance): skip strokes that can't possibly intersect
+      const strokeBounds = getPointsBounds(originalPoints);
+      // Expand stroke bounds by half stroke width for safety
+      const sw = (child as unknown as { strokeWidth?: number }).strokeWidth || 1;
+      const expandedStrokeBounds = {
+        x: strokeBounds.x - sw / 2,
+        y: strokeBounds.y - sw / 2,
+        width: strokeBounds.width + sw,
+        height: strokeBounds.height + sw,
+      };
+      if (!boundsIntersect(expandedStrokeBounds, expandedEraserBounds)) continue;
+
+      // Densify stroke points to prevent missing thin eraser intersections
+      const densified = densifyPoints(originalPoints, eraserRadius / 3);
+
+      // Check each densified point: is it inside the eraser capsule?
+      const erased: boolean[] = densified.map(p =>
+        minDistToPolyline(p, eraserPoints) < eraserRadius,
+      );
+
+      // Split into segments with cut-point interpolation for clean cuts
+      const segments: Pt[][] = [];
+      let current: Pt[] = [];
+
+      if (!erased[0]) {
+        current.push(densified[0]);
+      }
+
+      for (let i = 1; i < densified.length; i++) {
+        if (!erased[i] && !erased[i - 1]) {
+          current.push(densified[i]);
+        } else if (!erased[i] && erased[i - 1]) {
+          // Transition from erased to non-erased: add cut point
+          const cut = findCutPoint(densified[i - 1], densified[i], eraserPoints, eraserRadius);
+          current = [cut, densified[i]];
+        } else if (erased[i] && !erased[i - 1]) {
+          // Transition from non-erased to erased: add cut point, close segment
+          const cut = findCutPoint(densified[i - 1], densified[i], eraserPoints, eraserRadius);
+          current.push(cut);
+          if (current.length >= 2) segments.push(current);
+          current = [];
+        }
+      }
+      if (current.length >= 2) segments.push(current);
+
+      // If nothing was erased, skip this stroke entirely
+      if (segments.length === 1 && segments[0].length === densified.length) continue;
+
+      // Get original style for new segments
+      const strokeColor = (child as unknown as { stroke?: string }).stroke || "#000";
+      const strokeWidth = (child as unknown as { strokeWidth?: number }).strokeWidth || 1;
+      const opacity = (child as unknown as { opacity?: number }).opacity ?? 1;
+
+      // Remove original stroke
+      child.remove();
+      strokePointsMap.current.delete(pathId);
+
+      // Add remaining segments as new strokes
+      for (const seg of segments) {
+        if (seg.length < 2) continue;
+        createStrokePath(seg, strokeColor, strokeWidth, opacity);
+      }
+    }
+  }, [createStrokePath]);
 
   // ---- Init Leafer app ----
   useEffect(() => {
@@ -135,9 +345,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     });
     appRef.current = app;
 
-    // Draw layer: holds all pen strokes, shapes, text, eraser paths.
-    // Fixed size matching container → prevents renderBounds from shifting
-    // when eraser paths are added (which would cause content to "jump").
+    // Draw layer: holds all pen strokes, shapes, text.
     const cw = containerRef.current.clientWidth || 800;
     const ch = containerRef.current.clientHeight || 600;
     const drawLayer = new Group({ name: "drawLayer", x: 0, y: 0, width: cw, height: ch });
@@ -155,7 +363,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     });
     resizeObserver.observe(containerRef.current);
 
-    // Load saved state from localStorage (fallback from old fabric data)
+    // Load saved state from localStorage
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) {
@@ -167,6 +375,13 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
             drawLayer.set({ children: parsed.children });
             app.tree.forceUpdate();
             isUndoRedoRef.current = false;
+            // Rebuild stroke points map from saved data
+            strokePointsMap.current.clear();
+            if (parsed.strokePoints) {
+              for (const [id, pts] of Object.entries(parsed.strokePoints) as [string, number[][]][]) {
+                strokePointsMap.current.set(id, pts.map(([x, y]) => ({ x, y })));
+              }
+            }
           }
         }
       }
@@ -177,21 +392,19 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     redoStackRef.current = [];
 
     // ---- Pointer events for drawing ----
-    const getPoint = (e: PointerEvent | MouseEvent) => {
+    const getPoint = (e: PointerEvent | MouseEvent): Pt => {
       const rect = containerRef.current!.getBoundingClientRect();
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button === 2) return; // right click
+      if (e.button === 2) return;
       const t = toolRef.current;
       const pt = getPoint(e);
 
       if (t === "select") {
-        // Let editor handle selection; if blank, notify
         const target = app.editor?.list?.[0];
         if (!target) {
-          // Will check after editor processes the click
           setTimeout(() => {
             if (!app.editor?.list?.length) onBlankClick?.();
           }, 0);
@@ -213,7 +426,6 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         pushUndo();
         onContentChange?.();
         app.editor.target = text;
-        // Enter text editing
         setTimeout(() => {
           (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
         }, 50);
@@ -234,7 +446,6 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     const onPointerMove = (e: PointerEvent) => {
       // Eraser cursor
       if (toolRef.current === "eraser") {
-        const pt = getPoint(e);
         const rect = containerRef.current!.getBoundingClientRect();
         setEraserCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top, show: true });
       }
@@ -305,7 +516,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         currentPathRef.current = path;
         drawLayer.add(path);
       }
-      // Eraser: show light gray semi-transparent preview trail
+
+      // Eraser: show light gray semi-transparent capsule preview (no actual erasing during drag)
       if (t === "eraser") {
         if (eraserPreviewRef.current) {
           eraserPreviewRef.current.remove();
@@ -328,12 +540,11 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       }
     };
 
-    const onPointerUp = (e: PointerEvent) => {
+    const onPointerUp = () => {
       // Finalize shape
       if (shapeStartRef.current && (toolRef.current === "circle" || toolRef.current === "rect")) {
         shapeStartRef.current = null;
         if (shapePreviewRef.current) {
-          // Make it permanent
           (shapePreviewRef.current as unknown as { hittable: boolean }).hittable = true;
           (shapePreviewRef.current as unknown as { draggable: boolean }).draggable = true;
           shapePreviewRef.current = null;
@@ -349,56 +560,31 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       const pts = currentPointsRef.current;
 
       if (t === "pen" || t === "highlighter") {
-        // Replace preview with permanent path
+        // Replace preview with permanent stroke
         if (currentPathRef.current) {
           currentPathRef.current.remove();
           currentPathRef.current = null;
         }
-        const pathStr = pointsToPathString(pts, brushWidthRef.current);
-        if (pathStr) {
-          const strokeColor = t === "highlighter"
-            ? (colorRef.current.length === 7 ? `${colorRef.current}55` : colorRef.current)
-            : (brushStyleRef.current === "pencil" ? `${colorRef.current}88` : colorRef.current);
-          const w = t === "highlighter" ? Math.max(brushWidthRef.current * 3, 12) : brushWidthRef.current;
-          const path = new Path({
-            path: pathStr,
-            stroke: strokeColor,
-            strokeWidth: w,
-            strokeLinecap: "round",
-            strokeLinejoin: "round",
-            fill: "",
-            draggable: true,
-          });
-          drawLayer.add(path);
-          pushUndo();
-          onContentChange?.();
-        }
+        const strokeColor = t === "highlighter"
+          ? (colorRef.current.length === 7 ? `${colorRef.current}55` : colorRef.current)
+          : (brushStyleRef.current === "pencil" ? `${colorRef.current}88` : colorRef.current);
+        const w = t === "highlighter" ? Math.max(brushWidthRef.current * 3, 12) : brushWidthRef.current;
+        const opacity = t === "highlighter" ? 0.5 : 1;
+        createStrokePath(pts, strokeColor, w, opacity);
+        pushUndo();
+        onContentChange?.();
       } else if (t === "eraser") {
         // Remove the light gray preview trail
         if (eraserPreviewRef.current) {
           eraserPreviewRef.current.remove();
           eraserPreviewRef.current = null;
         }
-        // Create pixel-mode eraser path: uses destination-out blend mode
-        // to erase the FULL stroke width area (not just the centerline).
-        // This avoids the clip-to-centerline limitation of path-mode eraser.
+        // Execute precision erasure: only erases geometrically overlapping portions
         if (pts.length > 0) {
-          const pathStr = pointsToPathString(pts, eraserWidthRef.current);
-          if (pathStr) {
-            const eraserPath = new Path({
-              path: pathStr,
-              stroke: "rgba(0,0,0,1)",
-              strokeWidth: eraserWidthRef.current,
-              strokeLinecap: "round",
-              strokeLinejoin: "round",
-              fill: "",
-              eraser: true,
-              hittable: false,
-            });
-            drawLayer.add(eraserPath);
-            pushUndo();
-            onContentChange?.();
-          }
+          const eraserRadius = eraserWidthRef.current / 2;
+          eraseStrokes(pts, eraserRadius);
+          pushUndo();
+          onContentChange?.();
         }
       }
 
@@ -408,7 +594,6 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     };
 
     const onContextMenu = (e: MouseEvent) => {
-      // Allow right-click on text for editing
       e.preventDefault();
     };
 
@@ -427,6 +612,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       app.destroy();
       appRef.current = null;
       drawLayerRef.current = null;
+      strokePointsMap.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
@@ -439,7 +625,6 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       app.editor.hittable = true;
       app.tree.hittable = true;
     } else {
-      // Disable editor selection in drawing modes
       app.editor.target = undefined;
     }
   }, [tool]);
@@ -458,19 +643,31 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     exportJSON: () => {
       const layer = drawLayerRef.current;
       if (!layer) return "{}";
-      const json = layer.toJSON();
-      return JSON.stringify(json);
+      const json = layer.toJSON() as { children?: unknown[] };
+      const strokePoints: Record<string, number[][]> = {};
+      for (const [id, pts] of strokePointsMap.current) {
+        strokePoints[id] = pts.map(p => [p.x, p.y]);
+      }
+      return JSON.stringify({ ...json, strokePoints });
     },
     importJSON: (json: string) => {
       const layer = drawLayerRef.current;
       if (!layer) return;
       try {
         const parsed = JSON.parse(json);
+        const { strokePoints, ...layerJson } = parsed;
         isUndoRedoRef.current = true;
         layer.removeAll(true);
-        layer.set({ children: parsed.children || [] });
+        layer.set({ children: layerJson.children || [] });
         appRef.current?.tree.forceUpdate();
         isUndoRedoRef.current = false;
+        // Rebuild stroke points map
+        strokePointsMap.current.clear();
+        if (strokePoints) {
+          for (const [id, pts] of Object.entries(strokePoints) as [string, number[][]][]) {
+            strokePointsMap.current.set(id, pts.map(([x, y]) => ({ x, y })));
+          }
+        }
         undoStackRef.current = [captureSnapshot()];
         redoStackRef.current = [];
         onContentChange?.();
@@ -498,6 +695,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       const layer = drawLayerRef.current;
       if (!layer) return;
       layer.removeAll(true);
+      strokePointsMap.current.clear();
       pushUndo();
       onContentChange?.();
     },
