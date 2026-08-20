@@ -10,7 +10,6 @@ import {
   ArrowUpLeft,
   Circle,
   Eraser,
-  Highlighter,
   Pencil,
   Plus,
   Redo2,
@@ -561,7 +560,6 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
             <div className="grid grid-cols-5 gap-1.5">
               {toolBtn("select", ArrowUpLeft, "选择")}
               {toolBtn("pen", Pencil, "画笔")}
-              {toolBtn("highlighter", Highlighter, "荧光笔")}
               {toolBtn("eraser", Eraser, "橡皮")}
               <button
                 type="button"
