@@ -306,7 +306,20 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       // This preserves the element's identity and prevents position shifts
       const firstSeg = segments[0];
       const firstPathStr = pointsToPathString(firstSeg, strokeWidth);
-      (child as unknown as { path: string }).path = firstPathStr;
+      const childData = child as unknown as {
+        x?: number;
+        y?: number;
+        set?: (data: { path: string; x: number; y: number }) => void;
+        path: string;
+      };
+      const fixedX = typeof childData.x === "number" ? childData.x : 0;
+      const fixedY = typeof childData.y === "number" ? childData.y : 0;
+      if (childData.set) {
+        childData.set({ path: firstPathStr, x: fixedX, y: fixedY });
+      } else {
+        childData.path = firstPathStr;
+      }
+      child.forceUpdate();
       strokePointsMap.current.set(pathId, firstSeg);
 
       // Create new Path elements for any additional segments
@@ -316,6 +329,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         createStrokePath(seg, strokeColor, strokeWidth, opacity);
       }
     }
+
+    // Keep the drawing coordinate system anchored to the canvas after Path bounds change.
+    const canvas = containerRef.current;
+    const width = canvas?.clientWidth || layer.width || 800;
+    const height = canvas?.clientHeight || layer.height || 600;
+    layer.set({ x: 0, y: 0, width, height, overflow: "show" });
+    layer.forceUpdate("bounds");
+    appRef.current?.tree.forceUpdate();
   }, [createStrokePath]);
 
   // ---- Init Leafer app ----
@@ -332,7 +353,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     // Draw layer: holds all pen strokes, shapes, text.
     const cw = containerRef.current.clientWidth || 800;
     const ch = containerRef.current.clientHeight || 600;
-    const drawLayer = new Group({ name: "drawLayer", x: 0, y: 0, width: cw, height: ch });
+    const drawLayer = new Group({
+      name: "drawLayer",
+      x: 0,
+      y: 0,
+      width: cw,
+      height: ch,
+      overflow: "show",
+    });
     app.tree.add(drawLayer);
     drawLayerRef.current = drawLayer;
 
