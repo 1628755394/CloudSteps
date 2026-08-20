@@ -728,6 +728,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     el.addEventListener("pointerdown", onPointerDown);
     el.addEventListener("pointermove", onPointerMove);
     el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointercancel", onPointerUp);
     el.addEventListener("contextmenu", onContextMenu);
     window.addEventListener("keydown", onKeyDown);
     // 编辑器拖动平移结束（MoveEvent.END）与缩放/旋转拖动结束（DragEvent.END）
@@ -740,6 +741,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       el.removeEventListener("pointerdown", onPointerDown);
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointercancel", onPointerUp);
       el.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("keydown", onKeyDown);
       app.off(LeaferMoveEvent.END, onStrokeDragEnd);
@@ -869,11 +871,15 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   }), [captureSnapshot, restoreSnapshot, pushUndo, onContentChange]);
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full touch-none select-none">
       <div
         ref={containerRef}
-        className="h-full w-full"
-        style={{ cursor: tool === "eraser" ? "none" : tool === "select" ? "default" : "crosshair" }}
+        className="h-full w-full touch-none select-none"
+        style={{
+          cursor: tool === "eraser" ? "none" : tool === "select" ? "default" : "crosshair",
+          touchAction: "none",
+          userSelect: "none",
+        }}
       />
       {tool === "eraser" && eraserCursor.show && (
         <div
