@@ -55,6 +55,16 @@ export default function ReviewWordList() {
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
   const [globalNoteOpen, setGlobalNoteOpen] = useState(false);
   const [noteSide, setNoteSide] = useState<"left" | "right">("right");
+  const [noteWidth, setNoteWidth] = useState(() => {
+    try {
+      const raw = localStorage.getItem("lb_review_note_width");
+      if (raw) {
+        const n = Number(raw);
+        if (Number.isFinite(n)) return Math.max(280, Math.min(720, n));
+      }
+    } catch { /* ignore */ }
+    return 420;
+  });
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -91,6 +101,28 @@ export default function ReviewWordList() {
     const abort = playWordAudio(item.audioUrl, 300, () => setPlayingId(null));
     abortRef.current = abort;
   };
+
+  const startNoteResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = noteWidth;
+    let latestW = startW;
+    const onMove = (ev: PointerEvent) => {
+      const delta = ev.clientX - startX;
+      // right side: drag left increases width; left side: drag right increases width
+      const next = Math.max(280, Math.min(720, startW + (noteSide === "right" ? -delta : delta)));
+      latestW = next;
+      setNoteWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      try { localStorage.setItem("lb_review_note_width", String(latestW)); } catch { /* ignore */ }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [noteWidth, noteSide]);
 
   useEffect(() => {
     if (viewOnly) return;
@@ -271,7 +303,7 @@ export default function ReviewWordList() {
       {/* Split container: word content + note panel on the same layer. */}
       <div className={`px-4 pt-3 pb-4 w-full ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "max-w-2xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
         {/* Word content pane */}
-        <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto lg:pr-2" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
             <p className="text-[#718096] text-sm">
               {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
@@ -394,17 +426,32 @@ export default function ReviewWordList() {
 
         {/* Note panel pane — same layer as word content (desktop split only) */}
         {globalNoteOpen && isDesktop && (
-          <div className={`lg:flex lg:w-[42%] lg:min-w-[280px] lg:max-w-[50vw] lg:flex-col ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}>
-            <StudyNotePanel
-              open={globalNoteOpen}
-              onClose={() => setGlobalNoteOpen(false)}
-              storageKey={`study-note:global:${wordBookId}`}
-              title="随心记"
-              side={noteSide}
-              split
-              onSideChange={setNoteSide}
-            />
-          </div>
+          <>
+            {/* Drag handle between word content and note panel */}
+            <div
+              className={`hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}
+              style={{ width: "6px" }}
+              onPointerDown={startNoteResize}
+              title="拖动调整随心记宽度"
+              aria-label="拖动调整随心记宽度"
+            >
+              <span className="h-12 w-1 rounded-full bg-[#A0AEC0]/40 hover:bg-[#A0AEC0]/70 transition-colors" />
+            </div>
+            <div
+              className={`lg:flex lg:min-w-[280px] lg:flex-col ${noteSide === "right" ? "lg:order-3" : "lg:order-1"}`}
+              style={{ width: `${noteWidth}px`, flexShrink: 0 }}
+            >
+              <StudyNotePanel
+                open={globalNoteOpen}
+                onClose={() => setGlobalNoteOpen(false)}
+                storageKey={`study-note:global:${wordBookId}`}
+                title="随心记"
+                side={noteSide}
+                split
+                onSideChange={setNoteSide}
+              />
+            </div>
+          </>
         )}
       </div>
 

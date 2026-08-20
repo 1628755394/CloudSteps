@@ -14,6 +14,7 @@ import {
 import { Canvas, PencilBrush, Point, Textbox } from "fabric";
 
 type PanelTool = "select" | "pen" | "eraser";
+type BrushStyle = "fountain" | "pencil";
 import { CloudButton } from "./cloudsteps";
 
 type NoteData = { json?: string; text: string; color: string; background: string };
@@ -38,6 +39,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [fill, setFill] = useState("#fff8e8");
   const [tool, setTool] = useState<PanelTool>("select");
   const [brushWidth, setBrushWidth] = useState(4);
+  const [brushStyle, setBrushStyle] = useState<BrushStyle>("fountain");
+  const [penPopupOpen, setPenPopupOpen] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(true);
 
   const persist = () => {
@@ -143,12 +146,13 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     canvas.selection = tool === "select";
     if (drawing) {
       const brush = new PencilBrush(canvas);
-      brush.color = color;
+      // pencil style: semi-transparent stroke for a softer look
+      brush.color = brushStyle === "pencil" ? `${color}88` : color;
       brush.width = brushWidth;
       canvas.freeDrawingBrush = brush;
     }
     // Eraser works via pointer handler below; no free drawing brush needed.
-  }, [tool, color, brushWidth]);
+  }, [tool, color, brushWidth, brushStyle]);
 
   // Local eraser: remove the topmost object under the pointer on each click/drag tick.
   useEffect(() => {
@@ -305,17 +309,58 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                   <input className="sr-only" type="color" value={fill} onChange={(e) => setBackground(e.target.value)} />
                 </label>
                 <button className={button(tool === "select")} onClick={() => setTool("select")} title="选择"><Type size={16} /></button>
-                <button className={button(tool === "pen")} onClick={() => setTool("pen")} title="画笔"><Pencil size={16} /></button>
-                <div className={`${button(tool === "pen")} px-1`} title="画笔粗细">
-                  <span className="text-[10px] tabular-nums">{brushWidth}</span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={40}
-                    value={brushWidth}
-                    onChange={(e) => setBrushWidth(Number(e.target.value))}
-                    className="ml-1 h-1 w-16 cursor-pointer accent-[#25344a]"
-                  />
+                <div className="relative">
+                  <button
+                    className={button(tool === "pen" || penPopupOpen)}
+                    onClick={() => { setTool("pen"); setPenPopupOpen((v) => !v); }}
+                    title="画笔（点击弹出粗细/样式设置）"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  {penPopupOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setPenPopupOpen(false)} />
+                      <div className="absolute top-9 left-0 z-50 w-48 rounded-lg border border-[#d8cdb8] bg-[#fff8e8] p-3 shadow-xl">
+                        <div className="mb-2 text-[11px] font-semibold text-[#5f7890]">笔迹粗细 <span className="tabular-nums text-[#25344a]">{brushWidth}px</span></div>
+                        <input
+                          type="range"
+                          min={1}
+                          max={40}
+                          value={brushWidth}
+                          onChange={(e) => setBrushWidth(Number(e.target.value))}
+                          className="w-full cursor-pointer accent-[#25344a]"
+                        />
+                        <div className="mt-3 mb-1.5 text-[11px] font-semibold text-[#5f7890]">笔迹样式</div>
+                        <div className="flex gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setBrushStyle("fountain")}
+                            className={`flex-1 rounded-md border px-2 py-1 text-xs ${brushStyle === "fountain" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a]" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                          >
+                            钢笔
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBrushStyle("pencil")}
+                            className={`flex-1 rounded-md border px-2 py-1 text-xs ${brushStyle === "pencil" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a]" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                          >
+                            铅笔
+                          </button>
+                        </div>
+                        {/* Preview stroke */}
+                        <div className="mt-3 flex h-8 items-center rounded-md bg-white/60">
+                          <svg className="w-full" height="32">
+                            <line
+                              x1="8" y1="16" x2="180" y2="16"
+                              stroke={brushStyle === "pencil" ? `${color}88` : color}
+                              strokeWidth={brushWidth}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <button className={button(tool === "eraser")} onClick={() => setTool("eraser")} title="橡皮 局部擦除" aria-label="橡皮"><span className="text-sm font-bold leading-none">橡皮</span></button>
                 <button className={button()} onClick={addText} title="添加文本"><Type size={16} /></button>
