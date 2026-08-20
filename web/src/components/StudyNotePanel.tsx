@@ -49,6 +49,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [penPopupOpen, setPenPopupOpen] = useState(false);
   const [eraserPopupOpen, setEraserPopupOpen] = useState(false);
   const [eraserWidth, setEraserWidth] = useState(20);
+  const [eraserTrailColor, setEraserTrailColor] = useState("#788291");
+  const [eraserTrailOpacity, setEraserTrailOpacity] = useState(0.25);
   const [bgPopupOpen, setBgPopupOpen] = useState(false);
   const [fontPopupOpen, setFontPopupOpen] = useState(false);
   const [fontPopupPos, setFontPopupPos] = useState({ x: 0, y: 0 });
@@ -394,11 +396,42 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                             className="w-full cursor-pointer accent-[#25344a]"
                           />
                         </div>
+                        <div className="mb-3">
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">轨迹颜色</span>
+                            <label className="flex h-6 w-8 cursor-pointer items-center justify-center rounded border border-[#d8cdb8]" style={{ backgroundColor: eraserTrailColor }}>
+                              <input
+                                className="sr-only"
+                                type="color"
+                                value={eraserTrailColor}
+                                onChange={(e) => setEraserTrailColor(e.target.value)}
+                                aria-label="橡皮轨迹颜色"
+                              />
+                            </label>
+                          </div>
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">轨迹透明度</span>
+                            <span className="text-[10px] tabular-nums font-bold text-[#25344a]">{Math.round(eraserTrailOpacity * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={Math.round(eraserTrailOpacity * 100)}
+                            onChange={(e) => setEraserTrailOpacity(Number(e.target.value) / 100)}
+                            className="w-full cursor-pointer accent-[#25344a]"
+                          />
+                        </div>
                         {/* 预览圆 */}
                         <div className="flex h-12 items-center justify-center rounded-md bg-white/70">
                           <span
-                            className="rounded-full bg-[#5f7890]/30"
-                            style={{ width: `${Math.min(eraserWidth, 40)}px`, height: `${Math.min(eraserWidth, 40)}px` }}
+                            className="rounded-full"
+                            style={{
+                              width: `${Math.min(eraserWidth, 40)}px`,
+                              height: `${Math.min(eraserWidth, 40)}px`,
+                              backgroundColor: eraserTrailColor,
+                              opacity: eraserTrailOpacity,
+                            }}
                           />
                         </div>
                       </div>
@@ -428,6 +461,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
               color={color}
               brushWidth={brushWidth}
               eraserWidth={eraserWidth}
+              eraserTrailColor={eraserTrailColor}
+              eraserTrailOpacity={eraserTrailOpacity}
               brushStyle={brushStyle}
               background={fill}
               fontSize={fontSize}

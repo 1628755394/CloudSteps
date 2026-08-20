@@ -28,6 +28,8 @@ interface Props {
   color: string;
   brushWidth: number;
   eraserWidth: number;
+  eraserTrailColor: string;
+  eraserTrailOpacity: number;
   brushStyle: "fountain" | "pencil";
   background: string;
   fontSize: number;
@@ -126,7 +128,7 @@ interface Snapshot {
 }
 
 export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function LeaferCanvas(
-  { tool, color, brushWidth, eraserWidth, brushStyle, background, fontSize, storageKey, onBlankClick, onContentChange },
+  { tool, color, brushWidth, eraserWidth, eraserTrailColor, eraserTrailOpacity, brushStyle, background, fontSize, storageKey, onBlankClick, onContentChange },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -142,6 +144,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   const colorRef = useRef(color);
   const brushWidthRef = useRef(brushWidth);
   const eraserWidthRef = useRef(eraserWidth);
+  const eraserTrailColorRef = useRef(eraserTrailColor);
+  const eraserTrailOpacityRef = useRef(eraserTrailOpacity);
   const brushStyleRef = useRef(brushStyle);
   const fontSizeRef = useRef(fontSize);
   const backgroundRef = useRef(background);
@@ -157,6 +161,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   useEffect(() => { colorRef.current = color; }, [color]);
   useEffect(() => { brushWidthRef.current = brushWidth; }, [brushWidth]);
   useEffect(() => { eraserWidthRef.current = eraserWidth; }, [eraserWidth]);
+  useEffect(() => { eraserTrailColorRef.current = eraserTrailColor; }, [eraserTrailColor]);
+  useEffect(() => { eraserTrailOpacityRef.current = eraserTrailOpacity; }, [eraserTrailOpacity]);
   useEffect(() => { brushStyleRef.current = brushStyle; }, [brushStyle]);
   useEffect(() => { fontSizeRef.current = fontSize; }, [fontSize]);
   useEffect(() => {
@@ -545,13 +551,13 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
             x: 0,
             y: 0,
             path: pathStr,
-            stroke: "rgba(120, 130, 145, 0.25)",
+            stroke: eraserTrailColorRef.current,
             strokeWidth: eraserWidthRef.current,
             strokeLinecap: "round",
             strokeLinejoin: "round",
             fill: "",
             hittable: false,
-            opacity: 0.6,
+            opacity: eraserTrailOpacityRef.current,
           });
           eraserPreviewRef.current = preview;
           drawLayer.add(preview);
