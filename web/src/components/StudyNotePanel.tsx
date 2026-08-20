@@ -28,11 +28,11 @@ const BG_COLORS = ["#fff8e8", "#ffffff", "#f0f4f8", "#e8f5e9", "#fff3e0", "#fce4
 import { CloudButton } from "./cloudsteps";
 
 /**
- * Pixel-level eraser brush: extends PencilBrush but renders with
- * globalCompositeOperation = "destination-out" so it erases pixels
- * from existing objects. After finalizing, the canvas is rasterized
- * (flattened to a single image) so the erasure is permanent and the
- * eraser trail itself disappears.
+ * Pixel-level eraser brush: extends PencilBrush but does NOT render
+ * any visible stroke. On finalize, it captures the canvas (without
+ * background), applies destination-out on an offscreen canvas so only
+ * pixels where the eraser overlaps with content are erased, then loads
+ * the result back. The eraser trail itself is never visible.
  */
 class EraserBrush extends PencilBrush {
   constructor(canvas: Canvas) {
@@ -40,37 +40,62 @@ class EraserBrush extends PencilBrush {
     this.color = "rgba(0,0,0,1)";
   }
 
-  _render(ctx?: CanvasRenderingContext2D): void {
-    const target = ctx ?? this.canvas.contextTop;
-    const prev = target.globalCompositeOperation;
-    target.globalCompositeOperation = "destination-out";
-    super._render(ctx);
-    target.globalCompositeOperation = prev;
+  // During free-drawing preview: render nothing visible (no trail).
+  _render(_ctx?: CanvasRenderingContext2D): void {
+    // Intentionally empty — eraser shows no preview trail.
   }
 
   _finalizeAndAddPath(): void {
-    const pathData = this.convertPointsToSVGPath(this._points);
-    if (!pathData) return;
-    const path = this.createPath(pathData) as Path;
-    (path as unknown as { globalCompositeOperation: string }).globalCompositeOperation = "destination-out";
-    path.set({ stroke: "rgba(0,0,0,1)", fill: "", selectable: false, evented: false });
-    this.canvas.add(path);
-    this.canvas.requestRenderAll();
-    // Rasterize: flatten the entire canvas to a single image so the
-    // destination-out erasure becomes permanent and the eraser trail
-    // disappears. Then clear all objects and load the flattened image back.
     const c = this.canvas;
     const bg = c.backgroundColor;
-    requestAnimationFrame(() => {
-      const dataURL = c.toDataURL({ format: "png", multiplier: 1 });
+    const w = c.getWidth();
+    const h = c.getHeight();
+    const pts = this._points;
+
+    // Step 1: Capture current canvas WITHOUT background (transparent bg)
+    c.backgroundColor = "";
+    c.renderAll();
+    const dataURL = c.toDataURL({ format: "png", multiplier: 1 });
+    // Restore background immediately
+    c.backgroundColor = bg;
+    c.renderAll();
+
+    // Step 2: Offscreen canvas — draw content, then erase with destination-out
+    const off = document.createElement("canvas");
+    off.width = w;
+    off.height = h;
+    const offCtx = off.getContext("2d")!;
+    const img = new Image();
+    img.onload = () => {
+      offCtx.drawImage(img, 0, 0);
+      // Apply destination-out: only erases where eraser overlaps existing pixels
+      offCtx.globalCompositeOperation = "destination-out";
+      offCtx.strokeStyle = "rgba(0,0,0,1)";
+      offCtx.lineWidth = this.width;
+      offCtx.lineCap = "round";
+      offCtx.lineJoin = "round";
+      offCtx.beginPath();
+      if (pts.length > 0) {
+        offCtx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+          const midX = (pts[i - 1].x + pts[i].x) / 2;
+          const midY = (pts[i - 1].y + pts[i].y) / 2;
+          offCtx.quadraticCurveTo(pts[i - 1].x, pts[i - 1].y, midX, midY);
+        }
+      }
+      offCtx.stroke();
+
+      // Step 3: Load erased result back into fabric
+      const erasedURL = off.toDataURL("png");
       c.clear();
       c.backgroundColor = bg;
-      FabricImage.fromURL(dataURL).then((fimg) => {
+      FabricImage.fromURL(erasedURL).then((fimg) => {
         fimg.set({ left: 0, top: 0, selectable: true, evented: true });
         c.add(fimg);
         c.requestRenderAll();
       });
-    });
+    };
+    img.src = dataURL;
   }
 }
 
@@ -106,6 +131,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [penPopupPos, setPenPopupPos] = useState({ x: 0, y: 0 });
   const [eraserPopupPos, setEraserPopupPos] = useState({ x: 0, y: 0 });
   const [bgPopupPos, setBgPopupPos] = useState({ x: 0, y: 0 });
+  const [eraserCursor, setEraserCursor] = useState<{ x: number; y: number; show: boolean }>({ x: 0, y: 0, show: false });
 
   const openPopupAt = (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -270,6 +296,31 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
       }
     }
   }, [tool, color, brushWidth, brushStyle, eraserWidth]);
+
+  // ---- Eraser cursor circle ----
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const host = hostRef.current;
+    if (!canvas || !host) return;
+    if (tool !== "eraser") {
+      setEraserCursor((s) => ({ ...s, show: false }));
+      return;
+    }
+    const onMove = (e: MouseEvent) => {
+      const rect = host.getBoundingClientRect();
+      setEraserCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top, show: true });
+    };
+    const onEnter = () => setEraserCursor((s) => ({ ...s, show: true }));
+    const onLeave = () => setEraserCursor((s) => ({ ...s, show: false }));
+    host.addEventListener("mousemove", onMove);
+    host.addEventListener("mouseenter", onEnter);
+    host.addEventListener("mouseleave", onLeave);
+    return () => {
+      host.removeEventListener("mousemove", onMove);
+      host.removeEventListener("mouseenter", onEnter);
+      host.removeEventListener("mouseleave", onLeave);
+    };
+  }, [tool]);
 
   // ---- Shape drawing (circle / rect) ----
   useEffect(() => {
@@ -718,9 +769,20 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
           </div>
 
           {/* Canvas host: fills remaining space. Fabric canvas syncs to this. */}
-          <div ref={hostRef} className="relative min-h-0 flex-1 overflow-hidden">
+          <div ref={hostRef} className="relative min-h-0 flex-1 overflow-hidden" style={{ cursor: tool === "eraser" ? "none" : undefined }}>
             <canvas ref={canvasElement} className="block h-full w-full" />
             {subtitle && <div className="pointer-events-none absolute left-4 top-1 text-lg text-[#b8c9be]">{subtitle}</div>}
+            {tool === "eraser" && eraserCursor.show && (
+              <div
+                className="pointer-events-none absolute rounded-full border-2 border-[#5f7890]/60 bg-[#5f7890]/10"
+                style={{
+                  width: `${eraserWidth}px`,
+                  height: `${eraserWidth}px`,
+                  left: `${eraserCursor.x - eraserWidth / 2}px`,
+                  top: `${eraserCursor.y - eraserWidth / 2}px`,
+                }}
+              />
+            )}
           </div>
         </div>
       </div>
