@@ -15,6 +15,8 @@ import { Canvas, PencilBrush, Point, Textbox } from "fabric";
 
 type PanelTool = "select" | "pen" | "eraser";
 type BrushStyle = "fountain" | "pencil";
+
+const PEN_COLORS = ["#25344a", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#a855f7", "#111827", "#ffffff"];
 import { CloudButton } from "./cloudsteps";
 
 type NoteData = { json?: string; text: string; color: string; background: string };
@@ -313,48 +315,110 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                   <button
                     className={button(tool === "pen" || penPopupOpen)}
                     onClick={() => { setTool("pen"); setPenPopupOpen((v) => !v); }}
-                    title="画笔（点击弹出粗细/样式设置）"
+                    title="画笔（点击弹出设置）"
                   >
                     <Pencil size={16} />
                   </button>
                   {penPopupOpen && (
                     <>
+                      {/* 点击外部关闭 */}
                       <div className="fixed inset-0 z-40" onClick={() => setPenPopupOpen(false)} />
-                      <div className="absolute top-9 left-0 z-50 w-48 rounded-lg border border-[#d8cdb8] bg-[#fff8e8] p-3 shadow-xl">
-                        <div className="mb-2 text-[11px] font-semibold text-[#5f7890]">笔迹粗细 <span className="tabular-nums text-[#25344a]">{brushWidth}px</span></div>
-                        <input
-                          type="range"
-                          min={1}
-                          max={40}
-                          value={brushWidth}
-                          onChange={(e) => setBrushWidth(Number(e.target.value))}
-                          className="w-full cursor-pointer accent-[#25344a]"
-                        />
-                        <div className="mt-3 mb-1.5 text-[11px] font-semibold text-[#5f7890]">笔迹样式</div>
-                        <div className="flex gap-1.5">
+                      {/* PS 风格画笔设置弹窗 */}
+                      <div className="absolute top-9 left-0 z-50 w-56 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl">
+                        {/* 标题栏 */}
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#25344a]">画笔设置</span>
                           <button
                             type="button"
-                            onClick={() => setBrushStyle("fountain")}
-                            className={`flex-1 rounded-md border px-2 py-1 text-xs ${brushStyle === "fountain" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a]" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                            onClick={() => setPenPopupOpen(false)}
+                            className="flex h-5 w-5 items-center justify-center rounded text-[#9b927f] hover:bg-[#e9dfce] hover:text-[#25344a]"
+                            aria-label="关闭"
                           >
-                            钢笔
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setBrushStyle("pencil")}
-                            className={`flex-1 rounded-md border px-2 py-1 text-xs ${brushStyle === "pencil" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a]" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
-                          >
-                            铅笔
+                            <X size={12} />
                           </button>
                         </div>
-                        {/* Preview stroke */}
-                        <div className="mt-3 flex h-8 items-center rounded-md bg-white/60">
-                          <svg className="w-full" height="32">
-                            <line
-                              x1="8" y1="16" x2="180" y2="16"
+
+                        {/* 颜色选择 */}
+                        <div className="mb-3">
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">颜色</div>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {PEN_COLORS.map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => { setColor(c); updateActive({ fill: c }); }}
+                                className={`h-6 w-6 rounded-full border-2 transition-transform ${color.toLowerCase() === c.toLowerCase() ? "border-[#25344a] scale-110 shadow-sm" : "border-[#d8cdb8] hover:scale-105"}`}
+                                style={{ backgroundColor: c }}
+                                aria-label={`颜色 ${c}`}
+                              />
+                            ))}
+                          </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-[#d8cdb8] px-2 text-[10px] text-[#5f7890] hover:bg-[#e9dfce]">
+                              <Palette size={12} />
+                              自定义
+                              <input
+                                className="sr-only"
+                                type="color"
+                                value={color.length === 7 ? color : "#25344a"}
+                                onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }}
+                              />
+                            </label>
+                            <span className="text-[10px] tabular-nums text-[#9b927f]">{color}</span>
+                          </div>
+                        </div>
+
+                        {/* 分隔线 */}
+                        <div className="my-2 h-px bg-[#e9dfce]" />
+
+                        {/* 笔迹粗细 */}
+                        <div className="mb-3">
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">粗细</span>
+                            <span className="text-[10px] tabular-nums font-bold text-[#25344a]">{brushWidth}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={1}
+                            max={40}
+                            value={brushWidth}
+                            onChange={(e) => setBrushWidth(Number(e.target.value))}
+                            className="w-full cursor-pointer accent-[#25344a]"
+                          />
+                        </div>
+
+                        {/* 笔迹样式 */}
+                        <div className="mb-3">
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">样式</div>
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setBrushStyle("fountain")}
+                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${brushStyle === "fountain" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                            >
+                              钢笔
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setBrushStyle("pencil")}
+                              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${brushStyle === "pencil" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+                            >
+                              铅笔
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 实时预览 */}
+                        <div className="rounded-md bg-white/70 p-2">
+                          <div className="mb-1 text-[9px] text-[#9b927f]">预览</div>
+                          <svg className="w-full" height="36" viewBox="0 0 200 36">
+                            <path
+                              d="M 10 28 Q 50 8 100 18 T 190 14"
+                              fill="none"
                               stroke={brushStyle === "pencil" ? `${color}88` : color}
                               strokeWidth={brushWidth}
                               strokeLinecap="round"
+                              strokeLinejoin="round"
                             />
                           </svg>
                         </div>
