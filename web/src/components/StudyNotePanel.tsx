@@ -6,6 +6,7 @@ import {
   Eraser,
   Highlighter,
   Italic,
+  MousePointer2,
   PaintBucket,
   Palette,
   Pencil,
@@ -17,18 +18,21 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { Canvas, PencilBrush, Point, Textbox, Path } from "fabric";
+import { Canvas, FabricImage, PencilBrush, Point, Textbox, Path } from "fabric";
 
 type PanelTool = "select" | "pen" | "eraser" | "highlighter" | "circle" | "rect" | "text";
 type BrushStyle = "fountain" | "pencil";
 
 const PEN_COLORS = ["#25344a", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#a855f7", "#111827", "#ffffff"];
+const BG_COLORS = ["#fff8e8", "#ffffff", "#f0f4f8", "#e8f5e9", "#fff3e0", "#fce4ec", "#f3e5f5", "#e0f7fa", "#1a1a2e", "#16213e"];
 import { CloudButton } from "./cloudsteps";
 
 /**
  * Pixel-level eraser brush: extends PencilBrush but renders with
  * globalCompositeOperation = "destination-out" so it erases pixels
- * from existing objects instead of deleting whole objects.
+ * from existing objects. After finalizing, the canvas is rasterized
+ * (flattened to a single image) so the erasure is permanent and the
+ * eraser trail itself disappears.
  */
 class EraserBrush extends PencilBrush {
   constructor(canvas: Canvas) {
@@ -48,11 +52,25 @@ class EraserBrush extends PencilBrush {
     const pathData = this.convertPointsToSVGPath(this._points);
     if (!pathData) return;
     const path = this.createPath(pathData) as Path;
-    // Mark as eraser stroke so it renders with destination-out on the lower canvas too
     (path as unknown as { globalCompositeOperation: string }).globalCompositeOperation = "destination-out";
-    path.set({ stroke: "rgba(0,0,0,1)", fill: "", selectable: false, evented: false, hoverCursor: "not-allowed" });
+    path.set({ stroke: "rgba(0,0,0,1)", fill: "", selectable: false, evented: false });
     this.canvas.add(path);
     this.canvas.requestRenderAll();
+    // Rasterize: flatten the entire canvas to a single image so the
+    // destination-out erasure becomes permanent and the eraser trail
+    // disappears. Then clear all objects and load the flattened image back.
+    const c = this.canvas;
+    const bg = c.backgroundColor;
+    requestAnimationFrame(() => {
+      const dataURL = c.toDataURL({ format: "png", multiplier: 1 });
+      c.clear();
+      c.backgroundColor = bg;
+      FabricImage.fromURL(dataURL).then((fimg) => {
+        fimg.set({ left: 0, top: 0, selectable: true, evented: true });
+        c.add(fimg);
+        c.requestRenderAll();
+      });
+    });
   }
 }
 
@@ -80,6 +98,9 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [brushWidth, setBrushWidth] = useState(4);
   const [brushStyle, setBrushStyle] = useState<BrushStyle>("fountain");
   const [penPopupOpen, setPenPopupOpen] = useState(false);
+  const [eraserPopupOpen, setEraserPopupOpen] = useState(false);
+  const [eraserWidth, setEraserWidth] = useState(20);
+  const [bgPopupOpen, setBgPopupOpen] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(true);
   const shapeStartRef = useRef<{ x: number; y: number } | null>(null);
   const shapePreviewRef = useRef<Path | null>(null);
@@ -195,7 +216,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     if (drawing) {
       if (tool === "eraser") {
         const brush = new EraserBrush(canvas);
-        brush.width = brushWidth * 2;
+        brush.width = eraserWidth;
         canvas.freeDrawingBrush = brush;
       } else if (tool === "highlighter") {
         const brush = new PencilBrush(canvas);
@@ -209,7 +230,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
         canvas.freeDrawingBrush = brush;
       }
     }
-  }, [tool, color, brushWidth, brushStyle]);
+  }, [tool, color, brushWidth, brushStyle, eraserWidth]);
 
   // ---- Shape drawing (circle / rect) ----
   useEffect(() => {
@@ -421,11 +442,59 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                   <Palette size={16} />
                   <input className="sr-only" type="color" value={color} onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }} />
                 </label>
-                <label className={button()} title="画布填充">
-                  <PaintBucket size={16} />
-                  <input className="sr-only" type="color" value={fill} onChange={(e) => setBackground(e.target.value)} />
-                </label>
-                <button className={button(tool === "select")} onClick={() => setTool("select")} title="选择"><Type size={16} /></button>
+                <div className="relative">
+                  <button
+                    className={button(bgPopupOpen)}
+                    onClick={() => setBgPopupOpen((v) => !v)}
+                    title="画布背景颜色"
+                  >
+                    <PaintBucket size={16} />
+                  </button>
+                  {bgPopupOpen && (
+                    <>
+                      <div className="fixed inset-0 z-[9998]" onClick={() => setBgPopupOpen(false)} />
+                      <div className="absolute top-9 left-0 z-[9999] w-48 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl">
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#25344a]">背景颜色</span>
+                          <button
+                            type="button"
+                            onClick={() => setBgPopupOpen(false)}
+                            className="flex h-5 w-5 items-center justify-center rounded text-[#9b927f] hover:bg-[#e9dfce] hover:text-[#25344a]"
+                            aria-label="关闭"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {BG_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => { setBackground(c); setBgPopupOpen(false); }}
+                              className={`h-7 w-7 rounded-lg border-2 transition-transform ${fill.toLowerCase() === c.toLowerCase() ? "border-[#25344a] scale-110 shadow-sm" : "border-[#d8cdb8] hover:scale-105"}`}
+                              style={{ backgroundColor: c }}
+                              aria-label={`背景 ${c}`}
+                            />
+                          ))}
+                        </div>
+                        <div className="mt-2.5 flex items-center gap-2">
+                          <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-[#d8cdb8] px-2 text-[10px] text-[#5f7890] hover:bg-[#e9dfce]">
+                            <Palette size={12} />
+                            自定义
+                            <input
+                              className="sr-only"
+                              type="color"
+                              value={fill}
+                              onChange={(e) => setBackground(e.target.value)}
+                            />
+                          </label>
+                          <span className="text-[10px] tabular-nums text-[#9b927f]">{fill}</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <button className={button(tool === "select")} onClick={() => setTool("select")} title="选择"><MousePointer2 size={16} /></button>
                 <div className="relative">
                   <button
                     className={button(tool === "pen" || tool === "highlighter" || penPopupOpen)}
@@ -437,9 +506,9 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                   {penPopupOpen && (
                     <>
                       {/* 点击外部关闭 */}
-                      <div className="fixed inset-0 z-40" onClick={() => setPenPopupOpen(false)} />
-                      {/* PS 风格画笔设置弹窗 */}
-                      <div className="absolute top-9 left-0 z-50 w-56 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl">
+                      <div className="fixed inset-0 z-[9998]" onClick={() => setPenPopupOpen(false)} />
+                      {/* PS 风格画笔设置弹窗 — 最顶层 */}
+                      <div className="absolute top-9 left-0 z-[9999] w-56 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl">
                         {/* 标题栏 */}
                         <div className="mb-3 flex items-center justify-between">
                           <span className="text-xs font-bold text-[#25344a]">画笔设置</span>
@@ -549,7 +618,54 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                   )}
                 </div>
                 <button className={button(tool === "highlighter")} onClick={() => setTool("highlighter")} title="荧光笔"><Highlighter size={16} /></button>
-                <button className={button(tool === "eraser")} onClick={() => setTool("eraser")} title="橡皮 局部擦除" aria-label="橡皮"><Eraser size={16} /></button>
+                <div className="relative">
+                  <button
+                    className={button(tool === "eraser" || eraserPopupOpen)}
+                    onClick={() => { setTool("eraser"); setEraserPopupOpen((v) => !v); }}
+                    title="橡皮（点击弹出大小设置）"
+                  >
+                    <Eraser size={16} />
+                  </button>
+                  {eraserPopupOpen && (
+                    <>
+                      <div className="fixed inset-0 z-[9998]" onClick={() => setEraserPopupOpen(false)} />
+                      <div className="absolute top-9 left-0 z-[9999] w-44 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl">
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#25344a]">橡皮大小</span>
+                          <button
+                            type="button"
+                            onClick={() => setEraserPopupOpen(false)}
+                            className="flex h-5 w-5 items-center justify-center rounded text-[#9b927f] hover:bg-[#e9dfce] hover:text-[#25344a]"
+                            aria-label="关闭"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                        <div className="mb-3">
+                          <div className="mb-1.5 flex items-center justify-between">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">粗细</span>
+                            <span className="text-[10px] tabular-nums font-bold text-[#25344a]">{eraserWidth}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={4}
+                            max={80}
+                            value={eraserWidth}
+                            onChange={(e) => setEraserWidth(Number(e.target.value))}
+                            className="w-full cursor-pointer accent-[#25344a]"
+                          />
+                        </div>
+                        {/* 预览圆 */}
+                        <div className="flex h-12 items-center justify-center rounded-md bg-white/70">
+                          <span
+                            className="rounded-full bg-[#5f7890]/30"
+                            style={{ width: `${Math.min(eraserWidth, 40)}px`, height: `${Math.min(eraserWidth, 40)}px` }}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <button className={button(tool === "circle")} onClick={() => setTool("circle")} title="圆形"><CircleIcon size={16} /></button>
                 <button className={button(tool === "rect")} onClick={() => setTool("rect")} title="矩形"><SquareIcon size={16} /></button>
                 <button className={button()} onClick={addText} title="添加文本"><Type size={16} /></button>
