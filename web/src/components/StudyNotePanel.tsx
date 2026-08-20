@@ -101,6 +101,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [eraserPopupOpen, setEraserPopupOpen] = useState(false);
   const [eraserWidth, setEraserWidth] = useState(20);
   const [bgPopupOpen, setBgPopupOpen] = useState(false);
+  const [fontPopupOpen, setFontPopupOpen] = useState(false);
+  const [fontPopupPos, setFontPopupPos] = useState({ x: 0, y: 0 });
   const [toolbarVisible, setToolbarVisible] = useState(true);
   const shapeStartRef = useRef<{ x: number; y: number } | null>(null);
   const shapePreviewRef = useRef<Path | null>(null);
@@ -170,18 +172,21 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     // Restore saved content, then re-sync (loadFromJSON resets dimensions).
     const restore = async () => {
       if (saved.json) {
+        isUndoRedoRef.current = true;
         await canvas.loadFromJSON(saved.json);
         canvas.backgroundColor = saved.background;
+        isUndoRedoRef.current = false;
       }
       syncSize();
+      // Push initial state to undo stack after restore
+      undoStackRef.current = [JSON.stringify(canvas.toJSON())];
+      redoStackRef.current = [];
     };
     restore();
 
     canvas.on("object:added", () => {
-      if (!skipSnapshotRef.current) {
+      if (!isUndoRedoRef.current) {
         pushUndoSnapshot();
-      } else {
-        skipSnapshotRef.current = false;
       }
       persist();
     });
@@ -198,7 +203,21 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
       persist();
     });
 
+    // Right-click on text object -> open font settings popup (Word-style)
+    const onContextMenu = (e: MouseEvent) => {
+      const target = canvas.findTarget(e) as unknown as { type?: string } | undefined;
+      if (target && target.type === "textbox") {
+        e.preventDefault();
+        canvas.setActiveObject(target as unknown as Parameters<typeof canvas.setActiveObject>[0]);
+        setFontPopupPos({ x: e.clientX, y: e.clientY });
+        setFontPopupOpen(true);
+      }
+    };
+    const canvasEl = canvas.getElement();
+    canvasEl.addEventListener("contextmenu", onContextMenu);
+
     return () => {
+      canvasEl.removeEventListener("contextmenu", onContextMenu);
       ro.disconnect();
       canvas.dispose();
       canvasRef.current = null;
@@ -328,38 +347,52 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
   const skipSnapshotRef = useRef(false);
+  const isUndoRedoRef = useRef(false);
 
   const pushUndoSnapshot = useCallback(() => {
+    if (isUndoRedoRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const json = JSON.stringify(canvas.toJSON());
     undoStackRef.current.push(json);
     if (undoStackRef.current.length > 50) undoStackRef.current.shift();
+    // Clear redo stack on new action
+    redoStackRef.current = [];
   }, []);
 
   const undo = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || undoStackRef.current.length === 0) return;
+    if (!canvas || undoStackRef.current.length <= 1) return;
+    // Push current state to redo
     const current = JSON.stringify(canvas.toJSON());
     redoStackRef.current.push(current);
-    const prev = undoStackRef.current.pop()!;
-    skipSnapshotRef.current = true;
+    // Pop the current state from undo (top = current)
+    undoStackRef.current.pop();
+    // Get the previous state
+    const prev = undoStackRef.current[undoStackRef.current.length - 1];
+    if (!prev) return;
+    isUndoRedoRef.current = true;
     canvas.loadFromJSON(prev).then(() => {
       canvas.backgroundColor = fill;
       canvas.renderAll();
+      isUndoRedoRef.current = false;
+      persist();
     });
   }, [fill]);
 
   const redo = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || redoStackRef.current.length === 0) return;
+    const next = redoStackRef.current.pop()!;
+    // Push current to undo
     const current = JSON.stringify(canvas.toJSON());
     undoStackRef.current.push(current);
-    const next = redoStackRef.current.pop()!;
-    skipSnapshotRef.current = true;
+    isUndoRedoRef.current = true;
     canvas.loadFromJSON(next).then(() => {
       canvas.backgroundColor = fill;
       canvas.renderAll();
+      isUndoRedoRef.current = false;
+      persist();
     });
   }, [fill]);
   const setBackground = (value: string) => {
@@ -425,19 +458,14 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <button className={button(active()?.get("fontStyle") === "italic")} onClick={() => toggleActive("fontStyle", "italic", "normal")} title="斜体"><Italic size={16} /></button>
                 <button className={button(active()?.get("underline") === true)} onClick={() => toggleActive("underline", true, false)} title="下划线"><Underline size={16} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
-                <div className="flex items-center gap-1">
+                <button
+                  className={button(fontPopupOpen)}
+                  onClick={(e) => { setFontPopupPos({ x: e.currentTarget.getBoundingClientRect().left, y: e.currentTarget.getBoundingClientRect().bottom + 4 }); setFontPopupOpen((v) => !v); }}
+                  title="字体设置（或右键文字）"
+                >
                   <Type size={15} />
-                  <select
-                    value={fontSize}
-                    onChange={(e) => { const value = Number(e.target.value); setFontSize(value); updateActive({ fontSize: value }); }}
-                    className="h-7 rounded-md bg-[#eee5d5] px-1 text-xs text-[#25344a]"
-                  >
-                    <option className="text-black" value={20}>字号 20</option>
-                    <option className="text-black" value={28}>字号 28</option>
-                    <option className="text-black" value={36}>字号 36</option>
-                    <option className="text-black" value={48}>字号 48</option>
-                  </select>
-                </div>
+                  <span className="ml-0.5 text-[10px] tabular-nums">{fontSize}</span>
+                </button>
                 <label className={button()} title="文字颜色">
                   <Palette size={16} />
                   <input className="sr-only" type="color" value={color} onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }} />
@@ -670,8 +698,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <button className={button(tool === "rect")} onClick={() => setTool("rect")} title="矩形"><SquareIcon size={16} /></button>
                 <button className={button()} onClick={addText} title="添加文本"><Type size={16} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
-                <button className={button()} onClick={undo} title="撤销"><Undo2 size={16} /></button>
-                <button className={button()} onClick={redo} title="重做"><Redo2 size={16} /></button>
+                <button className={button()} onClick={undo} title="撤销（上一步）" aria-label="撤销"><Undo2 size={16} /></button>
+                <button className={button()} onClick={redo} title="重做（下一步）" aria-label="重做"><Redo2 size={16} /></button>
                 <div className="contents">
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title="切换左右"><PanelLeft size={16} /></button>
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={clearCanvas} title="清空 一键清空全部" aria-label="清空"><Trash2 size={16} /></button>
@@ -704,11 +732,118 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     </>
   );
 
+  // Font settings popup (Word-style, triggered by right-click on text or toolbar button)
+  const fontPopup = fontPopupOpen && (
+    <>
+      <div className="fixed inset-0 z-[9998]" onClick={() => setFontPopupOpen(false)} />
+      <div
+        className="fixed z-[9999] w-52 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl"
+        style={{ left: Math.min(fontPopupPos.x, window.innerWidth - 220), top: Math.min(fontPopupPos.y, window.innerHeight - 200) }}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-xs font-bold text-[#25344a]">字体设置</span>
+          <button
+            type="button"
+            onClick={() => setFontPopupOpen(false)}
+            className="flex h-5 w-5 items-center justify-center rounded text-[#9b927f] hover:bg-[#e9dfce] hover:text-[#25344a]"
+            aria-label="关闭"
+          >
+            <X size={12} />
+          </button>
+        </div>
+        {/* 字号 */}
+        <div className="mb-3">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">字号</span>
+            <span className="text-[10px] tabular-nums font-bold text-[#25344a]">{fontSize}px</span>
+          </div>
+          <input
+            type="range"
+            min={12}
+            max={72}
+            value={fontSize}
+            onChange={(e) => { const v = Number(e.target.value); setFontSize(v); updateActive({ fontSize: v }); }}
+            className="w-full cursor-pointer accent-[#25344a]"
+          />
+        </div>
+        {/* 快捷字号 */}
+        <div className="mb-3 flex flex-wrap gap-1">
+          {[16, 20, 24, 28, 32, 36, 48].map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => { setFontSize(s); updateActive({ fontSize: s }); }}
+              className={`rounded-md border px-1.5 py-0.5 text-[10px] ${fontSize === s ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <div className="my-2 h-px bg-[#e9dfce]" />
+        {/* 文字样式 */}
+        <div className="mb-3">
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">样式</div>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => toggleActive("fontWeight", "bold", "normal")}
+              className={`flex h-8 w-8 items-center justify-center rounded-md border ${active()?.get("fontWeight") === "bold" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a]" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+            >
+              <Bold size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleActive("fontStyle", "italic", "normal")}
+              className={`flex h-8 w-8 items-center justify-center rounded-md border ${active()?.get("fontStyle") === "italic" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a]" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+            >
+              <Italic size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleActive("underline", true, false)}
+              className={`flex h-8 w-8 items-center justify-center rounded-md border ${active()?.get("underline") === true ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a]" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
+            >
+              <Underline size={14} />
+            </button>
+          </div>
+        </div>
+        {/* 文字颜色 */}
+        <div>
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">颜色</div>
+          <div className="flex items-center gap-2">
+            <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-[#d8cdb8] px-2 text-[10px] text-[#5f7890] hover:bg-[#e9dfce]">
+              <Palette size={12} />
+              自定义
+              <input
+                className="sr-only"
+                type="color"
+                value={color}
+                onChange={(e) => { setColor(e.target.value); updateActive({ fill: e.target.value }); }}
+              />
+            </label>
+            <div className="flex gap-1">
+              {PEN_COLORS.slice(0, 6).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => { setColor(c); updateActive({ fill: c }); }}
+                  className={`h-5 w-5 rounded-full border ${color.toLowerCase() === c.toLowerCase() ? "border-[#25344a] scale-110" : "border-[#d8cdb8]"}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   if (split) {
     // In split mode, render as a flex child (same layer as word content).
     return (
       <div className="relative h-full w-full box-border">
         {board}
+        {fontPopup}
       </div>
     );
   }
@@ -727,6 +862,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
       }}
     >
       {board}
+      {fontPopup}
     </aside>
   );
 }
