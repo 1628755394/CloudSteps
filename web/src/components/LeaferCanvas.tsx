@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState, forwardRef, useImperativeHandle } from "react";
-import { App, Group, Path, Text, Rect, Ellipse, UI } from "leafer-ui";
+import { App, Group, Path, Text, Rect, Ellipse, UI, DragEvent as LeaferDragEvent, MoveEvent as LeaferMoveEvent } from "leafer-ui";
 import "@leafer-in/editor";
 import "@leafer-in/text-editor";
 import "@leafer-in/export";
@@ -308,20 +308,17 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       const strokeWidth = (child as unknown as { strokeWidth?: number }).strokeWidth || 1;
       const opacity = (child as unknown as { opacity?: number }).opacity ?? 1;
 
-      // Update the first segment in-place on the existing path element
-      // This preserves the element's identity and prevents position shifts
+      // 方案 A：所有笔迹始终固定在 x:0, y:0，路径数据全部使用画布坐标。
+      // jsts 计算出的裁切结果本身就是画布坐标，直接写回 Path 并强制 x/y 为 0，
+      // 避免与 Path 自身的局部坐标叠加导致偏移。
       const firstSeg = segments[0];
       const firstPathStr = pointsToPathString(firstSeg, strokeWidth);
       const childData = child as unknown as {
-        x?: number;
-        y?: number;
         set?: (data: { path: string; x: number; y: number }) => void;
         path: string;
       };
-      const fixedX = typeof childData.x === "number" ? childData.x : 0;
-      const fixedY = typeof childData.y === "number" ? childData.y : 0;
       if (childData.set) {
-        childData.set({ path: firstPathStr, x: fixedX, y: fixedY });
+        childData.set({ path: firstPathStr, x: 0, y: 0 });
       } else {
         childData.path = firstPathStr;
       }
@@ -329,6 +326,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       strokePointsMap.current.set(pathId, firstSeg);
 
       // Create new Path elements for any additional segments
+      // createStrokePath 内部已固定 x:0, y:0，与第一段使用同一坐标基准。
       for (let si = 1; si < segments.length; si++) {
         const seg = segments[si];
         if (seg.length < 2) continue;
@@ -336,12 +334,6 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       }
     }
 
-    // Keep the drawing coordinate system anchored to the canvas after Path bounds change.
-    const canvas = containerRef.current;
-    const width = canvas?.clientWidth || layer.width || 800;
-    const height = canvas?.clientHeight || layer.height || 600;
-    layer.set({ x: 0, y: 0, width, height, overflow: "show" });
-    layer.forceUpdate("bounds");
     appRef.current?.tree.forceUpdate();
   }, [createStrokePath]);
 
@@ -413,6 +405,82 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     const getPoint = (e: PointerEvent | MouseEvent): Pt => {
       const rect = containerRef.current!.getBoundingClientRect();
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    // 方案 A 配套：变换结束时把 Path 的完整变换（平移/缩放/旋转/skew）
+    // 烘焙进 strokePointsMap 的点位，再把 Path 的变换全部归一（identity），
+    // 按新画布坐标重建路径。
+    // 这样所有笔迹始终满足不变量：Path 固定在 (0,0) 且无缩放/旋转，
+    // 点位为画布坐标，擦除时 jsts 不会因坐标系混用而偏移。
+    // 坐标变换委托给 Leafer 的 getWorldPointByLocal(p, drawLayer)，
+    // 它内部用 worldTransform 矩阵（含 around 原点），比手写矩阵更可靠。
+    const onStrokeDragEnd = () => {
+      const editor = app.editor;
+      const list = editor?.list;
+      if (!list || list.length === 0) return;
+      const drawLayer = drawLayerRef.current;
+      let changed = false;
+      for (const item of [...list]) {
+        if (!(item instanceof Path)) continue;
+        const id = (item as unknown as { id?: string }).id;
+        if (!id) continue;
+        const pts = strokePointsMap.current.get(id);
+        if (!pts) continue;
+        const data = item as unknown as {
+          x?: number; y?: number;
+          scaleX?: number; scaleY?: number;
+          rotation?: number; skewX?: number; skewY?: number;
+          strokeWidth?: number;
+          set?: (d: Record<string, unknown>) => void;
+          path: string;
+          getWorldPointByLocal: (
+            local: Pt,
+            relative?: unknown,
+            distance?: boolean,
+          ) => Pt;
+        };
+        // 判断是否有非 identity 变换
+        const dx = typeof data.x === "number" ? data.x : 0;
+        const dy = typeof data.y === "number" ? data.y : 0;
+        const sx = data.scaleX ?? 1;
+        const sy = data.scaleY ?? 1;
+        const rot = data.rotation ?? 0;
+        const skx = data.skewX ?? 0;
+        const sky = data.skewY ?? 0;
+        if (dx === 0 && dy === 0 && sx === 1 && sy === 1 &&
+            rot === 0 && skx === 0 && sky === 0) continue;
+
+        // 用 Leafer 矩阵把每个局部点变换到 drawLayer 局部坐标（== 画布坐标）
+        const newPts = pts.map(p => {
+          const w = data.getWorldPointByLocal(p, drawLayer, false);
+          return { x: w.x, y: w.y };
+        });
+
+        // strokeWidth 按缩放平均值烘焙，保持视觉粗细一致
+        // （仅影响视觉；擦除命中只看中心线点位，与 strokeWidth 无关）
+        const oldSW = data.strokeWidth || 1;
+        const newSW = oldSW * (Math.abs(sx) + Math.abs(sy)) / 2;
+
+        const newPathStr = pointsToPathString(newPts, newSW);
+        if (data.set) {
+          data.set({
+            path: newPathStr,
+            x: 0, y: 0,
+            scaleX: 1, scaleY: 1,
+            rotation: 0, skewX: 0, skewY: 0,
+            strokeWidth: newSW,
+          });
+        }
+        item.forceUpdate();
+        strokePointsMap.current.set(id, newPts);
+        changed = true;
+      }
+      if (changed) {
+        editor?.update?.();
+        app.tree.forceUpdate();
+        pushUndo();
+        onContentChange?.();
+      }
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -648,6 +716,11 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     el.addEventListener("pointerup", onPointerUp);
     el.addEventListener("contextmenu", onContextMenu);
     window.addEventListener("keydown", onKeyDown);
+    // 编辑器平移结束（MoveEvent.END）与缩放/旋转/skew 拖动结束（DragEvent.END）
+    // 都会冒泡到 app；在此时把完整变换烘焙进点位，保证笔迹不变量。
+    // 操作幂等：烘焙后变换归一为 identity，重复触发时检测到 identity 直接跳过。
+    app.on(LeaferMoveEvent.END, onStrokeDragEnd);
+    app.on(LeaferDragEvent.END, onStrokeDragEnd);
 
     return () => {
       el.removeEventListener("pointerdown", onPointerDown);
@@ -655,6 +728,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("keydown", onKeyDown);
+      app.off(LeaferMoveEvent.END, onStrokeDragEnd);
+      app.off(LeaferDragEvent.END, onStrokeDragEnd);
       resizeObserver.disconnect();
       app.destroy();
       appRef.current = null;
