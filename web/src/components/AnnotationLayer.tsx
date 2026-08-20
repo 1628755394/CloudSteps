@@ -604,9 +604,6 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
                   setTool("pen");
                   setBrushMode("pencil");
                 })}
-                {brushChip("highlighter", "荧光笔", tool === "highlighter", () => {
-                  setTool("highlighter");
-                })}
               </div>
             </div>
 
