@@ -66,10 +66,10 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<App | null>(null);
   const drawLayerRef = useRef<Group | null>(null);
-  const eraserGroupRef = useRef<Group | null>(null);
   const isDrawingRef = useRef(false);
   const currentPointsRef = useRef<{ x: number; y: number }[]>([]);
   const currentPathRef = useRef<Path | null>(null);
+  const eraserPreviewRef = useRef<Path | null>(null);
   const shapeStartRef = useRef<{ x: number; y: number } | null>(null);
   const shapePreviewRef = useRef<UI | null>(null);
   const toolRef = useRef(tool);
@@ -135,17 +135,25 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     });
     appRef.current = app;
 
-    // Draw layer: holds all pen strokes, shapes, text
-    const drawLayer = new Group({ name: "drawLayer" });
+    // Draw layer: holds all pen strokes, shapes, text, eraser paths.
+    // Fixed size matching container → prevents renderBounds from shifting
+    // when eraser paths are added (which would cause content to "jump").
+    const cw = containerRef.current.clientWidth || 800;
+    const ch = containerRef.current.clientHeight || 600;
+    const drawLayer = new Group({ name: "drawLayer", x: 0, y: 0, width: cw, height: ch });
     app.tree.add(drawLayer);
     drawLayerRef.current = drawLayer;
 
-    // Eraser layer: a Group with eraser children that clip the draw layer
-    // We use a separate approach: eraser paths are added to the draw layer's
-    // parent group with eraser=true, clipping the draw layer below.
-    const eraserGroup = new Group({ name: "eraserGroup" });
-    app.tree.add(eraserGroup);
-    eraserGroupRef.current = eraserGroup;
+    // Sync drawLayer size on container resize
+    const resizeObserver = new ResizeObserver(() => {
+      if (!containerRef.current || !drawLayerRef.current) return;
+      const w = containerRef.current.clientWidth;
+      const h = containerRef.current.clientHeight;
+      if (w > 0 && h > 0) {
+        drawLayerRef.current.set({ width: w, height: h });
+      }
+    });
+    resizeObserver.observe(containerRef.current);
 
     // Load saved state from localStorage (fallback from old fabric data)
     try {
@@ -297,7 +305,27 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         currentPathRef.current = path;
         drawLayer.add(path);
       }
-      // Eraser: no preview, just collect points
+      // Eraser: show light gray semi-transparent preview trail
+      if (t === "eraser") {
+        if (eraserPreviewRef.current) {
+          eraserPreviewRef.current.remove();
+        }
+        const pathStr = pointsToPathString(currentPointsRef.current, eraserWidthRef.current);
+        if (pathStr) {
+          const preview = new Path({
+            path: pathStr,
+            stroke: "rgba(120, 130, 145, 0.25)",
+            strokeWidth: eraserWidthRef.current,
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            fill: "",
+            hittable: false,
+            opacity: 0.6,
+          });
+          eraserPreviewRef.current = preview;
+          drawLayer.add(preview);
+        }
+      }
     };
 
     const onPointerUp = (e: PointerEvent) => {
@@ -346,12 +374,17 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           onContentChange?.();
         }
       } else if (t === "eraser") {
-        // Create eraser path: add to a group that clips the draw layer
+        // Remove the light gray preview trail
+        if (eraserPreviewRef.current) {
+          eraserPreviewRef.current.remove();
+          eraserPreviewRef.current = null;
+        }
+        // Create pixel-mode eraser path: uses destination-out blend mode
+        // to erase the FULL stroke width area (not just the centerline).
+        // This avoids the clip-to-centerline limitation of path-mode eraser.
         if (pts.length > 0) {
           const pathStr = pointsToPathString(pts, eraserWidthRef.current);
           if (pathStr) {
-            // Use the eraser property: add an eraser path to the draw layer's group
-            // The eraser path clips everything below it in the same group
             const eraserPath = new Path({
               path: pathStr,
               stroke: "rgba(0,0,0,1)",
@@ -359,7 +392,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
               strokeLinecap: "round",
               strokeLinejoin: "round",
               fill: "",
-              eraser: "path" as const,
+              eraser: true,
               hittable: false,
             });
             drawLayer.add(eraserPath);
@@ -371,6 +404,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
 
       currentPointsRef.current = [];
       currentPathRef.current = null;
+      eraserPreviewRef.current = null;
     };
 
     const onContextMenu = (e: MouseEvent) => {
@@ -389,10 +423,10 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("contextmenu", onContextMenu);
+      resizeObserver.disconnect();
       app.destroy();
       appRef.current = null;
       drawLayerRef.current = null;
-      eraserGroupRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
