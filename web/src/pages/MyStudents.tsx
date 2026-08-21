@@ -176,8 +176,8 @@ export default function MyStudents() {
   const savePassword = async (resetDefault: boolean) => {
     if (!pwdTarget) return;
     const pwd = resetDefault ? DEFAULT_PASSWORD : pwdValue.trim();
-    if (!pwd || pwd.length < 8) {
-      showToast.warning("密码至少 8 位");
+    if (!pwd || pwd.length < 6) {
+      showToast.warning("密码至少 6 位");
       return;
     }
     setPwdSaving(true);
