@@ -10,6 +10,7 @@ export interface AuthUser {
   exp: number
   id?: number
   displayName?: string
+  username?: string
   avatar?: string
 }
 

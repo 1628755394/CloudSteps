@@ -85,3 +85,19 @@
     height: 0;
   }
 }
+
+/* MDEditor：贴合 admin 主题，避免像代码编辑器 */
+.md-editor-wrap .w-md-editor {
+  --md-editor-bg-color: var(--background);
+  --md-editor-border-color: var(--border);
+  box-shadow: none;
+}
+.md-editor-wrap .w-md-editor-toolbar {
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.md-editor-wrap .w-md-editor-text-pre,
+.md-editor-wrap .w-md-editor-text-input {
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}

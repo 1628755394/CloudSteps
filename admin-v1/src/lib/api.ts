@@ -63,3 +63,25 @@ export async function del<T>(url: string, config?: AxiosRequestConfig) {
   const { data } = await api.delete<ApiResponse<T>>(url, config)
   return unwrap(data)
 }
+
+export async function getBlob(url: string, config?: AxiosRequestConfig) {
+  const { data } = await api.get<Blob>(url, {
+    ...config,
+    responseType: 'blob',
+    timeout: config?.timeout ?? 60_000,
+  })
+  if (!data.type.includes('application/json')) return data
+  const text = await data.text()
+  try {
+    const payload = JSON.parse(text) as ApiResponse
+    if (typeof payload.code === 'number' && payload.code !== 200) {
+      throw new Error(payload.msg || '请求失败')
+    }
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      return new Blob([text], { type: data.type })
+    }
+    throw err
+  }
+  return new Blob([text], { type: data.type })
+}
