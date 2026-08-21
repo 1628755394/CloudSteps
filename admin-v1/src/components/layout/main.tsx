@@ -13,8 +13,8 @@ export function Main({ fixed, className, fluid, ...props }: MainProps) {
       className={cn(
         'px-4 py-6',
 
-        // If layout is fixed, make the main container flex and grow
-        fixed && 'flex grow flex-col overflow-hidden',
+        // If layout is fixed, fill remaining height under the header
+        fixed && 'flex min-h-0 flex-1 flex-col overflow-hidden',
 
         // If layout is not fluid, set the max-width
         !fluid &&
