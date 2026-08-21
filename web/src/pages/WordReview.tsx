@@ -2,6 +2,7 @@ import { CloudButton } from "../components/cloudsteps";
 import { AnnotationLayer } from "../components/AnnotationLayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
+import { SequenceNextMark } from "../components/SequenceNextMark";
 import { TopBar } from "../components/TopBar";
 import { Shuffle, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
@@ -25,6 +26,7 @@ export default function WordReview() {
   const [words, setWords] = useState<ReviewWord[]>([]);
   const [manualReadMode, setManualReadMode] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [touchedIds, setTouchedIds] = useState<Set<number>>(new Set());
   const [playingId, setPlayingId] = useState<number | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
@@ -97,6 +99,7 @@ export default function WordReview() {
       setWords(mapped);
       setTouchedIds(new Set());
       setFrameIdx(0);
+      setSelectedIndex(0);
       setFinished(false);
     } catch {
       // ignore
@@ -116,6 +119,8 @@ export default function WordReview() {
   }, [words]);
 
   const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : 0;
+  const nextGuideIndex =
+    frameIdx + 1 < sequence.length ? sequence[frameIdx + 1] : -1;
 
   const handleCountClick = (id: number) => {
     const idx = words.findIndex((w) => w.id === id);
@@ -132,6 +137,8 @@ export default function WordReview() {
   };
 
   const handleWordTap = (word: ReviewWord) => {
+    const idx = words.findIndex((w) => w.id === word.id);
+    if (idx >= 0) setSelectedIndex(idx);
     const next = nextWordTapState({
       showTranslation: word.showTranslation,
       heard: word.heard,
@@ -160,6 +167,7 @@ export default function WordReview() {
     const shuffled = [...words].sort(() => Math.random() - 0.5);
     setWords(shuffled);
     setFrameIdx(0);
+    setSelectedIndex(0);
     setFinished(false);
   };
 
@@ -195,10 +203,15 @@ export default function WordReview() {
           {words.map((word, index) => (
             <div
               key={word.id}
-              className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
-                !manualReadMode && index === activeIndex ? "bg-[#4ECDC4]/10 border-2 border-[#4ECDC4]" : ""
+              className={`relative bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
+                !manualReadMode && index === activeIndex
+                  ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
+                  : "border-transparent"
               }`}
             >
+              <SequenceNextMark
+                show={!manualReadMode && nextGuideIndex >= 0 && index === nextGuideIndex}
+              />
               <div className="flex items-center justify-between">
                 <div
                   onClick={() => handleWordTap(word)}
