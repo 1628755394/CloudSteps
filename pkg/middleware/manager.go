@@ -125,6 +125,9 @@ func getDefaultEndpointTimeouts() map[string]time.Duration {
 
 		// 语音会话接口：10分钟超时（支持长时间语音交互）
 		"/api/voice/CloudStepsGo/v1/": 10 * time.Minute,
+
+		// 存储统计接口：2分钟超时（云厂商 stats API 可能较慢）
+		"/api/admin/storage/stats/": 2 * time.Minute,
 	}
 }
 

@@ -7,6 +7,7 @@ const (
 	ACCOUNT_LOCK_TABLE_NAME     = "account_locks"
 	CALL_RECORDING_TABLE_NAME   = "call_recordings"
 	DEVICE_ERROR_LOG_TABLE_NAME = "device_error_logs"
+	SYS_METRIC_TABLE_NAME       = "sys_metrics"
 )
 
 // DefaultUploadDir 本地存储默认上传目录
