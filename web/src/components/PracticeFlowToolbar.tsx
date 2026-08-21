@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Pause } from "lucide-react";
 import { AnnotationToggleButton } from "./AnnotationLayer";
+import { AudioMuteToggleButton } from "./AudioMuteToggleButton";
 import { ClassTimerBadge, ClassTimerSetupDialog } from "./ClassSessionTimer";
 import { PracticeFontSettingsButton } from "./PracticeFontSettings";
 import { PracticePauseMenu } from "./PracticePauseMenu";
@@ -16,8 +17,8 @@ type Props = {
 };
 
 /**
- * 练习流通用顶栏操作：定时、画笔、设置、暂停。
- * 训前/练习/听音/快闪/训后等页面共用，避免中途回到检测页时找不到退出入口。
+ * 练习流通用顶栏操作：音效、定时、画笔、设置、暂停。
+ * 训前/练习/听音/快闪/训后等页面共用。
  */
 export function PracticeFlowToolbar({
   annotationOpen,
@@ -33,6 +34,7 @@ export function PracticeFlowToolbar({
     <>
       <div className="flex items-center justify-end gap-0.5">
         {extraBefore}
+        <AudioMuteToggleButton />
         <ClassTimerBadge onClick={() => setTimerOpen(true)} />
         <AnnotationToggleButton
           active={annotationOpen}

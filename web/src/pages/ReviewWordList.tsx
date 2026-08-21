@@ -12,6 +12,7 @@ import {
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
+import { AudioMuteToggleButton } from "../components/AudioMuteToggleButton";
 import {
   WordCardPanel,
   WordMarkStatsBar,
@@ -243,6 +244,7 @@ export default function ReviewWordList() {
         onBack={handleBack}
         rightSlot={
           <div className="flex items-center gap-0.5">
+            <AudioMuteToggleButton />
             <AnnotationToggleButton
               active={annotationOpen}
               onClick={() => setAnnotationOpen((v) => !v)}
