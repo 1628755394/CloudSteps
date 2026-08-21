@@ -41,8 +41,99 @@ const (
 	KindKs3   = "ks3" // kingsoft cloud
 )
 
-// ErrInvalidPath is re-exported from ling-base.
-var ErrInvalidPath = lbstores.ErrInvalidPath
+var (
+	// ErrInvalidPath is re-exported from ling-base.
+	ErrInvalidPath = lbstores.ErrInvalidPath
+	// ErrAttachmentNotExist is re-exported from ling-base.
+	ErrAttachmentNotExist = lbstores.ErrAttachmentNotExist
+)
+
+// ObjectStorageManager is re-exported from ling-base.
+type ObjectStorageManager = lbstores.ObjectStorageManager
+
+// StorageStatsProvider is re-exported from ling-base.
+type StorageStatsProvider = lbstores.StorageStatsProvider
+
+// AsManager returns Default() as a manager when the selected backend supports it.
+func AsManager(s Store) ObjectStorageManager { return lbstores.AsManager(s) }
+
+// SupportsManagement reports whether s implements ObjectStorageManager.
+func SupportsManagement(s Store) bool { return lbstores.SupportsManagement(s) }
+
+// AsStatsProvider returns Default() as a stats provider when the selected backend supports it.
+func AsStatsProvider(s Store) StorageStatsProvider { return lbstores.AsStatsProvider(s) }
+
+// SupportsStats reports whether s implements StorageStatsProvider.
+func SupportsStats(s Store) bool { return lbstores.SupportsStats(s) }
+
+// DefaultStatsProvider returns the stats provider for STORAGE_KIND, or nil.
+func DefaultStatsProvider() StorageStatsProvider {
+	return AsStatsProvider(Default())
+}
+
+// DefaultManager returns the manager for STORAGE_KIND, or nil.
+func DefaultManager() ObjectStorageManager {
+	return AsManager(Default())
+}
+
+// DefaultBucketName is the env-configured bucket for STORAGE_KIND (empty for local).
+func DefaultBucketName() string {
+	return BucketNameFor(DefaultStoreKind)
+}
+
+// DefaultDomain returns the env-configured CDN/domain for the current store kind.
+// Used for CDN stats queries when the client doesn't explicitly pass domains.
+func DefaultDomain() string {
+	return DomainFor(DefaultStoreKind)
+}
+
+// DomainFor returns the env-configured domain for a store kind.
+func DomainFor(kind string) string {
+	switch kind {
+	case KindCos:
+		return common.GetEnv("COS_DOMAIN")
+	case KindMinio:
+		return common.GetEnv("MINIO_DOMAIN")
+	case KindQiNiu:
+		return common.GetEnv("QINIU_DOMAIN")
+	case KindOss:
+		return common.GetEnv("OSS_DOMAIN")
+	case KinsS3:
+		return common.GetEnv("S3_DOMAIN")
+	case KindTos:
+		return common.GetEnv("TOS_DOMAIN")
+	case KindObs:
+		return common.GetEnv("OBS_DOMAIN")
+	case KindKs3:
+		return common.GetEnv("KS3_DOMAIN")
+	default:
+		return ""
+	}
+}
+
+// BucketNameFor returns the env-configured bucket for a store kind.
+func BucketNameFor(kind string) string {
+	switch kind {
+	case KindCos:
+		return common.GetEnv("COS_BUCKET_NAME")
+	case KindMinio:
+		return common.GetEnv("MINIO_BUCKET")
+	case KindQiNiu:
+		return common.GetEnv("QINIU_BUCKET")
+	case KindOss:
+		return common.GetEnv("OSS_BUCKET_NAME")
+	case KinsS3:
+		return common.GetEnv("S3_BUCKET")
+	case KindTos:
+		return common.GetEnv("TOS_BUCKET")
+	case KindObs:
+		return common.GetEnv("OBS_BUCKET")
+	case KindKs3:
+		return common.GetEnv("KS3_BUCKET")
+	default:
+		return ""
+	}
+}
 
 // DefaultStoreKind is resolved once at init time from STORAGE_KIND.
 var DefaultStoreKind = getDefaultStoreKind()

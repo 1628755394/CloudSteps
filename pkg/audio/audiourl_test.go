@@ -25,3 +25,25 @@ func TestDeduplicateSlots(t *testing.T) {
 		}
 	}
 }
+
+func TestRewritePronunciationSlots(t *testing.T) {
+	a := "https://cdn.example/a.mp3"
+	b := "https://cdn.example/b.mp3"
+	c := "https://cdn.example/c.mp3"
+	canon0 := "https://cdn.example/keep0.mp3"
+	canon1 := "https://cdn.example/keep1.mp3"
+
+	got := RewritePronunciationSlots(a+";"+b+";"+c, canon0, canon1)
+	want := canon0 + ";" + canon1 + ";" + c
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+	got = RewritePronunciationSlots(a, canon0, canon1)
+	want = canon0 + ";" + canon1
+	if got != want {
+		t.Fatalf("single slot: got %q want %q", got, want)
+	}
+	if RewritePronunciationSlots("", "", "") != "" {
+		t.Fatal("empty")
+	}
+}
