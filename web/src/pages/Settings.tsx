@@ -2,7 +2,7 @@ import { useNavigate } from "react-router";
 import {
   ChevronRight,
   Lock,
-  Smartphone,
+  Mail,
   Bell,
   Shield,
   LogOut,
@@ -20,6 +20,7 @@ import {
   LAYOUT_PRESETS,
   THEME_MODE_PRESETS,
   type AccentColor,
+  type AccentPresetKey,
   type LayoutMode,
   type ThemeMode,
   useThemeStore,
@@ -27,13 +28,13 @@ import {
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
+import { showToast } from "../utils/toast";
 import {
+  bindEmail,
   changePassword,
   getUserActivity,
-  sendPhoneVerification,
-  updateCurrentUser,
+  sendBindEmailCode,
   updateNotificationSettings,
-  verifyPhone,
   type UserActivity,
 } from "../api/auth";
 
@@ -51,11 +52,11 @@ const settingOptions = [
   },
   {
     id: 2 as const,
-    icon: Smartphone,
-    label: "绑定手机号",
-    description: "用于登录验证和找回密码",
-    panel: "phone" as const,
-    tint: "sky" as const,
+    icon: Mail,
+    label: "绑定邮箱",
+    description: "用于接收通知与账号找回",
+    panel: "email" as const,
+    tint: "mint" as const,
   },
   {
     id: 3 as const,
@@ -86,7 +87,7 @@ const tintIcon: Record<"mint" | "sky", string> = {
   sky: "bg-tint-sky text-secondary-brand",
 };
 
-const ACCENT_KEYS = Object.keys(ACCENT_PRESETS) as AccentColor[];
+const ACCENT_KEYS = Object.keys(ACCENT_PRESETS) as AccentPresetKey[];
 const LAYOUT_KEYS = Object.keys(LAYOUT_PRESETS) as LayoutMode[];
 const MODE_KEYS = Object.keys(THEME_MODE_PRESETS) as ThemeMode[];
 
@@ -100,12 +101,14 @@ export default function Settings() {
 
   const themeMode = useThemeStore((s) => s.mode);
   const accent = useThemeStore((s) => s.accent);
+  const customHex = useThemeStore((s) => s.customHex);
   const layout = useThemeStore((s) => s.layout);
   const setMode = useThemeStore((s) => s.setMode);
   const setAccent = useThemeStore((s) => s.setAccent);
+  const setCustomHex = useThemeStore((s) => s.setCustomHex);
   const setLayout = useThemeStore((s) => s.setLayout);
 
-  const [panel, setPanel] = useState<null | "password" | "phone" | "notifications" | "security">(null);
+  const [panel, setPanel] = useState<null | "password" | "email" | "notifications" | "security">(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -113,10 +116,17 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
 
-  const [phone, setPhone] = useState("");
-  const [phoneCode, setPhoneCode] = useState("");
-  const [sendingPhoneCode, setSendingPhoneCode] = useState(false);
-  const [verifyingPhone, setVerifyingPhone] = useState(false);
+  const [bindEmailValue, setBindEmailValue] = useState("");
+  const [bindEmailCode, setBindEmailCode] = useState("");
+  const [sendingBindEmailCode, setSendingBindEmailCode] = useState(false);
+  const [bindingEmail, setBindingEmail] = useState(false);
+  const [bindEmailCountdown, setBindEmailCountdown] = useState(0);
+
+  useEffect(() => {
+    if (bindEmailCountdown <= 0) return;
+    const timer = setTimeout(() => setBindEmailCountdown((n) => n - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [bindEmailCountdown]);
 
   const [emailNotifications, setEmailNotifications] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(false);
@@ -128,7 +138,6 @@ export default function Settings() {
   const [activities, setActivities] = useState<UserActivity[]>([]);
 
   useEffect(() => {
-    setPhone(user?.phone ?? "");
     setEmailNotifications(Boolean(user?.emailNotifications));
     setPushNotifications(Boolean(user?.pushNotifications));
     setSystemNotifications(Boolean(user?.systemNotifications));
@@ -202,7 +211,7 @@ export default function Settings() {
                 <Palette size={12} />
                 主题色
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 {ACCENT_KEYS.map((key) => {
                   const preset = ACCENT_PRESETS[key];
                   const active = accent === key;
@@ -228,6 +237,29 @@ export default function Settings() {
                     </button>
                   );
                 })}
+                {/* 自定义颜色 */}
+                <label
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2 transition-colors cursor-pointer ${
+                    accent === "custom"
+                      ? "border-primary bg-primary-soft"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                  title="自定义颜色"
+                >
+                  <span
+                    className={`size-7 rounded-full ring-2 ring-offset-2 ring-offset-card ${
+                      accent === "custom" ? "ring-primary" : "ring-transparent"
+                    }`}
+                    style={{ backgroundColor: customHex }}
+                  />
+                  <span className="text-[10px] text-foreground leading-none">自定义</span>
+                  <input
+                    type="color"
+                    value={customHex}
+                    onChange={(e) => setCustomHex(e.target.value)}
+                    className="sr-only"
+                  />
+                </label>
               </div>
             </div>
 
@@ -454,23 +486,33 @@ export default function Settings() {
               </>
             ) : null}
 
-            {panel === "phone" ? (
+            {panel === "email" ? (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-foreground">绑定手机号</DialogTitle>
+                  <DialogTitle className="text-foreground">绑定邮箱</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4">
+                  {user?.email ? (
+                    <div className="p-3 rounded-xl bg-muted/40 border border-border">
+                      <div className="text-xs text-muted-foreground">当前绑定邮箱</div>
+                      <div className="text-sm text-foreground mt-1 break-all">{user.email}</div>
+                    </div>
+                  ) : null}
+
                   <div>
-                    <label className="text-sm text-charcoal font-medium mb-1.5 block">手机号</label>
+                    <label className="text-sm text-charcoal font-medium mb-1.5 block">
+                      {user?.email ? "换绑邮箱" : "邮箱地址"}
+                    </label>
                     <input
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="请输入手机号"
+                      type="email"
+                      value={bindEmailValue}
+                      onChange={(e) => setBindEmailValue(e.target.value)}
+                      placeholder="请输入要绑定的邮箱"
                       className={fieldClass}
                     />
                     <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                      提示：验证码发送接口要求你已在资料中设置手机号。
+                      一个邮箱只能绑定一个账号。绑定后可用于接收通知与账号找回。
                     </p>
                   </div>
 
@@ -478,35 +520,35 @@ export default function Settings() {
                     <CloudButton
                       type="button"
                       variant="brand"
-                      disabled={sendingPhoneCode}
-                      loading={sendingPhoneCode}
+                      disabled={sendingBindEmailCode || bindEmailCountdown > 0}
+                      loading={sendingBindEmailCode}
                       loadingText="发送中..."
                       onClick={async () => {
                         setErrorText(null);
+                        if (!bindEmailValue.trim()) {
+                          setErrorText("请先填写邮箱");
+                          return;
+                        }
                         try {
-                          setSendingPhoneCode(true);
-                          if (!phone.trim()) {
-                            setErrorText("请先填写手机号");
-                            return;
-                          }
-                          await updateCurrentUser({ phone: phone.trim() });
-                          const res = await sendPhoneVerification();
+                          setSendingBindEmailCode(true);
+                          const res = await sendBindEmailCode(bindEmailValue.trim());
                           if (res.code !== 200) {
                             setErrorText(res.msg || "发送失败");
                             return;
                           }
+                          setBindEmailCountdown(60);
                         } catch (e: any) {
                           setErrorText(e?.msg || e?.message || "发送失败");
                         } finally {
-                          setSendingPhoneCode(false);
+                          setSendingBindEmailCode(false);
                         }
                       }}
                     >
-                      发送验证码
+                      {bindEmailCountdown > 0 ? `${bindEmailCountdown}s 后重发` : "发送验证码"}
                     </CloudButton>
                     <input
-                      value={phoneCode}
-                      onChange={(e) => setPhoneCode(e.target.value)}
+                      value={bindEmailCode}
+                      onChange={(e) => setBindEmailCode(e.target.value)}
                       placeholder="输入验证码"
                       className={`flex-1 ${fieldClass}`}
                     />
@@ -524,36 +566,42 @@ export default function Settings() {
                     type="button"
                     variant="outline"
                     onClick={() => setPanel(null)}
-                    disabled={verifyingPhone}
+                    disabled={bindingEmail}
                   >
                     关闭
                   </CloudButton>
                   <CloudButton
                     type="button"
                     variant="brand"
-                    loading={verifyingPhone}
-                    loadingText="验证中..."
-                    disabled={verifyingPhone}
+                    loading={bindingEmail}
+                    loadingText="绑定中..."
+                    disabled={bindingEmail}
                     onClick={async () => {
                       setErrorText(null);
-                      if (!phoneCode.trim()) {
+                      if (!bindEmailValue.trim()) {
+                        setErrorText("请输入邮箱");
+                        return;
+                      }
+                      if (!bindEmailCode.trim()) {
                         setErrorText("请输入验证码");
                         return;
                       }
                       try {
-                        setVerifyingPhone(true);
-                        const res = await verifyPhone(phoneCode.trim());
+                        setBindingEmail(true);
+                        const res = await bindEmail(bindEmailValue.trim(), bindEmailCode.trim());
                         if (res.code !== 200) {
-                          setErrorText(res.msg || "验证失败");
+                          setErrorText(res.msg || "绑定失败");
                           return;
                         }
                         await refreshUserInfo();
+                        showToast.success("邮箱绑定成功");
                         setPanel(null);
-                        setPhoneCode("");
+                        setBindEmailValue("");
+                        setBindEmailCode("");
                       } catch (e: any) {
-                        setErrorText(e?.msg || e?.message || "验证失败");
+                        setErrorText(e?.msg || e?.message || "绑定失败");
                       } finally {
-                        setVerifyingPhone(false);
+                        setBindingEmail(false);
                       }
                     }}
                   >

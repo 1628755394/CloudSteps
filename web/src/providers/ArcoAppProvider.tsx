@@ -2,8 +2,8 @@ import { useEffect, type ReactNode } from "react";
 import { ConfigProvider } from "@arco-design/web-react";
 import zhCN from "@arco-design/web-react/es/locale/zh-CN";
 import {
-  ACCENT_PRESETS,
   bindSystemThemeListener,
+  getAccentHex,
   useThemeStore,
 } from "../stores/themeStore";
 import { ARCO_POPUP_Z_INDEX, arcoGlobalComponentConfig, arcoPopupContainer } from "../utils/arcoPopup";
@@ -12,7 +12,8 @@ export function ArcoAppProvider({ children }: { children: ReactNode }) {
   const isDark = useThemeStore((s) => s.isDark);
   const mode = useThemeStore((s) => s.mode);
   const accent = useThemeStore((s) => s.accent);
-  const primaryColor = ACCENT_PRESETS[accent]?.hex ?? ACCENT_PRESETS.mint.hex;
+  const customHex = useThemeStore((s) => s.customHex);
+  const primaryColor = accent === "custom" ? (customHex || "#6B7280") : (getAccentHex());
 
   useEffect(() => {
     return bindSystemThemeListener();
