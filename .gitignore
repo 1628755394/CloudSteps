@@ -71,3 +71,6 @@ go.work.sum
 
 # Local package store
 .pnpm-store/
+
+# Word audio dedupe checkpoint
+.dedupe-word-audio/
