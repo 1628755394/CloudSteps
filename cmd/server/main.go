@@ -11,6 +11,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/handlers"
 	"github.com/LingByte/CloudStepsGo/internal/listeners"
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/internal/sysmetrics"
 	"github.com/LingByte/CloudStepsGo/internal/task"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
@@ -32,10 +33,10 @@ type CloudStepsGoApp struct {
 	handlers *handlers.Handlers
 }
 
-func NewCloudStepsGoApp(db *gorm.DB, cache *lru.Cache[string, any], configStore *lbconfig.Store) *CloudStepsGoApp {
+func NewCloudStepsGoApp(db *gorm.DB, cache *lru.Cache[string, any], configStore *lbconfig.Store, metrics *sysmetrics.Service) *CloudStepsGoApp {
 	return &CloudStepsGoApp{
 		db:       db,
-		handlers: handlers.NewHandlers(db, cache, configStore),
+		handlers: handlers.NewHandlers(db, cache, configStore, metrics),
 	}
 }
 
@@ -125,14 +126,14 @@ func main() {
 	// Initialize global captcha manager
 	captcha.InitGlobalManager(captcha.DefaultConfig()) // Use memory storage, can be replaced with Redis storage
 
-	// Initialize global login security manager
-	utils.InitGlobalLoginSecurityManager(logger.Lg, globalCache)
-
-	// Initialize global intelligent risk control manager
-	utils.InitGlobalIntelligentRiskControl(logger.Lg)
+	metrics := sysmetrics.New(db)
+	app.AddShutdownHook("sys-metrics", func(ctx context.Context) error {
+		logger.Info("flushing sys metrics...")
+		return metrics.Close()
+	})
 
 	// 11. New App
-	cloudApp := NewCloudStepsGoApp(db, globalCache, configStore)
+	cloudApp := NewCloudStepsGoApp(db, globalCache, configStore, metrics)
 
 	// 12. Initialize Global Middleware Manager
 	middleware.InitGlobalMiddlewareManager(config.GlobalConfig.Middleware)
@@ -212,6 +213,7 @@ func main() {
 
 	// 19. Initialize System Listener
 	listeners.InitSystemListeners()
+	listeners.InitAuthMailListeners(db)
 
 	// 20. Start Search Indexer (if enabled)
 	searchEnabled := configStore.GetBoolValue(constants.KEY_SEARCH_ENABLED)

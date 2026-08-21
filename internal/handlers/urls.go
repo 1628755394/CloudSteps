@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/internal/sysmetrics"
 	"github.com/LingByte/CloudStepsGo/internal/voice"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/ling-base/cache/lru"
 	lbconfig "github.com/LingByte/ling-base/common/config"
 	"github.com/LingByte/lingllm/protocol/voice/xiaozhi"
@@ -17,19 +17,20 @@ import (
 )
 
 type Handlers struct {
-	db                *gorm.DB
-	cache             *lru.Cache[string, any]
-	configStore       *lbconfig.Store
-	ipLocationService *utils.IPLocationService
-	realtimeFactory   *voice.RealtimeFactory
-	xiaozhiServer     *xiaozhi.Server
+	db              *gorm.DB
+	cache           *lru.Cache[string, any]
+	configStore     *lbconfig.Store
+	sysMetrics      *sysmetrics.Service
+	realtimeFactory *voice.RealtimeFactory
+	xiaozhiServer   *xiaozhi.Server
 }
 
-func NewHandlers(db *gorm.DB, cache *lru.Cache[string, any], configStore *lbconfig.Store) *Handlers {
+func NewHandlers(db *gorm.DB, cache *lru.Cache[string, any], configStore *lbconfig.Store, metrics *sysmetrics.Service) *Handlers {
 	return &Handlers{
 		db:          db,
 		cache:       cache,
 		configStore: configStore,
+		sysMetrics:  metrics,
 	}
 }
 
@@ -43,6 +44,9 @@ func (h *Handlers) Register(engine *gin.Engine) {
 			c.Set(constants.ConfigField, h.configStore)
 			c.Next()
 		})
+	}
+	if h.sysMetrics != nil {
+		r.Use(h.sysMetrics.Middleware())
 	}
 
 	// Apply global middlewares (rate limiting, timeout, circuit breaker, operation log)
@@ -58,9 +62,12 @@ func (h *Handlers) Register(engine *gin.Engine) {
 	h.registerClozeRoutes(r)
 	h.registerGrammarRoutes(r)
 	h.registerNotificationRoutes(r)
+	h.registerNotificationAdminRoutes(r)
+	h.registerStorageAdminRoutes(r)
 	h.registerCoachingRoutes(r)
 	h.registerScenarioDialogueRoutes(r)
 	h.registerTTSRoutes(r)
+	h.registerMetricsRoutes(r)
 }
 
 func (h *Handlers) requireAdmin(c *gin.Context) {
