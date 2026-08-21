@@ -36,8 +36,8 @@ func TestNewRegistrationGuard(t *testing.T) {
 	if rg.maxFailedAttemptsPerIP != 5 {
 		t.Fatalf("Expected maxFailedAttemptsPerIP 5, got %d", rg.maxFailedAttemptsPerIP)
 	}
-	if rg.minPasswordLength != 8 {
-		t.Fatalf("Expected minPasswordLength 8, got %d", rg.minPasswordLength)
+	if rg.minPasswordLength != 6 {
+		t.Fatalf("Expected minPasswordLength 6, got %d", rg.minPasswordLength)
 	}
 }
 

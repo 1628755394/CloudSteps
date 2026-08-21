@@ -54,10 +54,10 @@ const formSchema = z
   .refine(
     ({ isEdit, password }) => {
       if (isEdit && !password) return true
-      return password.length >= 8
+      return password.length >= 6
     },
     {
-      message: 'Password must be at least 8 characters long.',
+      message: 'Password must be at least 6 characters long.',
       path: ['password'],
     }
   )

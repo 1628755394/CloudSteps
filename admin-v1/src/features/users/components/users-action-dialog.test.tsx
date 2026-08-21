@@ -14,7 +14,7 @@ const VALIDATION_MESSAGES = {
   role: 'Role is required.',
   password: 'Password is required.',
   passwordMismatch: "Passwords don't match.",
-  passwordLength: 'Password must be at least 8 characters long.',
+  passwordLength: 'Password must be at least 6 characters long.',
   passwordNumber: 'Password must contain at least one number.',
   passwordLowercase: 'Password must contain at least one lowercase letter.',
 } as const

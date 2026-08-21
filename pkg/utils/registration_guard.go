@@ -58,7 +58,7 @@ func NewRegistrationGuard(logger *zap.Logger, cache *lru.Cache[string, any]) *Re
 		failedAttemptWindow:    1 * time.Hour,
 		emailDomainBlacklist:   []string{}, // 可以配置黑名单域名
 		disposableEmailDomains: getDefaultDisposableEmailDomains(),
-		minPasswordLength:      8,
+		minPasswordLength:      6,
 		requireUppercase:       false,
 		requireLowercase:       true,
 		requireNumber:          false,

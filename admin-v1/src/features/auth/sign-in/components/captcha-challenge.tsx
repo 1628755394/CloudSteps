@@ -34,7 +34,11 @@ export function CaptchaChallenge({
     try {
       const res = await get<CaptchaPayload>('/auth/captcha')
       const data = res.data
-      if (data.type === 'jigsaw' || data.type === 'rotate' || data.type === 'click') {
+      if (
+        data.type === 'jigsaw' ||
+        data.type === 'rotate' ||
+        data.type === 'click'
+      ) {
         refresh()
         return
       }
@@ -65,7 +69,12 @@ export function CaptchaChallenge({
     return (
       <div className='space-y-1 text-sm'>
         <p className='text-destructive'>{error}</p>
-        <Button type='button' variant='ghost' size='sm' onClick={() => void refresh()}>
+        <Button
+          type='button'
+          variant='ghost'
+          size='sm'
+          onClick={() => void refresh()}
+        >
           重试
         </Button>
       </div>
@@ -79,7 +88,7 @@ export function CaptchaChallenge({
   if (captcha.type === 'math') {
     return (
       <div className='flex items-center gap-2'>
-        <span className='inline-flex h-9 min-w-[9rem] shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-muted px-4 font-mono text-sm'>
+        <span className='inline-flex h-9 min-w-[9rem] shrink-0 items-center justify-center rounded-md bg-muted px-4 font-mono text-sm whitespace-nowrap'>
           {captcha.data?.question}
         </span>
         <Input
@@ -89,7 +98,13 @@ export function CaptchaChallenge({
           onChange={(e) => report(e.target.value)}
           placeholder='答案'
         />
-        <Button type='button' variant='ghost' size='sm' className='shrink-0' onClick={() => void refresh()}>
+        <Button
+          type='button'
+          variant='ghost'
+          size='sm'
+          className='shrink-0'
+          onClick={() => void refresh()}
+        >
           换一题
         </Button>
       </div>
@@ -101,12 +116,16 @@ export function CaptchaChallenge({
     <div className='flex items-center gap-2'>
       <button
         type='button'
-        className='h-11 w-[120px] overflow-hidden rounded-md border'
+        className='relative aspect-[10/3] h-9 shrink-0 overflow-hidden rounded-md border p-0 leading-none'
         onClick={() => void refresh()}
         title='点击刷新'
       >
         {img ? (
-          <img src={img} alt='验证码' className='h-full w-full object-contain' />
+          <img
+            src={img}
+            alt='验证码'
+            className='absolute inset-0 block size-full object-cover'
+          />
         ) : (
           <span className='text-xs text-muted-foreground'>加载中</span>
         )}

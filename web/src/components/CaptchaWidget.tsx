@@ -68,10 +68,18 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
         <button
           type="button"
           onClick={refresh}
-          className="h-[46px] w-[120px] overflow-hidden flex items-center justify-center rounded-xl border border-input bg-card"
+          className="relative h-[46px] aspect-[10/3] shrink-0 overflow-hidden rounded-xl border border-input bg-card p-0 leading-none"
           aria-label="刷新验证码"
         >
-          {img ? <img src={img} alt="captcha" className="h-full w-full object-contain" /> : <span className="text-xs text-muted-foreground">加载中...</span>}
+          {img ? (
+            <img
+              src={img}
+              alt="captcha"
+              className="absolute inset-0 block size-full object-cover"
+            />
+          ) : (
+            <span className="text-xs text-muted-foreground">加载中...</span>
+          )}
         </button>
       </div>
     );

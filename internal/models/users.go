@@ -56,10 +56,12 @@ type UserOperatorForm struct {
 	UserName    string `json:"userName"`
 	DisplayName string `json:"displayName"`
 	Username    string `json:"username" comment:"Username"`
+	Email       string `json:"email,omitempty"`
 	Code        string `json:"code"`
 	Password    string `json:"password"`
-	AuthToken   bool   `json:"AuthToken,omitempty"`
+	AuthToken   bool   `json:"authToken,omitempty"`
 	Timezone    string `json:"timezone,omitempty"`
+	Source      string `json:"source,omitempty"`
 	captcha.CaptchaFields
 }
 
@@ -95,6 +97,7 @@ type ResetPasswordDoneForm struct {
 type UpdateUserRequest struct {
 	Username    string `form:"username" json:"username"`
 	Phone       string `form:"phone" json:"phone"`
+	Email       string `form:"email" json:"email"`
 	FirstName   string `form:"firstName" json:"firstName"`
 	LastName    string `form:"lastName" json:"lastName"`
 	DisplayName string `form:"displayName" json:"displayName"`
@@ -110,6 +113,7 @@ type User struct {
 	BaseModel
 	Username           string     `json:"username" gorm:"size:128;uniqueIndex"`
 	Password           string     `json:"-" gorm:"size:128"`
+	Email              string     `json:"email,omitempty" gorm:"size:128;index:idx_users_email"` // 绑定邮箱（一个邮箱只能绑定一个用户，唯一性由 IsExistsByEmail 在应用层保证）
 	Phone              string     `json:"phone,omitempty" gorm:"size:64;index"`
 	FirstName          string     `json:"firstName,omitempty" gorm:"size:128"`
 	LastName           string     `json:"lastName,omitempty" gorm:"size:128"`
@@ -127,6 +131,8 @@ type User struct {
 	LoginCount         int        `json:"loginCount" gorm:"default:0"`                     // 登录次数
 	LastPasswordChange *time.Time `json:"lastPasswordChange,omitempty"`                    // 最后密码修改时间
 	Role               string     `json:"role,omitempty" gorm:"size:50;default:'teacher'"` // 用户角色
+	EmailNotifications    bool `json:"emailNotifications" gorm:"default:true"`
+	AutoCleanUnreadEmails bool `json:"autoCleanUnreadEmails" gorm:"default:false"`
 	// 学习连续天数（每次完成 study_session 时维护，当天已学不变，隔天+1，断天归零）
 	StreakDays    int        `json:"streakDays" gorm:"default:0"` // 连续学习天数
 	LastStudyDate *time.Time `json:"lastStudyDate,omitempty"`     // 最后学习日期（精确到天）
@@ -167,7 +173,7 @@ func Login(c *gin.Context, user *User) {
 	session := sessions.Default(c)
 	session.Set(constants.UserField, user.ID)
 	session.Save()
-	common.Sig().Emit(constants.SigUserLogin, user, db)
+	common.Sig().Emit(constants.SigUserLogin, user, c, db)
 }
 
 func Logout(c *gin.Context, user *User) {
@@ -346,6 +352,48 @@ func GetUserByUsername(db *gorm.DB, username string) (user *User, err error) {
 func IsExistsByUsername(db *gorm.DB, username string) bool {
 	_, err := GetUserByUsername(db, username)
 	return err == nil
+}
+
+// GetUserByEmail 通过绑定邮箱查找用户（仅匹配非空 email 字段）。
+func GetUserByEmail(db *gorm.DB, email string) (user *User, err error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var val User
+	result := db.Table(constants.USER_TABLE_NAME).
+		Where("email = ? AND is_deleted = ?", email, SoftDeleteStatusActive).
+		Take(&val)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &val, nil
+}
+
+// IsExistsByEmail 判断邮箱是否已被绑定（排除指定 userID，便于"换绑"场景）。
+func IsExistsByEmail(db *gorm.DB, email string, excludeUserID ...uint) bool {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" {
+		return false
+	}
+	q := db.Table(constants.USER_TABLE_NAME).
+		Where("email = ? AND is_deleted = ?", email, SoftDeleteStatusActive)
+	if len(excludeUserID) > 0 && excludeUserID[0] > 0 {
+		q = q.Where("id <> ?", excludeUserID[0])
+	}
+	var n int64
+	q.Count(&n)
+	return n > 0
+}
+
+// SetEmail 绑定/换绑邮箱（不提交事务，调用方负责）。
+func SetEmail(db *gorm.DB, user *User, email string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if err := UpdateUserFields(db, user, map[string]any{"Email": email}); err != nil {
+		return err
+	}
+	user.Email = email
+	return nil
 }
 
 func CreateUserByUsername(db *gorm.DB, username, display, password string) (*User, error) {
@@ -597,6 +645,7 @@ func CalculateProfileComplete(user *User) int {
 		strings.TrimSpace(user.DisplayName) != "",
 		strings.TrimSpace(user.Avatar) != "",
 		strings.TrimSpace(user.Phone) != "",
+		strings.TrimSpace(user.Email) != "",
 		strings.TrimSpace(user.City) != "",
 		strings.TrimSpace(user.Region) != "",
 		strings.TrimSpace(user.Locale) != "",
@@ -651,4 +700,30 @@ func (u *User) IsTeacher() bool {
 // IsStudent 检查是否为学员
 func (u *User) IsStudent() bool {
 	return u.Role == RoleStudent
+}
+
+// CountNewUsersByDay returns signup counts keyed by YYYY-MM-DD for [from, to].
+func CountNewUsersByDay(db *gorm.DB, from, to string) (map[string]int64, error) {
+	out := map[string]int64{}
+	if db == nil || from == "" || to == "" {
+		return out, nil
+	}
+	type row struct {
+		Day   string
+		Count int64
+	}
+	var rows []row
+	err := db.Model(&User{}).
+		Select("DATE(created_at) AS day, COUNT(*) AS count").
+		Where("is_deleted = ?", SoftDeleteStatusActive).
+		Where("DATE(created_at) >= ? AND DATE(created_at) <= ?", from, to).
+		Group("DATE(created_at)").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.Day] = r.Count
+	}
+	return out, nil
 }

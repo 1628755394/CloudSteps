@@ -2,23 +2,51 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { CloudButton } from "../components/cloudsteps";
 import CaptchaWidget from "../components/CaptchaWidget";
-import { loginWithPassword, registerUser, type CaptchaFields, type User } from "../api/auth";
+import {
+  loginWithEmailCode,
+  loginWithPassword,
+  registerUser,
+  registerUserByEmail,
+  sendEmailCode,
+  type CaptchaFields,
+  type LoginResponseData,
+  type User,
+} from "../api/auth";
 import { useAuthStore } from "../stores/authStore";
 
 const fieldClass =
   "w-full px-4 py-3 rounded-xl bg-card border border-input text-charcoal placeholder:text-muted-soft transition-colors duration-200 outline-none hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25";
 
-type Mode = "login" | "register";
+type Screen = "login" | "register";
+type Method = "password" | "email";
+
+function isEmail(value: string) {
+  const v = value.trim();
+  return v.includes("@") && !v.startsWith("@") && !v.endsWith("@");
+}
+
+function pickToken(data?: LoginResponseData | null) {
+  return (
+    data?.token ||
+    data?.authToken ||
+    data?.user?.token ||
+    data?.user?.authToken ||
+    data?.user?.AuthToken ||
+    ""
+  );
+}
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const doLogin = useAuthStore((s) => s.login);
   const isLoading = useAuthStore((s) => s.isLoading);
-  const [mode, setMode] = useState<Mode>("login");
+  const [screen, setScreen] = useState<Screen>("login");
+  const [method, setMethod] = useState<Method>("password");
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
-  const [password2, setPassword2] = useState("");
+  const [code, setCode] = useState("");
+  const [codeWait, setCodeWait] = useState(0);
   const [captchaFields, setCaptchaFields] = useState<CaptchaFields | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -26,6 +54,7 @@ export default function Login() {
   const captchaKeyRef = useRef(0);
 
   const isSubmitting = isLoading || submitting;
+  const useEmail = method === "email";
 
   const nextPath = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -39,7 +68,14 @@ export default function Login() {
 
   useEffect(() => {
     setErrorText(null);
-  }, [mode]);
+    setCode("");
+  }, [screen, method]);
+
+  useEffect(() => {
+    if (codeWait <= 0) return;
+    const t = window.setTimeout(() => setCodeWait((n) => n - 1), 1000);
+    return () => window.clearTimeout(t);
+  }, [codeWait]);
 
   const finishLogin = async (token: string, rawUser: any) => {
     const userForStore: User | undefined = rawUser
@@ -67,27 +103,56 @@ export default function Login() {
     navigate(nextPath, { replace: true });
   };
 
+  const onSendCode = async () => {
+    const email = account.trim();
+    if (!isEmail(email)) {
+      setErrorText("请输入有效邮箱");
+      return;
+    }
+    if (codeWait > 0) return;
+    setErrorText(null);
+    try {
+      const res = await sendEmailCode({ email });
+      if (res.code !== 200) {
+        setErrorText(res.msg || "验证码发送失败");
+        return;
+      }
+      setCodeWait(60);
+    } catch (e: any) {
+      setErrorText(e?.msg || e?.message || "验证码发送失败");
+    }
+  };
+
   const onSubmit = async () => {
     const now = Date.now();
     if (isSubmitting || now - lastSubmitTsRef.current < 1000) return;
     lastSubmitTsRef.current = now;
     setErrorText(null);
 
-    if (!account.trim()) {
-      setErrorText("请输入账号");
+    const identity = account.trim();
+    if (!identity) {
+      setErrorText(useEmail ? "请输入邮箱" : "请输入账号");
       return;
     }
-    if (!password) {
+    if (useEmail && !isEmail(identity)) {
+      setErrorText("请输入有效邮箱");
+      return;
+    }
+    if (useEmail && !code.trim()) {
+      setErrorText("请输入邮箱验证码");
+      return;
+    }
+    if (!useEmail && !password) {
       setErrorText("请输入密码");
       return;
     }
-    if (mode === "register") {
-      if (password.length < 8) {
-        setErrorText("密码至少 8 位");
+    if (screen === "register") {
+      if (!password) {
+        setErrorText("请设置密码");
         return;
       }
-      if (password !== password2) {
-        setErrorText("两次密码不一致");
+      if (password.length < 6) {
+        setErrorText("密码至少 6 位");
         return;
       }
     }
@@ -96,89 +161,96 @@ export default function Login() {
       return;
     }
 
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const captcha = {
+      captchaId: captchaFields.captchaId,
+      captchaType: captchaFields.captchaType,
+      captchaValue: captchaFields.captchaValue,
+    };
+
     setSubmitting(true);
     try {
-      if (mode === "register") {
-        const reg = await registerUser({
-          username: account.trim(),
-          password,
-          displayName: account.trim(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          captchaId: captchaFields.captchaId,
-          captchaType: captchaFields.captchaType,
-          captchaValue: captchaFields.captchaValue,
-        });
-        if (reg.code !== 200) {
-          setErrorText(reg.msg || "注册失败");
-          refreshCaptcha();
-          return;
+      if (screen === "register") {
+        if (useEmail) {
+          const reg = await registerUserByEmail({
+            email: identity,
+            username: identity,
+            displayName: identity.split("@")[0],
+            password,
+            code: code.trim(),
+            timezone,
+            source: "web",
+            ...captcha,
+          });
+          if (reg.code !== 200) {
+            setErrorText(reg.msg || "注册失败");
+            refreshCaptcha();
+            return;
+          }
+        } else {
+          const reg = await registerUser({
+            username: identity,
+            password,
+            displayName: identity,
+            timezone,
+            source: "web",
+            ...captcha,
+          });
+          if (reg.code !== 200) {
+            setErrorText(reg.msg || "注册失败");
+            refreshCaptcha();
+            return;
+          }
         }
-        // 注册成功后自动登录
-        const loginRes = await loginWithPassword({
-          email: account.trim(),
-          password,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          authToken: true,
-        });
-        // 验证码已在注册时消费，再拉一次验证码后重试登录一次
-        if (loginRes.code !== 200) {
-          await refreshCaptcha();
-          setMode("login");
-          setErrorText("注册成功，请登录");
-          setPassword("");
-          setPassword2("");
-          return;
-        }
-        const token =
-          loginRes.data?.token ||
-          loginRes.data?.authToken ||
-          loginRes.data?.user?.token ||
-          loginRes.data?.user?.authToken;
-        if (!token) {
-          setMode("login");
-          setErrorText("注册成功，请登录");
-          return;
-        }
-        await finishLogin(token, loginRes.data?.user);
+        setScreen("login");
+        setPassword("");
+        setPassword2("");
+        setCode("");
+        refreshCaptcha();
+        setErrorText(null);
+        // 密码注册后端会自动登录 session，但 web 用 token；引导用户登录一次更稳妥
+        setErrorText("注册成功，请登录");
         return;
       }
 
-      const res = await loginWithPassword({
-        email: account.trim(),
-        password,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        authToken: true,
-        captchaId: captchaFields.captchaId,
-        captchaType: captchaFields.captchaType,
-        captchaValue: captchaFields.captchaValue,
-      });
+      const res = useEmail
+        ? await loginWithEmailCode({
+            email: identity,
+            code: code.trim(),
+            timezone,
+            authToken: true,
+            ...captcha,
+          })
+        : await loginWithPassword({
+            email: identity,
+            password,
+            timezone,
+            authToken: true,
+            ...captcha,
+          });
       if (res.code !== 200) {
         setErrorText(res.msg || "登录失败");
         refreshCaptcha();
         return;
       }
-
-      const token =
-        res.data?.token ||
-        res.data?.authToken ||
-        res.data?.user?.token ||
-        res.data?.user?.authToken ||
-        res.data?.user?.AuthToken;
-
+      const token = pickToken(res.data);
       if (!token) {
         setErrorText("登录成功但未返回 token");
         refreshCaptcha();
         return;
       }
-
       await finishLogin(token, res.data?.user);
     } catch (e: any) {
-      setErrorText(e?.msg || e?.message || (mode === "register" ? "注册失败" : "登录失败"));
+      setErrorText(e?.msg || e?.message || (screen === "register" ? "注册失败" : "登录失败"));
       refreshCaptcha();
     } finally {
       setSubmitting(false);
     }
   };
+
+  const title = screen === "login" ? "登录" : "注册";
+  const subtitle =
+    screen === "login" ? "登录以继续陪练与单词训练" : "";
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background">
@@ -190,25 +262,23 @@ export default function Login() {
             className="w-12 h-12 rounded-xl object-contain mb-5"
           />
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">云阶</h1>
-          <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-            {mode === "login" ? "登录以继续陪练与单词训练" : "创建账号，开始使用云阶"}
-          </p>
+          <p className="text-muted-foreground text-sm mt-2 leading-relaxed">{subtitle}</p>
         </div>
 
-        <div className="flex gap-2 mb-5 p-1 rounded-xl bg-muted">
+        <div className="flex gap-2 mb-5">
           {(
             [
-              { id: "login", label: "登录" },
-              { id: "register", label: "注册" },
+              { id: "password", label: "密码" },
+              { id: "email", label: "邮箱验证码" },
             ] as const
           ).map((m) => (
             <button
               key={m.id}
               type="button"
-              onClick={() => setMode(m.id)}
-              className={`flex-1 h-9 rounded-lg text-sm font-medium transition-colors ${
-                mode === m.id
-                  ? "bg-card text-foreground shadow-sm"
+              onClick={() => setMethod(m.id)}
+              className={`h-8 px-3 rounded-lg text-sm font-medium transition-colors ${
+                method === m.id
+                  ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -219,44 +289,59 @@ export default function Login() {
 
         <div className="space-y-4">
           <div>
-            <label className="text-sm text-charcoal font-medium mb-1.5 block">账号</label>
+            <label className="text-sm text-charcoal font-medium mb-1.5 block">
+              {useEmail ? "邮箱" : "账号"}
+            </label>
             <input
               value={account}
               onChange={(e) => setAccount(e.target.value)}
-              placeholder="用户名 / 账号"
+              placeholder={useEmail ? "name@example.com" : "用户名 / 邮箱"}
               className={fieldClass}
-              autoComplete="username"
+              autoComplete={useEmail ? "email" : "username"}
             />
           </div>
 
-          <div>
-            <label className="text-sm text-charcoal font-medium mb-1.5 block">密码</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === "register" ? "至少 8 位" : "请输入密码"}
-              className={fieldClass}
-              autoComplete={mode === "register" ? "new-password" : "current-password"}
-            />
-          </div>
-
-          {mode === "register" && (
+          {useEmail ? (
             <div>
-              <label className="text-sm text-charcoal font-medium mb-1.5 block">确认密码</label>
+              <label className="text-sm text-charcoal font-medium mb-1.5 block">邮箱验证码</label>
+              <div className="flex gap-2">
+                <input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="6 位验证码"
+                  className={fieldClass}
+                  autoComplete="one-time-code"
+                />
+                <button
+                  type="button"
+                  onClick={() => void onSendCode()}
+                  disabled={codeWait > 0}
+                  className="shrink-0 px-3 rounded-xl border border-input text-sm text-foreground disabled:text-muted-foreground"
+                >
+                  {codeWait > 0 ? `${codeWait}s` : "发送验证码"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {(!useEmail || screen === "register") && (
+            <div>
+              <label className="text-sm text-charcoal font-medium mb-1.5 block">
+                {screen === "register" ? "设置密码" : "密码"}
+              </label>
               <input
                 type="password"
-                value={password2}
-                onChange={(e) => setPassword2(e.target.value)}
-                placeholder="再输入一次"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={screen === "register" ? "至少 6 位" : "请输入密码"}
                 className={fieldClass}
-                autoComplete="new-password"
+                autoComplete={screen === "register" ? "new-password" : "current-password"}
               />
             </div>
           )}
 
           <div>
-            <label className="text-sm text-charcoal font-medium mb-1.5 block">验证码</label>
+            <label className="text-sm text-charcoal font-medium mb-1.5 block">图形验证码</label>
             <CaptchaWidget key={captchaKeyRef.current} onChange={setCaptchaFields} />
           </div>
 
@@ -270,12 +355,38 @@ export default function Login() {
             variant="brand"
             onClick={onSubmit}
             loading={isSubmitting}
-            loadingText={mode === "register" ? "注册中..." : "登录中..."}
+            loadingText={screen === "register" ? "注册中..." : "登录中..."}
             className="w-full h-11"
             disabled={isSubmitting}
           >
-            {mode === "register" ? "注册" : "登录"}
+            {title}
           </CloudButton>
+
+          <p className="text-center text-sm text-muted-foreground">
+            {screen === "login" ? (
+              <>
+                还没有账号？
+                <button
+                  type="button"
+                  className="ml-1 text-primary hover:underline"
+                  onClick={() => setScreen("register")}
+                >
+                  点击注册
+                </button>
+              </>
+            ) : (
+              <>
+                已有账号？
+                <button
+                  type="button"
+                  className="ml-1 text-primary hover:underline"
+                  onClick={() => setScreen("login")}
+                >
+                  返回登录
+                </button>
+              </>
+            )}
+          </p>
         </div>
       </div>
     </div>
