@@ -181,8 +181,8 @@ export default function VocabularyTestTesting() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col min-h-0 px-4 py-3 max-w-2xl mx-auto w-full">
-        <div className="shrink-0 flex items-center gap-2 mb-3">
+      <main className="flex-1 flex flex-col min-h-0 px-4 py-3 max-w-3xl mx-auto w-full">
+        <div className="shrink-0 flex items-center gap-2 mb-3 max-w-sm mx-auto w-full">
           <div className="text-[#4ECDC4] text-sm font-semibold tabular-nums">
             {questions.length > 0
               ? `${String(currentIndex + 1).padStart(2, "0")}/${questions.length}`
@@ -200,12 +200,12 @@ export default function VocabularyTestTesting() {
         </div>
 
         {showWarning && !busy && (
-          <p className="shrink-0 text-center text-[11px] text-amber-600 mb-2">
+          <p className="shrink-0 text-center text-[11px] text-amber-600 mb-2 max-w-sm mx-auto w-full">
             超过 8 秒，建议选「不认识」
           </p>
         )}
 
-        <div className="shrink-0 bg-white rounded-2xl px-4 py-6 mb-3 text-center shadow-sm border border-[#E2E8F0]/80">
+        <div className="shrink-0 w-full max-w-sm mx-auto bg-white rounded-2xl px-4 py-6 mb-3 text-center shadow-sm border border-[#E2E8F0]/80">
           <div className="flex flex-col items-center justify-center gap-2 min-h-[88px]">
             {busy || !currentQuestion ? (
               <p className="text-[#A0AEC0] text-sm animate-pulse">加载中…</p>
@@ -226,7 +226,7 @@ export default function VocabularyTestTesting() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col justify-center gap-2 py-1">
+        <div className="flex-1 min-h-0 flex flex-col justify-center gap-2 py-1 max-w-sm mx-auto w-full">
           {options.map((option, index) => (
             <CloudButton
               key={index}
@@ -246,7 +246,7 @@ export default function VocabularyTestTesting() {
       </main>
 
       <footer className="shrink-0 bg-white border-t border-[#E2E8F0] py-2.5 px-4">
-        <div className="flex items-center justify-around max-w-2xl mx-auto">
+        <div className="flex items-center justify-around max-w-sm mx-auto">
           <div className="text-center">
             <div className="text-base font-bold text-[#2D3748]">{correctCount}</div>
             <div className="text-[11px] text-[#718096]">正确</div>

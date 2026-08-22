@@ -149,7 +149,14 @@ export default function ReviewCheck() {
   };
 
   const handleShuffle = () => {
-    const shuffled = [...words].sort(() => Math.random() - 0.5);
+    const shuffled = [...words];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    if (shuffled.length > 1 && shuffled.every((word, index) => word.id === words[index].id)) {
+      [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+    }
     setWords(shuffled);
   };
 
@@ -210,7 +217,7 @@ export default function ReviewCheck() {
   return (
     <FlowPageShell>
       <TopBar
-        title="开始复习"
+        title="训练检测"
         onBack={handleBack}
         rightSlot={
           <PracticeFlowToolbar
@@ -339,12 +346,14 @@ export default function ReviewCheck() {
                       </div>
                     </div>
                     {detailMode && word.showTranslation && (
-                      <WordDetailPanel
-                        wordId={word.id}
-                        wordText={word.word}
-                        variant="inline"
-                        onClose={() => setDetailWord(null)}
-                      />
+                      <div onClick={(event) => event.stopPropagation()}>
+                        <WordDetailPanel
+                          wordId={word.id}
+                          wordText={word.word}
+                          variant="inline"
+                          onClose={() => setDetailWord(null)}
+                        />
+                      </div>
                     )}
                   </div>
                 ))}

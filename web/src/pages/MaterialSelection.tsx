@@ -65,7 +65,7 @@ export default function MaterialSelection() {
               type="button"
               disabled={!material.enabled}
               onClick={() => handleMaterialClick(material)}
-              className={`w-full shrink-0 px-3.5 py-2.5 rounded-xl border-2 text-left transition-all flex items-center justify-between gap-2 ${
+              className={`w-full shrink-0 px-3.5 py-3.5 rounded-xl border-2 text-left transition-all flex items-center justify-between gap-2 ${
                 material.enabled
                   ? "bg-white border-[#66BB6A] cursor-pointer hover:shadow-sm active:scale-[0.99]"
                   : "bg-gray-100 border-gray-200 cursor-not-allowed opacity-55"

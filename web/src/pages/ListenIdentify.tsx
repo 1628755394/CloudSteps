@@ -232,7 +232,7 @@ export default function ListenIdentify() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6 max-w-2xl mx-auto w-full pb-28">
+      <div className="px-4 mt-6 max-w-3xl mx-auto w-full pb-28">
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {viewMode === "card" && cardWord ? (
@@ -279,7 +279,7 @@ export default function ListenIdentify() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-2xl mx-auto w-full flex items-center justify-between gap-2">
+        <div className="max-w-3xl mx-auto w-full flex items-center justify-between gap-2">
           <div className="flex gap-2 flex-wrap">
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
