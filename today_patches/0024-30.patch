@@ -1,0 +1,46 @@
+From 8d404b7ec0005b9d36d8e77293bc57d4271788d3 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E9=99=88=E6=9D=B0?= <17793426456@163.com>
+Date: Mon, 17 Aug 2026 15:38:20 +0800
+Subject: [PATCH 24/30] =?UTF-8?q?=E4=B9=9D=E5=AE=AB=E6=A0=BC:=20=E5=86=85?=
+ =?UTF-8?q?=E5=8D=8A=E5=BE=84=E7=BC=A9=E7=9F=AD=E8=87=B330%,=20=E7=8E=AF?=
+ =?UTF-8?q?=E5=BD=A2=E6=9B=B4=E5=AE=BD=E5=8E=9A?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+环形内半径从38%缩短到30%，外半径保持70%，内外径距离从32%加宽到40%；白色圆点半径同步调整到15%适配新内环。
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+---
+ web/src/components/MemoryLighthouse.tsx | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/web/src/components/MemoryLighthouse.tsx b/web/src/components/MemoryLighthouse.tsx
+index da49557..55541fc 100644
+--- a/web/src/components/MemoryLighthouse.tsx
++++ b/web/src/components/MemoryLighthouse.tsx
+@@ -128,7 +128,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+         series: [
+           {
+             type: "pie",
+-            radius: ["38%", "70%"],
++            radius: ["30%", "70%"],
+             center: ["50%", "50%"],
+             // 起始角 270°（ECharts 角度约定，0=右/正东，逆时针为正）：
+             // 与外圈标签角度公式 110+idx*40（屏幕角度，0=右，顺时针为正）精确对齐，
+@@ -340,8 +340,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+             // 接缝角度 = 扇区中心 + 半个扇区宽度 = 110 + idx*40 + 20 = 130 + idx*40
+             const seamAngleDeg = 130 + idx * 40;
+             const seamAngleRad = (seamAngleDeg * Math.PI) / 180;
+-            // 内环半径 38%（ECharts pie inner radius），正方形容器下 = 19% 容器宽度
+-            const dotRadius = 19;
++            // 内环半径 30%（ECharts pie inner radius），正方形容器下 = 15% 容器宽度
++            const dotRadius = 15;
+             const left = 50 + dotRadius * Math.cos(seamAngleRad);
+             const top = 50 + dotRadius * Math.sin(seamAngleRad);
+             return (
+-- 
+2.55.0.windows.3
+

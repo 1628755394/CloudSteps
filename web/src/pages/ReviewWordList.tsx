@@ -1,9 +1,8 @@
 import { useNavigate } from "react-router";
-import { Volume2, Check, X, BookOpen } from "lucide-react";
+import { Volume2, Check, X, BookOpen, PanelTop } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getReviewToday, startReviewSession, completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
-import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import {
   PracticeFontSettingsButton,
   PRACTICE_TRANS_CLASS,
@@ -13,6 +12,7 @@ import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 import { AudioMuteToggleButton } from "../components/AudioMuteToggleButton";
+import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import {
   WordCardPanel,
   WordMarkStatsBar,
@@ -22,6 +22,7 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
+import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 
 type ReviewWordItem = {
   id: number;
@@ -53,6 +54,24 @@ export default function ReviewWordList() {
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
+  const [globalNoteOpen, setGlobalNoteOpen] = useState(false);
+  const [noteSide, setNoteSide] = useState<"left" | "right">("right");
+  const [noteWidth, setNoteWidth] = useState(() => {
+    try {
+      const raw = localStorage.getItem("lb_review_note_width");
+      if (raw) {
+        const n = Number(raw);
+        if (Number.isFinite(n)) return Math.max(200, n);
+      }
+    } catch { /* ignore */ }
+    return 420;
+  });
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const wordBookId = useMemo(() => {
     const url = new URL(window.location.href);
@@ -83,6 +102,33 @@ export default function ReviewWordList() {
     const abort = playWordAudio(item.audioUrl, 300, () => setPlayingId(null));
     abortRef.current = abort;
   };
+
+  const startNoteResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = noteWidth;
+    let latestW = startW;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "ew-resize";
+    const onMove = (ev: PointerEvent) => {
+      ev.preventDefault();
+      const delta = ev.clientX - startX;
+      // right side: drag left increases width; left side: drag right increases width
+      const next = Math.max(200, startW + (noteSide === "right" ? -delta : delta));
+      latestW = next;
+      setNoteWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      try { localStorage.setItem("lb_review_note_width", String(latestW)); } catch { /* ignore */ }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [noteWidth, noteSide]);
 
   useEffect(() => {
     if (viewOnly) return;
@@ -244,6 +290,7 @@ export default function ReviewWordList() {
         onBack={handleBack}
         rightSlot={
           <div className="flex items-center gap-0.5">
+            <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => setGlobalNoteOpen(true)} aria-label="打开随心记" title="打开随心记"><PanelTop size={18} className="text-[#c45c78]" /></CloudButton>
             <AudioMuteToggleButton />
             <AnnotationToggleButton
               active={annotationOpen}
@@ -260,17 +307,20 @@ export default function ReviewWordList() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 pt-3 pb-4 max-w-2xl mx-auto w-full">
-        <div className="mb-3">
-          <p className="text-[#718096] text-sm">
-            {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
-          </p>
-          {words.length === 0 && (
-            <p className="text-xs text-amber-600 mt-1">
-              该日暂无待复习单词
+      {/* Split container: word content + note panel on the same layer. */}
+      <div className={`px-4 pt-3 pb-4 w-full ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
+        {/* Word content pane */}
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
+          <div className="mb-3">
+            <p className="text-[#718096] text-sm">
+              {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
             </p>
-          )}
-        </div>
+            {words.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">
+                该日暂无待复习单词
+              </p>
+            )}
+          </div>
 
         {!viewOnly && (
           <WordMarkStatsBar
@@ -293,6 +343,7 @@ export default function ReviewWordList() {
               hideStatus={viewOnly}
               amplifyDetail={detailMode}
               onDetailClose={() => setDetailWord(null)}
+              noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
             />
           </div>
         ) : (
@@ -333,6 +384,14 @@ export default function ReviewWordList() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <StudyNoteLauncher
+                          storageKey={`study-note:word:${wordBookId}:${item.id}`}
+                          title={`笔记 · ${item.word}`}
+                          label="笔记"
+                          className="h-9 px-2"
+                        />
+                      </div>
                       <CloudButton
                         type="button"
                         variant="ghost"
@@ -379,10 +438,52 @@ export default function ReviewWordList() {
             })}
           </div>
         )}
+        </div>
+
+        {/* Note panel pane — same layer as word content (desktop split only) */}
+        {globalNoteOpen && isDesktop && (
+          <>
+            {/* Drag handle between word content and note panel */}
+            <div
+              className={`group hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none lg:select-none ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}
+              style={{ width: "10px", flexShrink: 0 }}
+              onPointerDown={startNoteResize}
+              title="拖动调整随心记宽度"
+              aria-label="拖动调整随心记宽度"
+            >
+              <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 group-hover:bg-[#4ECDC4]/60 group-hover:w-1.5 transition-all" />
+            </div>
+            <div
+              className={`lg:flex lg:flex-col ${noteSide === "right" ? "lg:order-3" : "lg:order-1"}`}
+              style={{ width: `${noteWidth}px`, flexShrink: 0 }}
+            >
+              <StudyNotePanel
+                open={globalNoteOpen}
+                onClose={() => setGlobalNoteOpen(false)}
+                storageKey={`study-note:global:${wordBookId}`}
+                title="随心记"
+                side={noteSide}
+                split
+                onSideChange={setNoteSide}
+              />
+            </div>
+          </>
+        )}
       </div>
 
+      {/* Mobile: note panel as floating overlay */}
+      {globalNoteOpen && !isDesktop && (
+        <StudyNotePanel
+          open={globalNoteOpen}
+          onClose={() => setGlobalNoteOpen(false)}
+          storageKey={`study-note:global:${wordBookId}`}
+          title="随心记"
+          side={noteSide}
+          onSideChange={setNoteSide}
+        />
+      )}
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
-        <div className="max-w-2xl mx-auto w-full space-y-2.5">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             {!viewOnly && (
               <>
@@ -401,6 +502,15 @@ export default function ReviewWordList() {
               </>
             )}
             <div className="flex-1" />
+            <CloudButton
+              type="button"
+              variant={globalNoteOpen ? "brand" : "outline"}
+              size="pill"
+              onClick={() => setGlobalNoteOpen(true)}
+              aria-label="打开随心记"
+            >
+              随心记
+            </CloudButton>
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
               type="button"

@@ -1,0 +1,74 @@
+From 99d8b7274985e1408ee93f96d2931baedc2d1bd0 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E9=99=88=E6=9D=B0?= <17793426456@163.com>
+Date: Mon, 17 Aug 2026 15:36:41 +0800
+Subject: [PATCH 23/30] =?UTF-8?q?=E4=B9=9D=E5=AE=AB=E6=A0=BC:=20=E5=8A=A0?=
+ =?UTF-8?q?=E5=AE=BD=E7=8E=AF=E5=BD=A2=E5=86=85=E5=A4=96=E5=8D=8A=E5=BE=84?=
+ =?UTF-8?q?=E8=B7=9D=E7=A6=BB,=20=E6=94=BE=E5=A4=A7=E5=A4=96=E5=9C=88?=
+ =?UTF-8?q?=E7=BC=96=E5=8F=B7=E4=B8=8E=E8=8B=B1=E6=96=87?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+环形半径从44%-66%调整为38%-70%(内外径距离从22%加宽到32%)；外圈阶段编号字号18->22px(移动端14->16px)，英文名12->15px(移动端9->11px)；同步调整外圈标签半径(47->44%)和白色圆点半径(22->19%)适配新内环。
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+---
+ web/src/components/MemoryLighthouse.tsx | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/web/src/components/MemoryLighthouse.tsx b/web/src/components/MemoryLighthouse.tsx
+index a31c198..da49557 100644
+--- a/web/src/components/MemoryLighthouse.tsx
++++ b/web/src/components/MemoryLighthouse.tsx
+@@ -128,7 +128,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+         series: [
+           {
+             type: "pie",
+-            radius: ["44%", "66%"],
++            radius: ["38%", "70%"],
+             center: ["50%", "50%"],
+             // 起始角 270°（ECharts 角度约定，0=右/正东，逆时针为正）：
+             // 与外圈标签角度公式 110+idx*40（屏幕角度，0=右，顺时针为正）精确对齐，
+@@ -228,8 +228,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+    * 起始角度 120°（左下方，对应 01），顺时针每块 +40°
+    * 半径用 % 表示（相对容器），大于外环 88%
+    */
+-  // 环形外缘在 33%（66%/2），移动端标签更紧凑，标签半径略微收窄避免溢出
+-  const labelRadius = isMobile ? 44 : 47;
++  // 环形外缘在 35%（70%/2），移动端标签更紧凑，标签半径略微收窄避免溢出
++  const labelRadius = isMobile ? 41 : 44;
+   const labelPositions = useMemo(
+     () =>
+       STAGES.map((_, idx) => {
+@@ -321,13 +321,13 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+                 {/* 阶段编号与英文名，颜色与对应扇区颜色一致（1:1 对齐原型图） */}
+                 <div
+                   className="font-bold leading-none whitespace-nowrap"
+-                  style={{ color: stage.color, fontSize: isMobile ? 14 : 18 }}
++                  style={{ color: stage.color, fontSize: isMobile ? 16 : 22 }}
+                 >
+                   {stage.num}
+                 </div>
+                 <div
+                   className="leading-none whitespace-nowrap"
+-                  style={{ color: stage.color, opacity: 0.85, fontSize: isMobile ? 9 : 12, marginTop: 3 }}
++                  style={{ color: stage.color, opacity: 0.85, fontSize: isMobile ? 11 : 15, marginTop: 4 }}
+                 >
+                   {stage.en}
+                 </div>
+@@ -340,8 +340,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+             // 接缝角度 = 扇区中心 + 半个扇区宽度 = 110 + idx*40 + 20 = 130 + idx*40
+             const seamAngleDeg = 130 + idx * 40;
+             const seamAngleRad = (seamAngleDeg * Math.PI) / 180;
+-            // 内环半径 44%（ECharts pie inner radius），正方形容器下 = 22% 容器宽度
+-            const dotRadius = 22;
++            // 内环半径 38%（ECharts pie inner radius），正方形容器下 = 19% 容器宽度
++            const dotRadius = 19;
+             const left = 50 + dotRadius * Math.cos(seamAngleRad);
+             const top = 50 + dotRadius * Math.sin(seamAngleRad);
+             return (
+-- 
+2.55.0.windows.3
+

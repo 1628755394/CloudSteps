@@ -1,0 +1,220 @@
+From c843d787f39112b985cd83225766c2790036c915 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E9=99=88=E6=9D=B0?= <17793426456@163.com>
+Date: Mon, 17 Aug 2026 15:57:54 +0800
+Subject: [PATCH 27/30] =?UTF-8?q?=E4=B9=9D=E5=AE=AB=E6=A0=BC:=20=E6=94=BE?=
+ =?UTF-8?q?=E5=A4=A7=E7=99=BD=E8=89=B2=E5=B0=8F=E7=90=83,=20=E6=96=B0?=
+ =?UTF-8?q?=E5=A2=9E=E7=82=B9=E5=87=BB=E6=A8=A1=E5=9D=97=E6=89=A9=E6=95=A3?=
+ =?UTF-8?q?=E8=BF=87=E6=B8=A1=E5=8A=A8=E7=94=BB?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+1. 白色接缝圆点半径放大: 桌面7px->10px, 移动端5px->7px；
+
+2. 新增点击扇区的页面过渡动画: 点击九宫格任意模块后，该模块颜色的圆点从点击位置放大铺满全屏(300ms)，圆点完全覆盖屏幕的瞬间触发真正的路由跳转(此时页面已被纯色遮住不会闪烁)，随后圆点淡出(200ms)露出新页面，总时长控制在500ms内，缓动曲线自然。
+
+架构说明: 由于/word-training与/lighthouse-words是完全独立的路由树(非同一个Layout/AnimatePresence下的outlet切换)，动画状态用zustand全局store(pageTransitionStore)管理，覆盖层组件(PageTransitionRipple)挂载在App根节点、独立于路由树，不会因页面卸载被打断。MemoryLighthouse点击扇区时通过triggerPageRipple触发动画并在覆盖完成时回调执行原有的onBlockClick跳转逻辑。
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+---
+ web/src/App.tsx                             |  2 +
+ web/src/components/MemoryLighthouse.tsx     | 29 ++++++----
+ web/src/components/PageTransitionRipple.tsx | 34 +++++++++++
+ web/src/stores/pageTransitionStore.ts       | 62 +++++++++++++++++++++
+ 4 files changed, 117 insertions(+), 10 deletions(-)
+ create mode 100644 web/src/components/PageTransitionRipple.tsx
+ create mode 100644 web/src/stores/pageTransitionStore.ts
+
+diff --git a/web/src/App.tsx b/web/src/App.tsx
+index fff5c35..15d978c 100644
+--- a/web/src/App.tsx
++++ b/web/src/App.tsx
+@@ -3,6 +3,7 @@ import { router } from "./router/routes";
+ import { CoachingClassReminder } from "./components/CoachingClassReminder";
+ import { ClassSessionTimer } from "./components/ClassSessionTimer";
+ import { Toaster } from "./components/ui/sonner";
++import { PageTransitionRipple } from "./components/PageTransitionRipple";
+ 
+ export default function App() {
+   return (
+@@ -11,6 +12,7 @@ export default function App() {
+       <ClassSessionTimer />
+       <RouterProvider router={router} />
+       <Toaster />
++      <PageTransitionRipple />
+     </>
+   );
+ }
+diff --git a/web/src/components/MemoryLighthouse.tsx b/web/src/components/MemoryLighthouse.tsx
+index 37c688f..a9d192b 100644
+--- a/web/src/components/MemoryLighthouse.tsx
++++ b/web/src/components/MemoryLighthouse.tsx
+@@ -18,6 +18,7 @@
+ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import * as echarts from "echarts";
+ import { Brain } from "lucide-react";
++import { triggerPageRipple } from "../stores/pageTransitionStore";
+ 
+ export interface LighthouseBox {
+   count: number;
+@@ -197,20 +198,28 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+     ro.observe(chartRef.current);
+     window.addEventListener("resize", handleResize);
+ 
+-    // 点击扇区 → 触发 onBlockClick 筛选词条
++    // 点击扇区 → 该扇区颜色的圆点从点击位置放大铺满全屏、淡出后再触发 onBlockClick 跳转，
++    // 整个过渡动画控制在 0.5 秒内（放大 0.3s + 淡出 0.2s）
+     const onChartClick = (params: any) => {
+       if (params.componentType !== "series") return;
+       const idx = params.dataIndex as number;
+       const stage = STAGES[idx];
+       if (!stage) return;
+       const count = rawData[idx].realValue;
+-      if (stage.kind === "unlearned") {
+-        onBlockClick?.("UNLEARNED", count, stage.name);
+-      } else if (stage.kind === "mastered") {
+-        onBlockClick?.(BOX_TYPES[7], count, stage.name);
+-      } else {
+-        onBlockClick?.(BOX_TYPES[stage.boxIndex!], count, stage.name);
+-      }
++      const fireBlockClick = () => {
++        if (stage.kind === "unlearned") {
++          onBlockClick?.("UNLEARNED", count, stage.name);
++        } else if (stage.kind === "mastered") {
++          onBlockClick?.(BOX_TYPES[7], count, stage.name);
++        } else {
++          onBlockClick?.(BOX_TYPES[stage.boxIndex!], count, stage.name);
++        }
++      };
++      const nativeEvt = params.event?.event as MouseEvent | undefined;
++      const rect = chartRef.current!.getBoundingClientRect();
++      const clientX = nativeEvt?.clientX ?? rect.left + (params.event?.offsetX ?? rect.width / 2);
++      const clientY = nativeEvt?.clientY ?? rect.top + (params.event?.offsetY ?? rect.height / 2);
++      triggerPageRipple(clientX, clientY, stage.color, fireBlockClick);
+     };
+     chart.on("click", onChartClick);
+ 
+@@ -335,8 +344,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+                 style={{
+                   left: `${left}%`,
+                   top: `${top}%`,
+-                  width: isMobile ? "5px" : "7px",
+-                  height: isMobile ? "5px" : "7px",
++                  width: isMobile ? "7px" : "10px",
++                  height: isMobile ? "7px" : "10px",
+                   transform: "translate(-50%, -50%)",
+                   boxShadow: "0 0 2px rgba(0,0,0,0.15)",
+                 }}
+diff --git a/web/src/components/PageTransitionRipple.tsx b/web/src/components/PageTransitionRipple.tsx
+new file mode 100644
+index 0000000..c0a3ed5
+--- /dev/null
++++ b/web/src/components/PageTransitionRipple.tsx
+@@ -0,0 +1,34 @@
++import { usePageTransitionStore } from "../stores/pageTransitionStore";
++
++const BASE_SIZE = 24;
++
++/**
++ * 全局页面过渡圆点动画：挂载在 App 根部，独立于路由树，
++ * 不会因为页面切换（组件卸载）而中断动画。
++ */
++export function PageTransitionRipple() {
++  const { active, x, y, color, scale, expanded, fading } = usePageTransitionStore();
++
++  if (!active) return null;
++
++  return (
++    <div className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden">
++      <div
++        style={{
++          position: "absolute",
++          left: x,
++          top: y,
++          width: BASE_SIZE,
++          height: BASE_SIZE,
++          marginLeft: -BASE_SIZE / 2,
++          marginTop: -BASE_SIZE / 2,
++          borderRadius: "9999px",
++          backgroundColor: color,
++          transform: `scale(${expanded ? scale : 1})`,
++          opacity: fading ? 0 : 1,
++          transition: "transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease-in",
++        }}
++      />
++    </div>
++  );
++}
+diff --git a/web/src/stores/pageTransitionStore.ts b/web/src/stores/pageTransitionStore.ts
+new file mode 100644
+index 0000000..197cb43
+--- /dev/null
++++ b/web/src/stores/pageTransitionStore.ts
+@@ -0,0 +1,62 @@
++import { create } from "zustand";
++
++interface RippleState {
++  active: boolean;
++  x: number;
++  y: number;
++  color: string;
++  /** 圆点覆盖全屏所需的缩放倍数（点击时按视口尺寸算好） */
++  scale: number;
++  /** 是否已经开始放大（用于触发 CSS transition，需要下一帧再置 true） */
++  expanded: boolean;
++  /** 是否开始淡出 */
++  fading: boolean;
++}
++
++export const usePageTransitionStore = create<RippleState>(() => ({
++  active: false,
++  x: 0,
++  y: 0,
++  color: "#F45448",
++  scale: 1,
++  expanded: false,
++  fading: false,
++}));
++
++const EXPAND_MS = 300;
++const FADE_MS = 200;
++const BASE_SIZE = 24;
++
++/**
++ * 触发「点击模块 -> 该模块颜色的圆点从点击位置放大铺满全屏 -> 淡出露出新页面」的过渡动画。
++ * 总时长控制在 500ms 内：放大 300ms + 淡出 200ms。
++ * onCovered 会在圆点刚好铺满全屏的那一刻触发（此时执行真正的页面跳转，不会有闪烁）。
++ */
++export function triggerPageRipple(x: number, y: number, color: string, onCovered: () => void) {
++  const maxDist = Math.max(
++    Math.hypot(x, y),
++    Math.hypot(window.innerWidth - x, y),
++    Math.hypot(x, window.innerHeight - y),
++    Math.hypot(window.innerWidth - x, window.innerHeight - y)
++  );
++  // 留一点余量，确保圆点完全盖住四个角
++  const scale = (maxDist * 2.15) / BASE_SIZE;
++
++  usePageTransitionStore.setState({ active: true, x, y, color, scale, expanded: false, fading: false });
++
++  // 双 rAF 保证浏览器先渲染初始（未展开）状态，再切换到展开状态，CSS transition 才会生效
++  requestAnimationFrame(() => {
++    requestAnimationFrame(() => {
++      usePageTransitionStore.setState({ expanded: true });
++    });
++  });
++
++  window.setTimeout(() => {
++    onCovered();
++    usePageTransitionStore.setState({ fading: true });
++  }, EXPAND_MS);
++
++  window.setTimeout(() => {
++    usePageTransitionStore.setState({ active: false, expanded: false, fading: false });
++  }, EXPAND_MS + FADE_MS);
++}
+-- 
+2.55.0.windows.3
+

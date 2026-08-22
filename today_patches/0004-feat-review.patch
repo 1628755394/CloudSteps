@@ -1,0 +1,284 @@
+From 87783e92729e022e7b0e34db29f25be23306f1d0 Mon Sep 17 00:00:00 2001
+From: heathcetide <2148582258@qq.com>
+Date: Mon, 17 Aug 2026 10:39:29 +0800
+Subject: [PATCH 04/30] =?UTF-8?q?feat(review):=20=E8=AF=8D=E8=A1=A8?=
+ =?UTF-8?q?=E7=9B=B4=E6=8E=A5=E6=8F=90=E4=BA=A4=E8=BF=9B=E9=80=80=E6=A0=BC?=
+ =?UTF-8?q?=EF=BC=8C=E5=B9=B6=E6=8C=89=E6=9D=A5=E6=BA=90=E9=A1=B5=E6=AD=A3?=
+ =?UTF-8?q?=E7=A1=AE=E8=BF=94=E5=9B=9E?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+勾选认识/忘记后提交即可；暂停/返回按进入复习前的页面回跳。
+
+Co-authored-by: Cursor <cursoragent@cursor.com>
+---
+ web/src/components/PracticePauseMenu.tsx | 31 +++++++++--
+ web/src/pages/AntiForgetting.tsx         |  1 +
+ web/src/pages/ListenIdentify.tsx         |  2 +-
+ web/src/pages/ReviewWordList.tsx         | 67 ++++++++++--------------
+ web/src/utils/reviewPractice.ts          |  6 ++-
+ 5 files changed, 62 insertions(+), 45 deletions(-)
+
+diff --git a/web/src/components/PracticePauseMenu.tsx b/web/src/components/PracticePauseMenu.tsx
+index 6f354bd..8ea10cd 100644
+--- a/web/src/components/PracticePauseMenu.tsx
++++ b/web/src/components/PracticePauseMenu.tsx
+@@ -1,6 +1,7 @@
+ import { useState } from "react";
+ import { useNavigate } from "react-router";
+ import { CloudButton } from "./cloudsteps";
++import { getReviewReturnPath } from "../utils/reviewPractice";
+ 
+ type Props = {
+   open: boolean;
+@@ -10,7 +11,8 @@ type Props = {
+ };
+ 
+ /**
+- * 练习流通用暂停菜单：返回主页 / 继续训练 / 结束训练→抗遗忘
++ * 练习流通用暂停菜单：返回主页 / 继续训练 / 结束训练
++ * 复习模式下回跳到进入复习前的页面（词训 → word-training；抗遗忘 → anti-forgetting）
+  */
+ export function PracticePauseMenu({
+   open,
+@@ -22,6 +24,17 @@ export function PracticePauseMenu({
+ 
+   if (!open) return null;
+ 
++  const isReview = sessionStorage.getItem("lb_mode") === "review";
++  const homePath = isReview
++    ? getReviewReturnPath("/word-training")
++    : "/word-training";
++  const endConfirmText = isReview
++    ? homePath.includes("anti-forgetting")
++      ? "确定结束复习并返回抗遗忘？"
++      : "确定结束复习并返回单词训练？"
++    : "确定结束训练并进入抗遗忘？";
++  const endPath = isReview ? homePath : "/anti-forgetting";
++
+   return (
+     <div
+       className="fixed inset-0 bg-black/50 z-50"
+@@ -41,7 +54,7 @@ export function PracticePauseMenu({
+               className="w-full justify-start rounded-none px-6 py-3 h-auto"
+               onClick={() => {
+                 onClose();
+-                navigate("/word-training");
++                navigate(homePath);
+               }}
+             >
+               返回主页
+@@ -64,7 +77,7 @@ export function PracticePauseMenu({
+         ) : (
+           <>
+             <div className="px-4 py-3 text-sm text-[#718096] border-b border-[#E2E8F0]">
+-              确定结束训练并进入抗遗忘？
++              {endConfirmText}
+             </div>
+             <CloudButton
+               variant="ghost"
+@@ -78,7 +91,17 @@ export function PracticePauseMenu({
+               className="w-full justify-start rounded-none px-6 py-3 h-auto text-[#E53E3E]"
+               onClick={() => {
+                 onClose();
+-                navigate("/anti-forgetting");
++                if (isReview) {
++                  // 提前读出回跳路径，再清 session，避免 clear 后丢失
++                  const path = homePath;
++                  sessionStorage.removeItem("lb_review_return");
++                  if (sessionStorage.getItem("lb_mode") === "review") {
++                    sessionStorage.removeItem("lb_mode");
++                  }
++                  navigate(path, { replace: true });
++                  return;
++                }
++                navigate(endPath, { replace: true });
+               }}
+             >
+               确定
+diff --git a/web/src/pages/AntiForgetting.tsx b/web/src/pages/AntiForgetting.tsx
+index 982301a..973f6dd 100644
+--- a/web/src/pages/AntiForgetting.tsx
++++ b/web/src/pages/AntiForgetting.tsx
+@@ -93,6 +93,7 @@ export default function AntiForgetting() {
+     sessionStorage.setItem("lb_review_wordbook_id", String(task.wordBookId));
+     sessionStorage.setItem("lb_review_wordbook_name", task.vocabularyPack);
+     sessionStorage.setItem("lb_review_date", selectedDate);
++    sessionStorage.setItem("lb_review_return", "/anti-forgetting");
+     navigate(`/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}`);
+   };
+ 
+diff --git a/web/src/pages/ListenIdentify.tsx b/web/src/pages/ListenIdentify.tsx
+index d604573..e64848c 100644
+--- a/web/src/pages/ListenIdentify.tsx
++++ b/web/src/pages/ListenIdentify.tsx
+@@ -68,7 +68,7 @@ export default function ListenIdentify() {
+ 
+   const handleBack = () => {
+     if (window.history.length > 1) navigate(-1);
+-    else navigate(mode === "review" ? getReviewReturnPath("/anti-forgetting") : "/word-practice");
++    else navigate(mode === "review" ? getReviewReturnPath("/word-training") : "/word-practice");
+   };
+ 
+   useEffect(() => {
+diff --git a/web/src/pages/ReviewWordList.tsx b/web/src/pages/ReviewWordList.tsx
+index 4b15b6f..a806a80 100644
+--- a/web/src/pages/ReviewWordList.tsx
++++ b/web/src/pages/ReviewWordList.tsx
+@@ -1,7 +1,7 @@
+ import { useNavigate } from "react-router";
+ import { Volume2, Check, X } from "lucide-react";
+ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+-import { getReviewToday, startReviewSession } from "../api/review";
++import { getReviewToday, startReviewSession, completeReviewSession } from "../api/review";
+ import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
+ import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
+ import {
+@@ -19,7 +19,7 @@ import {
+   type WordViewMode,
+ } from "../components/WordMarkView";
+ import { nextWordTapState } from "../utils/wordReveal";
+-import { beginReviewPractice, type ReviewPracticeWord } from "../utils/reviewPractice";
++import { getReviewReturnPath } from "../utils/reviewPractice";
+ 
+ type ReviewWordItem = {
+   id: number;
+@@ -118,7 +118,7 @@ export default function ReviewWordList() {
+ 
+   const handleBack = () => {
+     if (window.history.length > 1) navigate(-1);
+-    else navigate("/anti-forgetting");
++    else navigate(getReviewReturnPath("/word-training"));
+   };
+ 
+   const handleStatusClick = useCallback((id: number, newStatus: "correct" | "wrong") => {
+@@ -181,7 +181,7 @@ export default function ReviewWordList() {
+       return;
+     }
+     if (markedCount === 0) {
+-      setHint("请至少为一个单词选择 ✓ 或 × 后再开始学习");
++      setHint("请至少为一个单词选择 ✓ 或 × 后再提交");
+       return;
+     }
+     setHint(null);
+@@ -190,43 +190,32 @@ export default function ReviewWordList() {
+       setSubmitting(true);
+       try {
+         const wordIds = markedWords.map((w) => w.id);
+-        const res = await startReviewSession({ wordBookId, wordIds });
+-        const sid = Number(res.data?.sessionId || 0);
++        const startRes = await startReviewSession({ wordBookId, wordIds });
++        const sid = Number(startRes.data?.sessionId || 0);
+         if (!sid) {
++          setHint("无待复习单词，已返回");
++          setSubmitting(false);
+           handleBack();
+           return;
+         }
+ 
+-        const sessionWords = Array.isArray(res.data?.words) ? res.data!.words! : [];
+-        const byId = new Map(
+-          sessionWords.map((w: ReviewPracticeWord) => [Number(w.id), w] as const)
+-        );
+-        const practiceWords: ReviewPracticeWord[] = markedWords.map((w) => {
+-          const full = byId.get(w.id);
+-          return {
+-            id: w.id,
+-            word: w.word,
+-            phonetic: full?.phonetic ? String(full.phonetic) : undefined,
+-            phoneticUk: full?.phoneticUk ? String(full.phoneticUk) : undefined,
+-            phoneticUs: full?.phoneticUs ? String(full.phoneticUs) : undefined,
+-            translation: full?.translation
+-              ? String(full.translation)
+-              : w.translation,
+-            audioUrl: full?.audioUrl
+-              ? String(full.audioUrl)
+-              : w.audioUrl,
+-          };
+-        });
+-
+-        beginReviewPractice({
+-          sessionId: sid,
+-          wordBookId,
+-          words: practiceWords,
+-          returnPath: "/anti-forgetting",
+-        });
+-        navigate("/word-practice", { replace: true });
++        // 直接提交复习结果：✓ = remembered, ✗ = forgot
++        const results = markedWords.map((w) => ({
++          wordId: w.id,
++          remembered: w.status === "correct",
++        }));
++        const res = await completeReviewSession(sid, results);
++        if (res.code !== 200) {
++          throw new Error(res.msg || "提交失败");
++        }
++        const returnPath = getReviewReturnPath("/word-training");
++        sessionStorage.removeItem("lb_review_return");
++        if (sessionStorage.getItem("lb_mode") === "review") {
++          sessionStorage.removeItem("lb_mode");
++        }
++        navigate(returnPath, { replace: true });
+       } catch {
+-        setHint("无法开始学习，请稍后重试");
++        setHint("提交复习结果失败，请稍后重试");
+         setSubmitting(false);
+       }
+     })();
+@@ -262,7 +251,7 @@ export default function ReviewWordList() {
+           <p className="text-[#718096] text-sm">当前共有 {words.length} 个可选单词</p>
+           {words.length === 0 && (
+             <p className="text-xs text-amber-600 mt-1">
+-              该日暂无待复习单词（可能已完成，或列表统计与取词日期不一致，请返回重进或换一天）
++              该日暂无待复习单词
+             </p>
+           )}
+         </div>
+@@ -383,10 +372,10 @@ export default function ReviewWordList() {
+             onClick={handleSubmit}
+             disabled={submitting}
+             loading={submitting}
+-            loadingText="准备中…"
++            loadingText="提交中…"
+             className={`w-full ${markedCount === 0 && words.length > 0 ? "opacity-80" : ""}`}
+           >
+-            开始学习
++            提交复习
+             {markedCount > 0 ? ` (${markedCount})` : ""}
+           </CloudButton>
+           {hint && (
+@@ -394,7 +383,7 @@ export default function ReviewWordList() {
+           )}
+           {!hint && markedCount === 0 && words.length > 0 && (
+             <p className="text-center text-xs text-[#A0AEC0]">
+-              先勾选要复习的词，再进入跟课前检测一样的练习流程
++              勾选 ✓ 认识 / ✗ 忘记，提交后九宫格自动进退
+             </p>
+           )}
+         </div>
+diff --git a/web/src/utils/reviewPractice.ts b/web/src/utils/reviewPractice.ts
+index a0ef76f..66c8e83 100644
+--- a/web/src/utils/reviewPractice.ts
++++ b/web/src/utils/reviewPractice.ts
+@@ -39,7 +39,7 @@ export function beginReviewPractice(opts: {
+   sessionStorage.removeItem("lb_study_recheck_from");
+ }
+ 
+-export function getReviewReturnPath(fallback = "/anti-forgetting") {
++export function getReviewReturnPath(fallback = "/word-training") {
+   return sessionStorage.getItem("lb_review_return") || fallback;
+ }
+ 
+@@ -49,4 +49,8 @@ export function clearReviewPracticeSession() {
+   sessionStorage.removeItem("lb_review_words");
+   sessionStorage.removeItem("lb_review_session_id");
+   sessionStorage.removeItem("lb_review_return");
++  // 结束复习后清掉 review 模式，避免后续页面误判
++  if (sessionStorage.getItem("lb_mode") === "review") {
++    sessionStorage.removeItem("lb_mode");
++  }
+ }
+-- 
+2.55.0.windows.3
+

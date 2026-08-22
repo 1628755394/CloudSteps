@@ -1,9 +1,10 @@
+import { BookOpen, Check, ChevronLeft, ChevronRight, LayoutGrid, List, Volume2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { PRACTICE_TRANS_CLASS, PRACTICE_CARD_WORD_CLASS } from "./PracticeFontSettings";
 import { StudentWordMarkButton, useStudentWordMarks } from "./StudentWordMarkButton";
 import { CloudButton } from "./cloudsteps";
 import { WordDetailPanel } from "./WordDetailPanel";
-import { BookOpen, Check, ChevronLeft, ChevronRight, LayoutGrid, List, Volume2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { StudyNoteLauncher } from "./StudyNotePanel";
 
 export type MarkableWord = {
   id: number;
@@ -130,6 +131,8 @@ type CardProps = {
   amplifyDetail?: boolean;
   /** 只看单词，不显示 ✓ / ✗ */
   hideStatus?: boolean;
+  /** 单词级笔记存储 key 生成器 */
+  noteStorageKey?: (word: MarkableWord) => string;
 };
 
 export function WordCardPanel({
@@ -145,6 +148,7 @@ export function WordCardPanel({
   simpleMode = true,
   amplifyDetail = false,
   hideStatus = false,
+  noteStorageKey,
 }: CardProps) {
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
@@ -252,6 +256,14 @@ export function WordCardPanel({
             busy={wordMarks.busyId === word.id}
             onToggle={wordMarks.toggle}
           />
+          {noteStorageKey && (
+            <StudyNoteLauncher
+              storageKey={noteStorageKey(word)}
+              title={`笔记 · ${word.word}`}
+              label="笔记"
+              className="h-9 px-2"
+            />
+          )}
           <CloudButton type="button" variant="ghost" size="iconRound" className="size-12" onClick={() => onPlay(word)}>
             <Volume2
               size={22}

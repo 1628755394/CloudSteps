@@ -17,6 +17,7 @@ import {
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
 
 import { startReviewSession } from "../api/review";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
@@ -148,7 +149,14 @@ export default function ReviewCheck() {
   };
 
   const handleShuffle = () => {
-    const shuffled = [...words].sort(() => Math.random() - 0.5);
+    const shuffled = [...words];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    if (shuffled.length > 1 && shuffled.every((word, index) => word.id === words[index].id)) {
+      [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+    }
     setWords(shuffled);
   };
 
@@ -209,7 +217,7 @@ export default function ReviewCheck() {
   return (
     <FlowPageShell>
       <TopBar
-        title="开始复习"
+        title="训练检测"
         onBack={handleBack}
         rightSlot={
           <PracticeFlowToolbar
@@ -226,7 +234,7 @@ export default function ReviewCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-4 pb-36 max-w-2xl mx-auto w-full">
+      <div className="px-4 mt-4 pb-36 max-w-2xl lg:max-w-5xl mx-auto w-full">
         {loading && (
           <p className="text-center text-[#718096] py-12">加载中…</p>
         )}
@@ -278,6 +286,7 @@ export default function ReviewCheck() {
                 onStatus={handleStatusClick}
                 amplifyDetail={detailMode}
                 onDetailClose={() => setDetailWord(null)}
+                noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
               />
             ) : (
               <div className="space-y-3 mb-6">
@@ -296,6 +305,14 @@ export default function ReviewCheck() {
                         <span className={PRACTICE_WORD_CLASS}>{word.word}</span>
                       </div>
                       <div className="flex items-center gap-3">
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <StudyNoteLauncher
+                            storageKey={`study-note:word:${wordBookId}:${word.id}`}
+                            title={`笔记 · ${word.word}`}
+                            label="笔记"
+                            className="h-9 px-2"
+                          />
+                        </div>
                         <CloudButton
                           type="button"
                           variant="ghost"
@@ -329,12 +346,14 @@ export default function ReviewCheck() {
                       </div>
                     </div>
                     {detailMode && word.showTranslation && (
-                      <WordDetailPanel
-                        wordId={word.id}
-                        wordText={word.word}
-                        variant="inline"
-                        onClose={() => setDetailWord(null)}
-                      />
+                      <div onClick={(event) => event.stopPropagation()}>
+                        <WordDetailPanel
+                          wordId={word.id}
+                          wordText={word.word}
+                          variant="inline"
+                          onClose={() => setDetailWord(null)}
+                        />
+                      </div>
                     )}
                   </div>
                 ))}
@@ -346,10 +365,14 @@ export default function ReviewCheck() {
 
       {showList && (
         <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-          <div className="max-w-2xl mx-auto w-full">
+          <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+              <StudyNoteLauncher
+                storageKey={`study-note:global:${wordBookId}`}
+                label="随心记"
+              />
               <CloudButton
                 variant={detailMode ? "brand" : "outline"}
                 size="pill"

@@ -1,0 +1,63 @@
+From d4d30113f82b3b237d1c50790ae9b3e76658aba0 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E9=99=88=E6=9D=B0?= <17793426456@163.com>
+Date: Mon, 17 Aug 2026 15:26:59 +0800
+Subject: [PATCH 21/30] =?UTF-8?q?=E4=B9=9D=E5=AE=AB=E6=A0=BC:=20=E6=97=A0?=
+ =?UTF-8?q?=E8=AF=8D=E6=9D=A1=E6=89=87=E5=8C=BA=E4=BF=9D=E6=8C=81=E5=8E=9F?=
+ =?UTF-8?q?=E8=89=B2=E4=B8=8D=E5=8F=98=E6=B7=A1,=20=E6=94=BE=E5=A4=A7?=
+ =?UTF-8?q?=E5=A4=96=E5=9C=88=E7=BC=96=E5=8F=B7=E4=B8=8E=E8=8B=B1=E6=96=87?=
+ =?UTF-8?q?,=20=E7=AE=80=E5=8C=96tooltip?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+1. 移除0值扇区的opacity:0.3弱化效果，所有阶段(含无词条)保持原本颜色全亮显示；2. 外圈阶段编号字号15->18px(移动端11->14px)，英文名10->12px(移动端7->9px)；3. tooltip移除'该阶段暂无词条'特殊文案，统一显示'词条数量：N'。
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+---
+ web/src/components/MemoryLighthouse.tsx | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/web/src/components/MemoryLighthouse.tsx b/web/src/components/MemoryLighthouse.tsx
+index 06c55ef..77e4da0 100644
+--- a/web/src/components/MemoryLighthouse.tsx
++++ b/web/src/components/MemoryLighthouse.tsx
+@@ -108,8 +108,6 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+         realValue: rawData[idx].realValue,
+         itemStyle: {
+           color: stage.color,
+-          // 0 值弱化：保留结构，透明度 0.3
+-          opacity: rawData[idx].realValue > 0 ? 1 : 0.3,
+           borderColor: "#ffffff",
+           // 01、09 业务首尾节点分割线加粗
+           borderWidth: stage.keyNode ? 2.5 : 2,
+@@ -128,9 +126,6 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+           // tooltip 读取自定义 realValue
+           formatter: (params: any) => {
+             const realVal = params.data?.realValue ?? 0;
+-            if (realVal === 0) {
+-              return `${params.name}<br/>该阶段暂无词条`;
+-            }
+             return `${params.name}<br/>词条数量：${realVal}`;
+           },
+         },
+@@ -330,13 +325,13 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps)
+                 {/* 阶段编号与英文名，颜色与对应扇区颜色一致（1:1 对齐原型图） */}
+                 <div
+                   className="font-bold leading-none whitespace-nowrap"
+-                  style={{ color: stage.color, fontSize: isMobile ? 11 : 15 }}
++                  style={{ color: stage.color, fontSize: isMobile ? 14 : 18 }}
+                 >
+                   {stage.num}
+                 </div>
+                 <div
+                   className="leading-none whitespace-nowrap"
+-                  style={{ color: stage.color, opacity: 0.85, fontSize: isMobile ? 7 : 10, marginTop: 2 }}
++                  style={{ color: stage.color, opacity: 0.85, fontSize: isMobile ? 9 : 12, marginTop: 3 }}
+                 >
+                   {stage.en}
+                 </div>
+-- 
+2.55.0.windows.3
+

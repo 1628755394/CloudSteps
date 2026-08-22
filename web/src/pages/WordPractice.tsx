@@ -10,6 +10,7 @@ import { TopBar } from "../components/TopBar";
 import { StudentWordMarkButton, useStudentWordMarks } from "../components/StudentWordMarkButton";
 import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
@@ -62,6 +63,7 @@ export default function WordPractice() {
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
+  const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
   const wordMarks = useStudentWordMarks(wordIds);
 
@@ -266,7 +268,7 @@ export default function WordPractice() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6 max-w-2xl mx-auto w-full pb-28">
+      <div className="px-4 mt-6 max-w-2xl lg:max-w-5xl mx-auto w-full pb-28">
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {viewMode === "card" && cardWord ? (
@@ -380,6 +382,14 @@ export default function WordPractice() {
                   </div>
                   {!manualReadMode && (
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <StudyNoteLauncher
+                          storageKey={wordNoteKey(word.id)}
+                          title={`笔记 · ${word.word}`}
+                          label="笔记"
+                          className="h-9 px-2"
+                        />
+                      </div>
                       <StudentWordMarkButton
                         wordId={word.id}
                         wordBookId={wordBookId}
@@ -425,7 +435,7 @@ export default function WordPractice() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-2xl mx-auto w-full flex items-center justify-between gap-2">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
           <div className="flex gap-2 flex-wrap">
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
@@ -457,10 +467,18 @@ export default function WordPractice() {
               <BookOpen size={16} />
               拓展
             </CloudButton>
+            <StudyNoteLauncher
+              storageKey={`study-note:global:${wordBookId}`}
+              label="随心记"
+              className="shrink-0"
+            />
           </div>
-          <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-16 shrink-0" aria-hidden="true" />
+            <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
             <ArrowRight size={24} />
           </CloudButton>
+          </div>
         </div>
       </div>
     </FlowPageShell>

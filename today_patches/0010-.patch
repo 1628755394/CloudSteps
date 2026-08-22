@@ -1,0 +1,76 @@
+From 39b16ff949424c375f72f80459e7723dd725d0bd Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=E9=99=88=E6=9D=B0?= <17793426456@163.com>
+Date: Mon, 17 Aug 2026 13:50:01 +0800
+Subject: [PATCH 10/30] =?UTF-8?q?=E7=A7=BB=E9=99=A4=E5=8D=95=E8=AF=8D?=
+ =?UTF-8?q?=E8=AE=AD=E7=BB=83=E9=A1=B5=E7=9A=84=E6=99=BA=E8=83=BD=E8=AE=B0?=
+ =?UTF-8?q?=E5=BF=86=E7=81=AF=E5=A1=94=E5=8D=A1=E7=89=87?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+从 WordTraining 页面删除「智能记忆灯塔」整块卡片（标题、说明文字、MemoryLighthouse 组件调用及相关 import），为后续九宫格重做让路。
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+---
+ web/src/pages/WordTraining.tsx | 34 +---------------------------------
+ 1 file changed, 1 insertion(+), 33 deletions(-)
+
+diff --git a/web/src/pages/WordTraining.tsx b/web/src/pages/WordTraining.tsx
+index 37252ca..ac29375 100644
+--- a/web/src/pages/WordTraining.tsx
++++ b/web/src/pages/WordTraining.tsx
+@@ -1,11 +1,9 @@
+-import { Lightbulb, ArrowRight } from "lucide-react";
++import { ArrowRight } from "lucide-react";
+ import { useNavigate } from "react-router";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import { CloudButton } from "../components/cloudsteps";
+ import { CloudSelect } from "../components/cloudsteps/arco";
+ import { FlowPageShell } from "../components/PageTransition";
+-import { MemoryLighthouse, type MemoryLighthouseData } from "../components/MemoryLighthouse";
+-
+ import { TopBar } from "../components/TopBar";
+ import { useAuthStore } from "../stores/authStore";
+ import {
+@@ -381,36 +379,6 @@ export default function WordTraining() {
+           </div>
+         </div>
+ 
+-        <div className="bg-white rounded-xl p-4 shadow-sm">
+-          <div className="flex flex-col items-center gap-1 mb-3">
+-            <div className="flex items-center justify-center gap-2">
+-              <Lightbulb className="text-[#FFD700]" size={22} />
+-              <h3 className="text-base font-semibold text-[#2D3748]">智能记忆灯塔</h3>
+-            </div>
+-            <p className="text-[11px] text-[#A0AEC0] text-center px-2">
+-              01 待学，02–08 复习阶段，09 已掌握
+-            </p>
+-          </div>
+-
+-          <MemoryLighthouse
+-            data={{
+-              boxes: memoryData.map((d) => ({ count: d.count })),
+-              mastered: masteredCount,
+-              unlearned: pendingCount,
+-              total: memoryData.reduce((sum, d) => sum + d.count, 0) + masteredCount + pendingCount,
+-            } as MemoryLighthouseData}
+-            onBlockClick={(type, _wordNum, tips) => {
+-              const stepMap: Record<string, string> = {
+-                BOX_0: "01", BOX_1: "02", BOX_2: "03", BOX_3: "04",
+-                BOX_4: "05", BOX_5: "06", BOX_6: "07",
+-                BOX_7: "mastered", UNLEARNED: "pending",
+-              };
+-              const step = stepMap[type] || tips;
+-              navigate(`/lighthouse-words?step=${step}`);
+-            }}
+-          />
+-        </div>
+-
+         <div className="flex gap-3 pt-1">
+           <CloudButton
+             variant="brandOutline"
+-- 
+2.55.0.windows.3
+

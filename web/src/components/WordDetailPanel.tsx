@@ -223,16 +223,30 @@ export function WordDetailPanel({
   );
 
   if (variant === "tags") {
-    return <div className="w-full">{tagsBlock}</div>;
+    return (
+      <div className="w-full" onClick={(event) => event.stopPropagation()}>
+        {tagsBlock}
+      </div>
+    );
   }
 
   if (variant === "inline") {
     // inline 只出拓展标签，音标/释义由父级卡片展示，避免拓展开关后重复叠两层
-    return <div className="w-full pt-2 mt-2 border-t border-[#F1F5F9]">{tagsBlock}</div>;
+    return (
+      <div
+        className="w-full pt-2 mt-2 border-t border-[#F1F5F9]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {tagsBlock}
+      </div>
+    );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden">
+    <div
+      className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden"
+      onClick={(event) => event.stopPropagation()}
+    >
       <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
