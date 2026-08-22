@@ -1,3 +1,4 @@
+// StudyNotePanel: 学习笔记面板（画板 + 文本 + 持久化）
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
