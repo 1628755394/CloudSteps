@@ -58,21 +58,21 @@ export default function MaterialSelection() {
           为你设计有针对性的资料，迅速提高水平
         </Typography.Paragraph>
 
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1.5">
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2.5">
           {materials.map((material) => (
             <button
               key={material.id}
               type="button"
               disabled={!material.enabled}
               onClick={() => handleMaterialClick(material)}
-              className={`w-full shrink-0 px-3.5 py-4 rounded-xl border-2 text-left transition-all flex items-center justify-between gap-2 ${
+              className={`w-full shrink-0 px-4 py-5 rounded-xl border-2 text-left transition-all flex items-center justify-between gap-3 min-h-[3.75rem] ${
                 material.enabled
                   ? "bg-white border-[#66BB6A] cursor-pointer hover:shadow-sm active:scale-[0.99]"
                   : "bg-gray-100 border-gray-200 cursor-not-allowed opacity-55"
               }`}
             >
               <span
-                className={`text-sm font-medium ${
+                className={`text-sm font-medium leading-relaxed ${
                   material.enabled ? "text-[#2D3748]" : "text-[#A0AEC0]"
                 }`}
               >
@@ -80,8 +80,8 @@ export default function MaterialSelection() {
               </span>
               {material.enabled && (
                 <IconCheckCircle
-                  className="shrink-0"
-                  style={{ fontSize: 16, color: "#66BB6A" }}
+                  className="shrink-0 self-center"
+                  style={{ fontSize: 18, color: "#66BB6A" }}
                 />
               )}
             </button>
