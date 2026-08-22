@@ -238,8 +238,12 @@ func (j *wordBookBatchAudioJob) finish(status, errMsg string) {
 // adminListWordBookBatchAudioJobs GET /wordbooks/batch-audio/jobs
 // 一次返回所有排队/运行中的词库批量 TTS 任务，供列表页轮询（避免对每本书各打一次状态接口）。
 func (h *Handlers) adminListWordBookBatchAudioJobs(c *gin.Context) {
+	reqCtx := c.Request.Context()
 	jobs := make([]gin.H, 0, 8)
 	wordBookBatchAudioJobs.Range(func(_, value any) bool {
+		if reqCtx.Err() != nil {
+			return false
+		}
 		job, ok := value.(*wordBookBatchAudioJob)
 		if !ok || job == nil {
 			return true
@@ -257,7 +261,7 @@ func (h *Handlers) adminListWordBookBatchAudioJobs(c *gin.Context) {
 			snap["queueWorkers"] = workers
 			if q != nil {
 				if taskID, _ := snap["taskId"].(string); taskID != "" {
-					if pos, err := q.Position(context.Background(), taskID); err == nil && pos >= 0 {
+					if pos, err := q.Position(reqCtx, taskID); err == nil && pos >= 0 {
 						snap["queuePosition"] = pos
 					}
 				}
@@ -266,6 +270,10 @@ func (h *Handlers) adminListWordBookBatchAudioJobs(c *gin.Context) {
 		jobs = append(jobs, snap)
 		return true
 	})
+
+	if reqCtx.Err() != nil {
+		return
+	}
 
 	wordBookBatchAudioQueueMu.Lock()
 	workers := wordBookBatchAudioWorkers
@@ -277,7 +285,7 @@ func (h *Handlers) adminListWordBookBatchAudioJobs(c *gin.Context) {
 		"queueWorkers": workers,
 	}
 	if q != nil {
-		if stats, err := q.Stats(context.Background()); err == nil {
+		if stats, err := q.Stats(reqCtx); err == nil {
 			out["queuePending"] = stats.Pending
 			out["queueRunning"] = stats.Running
 		}

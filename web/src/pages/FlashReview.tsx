@@ -1,6 +1,6 @@
 import { CloudButton } from "../components/cloudsteps";
 import { AnnotationLayer } from "../components/AnnotationLayer";
-import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS, PRACTICE_CARD_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { TopBar } from "../components/TopBar";
 import { WordDetailPanel } from "../components/WordDetailPanel";
@@ -321,89 +321,93 @@ export default function FlashReview() {
         </p>
 
         {viewMode === "card" && visibleWords.length > 0 ? (
-          <div className="flex flex-col items-center gap-5 py-2">
-            <div className="flex items-center gap-3 w-full">
-              <CloudButton
-                type="button"
-                variant="ghost"
-                size="iconRound"
-                disabled={cardIndex <= 0}
-                onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
-                className="shrink-0 bg-muted disabled:opacity-40"
-              >
-                <ChevronLeft size={22} />
-              </CloudButton>
-              <div
-                className={`flex-1 rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${markWordCardClass(
+          <div className="flex w-full flex-col gap-3">
+            <div
+              className={`relative flex w-full flex-col overflow-hidden rounded-2xl shadow-sm transition-colors ${markWordCardClass(
+                null,
+                isWordCardTapped(visibleWords[cardIndex], playingId, visibleWords[cardIndex].id)
+              )}`}
+              style={{
+                ...markWordCardStyle(
                   null,
-                  isWordCardTapped(
-                    visibleWords[cardIndex],
-                    playingId,
-                    visibleWords[cardIndex].id
-                  )
-                )}`}
-                style={{
-                  ...markWordCardStyle(
-                    null,
-                    isWordCardTapped(
-                      visibleWords[cardIndex],
-                      playingId,
-                      visibleWords[cardIndex].id
-                    )
-                  ),
-                  minHeight: "max(8rem, calc(var(--practice-word-size) * 6))",
-                }}
-                onClick={() => handleWordTap(visibleWords[cardIndex])}
-              >
-                <p className="text-xs text-[#718096] mb-4">
-                  {cardIndex + 1} / {visibleWords.length}
-                </p>
-                <div className={`${PRACTICE_WORD_CLASS} text-center break-all`}>
-                  {visibleWords[cardIndex].word}
-                </div>
-                {renderMeaning(visibleWords[cardIndex], { centered: true })}
+                  isWordCardTapped(visibleWords[cardIndex], playingId, visibleWords[cardIndex].id)
+                ),
+                minHeight: "min(62vh, calc(100dvh - 13.5rem))",
+              }}
+            >
+              <p className="pointer-events-none absolute left-0 right-0 top-4 z-10 text-center text-xs text-[#718096]">
+                {cardIndex + 1} / {visibleWords.length}
+              </p>
+              <div className="relative flex min-h-0 flex-1 items-center justify-center px-2">
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  disabled={cardIndex <= 0}
+                  onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
+                  className="absolute left-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
+                >
+                  <ChevronLeft size={24} />
+                </CloudButton>
+                <button
+                  type="button"
+                  className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center"
+                  onClick={() => handleWordTap(visibleWords[cardIndex])}
+                >
+                  <div className={PRACTICE_CARD_WORD_CLASS}>
+                    {visibleWords[cardIndex].word}
+                  </div>
+                  {renderMeaning(visibleWords[cardIndex], { centered: true })}
+                </button>
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  disabled={cardIndex >= visibleWords.length - 1}
+                  onClick={() => setCardIndex((i) => Math.min(visibleWords.length - 1, i + 1))}
+                  className="absolute right-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
+                >
+                  <ChevronRight size={24} />
+                </CloudButton>
               </div>
-              <CloudButton
-                type="button"
-                variant="ghost"
-                size="iconRound"
-                disabled={cardIndex >= visibleWords.length - 1}
-                onClick={() => setCardIndex((i) => Math.min(visibleWords.length - 1, i + 1))}
-                className="shrink-0 bg-muted disabled:opacity-40"
-              >
-                <ChevronRight size={22} />
-              </CloudButton>
-            </div>
-            <div className="flex items-center gap-3">
-              <CloudButton
-                type="button"
-                variant="ghost"
-                size="iconRound"
-                onClick={() => handlePlayAudio(visibleWords[cardIndex])}
-              >
-                <Volume2
-                  size={20}
-                  className={playingId === visibleWords[cardIndex].id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
-                />
-              </CloudButton>
-              <CloudButton
-                type="button"
-                variant="ghost"
-                size="iconRound"
-                onClick={() => handleScissorClick(visibleWords[cardIndex], "red")}
-                title="红剪：不熟，重新排队"
-              >
-                <Scissors size={20} className="text-[#FF6B6B]" />
-              </CloudButton>
-              <CloudButton
-                type="button"
-                variant="ghost"
-                size="iconRound"
-                onClick={() => handleScissorClick(visibleWords[cardIndex], "green")}
-                title="青剪：掌握"
-              >
-                <Scissors size={20} className="text-[#4ECDC4]" />
-              </CloudButton>
+              <div className="flex items-center justify-center gap-4 border-t border-border/60 px-4 py-4">
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  className="size-12"
+                  onClick={() => handlePlayAudio(visibleWords[cardIndex])}
+                >
+                  <Volume2
+                    size={22}
+                    className={
+                      playingId === visibleWords[cardIndex].id
+                        ? "text-[#4ECDC4] animate-pulse"
+                        : "text-[#4ECDC4]"
+                    }
+                  />
+                </CloudButton>
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  className="size-12"
+                  onClick={() => handleScissorClick(visibleWords[cardIndex], "red")}
+                  title="红剪：不熟，重新排队"
+                >
+                  <Scissors size={22} className="text-[#FF6B6B]" />
+                </CloudButton>
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  className="size-12"
+                  onClick={() => handleScissorClick(visibleWords[cardIndex], "green")}
+                  title="青剪：掌握"
+                >
+                  <Scissors size={22} className="text-[#4ECDC4]" />
+                </CloudButton>
+              </div>
             </div>
             {detailMode && visibleWords[cardIndex]?.showTranslation && (
               <div className="w-full">

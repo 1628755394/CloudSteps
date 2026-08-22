@@ -305,8 +305,8 @@ func ValidateEmail(email string) bool {
 
 // ValidatePassword 验证密码强度
 func ValidatePassword(password string) error {
-	if len(password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters long")
+	if len(password) < 6 {
+		return fmt.Errorf("password must be at least 6 characters long")
 	}
 
 	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)

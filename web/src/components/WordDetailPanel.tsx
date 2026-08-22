@@ -5,6 +5,7 @@ import { getWordDetail, type WordDetail } from "../api/wordbooks";
 import { formatTranslation, formatTranslationShort, withPartOfSpeech } from "../utils/wordFormat";
 import { playWordAudio } from "../utils/audioPlayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
+import { PhonicsAudioPanel } from "./PhonicsAudioPanel";
 
 function parseJSON<T>(raw?: string | null): T | null {
   if (!raw || raw === "[]" || raw === "") return null;
@@ -177,6 +178,12 @@ export function WordDetailPanel({
         <p className="px-3 pb-4 text-center text-sm text-muted-foreground">暂无数据</p>
       ) : (
         <>
+          <PhonicsAudioPanel
+            word={word}
+            syllables={detail.syllables}
+            phonetic={phonetic}
+            audioUrl={detail.audioUrl}
+          />
           <div className="flex items-start gap-2 px-1 pb-1">
             {tabs.length > 0 ? (
               <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">

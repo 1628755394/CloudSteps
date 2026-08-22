@@ -28,6 +28,7 @@ export interface EmailRegisterForm extends CaptchaFields {
   userName: string
   displayName: string
   code: string
+  username?: string
   firstName?: string
   lastName?: string
   locale?: string
@@ -136,6 +137,7 @@ export interface User {
   id?: string | number
   ID?: number
   email: string
+  account?: string
   displayName?: string
   firstName?: string
   lastName?: string
@@ -204,6 +206,7 @@ export interface UserActivityResponse {
 
 export interface UpdateUserRequest {
   email?: string
+  account?: string
   phone?: string
   firstName?: string
   lastName?: string
@@ -234,7 +237,20 @@ export const registerUser = async (data: RegisterUserForm): Promise<ApiResponse<
 
 // 邮箱验证码注册
 export const registerUserByEmail = async (data: EmailRegisterForm): Promise<ApiResponse<RegisterResponseData>> => {
-  return post<RegisterResponseData>('/auth/register/email', data)
+  const email = data.email.trim()
+  return post<RegisterResponseData>('/auth/register/email', {
+    username: email,
+    email,
+    userName: data.userName || email,
+    displayName: data.displayName || email.split('@')[0],
+    password: data.password,
+    code: data.code,
+    timezone: data.timezone,
+    captchaId: data.captchaId,
+    captchaType: data.captchaType,
+    captchaValue: data.captchaValue,
+    source: data.source || 'web',
+  })
 }
 
 // 发送邮箱验证码
@@ -249,12 +265,25 @@ export const loginUser = async (data: LoginForm): Promise<ApiResponse<LoginRespo
 
 // 密码登录
 export const loginWithPassword = async (data: PasswordLoginForm): Promise<ApiResponse<LoginResponseData>> => {
-  return post<LoginResponseData>('/auth/login/password', data)
+  return post<LoginResponseData>('/auth/login/password', {
+    ...data,
+    username: data.email,
+  })
 }
 
 // 邮箱验证码登录
 export const loginWithEmailCode = async (data: EmailCodeLoginForm): Promise<ApiResponse<LoginResponseData>> => {
-  return post<LoginResponseData>('/auth/login/email', data)
+  return post<LoginResponseData>('/auth/login/email', {
+    email: data.email,
+    username: data.email,
+    code: data.code,
+    timezone: data.timezone,
+    remember: data.remember,
+    authToken: true,
+    captchaId: data.captchaId,
+    captchaType: data.captchaType,
+    captchaValue: data.captchaValue,
+  })
 }
 
 // 发送设备验证码
@@ -352,4 +381,14 @@ export const forgotPassword = async (email: string): Promise<ApiResponse<null>> 
 // 重置密码确认
 export const resetPasswordConfirm = async (token: string, password: string): Promise<ApiResponse<null>> => {
   return post<null>('/auth/reset-password/confirm', { token, password })
+}
+
+// 发送绑定邮箱验证码
+export const sendBindEmailCode = async (email: string): Promise<ApiResponse<null>> => {
+  return post<null>('/auth/send/bind-email', { email: email.trim() })
+}
+
+// 绑定/换绑邮箱
+export const bindEmail = async (email: string, code: string): Promise<ApiResponse<{ email: string }>> => {
+  return post<{ email: string }>('/auth/bind-email', { email: email.trim(), code: code.trim() })
 }

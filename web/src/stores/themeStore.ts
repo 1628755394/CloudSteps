@@ -3,16 +3,11 @@ import { persist } from "zustand/middleware";
 
 export type ThemeMode = "light" | "dark" | "system";
 
-/** 主题色预设 */
-export type AccentColor =
-  | "mint"
-  | "sky"
-  | "violet"
-  | "coral"
-  | "amber"
-  | "rose"
-  | "indigo"
-  | "forest";
+/** 主题色预设键名 */
+export type AccentPresetKey = "mint" | "sky" | "violet" | "coral" | "white";
+
+/** 主题色来源：预设键 或 自定义 hex */
+export type AccentColor = AccentPresetKey | "custom";
 
 /**
  * 应用壳布局（真正的导航结构切换，不是宽度微调）
@@ -33,16 +28,15 @@ type SurfaceTone = {
   surfaceSoft: string;
 };
 
-export const ACCENT_PRESETS: Record<
-  AccentColor,
-  {
-    label: string;
-    hex: string;
-    deep: string;
-    light: SurfaceTone;
-    dark: SurfaceTone;
-  }
-> = {
+type AccentPreset = {
+  label: string;
+  hex: string;
+  deep: string;
+  light: SurfaceTone;
+  dark: SurfaceTone;
+};
+
+export const ACCENT_PRESETS: Record<AccentPresetKey, AccentPreset> = {
   mint: {
     label: "薄荷绿",
     hex: "#4ECDC4",
@@ -143,104 +137,29 @@ export const ACCENT_PRESETS: Record<
       surfaceSoft: "#221919",
     },
   },
-  amber: {
-    label: "琥珀黄",
-    hex: "#F6B042",
-    deep: "#E09828",
+  white: {
+    label: "经典白",
+    hex: "#6B7280",
+    deep: "#4B5563",
     light: {
-      background: "#fbf7f0",
+      background: "#ffffff",
       card: "#ffffff",
-      muted: "#f5ecdc",
-      accent: "#f8f0e0",
-      tint: "#f3e4c8",
-      sidebar: "#f8f3ea",
-      border: "#eadcbf",
-      surfaceSoft: "#fdfaf5",
+      muted: "#f5f5f5",
+      accent: "#f0f0f0",
+      tint: "#eaeaea",
+      sidebar: "#ffffff",
+      border: "#e5e5e5",
+      surfaceSoft: "#fafafa",
     },
     dark: {
-      background: "#1a1712",
-      card: "#262218",
-      muted: "#353022",
-      accent: "#3a3220",
-      tint: "#3a3220",
-      sidebar: "#1d1a14",
-      border: "#453d2c",
-      surfaceSoft: "#201c16",
-    },
-  },
-  rose: {
-    label: "玫粉",
-    hex: "#E8718E",
-    deep: "#D45C78",
-    light: {
-      background: "#fcf4f6",
-      card: "#ffffff",
-      muted: "#f7e8ec",
-      accent: "#fce8ee",
-      tint: "#f8d9e2",
-      sidebar: "#faf0f3",
-      border: "#efd3db",
-      surfaceSoft: "#fdf8f9",
-    },
-    dark: {
-      background: "#1c1418",
-      card: "#281c22",
-      muted: "#382830",
-      accent: "#3a2430",
-      tint: "#3a2430",
-      sidebar: "#1f171b",
-      border: "#4a3340",
-      surfaceSoft: "#22181c",
-    },
-  },
-  indigo: {
-    label: "靛蓝",
-    hex: "#5B8DEF",
-    deep: "#4578D9",
-    light: {
-      background: "#f3f6fc",
-      card: "#ffffff",
-      muted: "#e7edf8",
-      accent: "#e6ecfa",
-      tint: "#d8e2f6",
-      sidebar: "#eef2fa",
-      border: "#d2dcf0",
-      surfaceSoft: "#f7f9fd",
-    },
-    dark: {
-      background: "#131720",
-      card: "#1b2130",
-      muted: "#242e44",
-      accent: "#1e2740",
-      tint: "#1e2740",
-      sidebar: "#151a26",
-      border: "#2c3650",
-      surfaceSoft: "#181d2a",
-    },
-  },
-  forest: {
-    label: "森绿",
-    hex: "#3DAB7A",
-    deep: "#2F9468",
-    light: {
-      background: "#f2f8f4",
-      card: "#ffffff",
-      muted: "#e4f0e8",
-      accent: "#e2f2e9",
-      tint: "#d2e8db",
-      sidebar: "#eaf4ee",
-      border: "#cfe0d5",
-      surfaceSoft: "#f6fbf8",
-    },
-    dark: {
-      background: "#131a16",
-      card: "#1c2620",
-      muted: "#25342b",
-      accent: "#1e3328",
-      tint: "#1e3328",
-      sidebar: "#161e19",
-      border: "#2e3f35",
-      surfaceSoft: "#19221c",
+      background: "#0f0f0f",
+      card: "#1a1a1a",
+      muted: "#262626",
+      accent: "#222222",
+      tint: "#222222",
+      sidebar: "#121212",
+      border: "#333333",
+      surfaceSoft: "#161616",
     },
   },
 };
@@ -261,9 +180,11 @@ interface ThemeState {
   mode: ThemeMode;
   isDark: boolean;
   accent: AccentColor;
+  customHex: string; // 自定义颜色 hex，当 accent === "custom" 时使用
   layout: LayoutMode;
   setMode: (mode: ThemeMode) => void;
   setAccent: (accent: AccentColor) => void;
+  setCustomHex: (hex: string) => void;
   setLayout: (layout: LayoutMode) => void;
   toggleMode: () => void;
 }
@@ -284,16 +205,51 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/** 把任意 hex 颜色稍微调深，用于 --primary-deep */
+function darkenHex(hex: string, factor = 0.85): string {
+  const h = hex.replace("#", "");
+  const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  const r = Math.round(((n >> 16) & 255) * factor);
+  const g = Math.round(((n >> 8) & 255) * factor);
+  const b = Math.round((n & 255) * factor);
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
 function normalizeLayout(raw: unknown): LayoutMode {
   if (raw === "top" || raw === "bottom" || raw === "sidebar") return raw;
   // 兼容旧版 default/compact/wide
   return "sidebar";
 }
 
+/** 兼容旧版 accent 值（amber/rose/indigo/forest）→ 映射到新预设 */
+function normalizeAccent(raw: unknown): AccentColor {
+  if (raw === "mint" || raw === "sky" || raw === "violet" || raw === "coral" || raw === "white" || raw === "custom") {
+    return raw;
+  }
+  // 旧版预设映射到最接近的新预设
+  return "mint";
+}
+
+/** 解析当前主题色对应的 hex + deep + surface tone */
+function resolveAccentTone(accent: AccentColor, customHex: string, isDark: boolean) {
+  if (accent === "custom") {
+    const hex = customHex || "#6B7280";
+    const deep = darkenHex(hex, 0.85);
+    // 自定义颜色使用中性灰表面
+    const tone: SurfaceTone = isDark
+      ? { background: "#0f0f0f", card: "#1a1a1a", muted: "#262626", accent: "#222222", tint: "#222222", sidebar: "#121212", border: "#333333", surfaceSoft: "#161616" }
+      : { background: "#ffffff", card: "#ffffff", muted: "#f5f5f5", accent: "#f0f0f0", tint: "#eaeaea", sidebar: "#ffffff", border: "#e5e5e5", surfaceSoft: "#fafafa" };
+    return { hex, deep, tone };
+  }
+  const preset = ACCENT_PRESETS[accent] ?? ACCENT_PRESETS.mint;
+  return { hex: preset.hex, deep: preset.deep, tone: isDark ? preset.dark : preset.light };
+}
+
 function applyAppearance(opts: {
   mode: ThemeMode;
   isDark: boolean;
   accent: AccentColor;
+  customHex: string;
   layout: LayoutMode;
 }) {
   const root = document.documentElement;
@@ -302,16 +258,15 @@ function applyAppearance(opts: {
   root.dataset.accent = opts.accent;
   root.dataset.layout = opts.layout;
 
-  const preset = ACCENT_PRESETS[opts.accent] ?? ACCENT_PRESETS.mint;
-  const tone = opts.isDark ? preset.dark : preset.light;
+  const { hex, deep, tone } = resolveAccentTone(opts.accent, opts.customHex, opts.isDark);
 
-  root.style.setProperty("--primary", preset.hex);
-  root.style.setProperty("--primary-deep", preset.deep);
-  root.style.setProperty("--primary-soft", hexToRgba(preset.hex, opts.isDark ? 0.2 : 0.14));
-  root.style.setProperty("--ring", hexToRgba(preset.hex, opts.isDark ? 0.5 : 0.4));
-  root.style.setProperty("--sidebar-primary", preset.hex);
-  root.style.setProperty("--sidebar-ring", hexToRgba(preset.hex, opts.isDark ? 0.5 : 0.4));
-  root.style.setProperty("--chart-1", preset.hex);
+  root.style.setProperty("--primary", hex);
+  root.style.setProperty("--primary-deep", deep);
+  root.style.setProperty("--primary-soft", hexToRgba(hex, opts.isDark ? 0.2 : 0.14));
+  root.style.setProperty("--ring", hexToRgba(hex, opts.isDark ? 0.5 : 0.4));
+  root.style.setProperty("--sidebar-primary", hex);
+  root.style.setProperty("--sidebar-ring", hexToRgba(hex, opts.isDark ? 0.5 : 0.4));
+  root.style.setProperty("--chart-1", hex);
   root.style.setProperty("--primary-foreground", opts.isDark ? "#0a0a0a" : "#ffffff");
   root.style.setProperty("--sidebar-primary-foreground", opts.isDark ? "#0a0a0a" : "#ffffff");
 
@@ -342,25 +297,34 @@ export const useThemeStore = create<ThemeState>()(
       mode: "light",
       isDark: false,
       accent: "mint",
+      customHex: "#6B7280",
       layout: "sidebar",
 
       setMode: (mode) => {
         const isDark = resolveIsDark(mode);
-        const { accent, layout } = get();
-        applyAppearance({ mode, isDark, accent, layout });
+        const { accent, customHex, layout } = get();
+        applyAppearance({ mode, isDark, accent, customHex, layout });
         set({ mode, isDark });
       },
 
       setAccent: (accent) => {
-        const { mode, isDark, layout } = get();
-        applyAppearance({ mode, isDark, accent, layout });
+        const { mode, isDark, customHex, layout } = get();
+        applyAppearance({ mode, isDark, accent, customHex, layout });
         set({ accent });
+      },
+
+      setCustomHex: (hex) => {
+        const { mode, isDark, accent, layout } = get();
+        // 设置自定义颜色时自动切换到 custom
+        const nextAccent: AccentColor = "custom";
+        applyAppearance({ mode, isDark, accent: nextAccent, customHex: hex, layout });
+        set({ accent: nextAccent, customHex: hex });
       },
 
       setLayout: (layout) => {
         const next = normalizeLayout(layout);
-        const { mode, isDark, accent } = get();
-        applyAppearance({ mode, isDark, accent, layout: next });
+        const { mode, isDark, accent, customHex } = get();
+        applyAppearance({ mode, isDark, accent, customHex, layout: next });
         set({ layout: next });
       },
 
@@ -376,10 +340,12 @@ export const useThemeStore = create<ThemeState>()(
         const isDark = resolveIsDark(state.mode);
         state.isDark = isDark;
         state.layout = normalizeLayout(state.layout);
+        state.accent = normalizeAccent(state.accent);
         applyAppearance({
           mode: state.mode,
           isDark,
-          accent: state.accent ?? "mint",
+          accent: state.accent,
+          customHex: state.customHex ?? "#6B7280",
           layout: state.layout,
         });
       },
@@ -399,6 +365,7 @@ export function bindSystemThemeListener() {
 }
 
 export function getAccentHex(): string {
-  const accent = useThemeStore.getState().accent ?? "mint";
-  return ACCENT_PRESETS[accent]?.hex ?? ACCENT_PRESETS.mint.hex;
+  const state = useThemeStore.getState();
+  if (state.accent === "custom") return state.customHex || "#6B7280";
+  return ACCENT_PRESETS[state.accent]?.hex ?? ACCENT_PRESETS.mint.hex;
 }

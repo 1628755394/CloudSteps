@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
 import { BookOpen, Check, ChevronLeft, ChevronRight, LayoutGrid, List, Volume2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { PRACTICE_TRANS_CLASS, PRACTICE_CARD_WORD_CLASS } from "./PracticeFontSettings";
+import { StudentWordMarkButton, useStudentWordMarks } from "./StudentWordMarkButton";
 import { CloudButton } from "./cloudsteps";
 import { WordDetailPanel } from "./WordDetailPanel";
 import { StudyNoteLauncher } from "./StudyNotePanel";
-import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
 
 export type MarkableWord = {
   id: number;
@@ -152,6 +153,15 @@ export function WordCardPanel({
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
   const [localDetail, setLocalDetail] = useState(false);
+  const wordIds = useMemo(() => words.map((w) => w.id), [words]);
+  const wordMarks = useStudentWordMarks(wordIds);
+  const wordBookId = useMemo(() => {
+    try {
+      return Number(sessionStorage.getItem("lb_wordbook_id") || 0);
+    } catch {
+      return 0;
+    }
+  }, []);
 
   const detailControlled = detailWordId !== undefined;
   const detailOpen = amplifyDetail
@@ -171,117 +181,141 @@ export function WordCardPanel({
     );
   }
 
-  return (
-    <div className="flex flex-col items-center gap-5 py-4">
-      <div className="flex items-center gap-3 w-full max-w-2xl lg:max-w-4xl">
-        <CloudButton
-          type="button"
-          variant="ghost"
-          size="iconRound"
-          disabled={safeIndex <= 0}
-          onClick={() => onIndexChange(safeIndex - 1)}
-          aria-label="上一个"
-          className="shrink-0 bg-muted disabled:opacity-40"
-        >
-          <ChevronLeft size={22} />
-        </CloudButton>
+  const tapped = isWordCardTapped(word, playingId, word.id);
 
-        <div
-          className={`flex-1 min-h-[220px] rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${markWordCardClass(
-            word.status,
-            isWordCardTapped(word, playingId, word.id)
-          )}`}
-          style={markWordCardStyle(word.status, isWordCardTapped(word, playingId, word.id))}
-          onClick={() => onWordClick(word)}
-        >
-          <p className="text-xs text-muted-foreground mb-4">
-            {safeIndex + 1} / {words.length}
-          </p>
-          <h2 className={`${PRACTICE_WORD_CLASS} !font-bold text-[#1e3a5f] text-center break-all`}>
-            {word.word}
-          </h2>
-          {word.showTranslation && (
+  return (
+    <div className="flex w-full flex-col gap-3">
+      <div
+        className={`relative flex w-full flex-col overflow-hidden rounded-2xl shadow-sm transition-colors ${markWordCardClass(
+          word.status,
+          tapped
+        )}`}
+        style={{
+          ...markWordCardStyle(word.status, tapped),
+          minHeight: "min(62vh, calc(100dvh - 13.5rem))",
+        }}
+      >
+        <p className="pointer-events-none absolute left-0 right-0 top-4 z-10 text-center text-xs text-muted-foreground">
+          {safeIndex + 1} / {words.length}
+        </p>
+
+        <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 sm:px-3">
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="iconRound"
+            disabled={safeIndex <= 0}
+            onClick={() => onIndexChange(safeIndex - 1)}
+            aria-label="上一个"
+            className="absolute left-2 top-1/2 z-10 size-11 shrink-0 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35 sm:left-3"
+          >
+            <ChevronLeft size={24} />
+          </CloudButton>
+
+          <button
+            type="button"
+            className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center outline-none"
+            onClick={() => onWordClick(word)}
+          >
+            <h2 className={`${PRACTICE_CARD_WORD_CLASS} text-center`}>
+              {word.word}
+            </h2>
+            {word.showTranslation && (
+              <>
+                {word.phonetic ? (
+                  <p className="mt-4 text-sm text-[#718096] font-mono">{word.phonetic}</p>
+                ) : null}
+                {word.translation ? (
+                  <p className={`${PRACTICE_TRANS_CLASS} mt-3 animate-in fade-in`}>
+                    {word.translation}
+                  </p>
+                ) : null}
+              </>
+            )}
+          </button>
+
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="iconRound"
+            disabled={safeIndex >= words.length - 1}
+            onClick={() => onIndexChange(safeIndex + 1)}
+            aria-label="下一个"
+            className="absolute right-2 top-1/2 z-10 size-11 shrink-0 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35 sm:right-3"
+          >
+            <ChevronRight size={24} />
+          </CloudButton>
+        </div>
+
+        <div className="flex items-center justify-center gap-4 border-t border-border/60 px-4 py-4">
+          <StudentWordMarkButton
+            wordId={word.id}
+            wordBookId={wordBookId}
+            marked={wordMarks.isMarked(word.id)}
+            enabled={wordMarks.enabled}
+            busy={wordMarks.busyId === word.id}
+            onToggle={wordMarks.toggle}
+          />
+          {noteStorageKey && (
+            <StudyNoteLauncher
+              storageKey={noteStorageKey(word)}
+              title={`笔记 · ${word.word}`}
+              label="笔记"
+              className="h-9 px-2"
+            />
+          )}
+          <CloudButton type="button" variant="ghost" size="iconRound" className="size-12" onClick={() => onPlay(word)}>
+            <Volume2
+              size={22}
+              className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+            />
+          </CloudButton>
+          <CloudButton
+            type="button"
+            variant="ghost"
+            size="iconRound"
+            className={`size-12 text-[#4ECDC4] hover:bg-[#4ECDC4]/10 ${amplifyDetail ? "opacity-60" : ""}`}
+            onClick={() => {
+              if (amplifyDetail) return;
+              if (detailControlled) {
+                if (detailOpen) onDetailClose?.();
+                else onWordClick(word);
+              } else {
+                setLocalDetail((v) => !v);
+              }
+            }}
+            aria-label="单词详情"
+            title={amplifyDetail ? "拓展已开启：点单词显示释义时自动展开" : "单词详情"}
+          >
+            <BookOpen size={22} />
+          </CloudButton>
+          {!hideStatus && (
             <>
-              {word.phonetic ? (
-                <p className="text-sm text-[#718096] font-mono mt-3 text-center">{word.phonetic}</p>
-              ) : null}
-              {word.translation ? (
-                <p className={`${PRACTICE_TRANS_CLASS} mt-2 text-center animate-in fade-in`}>
-                  {word.translation}
-                </p>
-              ) : null}
+              <CloudButton
+                type="button"
+                variant={word.status === "correct" ? "mint" : "ghost"}
+                size="iconRound"
+                className="size-12"
+                onClick={() => onStatus(word.id, "correct")}
+              >
+                <Check size={22} />
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant={word.status === "wrong" ? "destructive" : "ghost"}
+                size="iconRound"
+                className="size-12"
+                onClick={() => onStatus(word.id, "wrong")}
+              >
+                <X size={22} />
+              </CloudButton>
             </>
           )}
         </div>
-
-        <CloudButton
-          type="button"
-          variant="ghost"
-          size="iconRound"
-          disabled={safeIndex >= words.length - 1}
-          onClick={() => onIndexChange(safeIndex + 1)}
-          aria-label="下一个"
-          className="shrink-0 bg-[#f8b4c4]/60 text-[#c45c78] hover:bg-[#f8b4c4] disabled:opacity-40"
-        >
-          <ChevronRight size={22} />
-        </CloudButton>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => onPlay(word)}>
-          <Volume2 size={20} className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"} />
-        </CloudButton>
-        {noteStorageKey && (
-          <StudyNoteLauncher
-            storageKey={noteStorageKey(word)}
-            title={`笔记 · ${word.word}`}
-            label="笔记"
-            className="h-9 px-2"
-          />
-        )}
-        <CloudButton
-          type="button"
-          variant="ghost"
-          size="iconRound"
-          onClick={() => {
-            if (amplifyDetail) return;
-            if (detailControlled) {
-              if (detailOpen) onDetailClose?.();
-              else onWordClick(word);
-            } else {
-              setLocalDetail((v) => !v);
-            }
-          }}
-          aria-label="单词详情"
-          className={`text-[#4ECDC4] hover:bg-[#4ECDC4]/10 ${amplifyDetail ? "opacity-60" : ""}`}
-          title={amplifyDetail ? "拓展已开启：点单词显示释义时自动展开" : "单词详情"}
-        >
-          <BookOpen size={20} />
-        </CloudButton>
-        {!hideStatus && (
-          <>
-            <CloudButton
-              type="button"
-              variant={word.status === "correct" ? "mint" : "ghost"}
-              size="iconRound"
-              onClick={() => onStatus(word.id, "correct")}
-            >
-              <Check size={20} />
-            </CloudButton>
-            <CloudButton
-              type="button"
-              variant={word.status === "wrong" ? "destructive" : "ghost"}
-              size="iconRound"
-              onClick={() => onStatus(word.id, "wrong")}
-            >
-              <X size={20} />
-            </CloudButton>
-          </>
-        )}
       </div>
 
       {detailOpen && (
-        <div className="w-full max-w-2xl px-1">
+        <div className="w-full">
           <WordDetailPanel
             wordId={word.id}
             wordText={word.word}

@@ -1,13 +1,14 @@
 import { ContentSection } from '../components/content-section'
-import { NotificationsForm } from './notifications-form'
+import { SettingsInboxList } from './inbox-list'
 
 export function SettingsNotifications() {
   return (
     <ContentSection
-      title='Notifications'
-      desc='Configure how you receive notifications.'
+      wide
+      title='通知'
+      desc='查看当前登录管理员的站内信通知，可标记已读或删除。'
     >
-      <NotificationsForm />
+      <SettingsInboxList />
     </ContentSection>
   )
 }

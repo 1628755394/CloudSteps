@@ -138,7 +138,7 @@ backend-all-zip: backend-all ## 交叉编译所有平台并打包 zip/tar.gz
 # ============================================================
 .PHONY: tools tools-clean
 
-TOOLS := clean-duplicate-words ddjdc-dict-import ddjdc-import iciba-scrape migrate-seed purge-vocab-audio tts-gen
+TOOLS := analyze-word-dups clean-duplicate-words ddjdc-dict-import ddjdc-import dedupe-word-audio fill-missing-word-audio iciba-scrape migrate-seed purge-ddjdc-audio purge-orphan-tts purge-vocab-audio qcloud-get-appid seed-notify-channels tts-gen
 
 tools: $(addprefix tool-,$(TOOLS)) ## 构建所有 cmd 工具 (当前平台)
 
@@ -147,7 +147,7 @@ define build_tool
 tool-$(1):
 	@echo "$(COLOR_CYAN)==> 构建 tool: $(1)$(COLOR_RESET)"
 	@mkdir -p $(DIST_DIR)/tools
-	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/tools/$(1) ./cmd/$(1)
+	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(DIST_DIR)/tools/$(1) ./scripts/$(1)
 	@echo "$(COLOR_GREEN)  -> $(DIST_DIR)/tools/$(1)$(COLOR_RESET)"
 endef
 

@@ -1,6 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { CloudUsersPage } from '@/features/cloud-users'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/_authenticated/cloud-users/')({
-  component: CloudUsersPage,
+  beforeLoad: () => {
+    throw redirect({ to: '/users' })
+  },
+  component: () => null,
 })

@@ -124,6 +124,10 @@ if (typeof document !== "undefined") {
 export const PRACTICE_WORD_CLASS =
   "practice-word text-[#2D3748] [font-family:var(--practice-font-family)] [font-size:var(--practice-word-size)] [font-weight:var(--practice-font-weight)] [font-style:var(--practice-font-style)]";
 
+/** 词卡模式：单词显著放大，接近参考 App 的单卡展示 */
+export const PRACTICE_CARD_WORD_CLASS =
+  "practice-word text-[#1e3a5f] [font-family:var(--practice-font-family)] [font-size:clamp(2.75rem,9vw,4.5rem)] !font-bold [font-style:var(--practice-font-style)] leading-tight break-words";
+
 export const PRACTICE_TRANS_CLASS =
   "practice-translation text-[#718096] [font-family:var(--practice-font-family)] [font-size:var(--practice-trans-size)]";
 

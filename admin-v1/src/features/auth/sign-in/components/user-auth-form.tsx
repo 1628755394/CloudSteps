@@ -121,9 +121,10 @@ export function UserAuthForm({
       auth.setAccessToken(token)
       auth.setUser({
         id: userData?.id,
-        accountNo: String(userData?.id ?? data.username),
+        accountNo: String(userData?.username ?? userData?.id ?? data.username),
         email: String(userData?.email ?? userData?.username ?? data.username),
         displayName: userData?.displayName,
+        username: userData?.username,
         avatar: userData?.avatar,
         role: [userData?.role || 'admin'],
         exp: Date.now() + 24 * 60 * 60 * 1000,

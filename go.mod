@@ -7,44 +7,49 @@ require (
 	github.com/LingByte/ling-base/bootstrap v0.1.1
 	github.com/LingByte/ling-base/cache v0.1.0
 	github.com/LingByte/ling-base/captcha v0.2.3
-	github.com/LingByte/ling-base/common v0.3.0
+	github.com/LingByte/ling-base/common v0.3.1
 	github.com/LingByte/ling-base/common/config v0.1.1
+	github.com/LingByte/ling-base/common/geoip v0.1.0
 	github.com/LingByte/ling-base/common/random v0.1.0
 	github.com/LingByte/ling-base/common/response/gin v0.1.0
+	github.com/LingByte/ling-base/common/stats v0.3.0
+	github.com/LingByte/ling-base/common/stats/gin v0.2.0
+	github.com/LingByte/ling-base/common/stats/memory v0.3.0
+	github.com/LingByte/ling-base/common/validate v0.1.0
 	github.com/LingByte/ling-base/notification/email v0.1.0
 	github.com/LingByte/ling-base/notification/inbox v0.1.0
 	github.com/LingByte/ling-base/queue v0.1.0
 	github.com/LingByte/ling-base/queue/memory v0.1.0
-	github.com/LingByte/ling-base/realtime v0.1.0
-	github.com/LingByte/ling-base/realtime/aliyunomni v0.1.0
-	github.com/LingByte/ling-base/realtime/volcdialogue v0.1.0
-	github.com/LingByte/ling-base/stores v0.1.1
-	github.com/LingByte/ling-base/stores/cos v0.1.0
-	github.com/LingByte/ling-base/stores/kodo v0.1.1
-	github.com/LingByte/ling-base/stores/ks3 v0.1.0
-	github.com/LingByte/ling-base/stores/local v0.1.1
-	github.com/LingByte/ling-base/stores/minio v0.1.0
-	github.com/LingByte/ling-base/stores/obs v0.1.0
-	github.com/LingByte/ling-base/stores/oss v0.1.0
-	github.com/LingByte/ling-base/stores/s3 v0.1.0
-	github.com/LingByte/ling-base/stores/tos v0.1.0
-	github.com/LingByte/ling-base/synthesizer v0.1.0
-	github.com/LingByte/ling-base/synthesizer/aliyun v0.1.0
-	github.com/LingByte/ling-base/synthesizer/aws v0.1.0
-	github.com/LingByte/ling-base/synthesizer/azure v0.1.0
-	github.com/LingByte/ling-base/synthesizer/baidu v0.1.0
-	github.com/LingByte/ling-base/synthesizer/coqui v0.1.0
-	github.com/LingByte/ling-base/synthesizer/elevenlabs v0.1.0
-	github.com/LingByte/ling-base/synthesizer/fishaudio v0.1.0
-	github.com/LingByte/ling-base/synthesizer/fishspeech v0.1.0
-	github.com/LingByte/ling-base/synthesizer/google v0.1.0
-	github.com/LingByte/ling-base/synthesizer/local v0.1.0
-	github.com/LingByte/ling-base/synthesizer/minimax v0.1.0
-	github.com/LingByte/ling-base/synthesizer/openai v0.1.0
-	github.com/LingByte/ling-base/synthesizer/qcloud v0.1.0
-	github.com/LingByte/ling-base/synthesizer/qiniu v0.1.0
-	github.com/LingByte/ling-base/synthesizer/volcengine v0.1.0
-	github.com/LingByte/ling-base/synthesizer/xunfei v0.1.0
+	github.com/LingByte/ling-base/stores v0.1.4
+	github.com/LingByte/ling-base/stores/cos v0.1.4
+	github.com/LingByte/ling-base/stores/kodo v0.1.5
+	github.com/LingByte/ling-base/stores/ks3 v0.1.4
+	github.com/LingByte/ling-base/stores/local v0.1.4
+	github.com/LingByte/ling-base/stores/minio v0.1.4
+	github.com/LingByte/ling-base/stores/obs v0.1.4
+	github.com/LingByte/ling-base/stores/oss v0.1.4
+	github.com/LingByte/ling-base/stores/s3 v0.1.4
+	github.com/LingByte/ling-base/stores/tos v0.1.4
+	github.com/LingByte/ling-base/voice/realtime v0.1.1
+	github.com/LingByte/ling-base/voice/realtime/aliyunomni v0.1.1
+	github.com/LingByte/ling-base/voice/realtime/volcdialogue v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/aliyun v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/aws v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/azure v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/baidu v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/coqui v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/elevenlabs v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/fishaudio v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/fishspeech v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/google v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/local v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/minimax v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/openai v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/qcloud v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/qiniu v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/volcengine v0.1.1
+	github.com/LingByte/ling-base/voice/synthesizer/xunfei v0.1.1
 	github.com/LingByte/lingllm v1.2.0
 	github.com/aws/aws-sdk-go-v2/service/polly v1.58.2
 	github.com/coze-dev/coze-go v0.0.0-20260303032728-01875f396c48
@@ -56,7 +61,7 @@ require (
 	github.com/mssola/user_agent v0.6.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sashabaranov/go-openai v1.41.2
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 	github.com/xuri/excelize/v2 v2.10.1
 	go.uber.org/zap v1.28.0
 	golang.org/x/image v0.45.0
@@ -84,9 +89,22 @@ require (
 	github.com/LingByte/ling-base/notification v0.1.0 // indirect
 	github.com/LingByte/ling-base/version v0.1.0 // indirect
 	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82 // indirect
+	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.5 // indirect
+	github.com/alibabacloud-go/cdn-20180510/v4 v4.3.0 // indirect
+	github.com/alibabacloud-go/cms-20190101/v2 v2.0.3 // indirect
+	github.com/alibabacloud-go/darabonba-openapi v0.2.1 // indirect
+	github.com/alibabacloud-go/darabonba-openapi/v2 v2.2.4 // indirect
+	github.com/alibabacloud-go/debug v1.0.1 // indirect
+	github.com/alibabacloud-go/endpoint-util v1.1.0 // indirect
+	github.com/alibabacloud-go/openapi-util v0.1.0 // indirect
+	github.com/alibabacloud-go/tea v1.5.2 // indirect
+	github.com/alibabacloud-go/tea-utils v1.4.3 // indirect
+	github.com/alibabacloud-go/tea-utils/v2 v2.0.9 // indirect
+	github.com/alibabacloud-go/tea-xml v1.1.3 // indirect
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible // indirect
+	github.com/aliyun/credentials-go v1.4.5 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.43.6 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.16 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.18 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.32.36 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.35 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.36 // indirect
@@ -94,6 +112,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.37 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.37 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.37 // indirect
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.66.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.16 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.28 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.36 // indirect
@@ -105,15 +124,18 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.45.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/transcribestreaming v1.35.1 // indirect
 	github.com/aws/smithy-go v1.27.8 // indirect
+	github.com/axiomhq/hyperloglog v0.2.3 // indirect
+	github.com/br41n10/qiniu-stats-go-sdk v0.0.0-20240430141314-0ca6c82ce905 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/carlmjohnson/requests v0.25.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clbanning/mxj v1.8.4 // indirect
+	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deepgram/deepgram-go-sdk v1.9.0 // indirect
+	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvonthenen/websocket v1.5.1-dyv.2 // indirect
 	github.com/emersion/go-imap/v2 v2.0.0-20251216103119-7ac47a9cfd9a // indirect
@@ -136,7 +158,7 @@ require (
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.3 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
-	github.com/google/go-querystring v1.0.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.20 // indirect
 	github.com/googleapis/gax-go/v2 v2.23.0 // indirect
@@ -148,13 +170,16 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f // indirect
 	github.com/hraban/opus v0.0.0-20251117090126-c76ea7e21bf3 // indirect
+	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.211 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.10.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/json-iterator/go v1.1.13-0.20220915233716-71ac16282d12 // indirect
+	github.com/kamstrup/intmap v0.5.1 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
@@ -175,7 +200,6 @@ require (
 	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/qiniu/go-sdk/v7 v7.27.0 // indirect
 	github.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
@@ -186,17 +210,24 @@ require (
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cdn v1.3.154 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.3.164 // indirect
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/monitor v1.3.164 // indirect
 	github.com/tencentcloud/tencentcloud-speech-sdk-go v1.0.25 // indirect
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.75 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect
+	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/vcaesar/cedar v0.30.0 // indirect
 	github.com/volcengine/ve-tos-golang-sdk/v2 v2.9.8 // indirect
+	github.com/volcengine/volc-sdk-golang v1.0.23 // indirect
+	github.com/volcengine/volcengine-go-sdk v1.2.47 // indirect
 	github.com/xuri/efp v0.0.1 // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
+	go.mongodb.org/mongo-driver v1.17.3 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.67.0 // indirect
@@ -219,6 +250,7 @@ require (
 	google.golang.org/grpc v1.83.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.2 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/driver/mysql v1.6.0 // indirect
 	gorm.io/driver/postgres v1.6.2 // indirect

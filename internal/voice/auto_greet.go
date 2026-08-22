@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LingByte/ling-base/realtime"
-	aliyunomni "github.com/LingByte/ling-base/realtime/aliyunomni"
+	"github.com/LingByte/ling-base/voice/realtime"
+	aliyunomni "github.com/LingByte/ling-base/voice/realtime/aliyunomni"
 )
 
 func init() {

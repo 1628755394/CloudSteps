@@ -1,5 +1,49 @@
 import { resolveMediaUrl } from './mediaUrl'
 
+const MUTE_KEY = 'lb_audio_muted'
+const MUTE_EVENT = 'lb-audio-muted'
+
+function readMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+let mutedCache = typeof window !== 'undefined' ? readMuted() : false
+
+/** 当前是否静音（不播放单词音频） */
+export function isAudioMuted(): boolean {
+  return mutedCache
+}
+
+export function setAudioMuted(muted: boolean) {
+  mutedCache = muted
+  try {
+    localStorage.setItem(MUTE_KEY, muted ? '1' : '0')
+  } catch {
+    // ignore
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(MUTE_EVENT, { detail: { muted } }))
+  }
+}
+
+export function toggleAudioMuted(): boolean {
+  setAudioMuted(!mutedCache)
+  return mutedCache
+}
+
+export function subscribeAudioMuted(listener: (muted: boolean) => void): () => void {
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent<{ muted: boolean }>).detail
+    listener(detail?.muted ?? mutedCache)
+  }
+  window.addEventListener(MUTE_EVENT, handler)
+  return () => window.removeEventListener(MUTE_EVENT, handler)
+}
+
 /**
  * 解析分号分隔的音频URL字符串，返回有效URL数组（压缩空槽，适合顺序轮播）。
  */
@@ -33,6 +77,10 @@ export function parseAudioUrlSlots(audioUrl?: string | null): (string | null)[] 
  * @returns 一个 abort 函数，调用可中断播放
  */
 export function playSingleAudio(url: string, onDone?: () => void): () => void {
+  if (mutedCache) {
+    onDone?.()
+    return () => {}
+  }
   let aborted = false
   const audio = new Audio(url)
 

@@ -47,9 +47,10 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
         const u = res.data
         const user: AuthUser = {
           id: u.id,
-          accountNo: String(u.id ?? u.email ?? ''),
+          accountNo: String(u.username ?? u.id ?? u.email ?? ''),
           email: String(u.email ?? u.username ?? ''),
           displayName: u.displayName,
+          username: u.username,
           avatar: u.avatar,
           role: u.role ? [u.role] : ['admin'],
           exp: Date.now() + 24 * 60 * 60 * 1000,
@@ -102,7 +103,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
           <SidebarInset
             className={cn(
               '@container/content',
-              'has-data-[layout=fixed]:h-svh',
+              'has-data-[layout=fixed]:h-svh has-data-[layout=fixed]:overflow-hidden',
               'peer-data-[variant=inset]:has-data-[layout=fixed]:h-[calc(100svh-(var(--spacing)*4))]'
             )}
           >

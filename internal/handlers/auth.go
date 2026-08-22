@@ -5,10 +5,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	htmlTemplate "html/template"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -17,6 +15,8 @@ import (
 
 	CloudStepsGo "github.com/LingByte/CloudStepsGo"
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/internal/notify"
+	"github.com/LingByte/CloudStepsGo/pkg/authvalidate"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
@@ -25,10 +25,10 @@ import (
 	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
 	lbconfig "github.com/LingByte/ling-base/common/config"
+	"github.com/LingByte/ling-base/common/geoip"
 	"github.com/LingByte/ling-base/common/random"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/logger"
-	"github.com/LingByte/ling-base/notification/email"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -56,6 +56,7 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 		auth.POST("/login", h.handleUserSignin)
 		auth.POST("/login/password", h.handleUserSigninByPassword)
 		auth.POST("/login/username", h.handleUserSigninByUsername)
+		auth.POST("/login/email", h.handleUserSigninByEmail)
 
 		// logout
 		auth.GET("/logout", models.AuthRequired, h.handleUserLogout)
@@ -71,6 +72,10 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 		// email verification
 		auth.GET("/verify-email", h.handleVerifyEmail)
 		auth.POST("/send-email-verification", models.AuthRequired, h.handleSendEmailVerification)
+
+		// bind email (for password-registered users to bind an email)
+		auth.POST("/bind-email", models.AuthRequired, h.handleBindEmail)
+		auth.POST("/send/bind-email", models.AuthRequired, h.handleSendBindEmailCode)
 
 		// phone verification
 		auth.POST("/verify-phone", models.AuthRequired, h.handleVerifyPhone)
@@ -160,40 +165,18 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
+	if form.Username == "" && form.Email != "" {
+		form.Username = form.Email
+	}
+	if err := authvalidate.PrepareEmailCodeLogin(&form); err != nil {
+		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
+		return
+	}
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 
-	// 1. IP限流检查
-	if utils.GlobalLoginSecurityManager != nil {
-		if err := utils.GlobalLoginSecurityManager.CheckIPRateLimit(clientIP); err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusTooManyRequests, err)
-			return
-		}
-	}
-
-	// 2. 账号锁定检查
-	if utils.GlobalLoginSecurityManager != nil {
-		checkLockFunc := func(db *gorm.DB, username string, userID uint) (*utils.AccountLockInfo, error) {
-			lock, err := models.GetAccountLockByUsername(db, username, userID)
-			if err != nil {
-				return nil, err
-			}
-			if lock == nil {
-				return nil, nil
-			}
-			return &utils.AccountLockInfo{
-				IsLocked: lock.IsLocked(),
-				UnlockAt: lock.UnlockAt,
-			}, nil
-		}
-		if err := utils.GlobalLoginSecurityManager.CheckAccountLock(db, form.Username, 0, checkLockFunc); err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusForbidden, err)
-			return
-		}
-	}
-
-	// 3. 图形验证码验证
+	// 1. 图形验证码验证
 	if captcha.GlobalManager != nil {
 		if form.CaptchaID == "" || form.CaptchaType == "" {
 			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("captcha is required"))
@@ -202,54 +185,22 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 
 		err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
 		if err != nil {
-			if utils.GlobalLoginSecurityManager != nil {
-				recordFunc := func(db *gorm.DB, username string, userID uint, ipAddress string, failedCount int) error {
-					_, err := models.CreateOrUpdateAccountLockByUsername(db, username, userID, ipAddress, failedCount)
-					return err
-				}
-				utils.GlobalLoginSecurityManager.RecordFailedLogin(db, form.Username, 0, clientIP, recordFunc)
-			}
 			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid captcha code"))
 			return
 		}
 	}
 
-	// 检查用户名是否为空
-	if form.Username == "" {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("username is required"))
-		return
-	}
-
-	// 4. 获取用户
+	// 2. 获取用户
 	user, err := models.GetUserByUsername(db, form.Username)
 	if err != nil {
-		if utils.GlobalLoginSecurityManager != nil {
-			recordFunc := func(db *gorm.DB, username string, userID uint, ipAddress string, failedCount int) error {
-				_, err := models.CreateOrUpdateAccountLockByUsername(db, username, userID, ipAddress, failedCount)
-				return err
-			}
-			utils.GlobalLoginSecurityManager.RecordFailedLogin(db, form.Username, 0, clientIP, recordFunc)
-		}
 		response.Fail(c, "user not exists", errors.New("user not exists"))
 		return
 	}
 
-	// 5. 校验验证码
-	if form.Code == "" {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("verification code is required"))
-		return
-	}
-
+	// 3. 校验验证码
 	// 从缓存中获取验证码
 	cachedCode, errCache := h.cache.Get(context.Background(), form.Username)
 	if errCache != nil || cachedCode != form.Code {
-		if utils.GlobalLoginSecurityManager != nil {
-			recordFunc := func(db *gorm.DB, username string, userID uint, ipAddress string, failedCount int) error {
-				_, err := models.CreateOrUpdateAccountLockByUsername(db, username, userID, ipAddress, failedCount)
-				return err
-			}
-			utils.GlobalLoginSecurityManager.RecordFailedLogin(db, form.Username, user.ID, clientIP, recordFunc)
-		}
 		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid verification code"))
 		return
 	}
@@ -257,106 +208,44 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	// 清除已用验证码
 	h.cache.Delete(context.Background(), form.Username)
 
-	// 6. 检查用户是否允许登录（激活、启用等）
+	// 4. 检查用户是否允许登录（激活、启用等）
 	err = models.CheckUserAllowLogin(db, user)
 	if err != nil {
-		if utils.GlobalLoginSecurityManager != nil {
-			recordFunc := func(db *gorm.DB, username string, userID uint, ipAddress string, failedCount int) error {
-				_, err := models.CreateOrUpdateAccountLockByUsername(db, username, userID, ipAddress, failedCount)
-				return err
-			}
-			utils.GlobalLoginSecurityManager.RecordFailedLogin(db, form.Username, user.ID, clientIP, recordFunc)
-		}
 		CloudStepsGo.AbortWithJSONError(c, http.StatusForbidden, err)
 		return
 	}
 
-	// 7. 获取IP地理位置
+	// 5. 获取IP地理位置
 	country, city, location := "Unknown", "Unknown", "Unknown"
-	if h.ipLocationService != nil {
-		country, city, location, _ = h.ipLocationService.GetLocation(clientIP)
+	if c, ci, l, err := geoip.GetIPLocation(clientIP); err == nil {
+		country, city, location = c, ci, l
 	}
 
-	// 8. 检测异地登录
-	isSuspicious := false
-	if utils.GlobalLoginSecurityManager != nil {
-		getLocationsFunc := func(db *gorm.DB, userID uint, limit int) ([]utils.LoginLocation, error) {
-			histories, err := models.GetRecentLoginLocations(db, userID, limit)
-			if err != nil {
-				return nil, err
-			}
-			locations := make([]utils.LoginLocation, len(histories))
-			for i, h := range histories {
-				locations[i] = utils.LoginLocation{
-					Country: h.Country,
-					City:    h.City,
-				}
-			}
-			return locations, nil
-		}
-		isSuspicious, _ = utils.GlobalLoginSecurityManager.DetectSuspiciousLogin(db, user.ID, clientIP, location, country, getLocationsFunc)
-		if isSuspicious {
-			logger.Warn("Suspicious login detected",
-				zap.Uint("userID", user.ID),
-				zap.String("email", user.Username),
-				zap.String("ip", clientIP),
-				zap.String("location", location))
-		}
-	}
-
-	// 9. 解析设备信息
+	// 6. 解析设备信息
 	deviceType, os, browser := utils.ParseUserAgent(userAgent)
 	deviceID := utils.GetDeviceID(userAgent, clientIP)
 
-	// 10. 创建设备记录（仅用于记录，不做验证）
+	// 7. 创建设备记录（仅用于记录，不做验证）
 	if _, err := models.CreateOrUpdateUserDevice(db, user.ID, deviceID, fmt.Sprintf("%s on %s", browser, os), deviceType, os, browser, userAgent, clientIP, location); err != nil {
 		logger.Warn("Failed to create/update user device", zap.Error(err))
 	}
 
-	// 11. 记录登录历史
-	if err := models.RecordLoginHistory(db, user.ID, form.Username, clientIP, location, country, city, userAgent, deviceID, "email", true, "", isSuspicious); err != nil {
+	// 8. 记录登录历史
+	if err := models.RecordLoginHistory(db, user.ID, form.Username, clientIP, location, country, city, userAgent, deviceID, "email", true, "", false); err != nil {
 		logger.Warn("Failed to record login history", zap.Error(err))
 	}
 
-	// 12. 发送新设备登录警告邮件（仅在可疑登录时）
-	if isSuspicious {
-		logger.Info("Sending new device login alert signal",
-			zap.String("email", user.Username),
-			zap.String("deviceID", deviceID),
-			zap.Bool("isSuspicious", isSuspicious))
-
-		deviceInfo := map[string]interface{}{
-			"deviceID":     deviceID,
-			"clientIP":     clientIP,
-			"location":     location,
-			"deviceType":   deviceType,
-			"os":           os,
-			"browser":      browser,
-			"isSuspicious": isSuspicious,
-			"loginTime":    time.Now().Format("2006-01-02 15:04:05"),
-		}
-		common.Sig().Emit(constants.SigUserNewDeviceLogin, user, deviceInfo, db)
+	// 9. 发送新设备登录通知
+	deviceInfo := map[string]interface{}{
+		"deviceID":   deviceID,
+		"clientIP":   clientIP,
+		"location":   location,
+		"deviceType": deviceType,
+		"os":         os,
+		"browser":    browser,
+		"loginTime":  time.Now().Format("2006-01-02 15:04:05"),
 	}
-
-	// 14. 邮箱验证码登录成功后，重置密码登录限制
-	// 删除最近的密码登录记录，允许用户重新使用密码登录
-	if utils.GlobalLoginSecurityManager != nil {
-		// 删除最近7天的密码登录记录，给用户一个重新开始的机会
-		if err := db.Where("user_id = ? AND login_type = ? AND created_at > ?",
-			user.ID, "password", time.Now().AddDate(0, 0, -7)).
-			Delete(&models.LoginHistory{}).Error; err != nil {
-			logger.Warn("Failed to reset password login history", zap.Error(err))
-		} else {
-			logger.Info("Password login history reset after email verification",
-				zap.Uint("userID", user.ID),
-				zap.String("email", user.Username))
-		}
-	}
-
-	// 15. 清除失败登录计数
-	if utils.GlobalLoginSecurityManager != nil {
-		utils.GlobalLoginSecurityManager.ClearFailedLoginCount(form.Username)
-	}
+	common.Sig().Emit(constants.SigUserNewDeviceLogin, user, deviceInfo, db)
 
 	// 执行登录操作（设置session等）
 	models.Login(c, user)
@@ -376,32 +265,32 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	}
 
 	// 如果需要 Token，生成 AuthToken
-	if form.AuthToken {
-		val := h.configStore.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED)
-		expired, _ := time.ParseDuration(val)
-		if expired < 24*time.Hour {
-			expired = 24 * time.Hour
-		}
-		user.AuthToken = models.BuildAuthToken(user, expired, false)
+	val := h.configStore.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED)
+	expired, _ := time.ParseDuration(val)
+	if expired < 24*time.Hour {
+		expired = 24 * time.Hour
 	}
+	user.AuthToken = models.BuildAuthToken(user, expired, false)
 
 	// 返回登录结果
 	responseData := gin.H{
 		"token": user.AuthToken,
 		"user": gin.H{
 			"id":          user.ID,
-			"email":       user.Username,
+			"email":       firstNonEmpty(user.Email, user.Username),
+			"account":     user.Username,
 			"displayName": user.DisplayName,
 			"role":        user.Role,
 			"avatar":      user.Avatar,
 		},
 	}
-	if isSuspicious {
-		responseData["suspiciousLogin"] = true
-		responseData["message"] = "Login from new location or untrusted device detected. Please verify your identity."
-	}
 
 	response.SuccessMsg(c, "login success", responseData)
+}
+
+// handleUserSigninByEmail 邮箱验证码登录（账号即 users.username，通常为邮箱）。
+func (h *Handlers) handleUserSigninByEmail(c *gin.Context) {
+	h.handleUserSigninByUsername(c)
 }
 
 // handleUserSignin handle user signin
@@ -415,116 +304,29 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	if form.Username == "" && form.Email != "" {
 		form.Username = form.Email
 	}
+	if form.AuthToken == "" {
+		if err := authvalidate.PreparePasswordLogin(&form); err != nil {
+			response.Fail(c, authvalidate.AbortMessage(err), err)
+			return
+		}
+	}
 
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 
-	// 1. IP限流检查
-	if utils.GlobalLoginSecurityManager != nil {
-		if err := utils.GlobalLoginSecurityManager.CheckIPRateLimit(clientIP); err != nil {
-			response.Fail(c, "too many login attempts", err)
-			return
-		}
-	}
-
-	// 2. 代理IP检测
-	if utils.GlobalLoginSecurityManager != nil {
-		isProxy, err := utils.GlobalLoginSecurityManager.CheckProxyIP(clientIP)
-		if err != nil {
-			logger.Warn("Failed to check proxy IP", zap.String("ip", clientIP), zap.Error(err))
-		}
-		if isProxy {
-			logger.Warn("Login attempt from proxy IP", zap.String("ip", clientIP), zap.String("email", form.Username))
-		}
-	}
-
-	// 3. 账号锁定检查
-	if utils.GlobalLoginSecurityManager != nil {
-		checkLockFunc := func(db *gorm.DB, email string, userID uint) (*utils.AccountLockInfo, error) {
-			lock, err := models.GetAccountLock(db, email, userID)
-			if err != nil {
-				return nil, err
-			}
-			if lock == nil {
-				return nil, nil
-			}
-			return &utils.AccountLockInfo{
-				IsLocked: lock.IsLocked(),
-				UnlockAt: lock.UnlockAt,
-			}, nil
-		}
-		if err := utils.GlobalLoginSecurityManager.CheckAccountLock(db, form.Username, 0, checkLockFunc); err != nil {
-			response.Fail(c, "account is locked", err)
-			return
-		}
-	}
-
-	if form.AuthToken == "" && form.Username == "" {
-		logger.Warn("Login attempt without username or token", zap.String("ip", clientIP))
-		response.Fail(c, "login failed", errors.New("username is required"))
-		return
-	}
-
-	if form.Password == "" && form.AuthToken == "" {
-		logger.Warn("Login attempt without password or token", zap.String("ip", clientIP), zap.String("username", form.Username))
-		response.Fail(c, "login failed", errors.New("empty password"))
-		return
-	}
-
-	// 4. 获取用户
+	// 1. 获取用户
 	var user *models.User
 	var err error
 	if form.Password != "" {
 		user, err = models.GetUserByUsername(db, form.Username)
 		if err != nil {
 			logger.Warn("Login attempt with non-existent email", zap.String("email", form.Username), zap.String("ip", clientIP), zap.Error(err))
-			// 记录失败登录
-			if utils.GlobalLoginSecurityManager != nil {
-				recordFunc := func(db *gorm.DB, email string, userID uint, ipAddress string, failedCount int) error {
-					_, err := models.CreateOrUpdateAccountLock(db, email, userID, ipAddress, failedCount)
-					return err
-				}
-				utils.GlobalLoginSecurityManager.RecordFailedLogin(db, form.Username, 0, clientIP, recordFunc)
-			}
 			response.Fail(c, "用户不存在，请检查用户名", nil)
 			return
 		}
 
-		// 5. 检查密码登录次数限制（需要邮箱验证）
-		if utils.GlobalLoginSecurityManager != nil {
-			checkLimitFunc := func(db *gorm.DB, userID uint) (int64, error) {
-				// 检查最近是否有邮箱验证码登录
-				var recentEmailLogin int64
-				err := db.Table("login_histories").
-					Where("user_id = ? AND login_type = ? AND success = ? AND created_at > ?",
-						userID, "email", true, time.Now().AddDate(0, 0, -7)). // 最近7天
-					Count(&recentEmailLogin).Error
-				if err != nil {
-					return 0, err
-				}
-
-				// 如果最近7天内有邮箱登录，则重置密码登录限制
-				if recentEmailLogin > 0 {
-					return 0, nil // 返回0，表示没有达到限制
-				}
-
-				// 否则正常检查密码登录次数
-				var count int64
-				err = db.Table("login_histories").
-					Where("user_id = ? AND login_type = ? AND success = ? AND created_at > ?",
-						userID, "password", true, time.Now().AddDate(0, 0, -30)). // 最近30天
-					Count(&count).Error
-				return count, err
-			}
-			needsEmailVerification, err := utils.GlobalLoginSecurityManager.CheckPasswordLoginLimit(db, user.ID, form.Username, checkLimitFunc)
-			if err != nil {
-				logger.Warn("Failed to check password login limit", zap.Error(err))
-			}
-			_ = needsEmailVerification // 不做密码登录次数限制
-		}
-
-		// 6. 图形验证码验证（密码登录需要）
+		// 2. 图形验证码验证（密码登录需要）
 		if captcha.GlobalManager != nil {
 			if form.CaptchaID == "" || form.CaptchaType == "" {
 				logger.Warn("Login failed: captcha is required", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
@@ -535,19 +337,12 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 			err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
 			if err != nil {
 				logger.Warn("Login failed: invalid captcha code", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP), zap.String("captchaID", form.CaptchaID), zap.Error(err))
-				if utils.GlobalLoginSecurityManager != nil {
-					recordFunc := func(db *gorm.DB, email string, userID uint, ipAddress string, failedCount int) error {
-						_, err := models.CreateOrUpdateAccountLock(db, email, userID, ipAddress, failedCount)
-						return err
-					}
-					utils.GlobalLoginSecurityManager.RecordFailedLogin(db, form.Username, user.ID, clientIP, recordFunc)
-				}
 				response.Fail(c, "验证码错误，请重新输入", nil)
 				return
 			}
 		}
 
-		// 7. 验证密码（支持加密密码和明文密码）
+		// 3. 验证密码（支持加密密码和明文密码）
 		passwordValid := false
 		// 检查是否是加密密码格式（passwordHash:encryptedHash:salt:timestamp）
 		if strings.Contains(form.Password, ":") && len(strings.Split(form.Password, ":")) == 4 {
@@ -565,14 +360,6 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 
 		if !passwordValid {
 			logger.Warn("Login failed: incorrect password", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
-			// 记录失败登录
-			if utils.GlobalLoginSecurityManager != nil {
-				recordFunc := func(db *gorm.DB, email string, userID uint, ipAddress string, failedCount int) error {
-					_, err := models.CreateOrUpdateAccountLock(db, email, userID, ipAddress, failedCount)
-					return err
-				}
-				utils.GlobalLoginSecurityManager.RecordFailedLogin(db, form.Username, user.ID, clientIP, recordFunc)
-			}
 			response.Fail(c, "密码错误，请检查后重试", nil)
 			return
 		}
@@ -592,66 +379,37 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 		return
 	}
 
-	// 8. 获取IP地理位置
+	// 4. 获取IP地理位置
 	country, city, location := "Unknown", "Unknown", "Unknown"
-	if h.ipLocationService != nil {
-		country, city, location, _ = h.ipLocationService.GetLocation(clientIP)
+	if c, ci, l, err := geoip.GetIPLocation(clientIP); err == nil {
+		country, city, location = c, ci, l
 	}
 
-	// 9. 检测异地登录
-	isSuspicious := false
-	if utils.GlobalLoginSecurityManager != nil {
-		getLocationsFunc := func(db *gorm.DB, userID uint, limit int) ([]utils.LoginLocation, error) {
-			histories, err := models.GetRecentLoginLocations(db, userID, limit)
-			if err != nil {
-				return nil, err
-			}
-			locations := make([]utils.LoginLocation, len(histories))
-			for i, h := range histories {
-				locations[i] = utils.LoginLocation{
-					Country: h.Country,
-					City:    h.City,
-				}
-			}
-			return locations, nil
-		}
-		isSuspicious, _ = utils.GlobalLoginSecurityManager.DetectSuspiciousLogin(db, user.ID, clientIP, location, country, getLocationsFunc)
-		if isSuspicious {
-			logger.Warn("Suspicious login detected",
-				zap.Uint("userID", user.ID),
-				zap.String("email", user.Username),
-				zap.String("ip", clientIP),
-				zap.String("location", location))
-		}
-	}
-
-	// 10. 解析设备信息
+	// 5. 解析设备信息
 	deviceType, os, browser := utils.ParseUserAgent(userAgent)
 	deviceID := utils.GetDeviceID(userAgent, clientIP)
 
-	// 11. 创建设备记录（仅用于记录，不做验证）
+	// 6. 创建设备记录（仅用于记录，不做验证）
 	if _, err := models.CreateOrUpdateUserDevice(db, user.ID, deviceID, fmt.Sprintf("%s on %s", browser, os), deviceType, os, browser, userAgent, clientIP, location); err != nil {
 		logger.Warn("Failed to create/update user device", zap.Error(err))
 	}
 
-	// 12. 记录登录历史
-	if err := models.RecordLoginHistory(db, user.ID, form.Username, clientIP, location, country, city, userAgent, deviceID, "password", true, "", isSuspicious); err != nil {
+	// 7. 记录登录历史
+	if err := models.RecordLoginHistory(db, user.ID, form.Username, clientIP, location, country, city, userAgent, deviceID, "password", true, "", false); err != nil {
 		logger.Warn("Failed to record login history", zap.Error(err))
 	}
 
-	// 13. 发送新设备登录警告邮件（仅在可疑登录时）
-	if isSuspicious {
-		logger.Info("Sending new device login alert signal",
-			zap.String("email", user.Username),
-			zap.String("deviceID", deviceID),
-			zap.Bool("isSuspicious", isSuspicious))
-		common.Sig().Emit(constants.SigUserNewDeviceLogin, user, "", db)
+	// 8. 发送新设备登录通知
+	deviceInfo := map[string]interface{}{
+		"deviceID":   deviceID,
+		"clientIP":   clientIP,
+		"location":   location,
+		"deviceType": deviceType,
+		"os":         os,
+		"browser":    browser,
+		"loginTime":  time.Now().Format("2006-01-02 15:04:05"),
 	}
-
-	// 15. 清除失败登录计数
-	if utils.GlobalLoginSecurityManager != nil {
-		utils.GlobalLoginSecurityManager.ClearFailedLoginCount(form.Username)
-	}
+	common.Sig().Emit(constants.SigUserNewDeviceLogin, user, deviceInfo, db)
 
 	// 执行登录操作（设置session等）
 	models.Login(c, user)
@@ -679,20 +437,17 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	}
 	user.AuthToken = models.BuildAuthToken(user, expired, false)
 
-	// 17. 返回登录结果
+	// 8. 返回登录结果
 	responseData := gin.H{
 		"token": user.AuthToken,
 		"user": gin.H{
 			"id":          user.ID,
-			"email":       user.Username,
+			"email":       firstNonEmpty(user.Email, user.Username),
+			"account":     user.Username,
 			"displayName": user.DisplayName,
 			"role":        user.Role,
 			"avatar":      user.Avatar,
 		},
-	}
-	if isSuspicious {
-		responseData["suspiciousLogin"] = true
-		responseData["message"] = "Login from new location detected. Please verify your identity."
 	}
 
 	logger.Info("Login successful", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
@@ -706,15 +461,11 @@ func (h *Handlers) handleUserSignin(c *gin.Context) {
 		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
-
-	if form.AuthToken == "" && form.Username == "" {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("username is required"))
-		return
-	}
-
-	if form.Password == "" && form.AuthToken == "" {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("empty password"))
-		return
+	if form.AuthToken == "" {
+		if err := authvalidate.PreparePasswordLogin(&form); err != nil {
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
+			return
+		}
 	}
 
 	db := c.MustGet(constants.DbField).(*gorm.DB)
@@ -768,70 +519,12 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 
 	clientIP := c.ClientIP()
 
-	// 1. 输入清理和验证（支持用户名或邮箱作为账号）
-	var err error
-	usernameType := "username"
-	if strings.Contains(form.Username, "@") {
-		usernameType = "email"
-	}
-	form.Username, err = utils.SanitizeAndValidate(form.Username, usernameType)
-	if err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+	if err := authvalidate.PreparePasswordRegister(&form); err != nil {
+		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
 		return
 	}
 
-	form.Password, err = utils.SanitizeAndValidate(form.Password, "password")
-	if err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	if form.DisplayName != "" {
-		form.DisplayName, err = utils.SanitizeAndValidate(form.DisplayName, "displayname")
-		if err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
-			return
-		}
-	}
-
-	// 2. 智能风控检查
-	if utils.GlobalIntelligentRiskControl != nil {
-		// 解析行为数据
-		var mouseTrack []utils.MouseTrackPoint
-		if form.MouseTrack != "" {
-			if err := json.Unmarshal([]byte(form.MouseTrack), &mouseTrack); err != nil {
-				logger.Warn("Failed to parse mouse track data", zap.Error(err))
-			}
-		}
-
-		// 准备表单数据用于分析
-		formData := map[string]string{
-			"email":       form.Username,
-			"displayName": form.DisplayName,
-			"firstName":   form.FirstName,
-			"lastName":    form.LastName,
-		}
-
-		// 执行智能风控检查
-		if err := utils.GlobalIntelligentRiskControl.CheckRegistrationRisk(
-			mouseTrack,
-			form.FormFillTime,
-			form.KeystrokePattern,
-			formData,
-		); err != nil {
-			if utils.GlobalRegistrationGuard != nil {
-				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "intelligent risk control blocked")
-			}
-			logger.Warn("Registration blocked by intelligent risk control",
-				zap.String("email", form.Username),
-				zap.String("ip", clientIP),
-				zap.Error(err))
-			CloudStepsGo.AbortWithJSONError(c, http.StatusForbidden, errors.New("registration blocked due to suspicious behavior"))
-			return
-		}
-	}
-
-	// 3. 图形验证码验证
+	// 2. 图形验证码验证
 	if captcha.GlobalManager != nil {
 		if form.CaptchaID == "" || form.CaptchaType == "" {
 			if utils.GlobalRegistrationGuard != nil {
@@ -924,17 +617,15 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 
 	common.Sig().Emit(constants.SigUserCreate, user, c, db)
 
-	r := gin.H{
-		"email": user.Username,
-	}
-	// Check if user is allowed to login before auto-login
 	err = models.CheckUserAllowLogin(db, user)
 	if err != nil {
 		CloudStepsGo.AbortWithJSONError(c, http.StatusForbidden, err)
 		return
 	}
-	models.Login(c, user) //Login now
-	c.JSON(http.StatusOK, r)
+	models.Login(c, user)
+	response.SuccessMsg(c, "signup success", gin.H{
+		"email": user.Username,
+	})
 }
 
 // handleUserSignupByEmail email register email activation
@@ -947,34 +638,9 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 
 	clientIP := c.ClientIP()
 
-	// 1. 输入清理和验证
-	var err error
-	form.Username, err = utils.SanitizeAndValidate(form.Username, "email")
-	if err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+	if err := authvalidate.PrepareEmailRegister(&form); err != nil {
+		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
 		return
-	}
-
-	form.Password, err = utils.SanitizeAndValidate(form.Password, "password")
-	if err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
-		return
-	}
-
-	if form.UserName != "" {
-		form.UserName, err = utils.SanitizeAndValidate(form.UserName, "username")
-		if err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
-			return
-		}
-	}
-
-	if form.DisplayName != "" {
-		form.DisplayName, err = utils.SanitizeAndValidate(form.DisplayName, "displayname")
-		if err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
-			return
-		}
 	}
 
 	// 2. 图形验证码验证
@@ -1038,7 +704,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		passwordToStore = fmt.Sprintf("sha256$%s", passwordHash)
 	}
 
-	user, err := models.CreateUserByUsername(db, form.UserName, form.DisplayName, passwordToStore)
+	user, err := models.CreateUser(db, form.Username, passwordToStore)
 	if err != nil {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
@@ -1048,17 +714,28 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		return
 	}
 
+	// 邮箱注册：账号即邮箱，默认绑定 email 字段
+	if strings.Contains(form.Username, "@") {
+		if err := models.SetEmail(db, user, form.Username); err != nil {
+			logger.Warn("bind email on register failed", zap.Uint("userId", user.ID), zap.Error(err))
+		}
+	}
+
 	// 记录成功注册
 	if utils.GlobalRegistrationGuard != nil {
 		utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, true, "registration successful")
 	}
+	user.DisplayName = form.DisplayName
 	vals := utils.StructAsMap(form, []string{
 		"DisplayName",
 		"FirstName",
 		"LastName",
 		"Locale",
 		"Source"})
-	user.Source = "ADMIN"
+	user.Source = strings.TrimSpace(form.Source)
+	if user.Source == "" {
+		user.Source = "WEB"
+	}
 	err = models.UpdateUserFields(db, user, vals)
 	if err != nil {
 		logger.Warn("update user fields fail id:", zap.Uint("userId", user.ID), zap.Any("vals", vals), zap.Error(err))
@@ -1084,6 +761,14 @@ func (h *Handlers) handleUserUpdate(c *gin.Context) {
 	}
 	if req.Phone != "" {
 		vals["phone"] = req.Phone
+	}
+	if req.Email != "" {
+		email := strings.ToLower(strings.TrimSpace(req.Email))
+		if email != "" && models.IsExistsByEmail(h.db, email, user.ID) {
+			response.Fail(c, "该邮箱已被其他账号绑定", errors.New("email already bound"))
+			return
+		}
+		vals["email"] = email
 	}
 	if req.FirstName != "" {
 		vals["first_name"] = req.FirstName
@@ -1418,6 +1103,103 @@ func (h *Handlers) handleSendEmailVerification(c *gin.Context) {
 	response.Fail(c, "Email verification has been disabled", errors.New("email verification is no longer supported"))
 }
 
+// handleSendBindEmailCode 发送绑定邮箱验证码（6 位数字，缓存 5 分钟）。
+// 验证码以 "bind-email:" 前缀 + 邮箱为 key 写入缓存，避免与登录/注册验证码冲突。
+func (h *Handlers) handleSendBindEmailCode(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, "Invalid request", err)
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if err := authvalidate.PrepareSendEmailCode(&models.SendEmailVerifyEmail{Email: email}); err != nil {
+		response.Fail(c, authvalidate.AbortMessage(err), err)
+		return
+	}
+
+	user := models.CurrentUser(c)
+	if user == nil {
+		response.Fail(c, "User not found", errors.New("user not found"))
+		return
+	}
+
+	// 同一邮箱不能被其他用户绑定
+	if models.IsExistsByEmail(h.db, email, user.ID) {
+		response.Fail(c, "该邮箱已被其他账号绑定", errors.New("email already bound"))
+		return
+	}
+
+	clientIP := c.ClientIP()
+	text := utils.RandNumberText(6)
+	cacheKey := "bind-email:" + email
+	h.cache.Set(context.Background(), cacheKey, text, 0)
+	go func() {
+		mailer := notify.NewMailer(h.db, user.ID, clientIP)
+		if err := mailer.SendVerificationCode(email, text); err != nil {
+			logger.Warn("send bind-email code failed", zap.String("email", email), zap.Error(err))
+		}
+	}()
+	response.SuccessMsg(c, "success", "验证码已发送，请在 5 分钟内完成验证")
+}
+
+// handleBindEmail 绑定/换绑邮箱（验证码校验通过后写入 user.email）。
+func (h *Handlers) handleBindEmail(c *gin.Context) {
+	var form struct {
+		Email string `json:"email" binding:"required"`
+		Code  string `json:"code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&form); err != nil {
+		response.Fail(c, "Invalid request", err)
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(form.Email))
+	code := strings.TrimSpace(form.Code)
+	if err := authvalidate.PrepareSendEmailCode(&models.SendEmailVerifyEmail{Email: email}); err != nil {
+		response.Fail(c, authvalidate.AbortMessage(err), err)
+		return
+	}
+	if code == "" {
+		response.Fail(c, "请输入验证码", errors.New("code is required"))
+		return
+	}
+
+	user := models.CurrentUser(c)
+	if user == nil {
+		response.Fail(c, "User not found", errors.New("user not found"))
+		return
+	}
+
+	// 唯一性：一个邮箱只能绑定一个用户
+	if models.IsExistsByEmail(h.db, email, user.ID) {
+		response.Fail(c, "该邮箱已被其他账号绑定", errors.New("email already bound"))
+		return
+	}
+
+	// 校验验证码
+	cacheKey := "bind-email:" + email
+	cachedCode, errCache := h.cache.Get(context.Background(), cacheKey)
+	if errCache != nil || cachedCode != code {
+		response.Fail(c, "验证码无效或已过期", errors.New("invalid or expired code"))
+		return
+	}
+	h.cache.Delete(context.Background(), cacheKey)
+
+	oldEmail := user.Email
+	if err := models.SetEmail(h.db, user, email); err != nil {
+		response.Fail(c, "绑定邮箱失败", err)
+		return
+	}
+
+	// 通知：换绑时发"邮箱更换完成"通知；首次绑定时只更新本地
+	if strings.TrimSpace(oldEmail) != "" && oldEmail != email {
+		common.Sig().Emit(constants.SigUserChangeEmailDone, user, oldEmail, email)
+	}
+
+	response.SuccessMsg(c, "绑定成功", gin.H{"email": user.Email})
+}
+
 // handleVerifyPhone 验证手机
 func (h *Handlers) handleVerifyPhone(c *gin.Context) {
 	var form struct {
@@ -1656,47 +1438,6 @@ func isDefaultAvatar(avatarURL string) bool {
 		strings.Contains(avatarURL, "gravatar")
 }
 
-// buildMailProviders constructs ling-base email providers from CloudSteps mail config.
-func buildMailProviders(cfg config.MailConfig) []email.MailProvider {
-	switch cfg.Provider {
-	case "sendcloud":
-		p, err := email.NewSendCloudProvider(email.SendCloudConfig{
-			APIUser: cfg.APIUser,
-			APIKey:  cfg.APIKey,
-			From:    cfg.From,
-		})
-		if err != nil {
-			return nil
-		}
-		return []email.MailProvider{p}
-	case "smtp":
-		return []email.MailProvider{
-			email.NewSMTPProvider(email.SMTPConfig{
-				Host:     cfg.Host,
-				Port:     int(cfg.Port),
-				Username: cfg.Username,
-				Password: cfg.Password,
-				From:     cfg.From,
-			}),
-		}
-	default:
-		return nil
-	}
-}
-
-// renderEmailTemplate renders an embedded HTML template with data.
-func renderEmailTemplate(templateStr string, data interface{}) (string, error) {
-	tmpl, err := htmlTemplate.New("email").Parse(templateStr)
-	if err != nil {
-		return "", err
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
-}
-
 func sendHashMail(db *gorm.DB, user *models.User, signame, expireKey, defaultExpired, clientIp, useragent string, configStore *lbconfig.Store) {
 	d, err := time.ParseDuration(configStore.GetValue(expireKey))
 	if err != nil {
@@ -1705,15 +1446,17 @@ func sendHashMail(db *gorm.DB, user *models.User, signame, expireKey, defaultExp
 	n := time.Now().Add(d)
 	hash := models.EncodeHashToken(user, n.Unix(), true)
 
-	// 发送信号，让监听器处理邮件发送
 	common.Sig().Emit(signame, user, hash, clientIp, useragent, db)
 }
 
-// handleSendEmailCode Send Email Code
 func (h *Handlers) handleSendEmailCode(c *gin.Context) {
 	var req models.SendEmailVerifyEmail
 	if err := c.BindJSON(&req); err != nil {
 		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		return
+	}
+	if err := authvalidate.PrepareSendEmailCode(&req); err != nil {
+		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
 		return
 	}
 	req.UserAgent = c.Request.UserAgent()
@@ -1721,25 +1464,12 @@ func (h *Handlers) handleSendEmailCode(c *gin.Context) {
 	text := utils.RandNumberText(6)
 	h.cache.Set(context.Background(), req.Email, text, 0)
 	go func() {
-		providers := buildMailProviders(config.GlobalConfig.Services.Mail)
-		if len(providers) == 0 {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("no mail provider configured"))
-			return
+		mailer := notify.NewMailer(h.db, 0, req.ClientIp)
+		if err := mailer.SendVerificationCode(req.Email, text); err != nil {
+			logger.Warn("send email code failed", zap.String("email", req.Email), zap.Error(err))
 		}
-		mailer := email.NewMailer(providers)
-		htmlBody, err := renderEmailTemplate(CloudStepsGo.VerificationHTML, map[string]string{"Code": text})
-		if err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
-			return
-		}
-		if err := mailer.Send(context.Background(), req.Email, "您的 CloudStepsGo 验证码", htmlBody); err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
-			return
-		}
-		_ = models.CreateMailLog(h.db, 0, req.Email, "您的 CloudStepsGo 验证码", "", req.ClientIp)
 	}()
 	response.SuccessMsg(c, "success", "Send Email Successful, Must be verified within the valid time [5 minutes]")
-	return
 }
 
 // handleGetCaptcha 获取验证码（随机类型）
@@ -1884,6 +1614,7 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	search := c.Query("search")
 	role := c.Query("role")
+	includeDeleted := c.Query("includeDeleted") == "1" || c.Query("includeDeleted") == "true"
 
 	if page < 1 {
 		page = 1
@@ -1893,11 +1624,14 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 	}
 
 	query := db.Model(&models.User{})
+	if !includeDeleted {
+		query = query.Where("is_deleted = ?", models.SoftDeleteStatusActive)
+	}
 
 	if search != "" {
 		like := "%" + search + "%"
-		query = query.Where("username LIKE ? OR display_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?",
-			like, like, like, like)
+		query = query.Where("username LIKE ? OR display_name LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR email LIKE ?",
+			like, like, like, like, like)
 	}
 	if role != "" {
 		query = query.Where("role = ?", role)
@@ -1936,7 +1670,8 @@ func (h *Handlers) handleAdminGetUser(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := db.First(&user, id).Error; err != nil {
+	// 允许查看已注销用户（详情面板需要展示已注销状态）
+	if err := db.Where("id = ?", id).First(&user).Error; err != nil {
 		response.Fail(c, "用户不存在", err)
 		return
 	}
@@ -1955,6 +1690,7 @@ func (h *Handlers) handleAdminCreateUser(c *gin.Context) {
 		LastName    string  `json:"lastName"`
 		Role        string  `json:"role"`
 		Phone       string  `json:"phone"`
+		Email       string  `json:"email"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, "参数错误", err)
@@ -1965,6 +1701,13 @@ func (h *Handlers) handleAdminCreateUser(c *gin.Context) {
 	db.Model(&models.User{}).Where("username = ?", req.Username).Count(&count)
 	if count > 0 {
 		response.Fail(c, "用户名已存在", errors.New("username already exists"))
+		return
+	}
+
+	// 邮箱唯一性校验
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email != "" && models.IsExistsByEmail(db, email) {
+		response.Fail(c, "该邮箱已被绑定", errors.New("email already bound"))
 		return
 	}
 
@@ -1990,6 +1733,7 @@ func (h *Handlers) handleAdminCreateUser(c *gin.Context) {
 		LastName:    req.LastName,
 		Role:        role,
 		Phone:       req.Phone,
+		Email:       email,
 		Source:      "admin",
 	}
 
@@ -2010,7 +1754,7 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := db.First(&user, id).Error; err != nil {
+	if err := db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&user).Error; err != nil {
 		response.Fail(c, "用户不存在", err)
 		return
 	}
@@ -2023,6 +1767,7 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 		LastName    *string `json:"lastName"`
 		Role        *string `json:"role"`
 		Phone       *string `json:"phone"`
+		Email       *string `json:"email"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, "参数错误", err)
@@ -2050,6 +1795,14 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 	}
 	if req.Phone != nil {
 		updates["phone"] = *req.Phone
+	}
+	if req.Email != nil {
+		email := strings.ToLower(strings.TrimSpace(*req.Email))
+		if email != "" && models.IsExistsByEmail(db, email, user.ID) {
+			response.Fail(c, "该邮箱已被其他账号绑定", errors.New("email already bound"))
+			return
+		}
+		updates["email"] = email
 	}
 
 	if len(updates) == 0 {
@@ -2082,16 +1835,34 @@ func (h *Handlers) handleAdminDeleteUser(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := db.First(&user, id).Error; err != nil {
+	if err := db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&user).Error; err != nil {
 		response.Fail(c, "用户不存在", err)
 		return
 	}
 
-	if err := db.Delete(&user).Error; err != nil {
-		response.Fail(c, "删除失败", err)
+	// 软删除：设置 is_deleted = 1（BaseModel 使用 IsDeleted 而非 GORM DeletedAt）
+	operator := ""
+	if currentUser != nil {
+		operator = currentUser.Username
+	}
+	if err := db.Model(&user).Updates(map[string]any{
+		"is_deleted": models.SoftDeleteStatusDeleted,
+		"update_by":  operator,
+	}).Error; err != nil {
+		response.Fail(c, "注销失败", err)
 		return
 	}
-	response.SuccessMsg(c, "删除成功", nil)
+	response.SuccessMsg(c, "注销成功", nil)
+}
+
+// firstNonEmpty returns the first trimmed non-empty string.
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if s := strings.TrimSpace(v); s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 // serializeUser 序列化用户信息（不含密码）
@@ -2101,23 +1872,37 @@ func serializeUser(u *models.User) gin.H {
 		t := u.LastLogin.Format("2006-01-02T15:04:05Z07:00")
 		lastLogin = &t
 	}
+	var lastStudy *string
+	if u.LastStudyDate != nil && !u.LastStudyDate.IsZero() {
+		t := u.LastStudyDate.Format("2006-01-02T15:04:05Z07:00")
+		lastStudy = &t
+	}
 	return gin.H{
-		"id":          u.ID,
-		"username":    u.Username,
-		"email":       u.Username,
-		"displayName": u.DisplayName,
-		"firstName":   u.FirstName,
-		"lastName":    u.LastName,
-		"role":        u.Role,
-		"phone":       u.Phone,
-		"locale":      u.Locale,
-		"enabled":     u.IsDeleted == models.SoftDeleteStatusActive,
-		"isStaff":     u.Role == "admin",
-		"activated":   true,
-		"lastLogin":   lastLogin,
-		"loginCount":  u.LoginCount,
-		"source":      u.Source,
-		"createdAt":   u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		"updatedAt":   u.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"id":            u.ID,
+		"username":      u.Username,
+		"email":         u.Email,
+		"account":       u.Username,
+		"displayName":   u.DisplayName,
+		"firstName":     u.FirstName,
+		"lastName":      u.LastName,
+		"role":          u.Role,
+		"phone":         u.Phone,
+		"locale":        u.Locale,
+		"enabled":       u.IsDeleted == models.SoftDeleteStatusActive,
+		"isDeleted":     u.IsDeleted == models.SoftDeleteStatusDeleted,
+		"isStaff":       u.Role == "admin",
+		"activated":     true,
+		"lastLogin":     lastLogin,
+		"lastLoginIP":   u.LastLoginIP,
+		"loginCount":    u.LoginCount,
+		"source":        u.Source,
+		"avatar":        u.Avatar,
+		"gender":        u.Gender,
+		"city":          u.City,
+		"region":        u.Region,
+		"streakDays":    u.StreakDays,
+		"lastStudyDate": lastStudy,
+		"createdAt":     u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"updatedAt":     u.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

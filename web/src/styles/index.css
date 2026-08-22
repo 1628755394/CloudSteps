@@ -91,3 +91,41 @@ input[type="month"]::-webkit-calendar-picker-indicator {
   opacity: 0.55;
   cursor: pointer;
 }
+
+/* 语法讲解 HTML 内容渲染 */
+.grammar-html-content {
+  font-size: 14px;
+  line-height: 1.8;
+  word-break: break-word;
+}
+.grammar-html-content p {
+  margin: 0 0 8px;
+}
+.grammar-html-content strong {
+  font-weight: 600;
+  color: #2D3748;
+}
+.grammar-html-content table {
+  width: auto;
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.grammar-html-content td {
+  border: 1px solid #E2E8F0;
+  padding: 6px 10px;
+  text-align: left;
+}
+.grammar-html-content tr:first-child td {
+  background: #F7F9FC;
+  font-weight: 600;
+}
+.grammar-html-content ul,
+.grammar-html-content ol {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+.grammar-html-content li {
+  margin-bottom: 4px;
+}

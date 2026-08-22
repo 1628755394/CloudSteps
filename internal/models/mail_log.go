@@ -11,38 +11,66 @@ import (
 // inbox.GormMessage so AutoMigrate calls and legacy table rows keep working.
 type InternalNotification = inbox.GormMessage
 
-// MailLog email log record.
+// MailLog is a persisted record of an outbound email.
 type MailLog struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    uint      `gorm:"index" json:"user_id"`
-	ToEmail   string    `gorm:"index" json:"to_email"`
-	Subject   string    `json:"subject"`
-	Status    string    `gorm:"index" json:"status"`
-	ErrorMsg  string    `json:"error_msg"`
-	MessageID string    `gorm:"type:varchar(255);index" json:"message_id"`
-	IPAddress string    `json:"ip_address"`
-	SentAt    time.Time `json:"sent_at"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	UserID      uint      `gorm:"index" json:"user_id"`
+	Provider    string    `gorm:"size:32;index" json:"provider"`
+	ChannelName string    `gorm:"size:128;index" json:"channel_name"`
+	ToEmail     string    `gorm:"index" json:"to_email"`
+	Subject     string    `json:"subject"`
+	Status      string    `gorm:"index" json:"status"`
+	HtmlBody    string    `json:"html_body"`
+	ErrorMsg    string    `gorm:"type:text" json:"error_msg"`
+	MessageID   string    `gorm:"type:varchar(255);index" json:"message_id"`
+	IPAddress   string    `gorm:"size:64" json:"ip_address"`
+	RetryCount  int       `json:"retry_count"`
+	SentAt      time.Time `json:"sent_at"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// TableName specifies the table name.
 func (MailLog) TableName() string { return "mail_logs" }
 
-// CreateMailLog inserts a mail-log record.
-func CreateMailLog(db *gorm.DB, userID uint, toEmail, subject, messageID, ipAddress string) error {
-	return db.Create(&MailLog{
-		UserID:    userID,
-		ToEmail:   toEmail,
-		Subject:   subject,
-		Status:    "sent",
-		MessageID: messageID,
-		IPAddress: ipAddress,
-		SentAt:    time.Now(),
-	}).Error
+func CreateMailLog(db *gorm.DB, userID uint, provider, channelName, toEmail, subject, htmlBody, messageID, status, ip string) (*MailLog, error) {
+	log := &MailLog{
+		UserID:      userID,
+		Provider:    provider,
+		ChannelName: channelName,
+		ToEmail:     toEmail,
+		Subject:     subject,
+		HtmlBody:    htmlBody,
+		Status:      status,
+		MessageID:   messageID,
+		IPAddress:   ip,
+		SentAt:      time.Now(),
+	}
+	if err := db.Create(log).Error; err != nil {
+		return nil, err
+	}
+	return log, nil
 }
 
-// UpdateMailLogStatus updates the status of a mail log.
+func CreateFailedMailLog(db *gorm.DB, userID uint, provider, channelName, toEmail, subject, htmlBody, errMsg string, retries int, ip string) (*MailLog, error) {
+	log := &MailLog{
+		UserID:      userID,
+		Provider:    provider,
+		ChannelName: channelName,
+		ToEmail:     toEmail,
+		Subject:     subject,
+		HtmlBody:    htmlBody,
+		Status:      "failed",
+		ErrorMsg:    errMsg,
+		RetryCount:  retries,
+		IPAddress:   ip,
+		SentAt:      time.Now(),
+	}
+	if err := db.Create(log).Error; err != nil {
+		return nil, err
+	}
+	return log, nil
+}
+
 func UpdateMailLogStatus(db *gorm.DB, messageID, status, errorMsg string) error {
 	return db.Model(&MailLog{}).
 		Where("message_id = ?", messageID).
@@ -52,7 +80,6 @@ func UpdateMailLogStatus(db *gorm.DB, messageID, status, errorMsg string) error 
 		}).Error
 }
 
-// GetMailLogs gets mail logs with pagination.
 func GetMailLogs(db *gorm.DB, userID uint, page, pageSize int) ([]MailLog, int64, error) {
 	var logs []MailLog
 	var total int64
@@ -67,47 +94,10 @@ func GetMailLogs(db *gorm.DB, userID uint, page, pageSize int) ([]MailLog, int64
 	return logs, total, nil
 }
 
-// GetMailLogByID gets mail log by ID and user ID.
-func GetMailLogByID(db *gorm.DB, userID, logID uint) (*MailLog, error) {
+func GetMailLogByID(db *gorm.DB, id uint) (*MailLog, error) {
 	var log MailLog
-	if err := db.Where("id = ? AND user_id = ?", logID, userID).First(&log).Error; err != nil {
+	if err := db.First(&log, id).Error; err != nil {
 		return nil, err
 	}
 	return &log, nil
-}
-
-// GetMailLogStats gets mail log statistics.
-func GetMailLogStats(db *gorm.DB, userID uint) (map[string]interface{}, error) {
-	var stats struct {
-		Total        int64
-		Sent         int64
-		Delivered    int64
-		Failed       int64
-		Bounced      int64
-		Spam         int64
-		Clicked      int64
-		Opened       int64
-		Unsubscribed int64
-	}
-	query := db.Where("user_id = ?", userID)
-	query.Model(&MailLog{}).Count(&stats.Total)
-	query.Where("status = ?", "sent").Count(&stats.Sent)
-	query.Where("status = ?", "delivered").Count(&stats.Delivered)
-	query.Where("status = ?", "failed").Count(&stats.Failed)
-	query.Where("status = ?", "bounced").Count(&stats.Bounced)
-	query.Where("status = ?", "spam").Count(&stats.Spam)
-	query.Where("status = ?", "clicked").Count(&stats.Clicked)
-	query.Where("status = ?", "opened").Count(&stats.Opened)
-	query.Where("status = ?", "unsubscribed").Count(&stats.Unsubscribed)
-	return map[string]interface{}{
-		"total":        stats.Total,
-		"sent":         stats.Sent,
-		"delivered":    stats.Delivered,
-		"failed":       stats.Failed,
-		"bounced":      stats.Bounced,
-		"spam":         stats.Spam,
-		"clicked":      stats.Clicked,
-		"opened":       stats.Opened,
-		"unsubscribed": stats.Unsubscribed,
-	}, nil
 }

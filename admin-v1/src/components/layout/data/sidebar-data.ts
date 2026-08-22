@@ -1,111 +1,42 @@
 import {
-  Construction,
   LayoutDashboard,
-  Monitor,
-  Bug,
-  ListTodo,
-  FileX,
-  HelpCircle,
-  Lock,
-  Bell,
-  Package,
-  Palette,
-  ServerOff,
   Settings,
-  Wrench,
   UserCog,
-  UserX,
-  Users,
-  MessagesSquare,
-  ShieldCheck,
-  AudioWaveform,
-  Command,
-  GalleryVerticalEnd,
+  Palette,
   Library,
   Brain,
   FileText,
   CalendarDays,
   ScrollText,
+  Mail,
   History,
+  Bell,
+  HardDrive,
+  BarChart3,
+  MessageSquare,
 } from 'lucide-react'
-import { ClerkLogo } from '@/assets/clerk-logo'
 import { type SidebarData } from '../types'
 
 export const sidebarData: SidebarData = {
   user: {
-    name: 'satnaing',
-    email: 'satnaingdev@gmail.com',
-    avatar: '/avatars/shadcn.jpg',
+    name: '',
+    email: '',
+    avatar: '',
   },
-  teams: [
-    {
-      name: 'Shadcn Admin',
-      logo: Command,
-      plan: 'Vite + ShadcnUI',
-    },
-    {
-      name: 'Acme Inc',
-      logo: GalleryVerticalEnd,
-      plan: 'Enterprise',
-    },
-    {
-      name: 'Acme Corp.',
-      logo: AudioWaveform,
-      plan: 'Startup',
-    },
-  ],
+  teams: [],
   navGroups: [
     {
-      title: 'General',
+      title: '概览',
       items: [
         {
-          title: 'Dashboard',
+          title: '仪表盘',
           url: '/',
           icon: LayoutDashboard,
-        },
-        {
-          title: 'Tasks',
-          url: '/tasks',
-          icon: ListTodo,
-        },
-        {
-          title: 'Apps',
-          url: '/apps',
-          icon: Package,
-        },
-        {
-          title: 'Chats',
-          url: '/chats',
-          badge: '3',
-          icon: MessagesSquare,
-        },
-        {
-          title: 'Users',
-          url: '/users',
-          icon: Users,
-        },
-        {
-          title: 'Secured by Clerk',
-          icon: ClerkLogo,
-          items: [
-            {
-              title: 'Sign In',
-              url: '/clerk/sign-in',
-            },
-            {
-              title: 'Sign Up',
-              url: '/clerk/sign-up',
-            },
-            {
-              title: 'User Management',
-              url: '/clerk/user-management',
-            },
-          ],
         },
       ],
     },
     {
-      title: 'CloudSteps',
+      title: '业务',
       items: [
         {
           title: '词库管理',
@@ -129,121 +60,80 @@ export const sidebarData: SidebarData = {
         },
         {
           title: '用户管理',
-          url: '/cloud-users',
-          icon: Users,
-        },
-        {
-          title: '操作日志',
-          url: '/operation-logs',
-          icon: ScrollText,
-        },
-        {
-          title: '登录历史',
-          url: '/login-history',
-          icon: History,
+          url: '/users',
+          icon: UserCog,
         },
       ],
     },
     {
-      title: 'Pages',
+      title: '系统',
       items: [
         {
-          title: 'Auth',
-          icon: ShieldCheck,
+          title: '对象存储',
+          url: '/storage',
+          icon: HardDrive,
+        },
+        {
+          title: '存储与 CDN 监控',
+          url: '/storage-stats',
+          icon: BarChart3,
+        },
+        {
+          title: '通知',
+          icon: Bell,
           items: [
             {
-              title: 'Sign In',
-              url: '/sign-in',
+              title: '通知渠道',
+              url: '/notification-channels',
+              icon: Mail,
             },
             {
-              title: 'Sign In (2 Col)',
-              url: '/sign-in-2',
+              title: '通知模板',
+              url: '/notification-templates',
+              icon: FileText,
             },
             {
-              title: 'Sign Up',
-              url: '/sign-up',
+              title: '站内信',
+              url: '/inbox-notifications',
+              icon: MessageSquare,
             },
             {
-              title: 'Forgot Password',
-              url: '/forgot-password',
-            },
-            {
-              title: 'OTP',
-              url: '/otp',
+              title: '邮件日志',
+              url: '/mail-logs',
+              icon: ScrollText,
             },
           ],
         },
         {
-          title: 'Errors',
-          icon: Bug,
-          items: [
-            {
-              title: 'Unauthorized',
-              url: '/errors/unauthorized',
-              icon: Lock,
-            },
-            {
-              title: 'Forbidden',
-              url: '/errors/forbidden',
-              icon: UserX,
-            },
-            {
-              title: 'Not Found',
-              url: '/errors/not-found',
-              icon: FileX,
-            },
-            {
-              title: 'Internal Server Error',
-              url: '/errors/internal-server-error',
-              icon: ServerOff,
-            },
-            {
-              title: 'Maintenance Error',
-              url: '/errors/maintenance-error',
-              icon: Construction,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      title: 'Other',
-      items: [
-        {
-          title: 'Settings',
+          title: '设置',
           icon: Settings,
           items: [
             {
-              title: 'Profile',
+              title: '个人资料',
               url: '/settings',
               icon: UserCog,
             },
             {
-              title: 'Account',
-              url: '/settings/account',
-              icon: Wrench,
-            },
-            {
-              title: 'Appearance',
-              url: '/settings/appearance',
-              icon: Palette,
-            },
-            {
-              title: 'Notifications',
+              title: '通知',
               url: '/settings/notifications',
               icon: Bell,
             },
             {
-              title: 'Display',
-              url: '/settings/display',
-              icon: Monitor,
+              title: '外观',
+              url: '/settings/appearance',
+              icon: Palette,
+            },
+            {
+              title: '登录历史',
+              url: '/settings/login-history',
+              icon: History,
+            },
+            {
+              title: '操作日志',
+              url: '/settings/operation-logs',
+              icon: ScrollText,
             },
           ],
-        },
-        {
-          title: 'Help Center',
-          url: '/help-center',
-          icon: HelpCircle,
         },
       ],
     },

@@ -6,6 +6,7 @@ import { AnnotationLayer, AnnotationToggleButton } from "../components/Annotatio
 import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { CloudButton } from "../components/cloudsteps";
 import { TopBar } from "../components/TopBar";
+import { AudioMuteToggleButton } from "../components/AudioMuteToggleButton";
 import { FlowPageShell } from "../components/PageTransition";
 import { playFirstWordAudio } from "../utils/audioPlayer";
 import { nextWordTapState } from "../utils/wordReveal";
@@ -126,6 +127,7 @@ export default function LighthouseWords() {
         onBack={handleBack}
         rightSlot={
           <div className="flex items-center gap-0.5">
+            <AudioMuteToggleButton />
             <AnnotationToggleButton
               active={annotationOpen}
               onClick={() => setAnnotationOpen((v) => !v)}

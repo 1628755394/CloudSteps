@@ -21,7 +21,6 @@ func DedupKey(raw string) string {
 }
 
 // DeduplicateSlots 保留分号槽位，去掉重复 URL（保留首次出现）。
-// 末尾空槽会裁掉；中间空槽保留（TTS 第 2/3 段）。
 func DeduplicateSlots(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -48,4 +47,46 @@ func DeduplicateSlots(raw string) string {
 		out = out[:len(out)-1]
 	}
 	return strings.Join(out, ";")
+}
+
+func SplitSlots(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	return strings.Split(raw, ";")
+}
+
+// RewritePronunciationSlots replaces slots 0 and 1 (word / triple-word TTS)
+// with shared URLs. Later slots (usually the gloss) are kept as-is.
+func RewritePronunciationSlots(raw, slot0, slot1 string) string {
+	parts := SplitSlots(raw)
+	slot0 = strings.TrimSpace(slot0)
+	slot1 = strings.TrimSpace(slot1)
+	if slot0 != "" {
+		if len(parts) == 0 {
+			parts = []string{slot0}
+		} else {
+			parts[0] = slot0
+		}
+	}
+	if slot1 != "" {
+		for len(parts) < 2 {
+			parts = append(parts, "")
+		}
+		parts[1] = slot1
+	}
+	for len(parts) > 0 && strings.TrimSpace(parts[len(parts)-1]) == "" {
+		parts = parts[:len(parts)-1]
+	}
+	return strings.Join(parts, ";")
+}
+
+func EachSlot(raw string, fn func(url string)) {
+	for _, p := range SplitSlots(raw) {
+		u := strings.TrimSpace(p)
+		if u != "" {
+			fn(u)
+		}
+	}
 }

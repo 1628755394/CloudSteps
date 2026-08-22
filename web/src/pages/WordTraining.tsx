@@ -6,6 +6,7 @@ import { CloudSelect } from "../components/cloudsteps/arco";
 import { FlowPageShell } from "../components/PageTransition";
 import { MemoryLighthouse, type MemoryLighthouseData } from "../components/MemoryLighthouse";
 import { TopBar } from "../components/TopBar";
+import { AudioMuteToggleButton } from "../components/AudioMuteToggleButton";
 import { useAuthStore } from "../stores/authStore";
 import {
   listAllTeacherCoachingQuotas,
@@ -307,7 +308,7 @@ export default function WordTraining() {
 
   return (
     <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-      <TopBar title="单词训练" onBack={handleBack} />
+      <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
 
       <div className="px-4 mt-3 space-y-3 pb-4">
         <CloudSelect

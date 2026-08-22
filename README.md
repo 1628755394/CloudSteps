@@ -50,14 +50,16 @@
 CloudSteps/
 ├─ cmd/                       # 后端入口
 │  ├─ server/                 # 主服务（API + 静态资源）
-│  ├─ bootstrap/              # 启动装配
+│  └─ bootstrap/              # 启动装配
+├─ scripts/                   # 工具脚本（运维 / 数据导入 / TTS 生成 等）
 │  ├─ migrate-seed/           # 数据库迁移与种子
 │  ├─ tts-gen/                # TTS 批量生成工具
 │  ├─ iciba-scrape/           # 词库抓取
 │  ├─ ddjdc-import/           # 词典导入
 │  ├─ clean-duplicate-words/  # 重复词清理
 │  ├─ purge-vocab-audio/      # 音频清理
-│  └─ qcloud-get-appid/       # 腾讯云 AppID 工具
+│  ├─ qcloud-get-appid/       # 腾讯云 AppID 工具
+│  └─ ...                     # 其他工具脚本
 ├─ internal/
 │  ├─ handlers/               # HTTP 路由处理器（auth/coaching/study/tts/wordbooks …）
 │  ├─ listeners/              # 事件监听
@@ -77,7 +79,6 @@ CloudSteps/
 ├─ admin-v1/                  # 运营后台前端（React + shadcn/ui）
 ├─ templates/                 # 邮件模板 / favicon
 ├─ i18n/                      # 国际化翻译
-├─ scripts/                   # 运维脚本
 ├─ docs/                      # 设计 / 实现文档
 ├─ .github/workflows/         # CI（ci.yml + deploy-pages.yml）
 ├─ .devcontainer/             # Dev Container 配置
@@ -208,22 +209,22 @@ go vet ./...         # 静态检查（CI 同款）
 
 ```bash
 # TTS 批量生成
-go run ./cmd/tts-gen --help
+go run ./scripts/tts-gen --help
 
 # 清理词库内重复单词
-go run ./cmd/clean-duplicate-words --dry-run
-go run ./cmd/clean-duplicate-words --execute
+go run ./scripts/clean-duplicate-words --dry-run
+go run ./scripts/clean-duplicate-words --execute
 
 # 词典 / 词库导入
-go run ./cmd/ddjdc-import --help
-go run ./cmd/ddjdc-dict-import --help
-go run ./cmd/iciba-scrape --help
+go run ./scripts/ddjdc-import --help
+go run ./scripts/ddjdc-dict-import --help
+go run ./scripts/iciba-scrape --help
 
 # 数据库迁移 / 种子
-go run ./cmd/migrate-seed --help
+go run ./scripts/migrate-seed --help
 
 # 清理词汇音频
-go run ./cmd/purge-vocab-audio --help
+go run ./scripts/purge-vocab-audio --help
 ```
 
 ## 相关文档

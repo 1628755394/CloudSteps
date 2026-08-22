@@ -2,11 +2,13 @@ import { Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Check } from 
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
-import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS, PRACTICE_CARD_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
+import { StudentWordMarkButton, useStudentWordMarks } from "../components/StudentWordMarkButton";
+import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
@@ -62,6 +64,8 @@ export default function WordPractice() {
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
   const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
+  const wordIds = useMemo(() => words.map((w) => w.id), [words]);
+  const wordMarks = useStudentWordMarks(wordIds);
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -145,14 +149,14 @@ export default function WordPractice() {
   }, [words]);
 
   const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : 0;
-
-  useEffect(() => {
-    if (words.length === 0) return;
-    setCurrentIndex(activeIndex);
-  }, [activeIndex, words.length]);
+  /** 序列中「下一步」要去的词（与当前不同时才显示引导标记） */
+  const nextGuideIndex =
+    frameIdx + 1 < sequence.length ? sequence[frameIdx + 1] : -1;
 
   /** 点单词：第一次发音，第二次显示音标+释义；拓展仅在释义时增幅 */
   const handleWordTap = (word: PracticeWord) => {
+    const idx = words.findIndex((w) => w.id === word.id);
+    if (idx >= 0) setCurrentIndex(idx);
     const next = nextWordTapState({
       showTranslation: word.showTranslation,
       heard: word.heard,
@@ -268,74 +272,81 @@ export default function WordPractice() {
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {viewMode === "card" && cardWord ? (
-          <div className="flex flex-col items-center gap-5 py-2">
-            <div className="flex items-center gap-3 w-full">
-              <CloudButton
-                type="button"
-                variant="ghost"
-                size="iconRound"
-                disabled={cardIndex <= 0}
-                onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
-                className="shrink-0 bg-muted disabled:opacity-40"
-              >
-                <ChevronLeft size={22} />
-              </CloudButton>
-              <div
-                className={`flex-1 bg-white border rounded-2xl shadow-sm px-5 py-8 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                  !manualReadMode && words.findIndex((w) => w.id === cardWord.id) === currentIndex
-                    ? "border-2 border-[#4ECDC4] bg-[#4ECDC4]/10"
-                    : "border-[#E2E8F0]"
-                }`}
-                style={{ minHeight: "max(8rem, calc(var(--practice-word-size) * 6))" }}
-                onClick={() => handleWordTap(cardWord)}
-              >
-                <p className="text-xs text-[#718096] mb-4">
-                  {cardIndex + 1} / {words.length}
-                </p>
-                <div className={`${PRACTICE_WORD_CLASS} text-center break-all`}>{cardWord.word}</div>
-                {renderReveal(cardWord)}
-              </div>
-              <CloudButton
-                type="button"
-                variant="ghost"
-                size="iconRound"
-                disabled={cardIndex >= words.length - 1}
-                onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
-                className="shrink-0 bg-muted disabled:opacity-40"
-              >
-                <ChevronRight size={22} />
-              </CloudButton>
-            </div>
-            {!manualReadMode && (
-              <div className="flex items-center gap-2">
-                <StudyNoteLauncher
-                  storageKey={wordNoteKey(cardWord.id)}
-                  title={`笔记 · ${cardWord.word}`}
-                  label="笔记"
-                  className="h-9 px-2"
-                />
-                {parseAudioUrls(cardWord.audioUrl).length > 0 && (
-                  <CloudButton
-                    variant={playingId === cardWord.id ? "mint" : "mintOutline"}
-                    size="iconRound"
-                    className="size-10 text-sm font-bold"
-                    onClick={() => handlePlayNextAudio(cardWord)}
-                  >
-                    {audioIndexMap.get(cardWord.id) ?? 0}
-                  </CloudButton>
-                )}
+          <div className="flex w-full flex-col gap-3">
+            <div
+              className={`relative flex w-full flex-col overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition-colors ${
+                !manualReadMode && words.findIndex((w) => w.id === cardWord.id) === activeIndex
+                  ? "border-[#4ECDC4] bg-[#4ECDC4]/10"
+                  : "border-[#E2E8F0]"
+              }`}
+              style={{ minHeight: "min(62vh, calc(100dvh - 13.5rem))" }}
+            >
+              <p className="pointer-events-none absolute left-0 right-0 top-4 z-10 text-center text-xs text-[#718096]">
+                {cardIndex + 1} / {words.length}
+              </p>
+              <div className="relative flex min-h-0 flex-1 items-center justify-center px-2">
                 <CloudButton
-                  variant={words.findIndex((w) => w.id === cardWord.id) === activeIndex ? "mint" : "ghost"}
+                  type="button"
+                  variant="ghost"
                   size="iconRound"
-                  className={`size-12 ${
-                    words.findIndex((w) => w.id === cardWord.id) !== activeIndex ? "text-[#A0AEC0]" : ""
-                  }`}
-                  onClick={() => handleCountClick(cardWord.id)}
+                  disabled={cardIndex <= 0}
+                  onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
+                  className="absolute left-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
                 >
-                  <Check size={20} />
+                  <ChevronLeft size={24} />
+                </CloudButton>
+                <button
+                  type="button"
+                  className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center"
+                  onClick={() => handleWordTap(cardWord)}
+                >
+                  <div className={PRACTICE_CARD_WORD_CLASS}>{cardWord.word}</div>
+                  {renderReveal(cardWord)}
+                </button>
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  disabled={cardIndex >= words.length - 1}
+                  onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
+                  className="absolute right-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
+                >
+                  <ChevronRight size={24} />
                 </CloudButton>
               </div>
-            )}
+              {!manualReadMode && (
+                <div className="flex items-center justify-center gap-3 border-t border-[#E2E8F0] px-4 py-4">
+                  <StudentWordMarkButton
+                    wordId={cardWord.id}
+                    wordBookId={wordBookId}
+                    marked={wordMarks.isMarked(cardWord.id)}
+                    enabled={wordMarks.enabled}
+                    busy={wordMarks.busyId === cardWord.id}
+                    onToggle={wordMarks.toggle}
+                  />
+                  {parseAudioUrls(cardWord.audioUrl).length > 0 && (
+                    <CloudButton
+                      variant={playingId === cardWord.id ? "mint" : "mintOutline"}
+                      size="iconRound"
+                      className="size-12 text-sm font-bold"
+                      onClick={() => handlePlayNextAudio(cardWord)}
+                    >
+                      {audioIndexMap.get(cardWord.id) ?? 0}
+                    </CloudButton>
+                  )}
+                  <CloudButton
+                    variant={words.findIndex((w) => w.id === cardWord.id) === activeIndex ? "mint" : "ghost"}
+                    size="iconRound"
+                    className={`size-12 ${
+                      words.findIndex((w) => w.id === cardWord.id) !== activeIndex ? "text-[#A0AEC0]" : ""
+                    }`}
+                    onClick={() => handleCountClick(cardWord.id)}
+                  >
+                    <Check size={20} />
+                  </CloudButton>
+                </div>
+              )}
+            </div>
             {detailMode && cardWord.showTranslation && (
               <div className="w-full">
                 <WordDetailPanel
@@ -352,10 +363,15 @@ export default function WordPractice() {
             {words.map((word, index) => (
               <div
                 key={word.id}
-                className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
-                  !manualReadMode && index === currentIndex ? "bg-[#4ECDC4]/10 border-2 border-[#4ECDC4]" : ""
+                className={`relative bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
+                  !manualReadMode && index === activeIndex
+                    ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
+                    : "border-transparent"
                 }`}
               >
+                <SequenceNextMark
+                  show={!manualReadMode && nextGuideIndex >= 0 && index === nextGuideIndex}
+                />
                 <div className="flex items-center justify-between">
                   <div
                     onClick={() => handleWordTap(word)}
@@ -374,6 +390,15 @@ export default function WordPractice() {
                           className="h-9 px-2"
                         />
                       </div>
+                      <StudentWordMarkButton
+                        wordId={word.id}
+                        wordBookId={wordBookId}
+                        marked={wordMarks.isMarked(word.id)}
+                        enabled={wordMarks.enabled}
+                        busy={wordMarks.busyId === word.id}
+                        onToggle={wordMarks.toggle}
+                        className="size-10"
+                      />
                       {parseAudioUrls(word.audioUrl).length > 0 && (
                         <CloudButton
                           variant={playingId === word.id ? "mint" : "mintOutline"}

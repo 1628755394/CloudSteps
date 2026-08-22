@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/LingByte/CloudStepsGo/internal/listeners"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
@@ -59,7 +60,26 @@ func SetupDatabase(logWriter io.Writer, opts *Options) (*gorm.DB, error) {
 		)
 	}
 
-	// 4) Non-production: default configuration
+	// 3.5) Ensure critical columns exist even without --init flag (e.g. users.email)
+	if err := ensureUsersEmailColumn(db); err != nil {
+		logger.Error("ensure users.email column failed", zap.Error(err))
+		return nil, err
+	}
+	if err := db.AutoMigrate(&models.StudentWordMark{}); err != nil {
+		logger.Error("ensure student_word_marks failed", zap.Error(err))
+		return nil, err
+	}
+
+	// Notification templates (email + inbox) and default mail channel — always upsert so
+	// /notification-templates has baseline rows even without --init / --seed flags.
+	mailSeed := SeedService{db: db}
+	if err := mailSeed.seedNotificationDefaults(); err != nil {
+		logger.Error("notification seed failed", zap.Error(err))
+		return nil, err
+	}
+	listeners.InitAuthMailListeners(db)
+
+	// 4) Non-production: demo users, content, etc.
 	if opts.SeedNonProd {
 		service := SeedService{
 			db: db,
@@ -112,19 +132,74 @@ func RunMigrations(db *gorm.DB) error {
 		&models.GrammarQuestion{},
 		&models.GrammarRecord{},
 		&models.InternalNotification{},
+		&models.NotificationChannel{},
+		&models.MailTemplate{},
 		&models.MailLog{},
 		&models.StudentTeacherCoachingQuota{},
 		&models.TeacherCoachingUsagePeriod{},
 		&models.CoachingAppointment{},
 		&models.CoachingSessionRecord{},
 		&models.CoachingAuditLog{},
+		&models.StudentWordMark{},
 		&models.ScenarioDialogueScenario{},
 		&models.ScenarioDialogueSession{},
 		&models.ScenarioDialogueTurn{},
+		&models.SysMetric{},
 	}); err != nil {
 		return err
 	}
-	return fixScenarioDialogueCharset(db)
+	if err := fixScenarioDialogueCharset(db); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ensureUsersEmailColumn 确保 users 表有 email 列（GORM AutoMigrate 对已有表加带索引的列时可能不生效，这里做兜底）。
+func ensureUsersEmailColumn(db *gorm.DB) error {
+	if config.GlobalConfig.Database.Driver != "mysql" && config.GlobalConfig.Database.Driver != "sqlite" {
+		return nil
+	}
+	// 检查 email 列是否已存在
+	if config.GlobalConfig.Database.Driver == "mysql" {
+		var colCount int64
+		row := db.Raw("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'email'").Row()
+		if err := row.Scan(&colCount); err != nil {
+			logger.Warn("check users.email column existence failed, will try ALTER TABLE", zap.Error(err))
+		}
+		if colCount > 0 {
+			return nil
+		}
+		// 列不存在，显式添加
+		if err := db.Exec("ALTER TABLE users ADD COLUMN email VARCHAR(128) DEFAULT ''").Error; err != nil {
+			if !strings.Contains(err.Error(), "Duplicate column") {
+				return err
+			}
+		}
+		if err := db.Exec("CREATE INDEX idx_users_email ON users(email)").Error; err != nil {
+			if !strings.Contains(err.Error(), "Duplicate") && !strings.Contains(err.Error(), "already exists") {
+				logger.Warn("create idx_users_email failed (non-fatal)", zap.Error(err))
+			}
+		}
+		logger.Info("users.email column ensured via explicit ALTER TABLE")
+		return nil
+	}
+	// SQLite: 检查列是否存在
+	var cols []struct {
+		Name string `gorm:"column:name"`
+	}
+	db.Raw("PRAGMA table_info(users)").Scan(&cols)
+	for _, c := range cols {
+		if c.Name == "email" {
+			return nil
+		}
+	}
+	if err := db.Exec("ALTER TABLE users ADD COLUMN email TEXT").Error; err != nil {
+		if !strings.Contains(err.Error(), "duplicate column") {
+			return err
+		}
+	}
+	logger.Info("users.email column ensured via explicit ALTER TABLE")
+	return nil
 }
 
 // fixScenarioDialogueCharset ensures emoji/special chars work on MySQL (CynosDB defaults to utf8mb3).

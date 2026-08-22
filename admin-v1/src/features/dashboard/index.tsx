@@ -1,4 +1,15 @@
-import { Button } from '@/components/ui/button'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Activity,
+  Globe,
+  Loader2,
+  ShieldAlert,
+  UserPlus,
+  Users,
+  Zap,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { get } from '@/lib/api'
 import {
   Card,
   CardContent,
@@ -6,213 +17,250 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { TopNav } from '@/components/layout/top-nav'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
-import { ThemeSwitch } from '@/components/theme-switch'
-import { Analytics } from './components/analytics'
-import { Overview } from './components/overview'
-import { RecentSales } from './components/recent-sales'
+import { AdminPage } from '@/components/admin-page'
+import {
+  defaultSelected,
+  reconcileSelection,
+  seriesForPicker,
+  type ChartSeriesKey,
+} from './chart-series'
+import { FilterableTrendChart } from './components/metrics-charts'
+import {
+  MetricSeriesPicker,
+  selectedSeriesLabel,
+} from './components/metric-series-picker'
+import { MetricsRangePicker } from './components/metrics-range-picker'
+import {
+  dayLabel,
+  isRangeEndingToday,
+  loadMetricsRange,
+  rangeDescription,
+  rangeQueryParams,
+  saveMetricsRange,
+  validateCustomRange,
+  type MetricsRangeState,
+} from './metrics-range'
+import {
+  errorRate,
+  formatQps,
+  toChartPoints,
+  type LiveMetric,
+  type SysMetricRow,
+} from './metrics'
+
+const LIVE_POLL_MS = 5000
 
 export function Dashboard() {
-  return (
-    <>
-      {/* ===== Top Heading ===== */}
-      <Header>
-        <TopNav links={topNav} className='me-auto' />
-        <Search />
-        <ThemeSwitch />
-        <ConfigDrawer />
-        <ProfileDropdown />
-      </Header>
+  const [range, setRange] = useState<MetricsRangeState>(() => loadMetricsRange())
+  const [rows, setRows] = useState<SysMetricRow[]>([])
+  const [live, setLive] = useState<LiveMetric | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [selectedSeries, setSelectedSeries] = useState<ChartSeriesKey[]>([])
 
-      {/* ===== Main ===== */}
-      <Main>
-        <div className='mb-2 flex items-center justify-between space-y-2'>
-          <h1 className='text-2xl font-bold tracking-tight'>Dashboard</h1>
-          <div className='flex items-center space-x-2'>
-            <Button>Download</Button>
-          </div>
+  useEffect(() => {
+    saveMetricsRange(range)
+  }, [range])
+
+  useEffect(() => {
+    if (range.kind === 'custom') {
+      const err = validateCustomRange(range.from, range.to)
+      if (err) return
+    }
+
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      try {
+        const res = await get<{ list: SysMetricRow[] }>('/metrics/daily', {
+          params: rangeQueryParams(range),
+        })
+        if (!cancelled) setRows(res.data.list || [])
+      } catch (e: unknown) {
+        if (!cancelled) {
+          toast.error(e instanceof Error ? e.message : '加载系统指标失败')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [range])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadLive = async () => {
+      try {
+        const res = await get<LiveMetric>('/metrics/live')
+        if (!cancelled) setLive(res.data)
+      } catch {
+        /* keep previous snapshot */
+      }
+    }
+    void loadLive()
+    const timer = window.setInterval(() => void loadLive(), LIVE_POLL_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [])
+
+  const points = useMemo(() => toChartPoints(rows), [rows])
+  const availableSeries = useMemo(() => seriesForPicker(points), [points])
+  const endingToday = isRangeEndingToday(range)
+
+  useEffect(() => {
+    setSelectedSeries((prev) => {
+      if (prev.length === 0 && availableSeries.length > 0) {
+        return defaultSelected(availableSeries)
+      }
+      return reconcileSelection(prev, availableSeries)
+    })
+  }, [availableSeries])
+
+  const today = rows.length > 0 ? rows[rows.length - 1] : undefined
+  const yesterday = rows.length > 1 ? rows[rows.length - 2] : undefined
+  const lastDayLabel = dayLabel(today?.metricDate)
+  const compareHint = endingToday ? '较昨日' : `较前日 (${dayLabel(yesterday?.metricDate)})`
+
+  return (
+    <AdminPage
+      title='系统指标'
+      description={`${rangeDescription(range)} · API 与系统健康概览`}
+      extra={
+        <MetricsRangePicker
+          value={range}
+          onChange={setRange}
+          disabled={loading}
+        />
+      }
+    >
+      {loading ? (
+        <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+          <Loader2 className='size-4 animate-spin' />
+          加载中…
         </div>
-        <Tabs
-          orientation='vertical'
-          defaultValue='overview'
-          className='space-y-4'
-        >
-          <div className='w-full overflow-x-auto pb-2'>
-            <TabsList>
-              <TabsTrigger value='overview'>Overview</TabsTrigger>
-              <TabsTrigger value='analytics'>Analytics</TabsTrigger>
-              <TabsTrigger value='reports' disabled>
-                Reports
-              </TabsTrigger>
-              <TabsTrigger value='notifications' disabled>
-                Notifications
-              </TabsTrigger>
-            </TabsList>
+      ) : (
+        <div className='space-y-4'>
+          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+            <StatCard
+              title={endingToday ? '今日请求' : `${lastDayLabel} 请求`}
+              value={formatInt(today?.requests)}
+              hint={formatCompare(today?.requests ?? 0, yesterday?.requests ?? 0, compareHint)}
+              icon={Activity}
+            />
+            <StatCard
+              title={endingToday ? '今日 UV' : `${lastDayLabel} UV`}
+              value={formatInt(today?.uv)}
+              hint={formatCompare(today?.uv ?? 0, yesterday?.uv ?? 0, compareHint)}
+              icon={Users}
+            />
+            <StatCard
+              title='本月 MAU'
+              value={formatInt(live?.mau)}
+              hint={`今日 DAU ${formatInt(live?.dau ?? today?.uv)}`}
+              icon={Users}
+            />
+            <StatCard
+              title='实时 QPS'
+              value={formatQps(live?.qps)}
+              hint='近 60 秒滑动平均'
+              icon={Zap}
+            />
           </div>
-          <TabsContent value='overview' className='space-y-4'>
-            <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
-              <Card>
-                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                  <CardTitle className='text-sm font-medium'>
-                    Total Revenue
-                  </CardTitle>
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth='2'
-                    className='h-4 w-4 text-muted-foreground'
-                  >
-                    <path d='M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' />
-                  </svg>
-                </CardHeader>
-                <CardContent>
-                  <div className='text-2xl font-bold'>$45,231.89</div>
-                  <p className='text-xs text-muted-foreground'>
-                    +20.1% from last month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                  <CardTitle className='text-sm font-medium'>
-                    Subscriptions
-                  </CardTitle>
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth='2'
-                    className='h-4 w-4 text-muted-foreground'
-                  >
-                    <path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2' />
-                    <circle cx='9' cy='7' r='4' />
-                    <path d='M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' />
-                  </svg>
-                </CardHeader>
-                <CardContent>
-                  <div className='text-2xl font-bold'>+2350</div>
-                  <p className='text-xs text-muted-foreground'>
-                    +180.1% from last month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                  <CardTitle className='text-sm font-medium'>Sales</CardTitle>
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth='2'
-                    className='h-4 w-4 text-muted-foreground'
-                  >
-                    <rect width='20' height='14' x='2' y='5' rx='2' />
-                    <path d='M2 10h20' />
-                  </svg>
-                </CardHeader>
-                <CardContent>
-                  <div className='text-2xl font-bold'>+12,234</div>
-                  <p className='text-xs text-muted-foreground'>
-                    +19% from last month
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                  <CardTitle className='text-sm font-medium'>
-                    Active Now
-                  </CardTitle>
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth='2'
-                    className='h-4 w-4 text-muted-foreground'
-                  >
-                    <path d='M22 12h-4l-3 9L9 3l-3 9H2' />
-                  </svg>
-                </CardHeader>
-                <CardContent>
-                  <div className='text-2xl font-bold'>+573</div>
-                  <p className='text-xs text-muted-foreground'>
-                    +201 since last hour
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-            <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
-              <Card className='col-span-1 lg:col-span-4'>
-                <CardHeader>
-                  <CardTitle>Overview</CardTitle>
-                </CardHeader>
-                <CardContent className='ps-2'>
-                  <Overview />
-                </CardContent>
-              </Card>
-              <Card className='col-span-1 lg:col-span-3'>
-                <CardHeader>
-                  <CardTitle>Recent Sales</CardTitle>
-                  <CardDescription>
-                    You made 265 sales this month.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <RecentSales />
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-          <TabsContent value='analytics' className='space-y-4'>
-            <Analytics />
-          </TabsContent>
-        </Tabs>
-      </Main>
-    </>
+
+          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+            <StatCard
+              title={endingToday ? '今日新增用户' : `${lastDayLabel} 新增`}
+              value={formatInt(today?.newUsers)}
+              hint={formatCompare(today?.newUsers ?? 0, yesterday?.newUsers ?? 0, compareHint)}
+              icon={UserPlus}
+            />
+            <StatCard
+              title={endingToday ? '5xx 错误率' : `${lastDayLabel} 5xx`}
+              value={errorRate(today?.requests ?? 0, today?.errors ?? 0)}
+              hint={`${formatInt(today?.errors)} / ${formatInt(today?.requests)} 请求`}
+              icon={ShieldAlert}
+            />
+            <StatCard
+              title={endingToday ? '4xx 错误率' : `${lastDayLabel} 4xx`}
+              value={errorRate(
+                today?.requests ?? 0,
+                today?.clientErrors ?? 0
+              )}
+              hint={`${formatInt(today?.clientErrors)} / ${formatInt(today?.requests)} 请求`}
+              icon={ShieldAlert}
+            />
+            <StatCard
+              title={endingToday ? '今日 IP' : `${lastDayLabel} IP`}
+              value={formatInt(today?.ip)}
+              hint={formatCompare(today?.ip ?? 0, yesterday?.ip ?? 0, compareHint)}
+              icon={Globe}
+            />
+          </div>
+
+          <Card>
+            <CardHeader className='gap-3'>
+              <div>
+                <CardTitle>趋势曲线</CardTitle>
+                <CardDescription>
+                  {rangeDescription(range)} · {selectedSeriesLabel(selectedSeries)} ·
+                  仅展示有数据的指标
+                </CardDescription>
+              </div>
+              <MetricSeriesPicker
+                available={availableSeries}
+                selected={selectedSeries}
+                onChange={setSelectedSeries}
+              />
+            </CardHeader>
+            <CardContent className='px-2 sm:px-6'>
+              <FilterableTrendChart
+                data={points}
+                selected={selectedSeries}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </AdminPage>
   )
 }
 
-const topNav = [
-  {
-    title: 'Overview',
-    href: 'dashboard/overview',
-    isActive: true,
-    disabled: false,
-  },
-  {
-    title: 'Customers',
-    href: 'dashboard/customers',
-    isActive: false,
-    disabled: true,
-  },
-  {
-    title: 'Products',
-    href: 'dashboard/products',
-    isActive: false,
-    disabled: true,
-  },
-  {
-    title: 'Settings',
-    href: 'dashboard/settings',
-    isActive: false,
-    disabled: true,
-  },
-]
+function formatInt(n: number | undefined): string {
+  return (n ?? 0).toLocaleString()
+}
+
+function formatCompare(today: number, yesterday: number, suffix: string): string {
+  if (yesterday <= 0) return `${suffix} —`
+  const pct = ((today - yesterday) / yesterday) * 100
+  const sign = pct > 0 ? '+' : ''
+  return `${sign}${pct.toFixed(1)}% ${suffix}`
+}
+
+function StatCard({
+  title,
+  value,
+  hint,
+  icon: Icon,
+}: {
+  title: string
+  value: string
+  hint: string
+  icon: typeof Activity
+}) {
+  return (
+    <Card>
+      <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+        <CardTitle className='text-sm font-medium'>{title}</CardTitle>
+        <Icon className='h-4 w-4 text-muted-foreground' />
+      </CardHeader>
+      <CardContent>
+        <div className='text-2xl font-bold tabular-nums'>{value}</div>
+        <p className='text-xs text-muted-foreground'>{hint}</p>
+      </CardContent>
+    </Card>
+  )
+}

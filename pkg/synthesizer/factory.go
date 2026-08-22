@@ -1,6 +1,6 @@
-// Package synthesizer 是 CloudSteps 对 ling-base/synthesizer 的统一工厂封装。
+// Package synthesizer 是 CloudSteps 对 ling-base/voice/synthesizer 的统一工厂封装。
 //
-// 实际各厂商实现位于 ling-base/synthesizer/* 子模块；本包负责：
+// 实际各厂商实现位于 ling-base/voice/synthesizer/* 子模块；本包负责：
 //  1. 注册全部厂商到工厂
 //  2. 按 CloudSteps 环境变量拼装 Config
 //  3. 提供统一的 Service（Synthesize → PCM 字节）
@@ -11,23 +11,23 @@ import (
 	"strings"
 	"sync"
 
-	base "github.com/LingByte/ling-base/synthesizer"
-	aliyuntts "github.com/LingByte/ling-base/synthesizer/aliyun"
-	awstts "github.com/LingByte/ling-base/synthesizer/aws"
-	azuretts "github.com/LingByte/ling-base/synthesizer/azure"
-	baidutts "github.com/LingByte/ling-base/synthesizer/baidu"
-	coquitts "github.com/LingByte/ling-base/synthesizer/coqui"
-	elevenlabs "github.com/LingByte/ling-base/synthesizer/elevenlabs"
-	fishaudio "github.com/LingByte/ling-base/synthesizer/fishaudio"
-	fishspeech "github.com/LingByte/ling-base/synthesizer/fishspeech"
-	googletts "github.com/LingByte/ling-base/synthesizer/google"
-	localtts "github.com/LingByte/ling-base/synthesizer/local"
-	minimaxes "github.com/LingByte/ling-base/synthesizer/minimax"
-	openaitts "github.com/LingByte/ling-base/synthesizer/openai"
-	qcloudtts "github.com/LingByte/ling-base/synthesizer/qcloud"
-	qiniutts "github.com/LingByte/ling-base/synthesizer/qiniu"
-	volctts "github.com/LingByte/ling-base/synthesizer/volcengine"
-	xunfeitts "github.com/LingByte/ling-base/synthesizer/xunfei"
+	base "github.com/LingByte/ling-base/voice/synthesizer"
+	aliyuntts "github.com/LingByte/ling-base/voice/synthesizer/aliyun"
+	awstts "github.com/LingByte/ling-base/voice/synthesizer/aws"
+	azuretts "github.com/LingByte/ling-base/voice/synthesizer/azure"
+	baidutts "github.com/LingByte/ling-base/voice/synthesizer/baidu"
+	coquitts "github.com/LingByte/ling-base/voice/synthesizer/coqui"
+	elevenlabs "github.com/LingByte/ling-base/voice/synthesizer/elevenlabs"
+	fishaudio "github.com/LingByte/ling-base/voice/synthesizer/fishaudio"
+	fishspeech "github.com/LingByte/ling-base/voice/synthesizer/fishspeech"
+	googletts "github.com/LingByte/ling-base/voice/synthesizer/google"
+	localtts "github.com/LingByte/ling-base/voice/synthesizer/local"
+	minimaxes "github.com/LingByte/ling-base/voice/synthesizer/minimax"
+	openaitts "github.com/LingByte/ling-base/voice/synthesizer/openai"
+	qcloudtts "github.com/LingByte/ling-base/voice/synthesizer/qcloud"
+	qiniutts "github.com/LingByte/ling-base/voice/synthesizer/qiniu"
+	volctts "github.com/LingByte/ling-base/voice/synthesizer/volcengine"
+	xunfeitts "github.com/LingByte/ling-base/voice/synthesizer/xunfei"
 )
 
 // 再导出常用类型，调用方可不直接依赖 ling-base 核心包。

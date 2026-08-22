@@ -11,6 +11,8 @@ import {
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
+import { AudioMuteToggleButton } from "../components/AudioMuteToggleButton";
+import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import {
   WordCardPanel,
   WordMarkStatsBar,
@@ -47,6 +49,7 @@ const formatTranslation = (raw?: string): string => {
 export default function ReviewWordList() {
   const navigate = useNavigate();
   const [words, setWords] = useState<ReviewWordItem[]>([]);
+  const [annotationOpen, setAnnotationOpen] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
@@ -288,9 +291,20 @@ export default function ReviewWordList() {
         rightSlot={
           <div className="flex items-center gap-0.5">
             <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => setGlobalNoteOpen(true)} aria-label="打开随心记" title="打开随心记"><PanelTop size={18} className="text-[#c45c78]" /></CloudButton>
+            <AudioMuteToggleButton />
+            <AnnotationToggleButton
+              active={annotationOpen}
+              onClick={() => setAnnotationOpen((v) => !v)}
+            />
             <PracticeFontSettingsButton />
           </div>
         }
+      />
+
+      <AnnotationLayer
+        storageKey={`review-list:${wordBookId}`}
+        open={annotationOpen}
+        onOpenChange={setAnnotationOpen}
       />
 
       {/* Split container: word content + note panel on the same layer. */}

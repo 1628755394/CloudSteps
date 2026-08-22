@@ -41,6 +41,18 @@ var DeviceVerificationHTML string
 //go:embed templates/email/new_device_login.html
 var NewDeviceLoginHTML string
 
+//go:embed templates/email/login.html
+var LoginHTML string
+
+//go:embed templates/email/logout.html
+var LogoutHTML string
+
+//go:embed templates/email/change_email.html
+var ChangeEmailHTML string
+
+//go:embed templates/email/change_email_done.html
+var ChangeEmailDoneHTML string
+
 type CombineEmbedFS struct {
 	embeds    []EmbedFS
 	assertDir string

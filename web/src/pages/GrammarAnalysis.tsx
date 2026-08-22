@@ -245,9 +245,10 @@ export default function GrammarAnalysis() {
         <>
           <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-24">
             <Card className="!rounded-xl shadow-sm !mb-3" title="语法讲解">
-              <Typography.Paragraph className="!mb-0 !text-[#2D3748] leading-7 whitespace-pre-line">
-                {lesson.explanation}
-              </Typography.Paragraph>
+              <div
+                className="grammar-html-content !text-[#2D3748] leading-7"
+                dangerouslySetInnerHTML={{ __html: lesson.explanation }}
+              />
             </Card>
 
             {(lesson.examples?.length ?? 0) > 0 && (

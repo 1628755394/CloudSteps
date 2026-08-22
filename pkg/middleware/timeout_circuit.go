@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sync"
@@ -11,6 +13,125 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
+
+// timeoutBodyWriter buffers handler writes so the timeout path can reply on the
+// real ResponseWriter without racing gin.Context / http.Header maps.
+type timeoutBodyWriter struct {
+	gin.ResponseWriter
+	body        *bytes.Buffer
+	headers     http.Header
+	code        int
+	mu          sync.Mutex
+	timedOut    bool
+	wroteHeader bool
+}
+
+func newTimeoutBodyWriter(w gin.ResponseWriter) *timeoutBodyWriter {
+	return &timeoutBodyWriter{
+		ResponseWriter: w,
+		body:           &bytes.Buffer{},
+		headers:        make(http.Header),
+		code:           http.StatusOK,
+	}
+}
+
+func (w *timeoutBodyWriter) Header() http.Header {
+	return w.headers
+}
+
+func (w *timeoutBodyWriter) Write(data []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.timedOut {
+		return len(data), nil
+	}
+	w.wroteHeader = true
+	return w.body.Write(data)
+}
+
+func (w *timeoutBodyWriter) WriteString(s string) (int, error) {
+	return w.Write([]byte(s))
+}
+
+func (w *timeoutBodyWriter) WriteHeader(code int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.timedOut || w.wroteHeader {
+		return
+	}
+	w.code = code
+	w.wroteHeader = true
+}
+
+func (w *timeoutBodyWriter) WriteHeaderNow() {}
+
+func (w *timeoutBodyWriter) Status() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.code == 0 {
+		return http.StatusOK
+	}
+	return w.code
+}
+
+func (w *timeoutBodyWriter) Size() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.body.Len()
+}
+
+func (w *timeoutBodyWriter) Written() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.wroteHeader || w.body.Len() > 0
+}
+
+func (w *timeoutBodyWriter) Flush() {}
+
+func (w *timeoutBodyWriter) markTimedOut() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.timedOut {
+		return false
+	}
+	w.timedOut = true
+	return true
+}
+
+func (w *timeoutBodyWriter) flush() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.timedOut {
+		return
+	}
+	dst := w.ResponseWriter.Header()
+	for k, vv := range w.headers {
+		dst[k] = vv
+	}
+	code := w.code
+	if code == 0 {
+		code = http.StatusOK
+	}
+	w.ResponseWriter.WriteHeader(code)
+	if w.body.Len() > 0 {
+		_, _ = w.ResponseWriter.Write(w.body.Bytes())
+	}
+}
+
+func writeTimeoutJSON(w http.ResponseWriter, timeout time.Duration) {
+	payload, err := json.Marshal(map[string]interface{}{
+		"error":   "request_timeout",
+		"message": fmt.Sprintf("请求超时，超过 %v", timeout),
+		"timeout": timeout.String(),
+	})
+	if err != nil {
+		http.Error(w, "request timeout", http.StatusRequestTimeout)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusRequestTimeout)
+	_, _ = w.Write(payload)
+}
 
 // TimeoutConfig 超时配置
 type TimeoutConfig struct {
@@ -285,7 +406,9 @@ func TimeoutMiddleware() gin.HandlerFunc {
 		// 替换请求上下文
 		c.Request = c.Request.WithContext(ctx)
 
-		// 使用通道来检测请求是否完成
+		tw := newTimeoutBodyWriter(c.Writer)
+		c.Writer = tw
+
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
@@ -294,23 +417,17 @@ func TimeoutMiddleware() gin.HandlerFunc {
 
 		select {
 		case <-done:
-			// 请求正常完成
+			tw.flush()
 			return
 		case <-ctx.Done():
-			// 请求超时
 			logger.Warn("Request timeout",
 				zap.String("endpoint", endpoint),
 				zap.Duration("timeout", timeout),
 				zap.String("method", c.Request.Method))
-
-			// 返回超时错误
-			if !c.Writer.Written() {
-				c.JSON(http.StatusRequestTimeout, map[string]interface{}{
-					"error":   "request_timeout",
-					"message": fmt.Sprintf("请求超时，超过 %v", timeout),
-					"timeout": timeout.String(),
-				})
+			if tw.markTimedOut() {
+				writeTimeoutJSON(tw.ResponseWriter, timeout)
 			}
+			<-done
 			c.Abort()
 			return
 		}
@@ -404,14 +521,19 @@ func CombinedTimeoutCircuitMiddleware() gin.HandlerFunc {
 
 		c.Request = c.Request.WithContext(ctx)
 
-		// 3. 执行请求
+		tw := newTimeoutBodyWriter(c.Writer)
+		c.Writer = tw
+
 		done := make(chan struct{})
+		var panicMu sync.Mutex
 		var requestPanic interface{}
 
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
+					panicMu.Lock()
 					requestPanic = r
+					panicMu.Unlock()
 				}
 				close(done)
 			}()
@@ -420,43 +542,41 @@ func CombinedTimeoutCircuitMiddleware() gin.HandlerFunc {
 
 		select {
 		case <-done:
-			status := c.Writer.Status()
-
-			// 处理panic
-			if requestPanic != nil {
+			panicMu.Lock()
+			p := requestPanic
+			panicMu.Unlock()
+			if p != nil {
 				logger.Error("Request panic",
 					zap.String("endpoint", endpoint),
-					zap.Any("panic", requestPanic))
+					zap.Any("panic", p))
 				cb.RecordFailure()
-				if !c.Writer.Written() {
+				if !tw.Written() {
 					c.JSON(http.StatusInternalServerError, map[string]interface{}{
 						"error":   "internal_server_error",
 						"message": "服务器内部错误",
 					})
+				} else {
+					tw.flush()
 				}
 				return
 			}
 
-			// 记录熔断器状态
+			tw.flush()
+			status := tw.Status()
 			if status >= 200 && status < 400 {
 				cb.RecordSuccess()
 			} else if status >= 500 {
 				cb.RecordFailure()
 			}
 		case <-ctx.Done():
-			// 请求超时
 			cb.RecordFailure()
 			logger.Warn("Request timeout",
 				zap.String("endpoint", endpoint),
 				zap.Duration("timeout", timeout))
-
-			if !c.Writer.Written() {
-				c.JSON(http.StatusRequestTimeout, map[string]interface{}{
-					"error":   "request_timeout",
-					"message": fmt.Sprintf("请求超时，超过 %v", timeout),
-					"timeout": timeout.String(),
-				})
+			if tw.markTimedOut() {
+				writeTimeoutJSON(tw.ResponseWriter, timeout)
 			}
+			<-done
 			c.Abort()
 		}
 	}

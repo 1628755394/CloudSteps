@@ -6,7 +6,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/common/geoip"
 	"github.com/gin-gonic/gin"
 	"github.com/mssola/user_agent"
 	"gorm.io/gorm"
@@ -126,6 +126,10 @@ func CreateOperationLog(db *gorm.DB, userID uint, username, action, target, deta
 }
 
 func getGeoLocation(address string) interface{} {
-	// 使用IP地理位置查询API获取真实地址
-	return utils.GetRealAddressByIP(address)
+	// 使用IP地理位置查询获取真实地址
+	_, _, location, err := geoip.GetIPLocation(address)
+	if err != nil {
+		return "Unknown"
+	}
+	return location
 }

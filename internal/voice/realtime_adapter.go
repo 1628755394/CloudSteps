@@ -4,7 +4,7 @@ import (
 	"context"
 
 	lingllm "github.com/LingByte/lingllm/realtime"
-	"github.com/LingByte/ling-base/realtime"
+	"github.com/LingByte/ling-base/voice/realtime"
 )
 
 // adaptAgent wraps a ling-base realtime.Agent as a lingllm realtime.Agent so

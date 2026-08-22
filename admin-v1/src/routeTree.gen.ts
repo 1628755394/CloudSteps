@@ -32,9 +32,14 @@ import { Route as AuthenticatedVocabRecordsIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedVocabQuestionsIndexRouteImport } from './routes/_authenticated/vocab-questions/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
+import { Route as AuthenticatedStorageIndexRouteImport } from './routes/_authenticated/storage/index'
+import { Route as AuthenticatedStorageStatsIndexRouteImport } from './routes/_authenticated/storage-stats/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
-import { Route as AuthenticatedOperationLogsIndexRouteImport } from './routes/_authenticated/operation-logs/index'
-import { Route as AuthenticatedLoginHistoryIndexRouteImport } from './routes/_authenticated/login-history/index'
+import { Route as AuthenticatedNotificationTemplatesIndexRouteImport } from './routes/_authenticated/notification-templates/index'
+import { Route as AuthenticatedNotificationChannelsIndexRouteImport } from './routes/_authenticated/notification-channels/index'
+import { Route as AuthenticatedMailTemplatesIndexRouteImport } from './routes/_authenticated/mail-templates/index'
+import { Route as AuthenticatedMailLogsIndexRouteImport } from './routes/_authenticated/mail-logs/index'
+import { Route as AuthenticatedInboxNotificationsIndexRouteImport } from './routes/_authenticated/inbox-notifications/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedCoachingIndexRouteImport } from './routes/_authenticated/coaching/index'
 import { Route as AuthenticatedCloudUsersIndexRouteImport } from './routes/_authenticated/cloud-users/index'
@@ -48,7 +53,15 @@ import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes
 import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
+import { Route as AuthenticatedNotificationTemplatesNewRouteImport } from './routes/_authenticated/notification-templates/new'
+import { Route as AuthenticatedNotificationTemplatesIdRouteImport } from './routes/_authenticated/notification-templates/$id'
+import { Route as AuthenticatedNotificationChannelsNewRouteImport } from './routes/_authenticated/notification-channels/new'
+import { Route as AuthenticatedNotificationChannelsIdRouteImport } from './routes/_authenticated/notification-channels/$id'
+import { Route as AuthenticatedMailTemplatesNewRouteImport } from './routes/_authenticated/mail-templates/new'
+import { Route as AuthenticatedMailTemplatesIdRouteImport } from './routes/_authenticated/mail-templates/$id'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
+import { Route as AuthenticatedSettingsOperationLogsIndexRouteImport } from './routes/_authenticated/settings/operation-logs/index'
+import { Route as AuthenticatedSettingsLoginHistoryIndexRouteImport } from './routes/_authenticated/settings/login-history/index'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -166,22 +179,52 @@ const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
   path: '/tasks/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedStorageIndexRoute =
+  AuthenticatedStorageIndexRouteImport.update({
+    id: '/storage/',
+    path: '/storage/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedStorageStatsIndexRoute =
+  AuthenticatedStorageStatsIndexRouteImport.update({
+    id: '/storage-stats/',
+    path: '/storage-stats/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsIndexRoute =
   AuthenticatedSettingsIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
-const AuthenticatedOperationLogsIndexRoute =
-  AuthenticatedOperationLogsIndexRouteImport.update({
-    id: '/operation-logs/',
-    path: '/operation-logs/',
+const AuthenticatedNotificationTemplatesIndexRoute =
+  AuthenticatedNotificationTemplatesIndexRouteImport.update({
+    id: '/notification-templates/',
+    path: '/notification-templates/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedLoginHistoryIndexRoute =
-  AuthenticatedLoginHistoryIndexRouteImport.update({
-    id: '/login-history/',
-    path: '/login-history/',
+const AuthenticatedNotificationChannelsIndexRoute =
+  AuthenticatedNotificationChannelsIndexRouteImport.update({
+    id: '/notification-channels/',
+    path: '/notification-channels/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMailTemplatesIndexRoute =
+  AuthenticatedMailTemplatesIndexRouteImport.update({
+    id: '/mail-templates/',
+    path: '/mail-templates/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMailLogsIndexRoute =
+  AuthenticatedMailLogsIndexRouteImport.update({
+    id: '/mail-logs/',
+    path: '/mail-logs/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInboxNotificationsIndexRoute =
+  AuthenticatedInboxNotificationsIndexRouteImport.update({
+    id: '/inbox-notifications/',
+    path: '/inbox-notifications/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedHelpCenterIndexRoute =
@@ -258,11 +301,59 @@ const AuthenticatedSettingsAccountRoute =
     path: '/account',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedNotificationTemplatesNewRoute =
+  AuthenticatedNotificationTemplatesNewRouteImport.update({
+    id: '/notification-templates/new',
+    path: '/notification-templates/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNotificationTemplatesIdRoute =
+  AuthenticatedNotificationTemplatesIdRouteImport.update({
+    id: '/notification-templates/$id',
+    path: '/notification-templates/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNotificationChannelsNewRoute =
+  AuthenticatedNotificationChannelsNewRouteImport.update({
+    id: '/notification-channels/new',
+    path: '/notification-channels/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedNotificationChannelsIdRoute =
+  AuthenticatedNotificationChannelsIdRouteImport.update({
+    id: '/notification-channels/$id',
+    path: '/notification-channels/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMailTemplatesNewRoute =
+  AuthenticatedMailTemplatesNewRouteImport.update({
+    id: '/mail-templates/new',
+    path: '/mail-templates/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMailTemplatesIdRoute =
+  AuthenticatedMailTemplatesIdRouteImport.update({
+    id: '/mail-templates/$id',
+    path: '/mail-templates/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedErrorsErrorRoute =
   AuthenticatedErrorsErrorRouteImport.update({
     id: '/errors/$error',
     path: '/errors/$error',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSettingsOperationLogsIndexRoute =
+  AuthenticatedSettingsOperationLogsIndexRouteImport.update({
+    id: '/operation-logs/',
+    path: '/operation-logs/',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
+const AuthenticatedSettingsLoginHistoryIndexRoute =
+  AuthenticatedSettingsLoginHistoryIndexRouteImport.update({
+    id: '/login-history/',
+    path: '/login-history/',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -282,6 +373,12 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/mail-templates/$id': typeof AuthenticatedMailTemplatesIdRoute
+  '/mail-templates/new': typeof AuthenticatedMailTemplatesNewRoute
+  '/notification-channels/$id': typeof AuthenticatedNotificationChannelsIdRoute
+  '/notification-channels/new': typeof AuthenticatedNotificationChannelsNewRoute
+  '/notification-templates/$id': typeof AuthenticatedNotificationTemplatesIdRoute
+  '/notification-templates/new': typeof AuthenticatedNotificationTemplatesNewRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
@@ -295,14 +392,21 @@ export interface FileRoutesByFullPath {
   '/cloud-users/': typeof AuthenticatedCloudUsersIndexRoute
   '/coaching/': typeof AuthenticatedCoachingIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
-  '/login-history/': typeof AuthenticatedLoginHistoryIndexRoute
-  '/operation-logs/': typeof AuthenticatedOperationLogsIndexRoute
+  '/inbox-notifications/': typeof AuthenticatedInboxNotificationsIndexRoute
+  '/mail-logs/': typeof AuthenticatedMailLogsIndexRoute
+  '/mail-templates/': typeof AuthenticatedMailTemplatesIndexRoute
+  '/notification-channels/': typeof AuthenticatedNotificationChannelsIndexRoute
+  '/notification-templates/': typeof AuthenticatedNotificationTemplatesIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/storage-stats/': typeof AuthenticatedStorageStatsIndexRoute
+  '/storage/': typeof AuthenticatedStorageIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
   '/vocab-records/': typeof AuthenticatedVocabRecordsIndexRoute
   '/wordbooks/': typeof AuthenticatedWordbooksIndexRoute
+  '/settings/login-history/': typeof AuthenticatedSettingsLoginHistoryIndexRoute
+  '/settings/operation-logs/': typeof AuthenticatedSettingsOperationLogsIndexRoute
 }
 export interface FileRoutesByTo {
   '/clerk': typeof ClerkAuthenticatedRouteRouteWithChildren
@@ -320,6 +424,12 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/mail-templates/$id': typeof AuthenticatedMailTemplatesIdRoute
+  '/mail-templates/new': typeof AuthenticatedMailTemplatesNewRoute
+  '/notification-channels/$id': typeof AuthenticatedNotificationChannelsIdRoute
+  '/notification-channels/new': typeof AuthenticatedNotificationChannelsNewRoute
+  '/notification-templates/$id': typeof AuthenticatedNotificationTemplatesIdRoute
+  '/notification-templates/new': typeof AuthenticatedNotificationTemplatesNewRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
@@ -333,14 +443,21 @@ export interface FileRoutesByTo {
   '/cloud-users': typeof AuthenticatedCloudUsersIndexRoute
   '/coaching': typeof AuthenticatedCoachingIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
-  '/login-history': typeof AuthenticatedLoginHistoryIndexRoute
-  '/operation-logs': typeof AuthenticatedOperationLogsIndexRoute
+  '/inbox-notifications': typeof AuthenticatedInboxNotificationsIndexRoute
+  '/mail-logs': typeof AuthenticatedMailLogsIndexRoute
+  '/mail-templates': typeof AuthenticatedMailTemplatesIndexRoute
+  '/notification-channels': typeof AuthenticatedNotificationChannelsIndexRoute
+  '/notification-templates': typeof AuthenticatedNotificationTemplatesIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/storage-stats': typeof AuthenticatedStorageStatsIndexRoute
+  '/storage': typeof AuthenticatedStorageIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/vocab-questions': typeof AuthenticatedVocabQuestionsIndexRoute
   '/vocab-records': typeof AuthenticatedVocabRecordsIndexRoute
   '/wordbooks': typeof AuthenticatedWordbooksIndexRoute
+  '/settings/login-history': typeof AuthenticatedSettingsLoginHistoryIndexRoute
+  '/settings/operation-logs': typeof AuthenticatedSettingsOperationLogsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -363,6 +480,12 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/_authenticated/mail-templates/$id': typeof AuthenticatedMailTemplatesIdRoute
+  '/_authenticated/mail-templates/new': typeof AuthenticatedMailTemplatesNewRoute
+  '/_authenticated/notification-channels/$id': typeof AuthenticatedNotificationChannelsIdRoute
+  '/_authenticated/notification-channels/new': typeof AuthenticatedNotificationChannelsNewRoute
+  '/_authenticated/notification-templates/$id': typeof AuthenticatedNotificationTemplatesIdRoute
+  '/_authenticated/notification-templates/new': typeof AuthenticatedNotificationTemplatesNewRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
@@ -376,14 +499,21 @@ export interface FileRoutesById {
   '/_authenticated/cloud-users/': typeof AuthenticatedCloudUsersIndexRoute
   '/_authenticated/coaching/': typeof AuthenticatedCoachingIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
-  '/_authenticated/login-history/': typeof AuthenticatedLoginHistoryIndexRoute
-  '/_authenticated/operation-logs/': typeof AuthenticatedOperationLogsIndexRoute
+  '/_authenticated/inbox-notifications/': typeof AuthenticatedInboxNotificationsIndexRoute
+  '/_authenticated/mail-logs/': typeof AuthenticatedMailLogsIndexRoute
+  '/_authenticated/mail-templates/': typeof AuthenticatedMailTemplatesIndexRoute
+  '/_authenticated/notification-channels/': typeof AuthenticatedNotificationChannelsIndexRoute
+  '/_authenticated/notification-templates/': typeof AuthenticatedNotificationTemplatesIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/_authenticated/storage-stats/': typeof AuthenticatedStorageStatsIndexRoute
+  '/_authenticated/storage/': typeof AuthenticatedStorageIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
   '/_authenticated/vocab-records/': typeof AuthenticatedVocabRecordsIndexRoute
   '/_authenticated/wordbooks/': typeof AuthenticatedWordbooksIndexRoute
+  '/_authenticated/settings/login-history/': typeof AuthenticatedSettingsLoginHistoryIndexRoute
+  '/_authenticated/settings/operation-logs/': typeof AuthenticatedSettingsOperationLogsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -404,6 +534,12 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/errors/$error'
+    | '/mail-templates/$id'
+    | '/mail-templates/new'
+    | '/notification-channels/$id'
+    | '/notification-channels/new'
+    | '/notification-templates/$id'
+    | '/notification-templates/new'
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/display'
@@ -417,14 +553,21 @@ export interface FileRouteTypes {
     | '/cloud-users/'
     | '/coaching/'
     | '/help-center/'
-    | '/login-history/'
-    | '/operation-logs/'
+    | '/inbox-notifications/'
+    | '/mail-logs/'
+    | '/mail-templates/'
+    | '/notification-channels/'
+    | '/notification-templates/'
     | '/settings/'
+    | '/storage-stats/'
+    | '/storage/'
     | '/tasks/'
     | '/users/'
     | '/vocab-questions/'
     | '/vocab-records/'
     | '/wordbooks/'
+    | '/settings/login-history/'
+    | '/settings/operation-logs/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/clerk'
@@ -442,6 +585,12 @@ export interface FileRouteTypes {
     | '/503'
     | '/'
     | '/errors/$error'
+    | '/mail-templates/$id'
+    | '/mail-templates/new'
+    | '/notification-channels/$id'
+    | '/notification-channels/new'
+    | '/notification-templates/$id'
+    | '/notification-templates/new'
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/display'
@@ -455,14 +604,21 @@ export interface FileRouteTypes {
     | '/cloud-users'
     | '/coaching'
     | '/help-center'
-    | '/login-history'
-    | '/operation-logs'
+    | '/inbox-notifications'
+    | '/mail-logs'
+    | '/mail-templates'
+    | '/notification-channels'
+    | '/notification-templates'
     | '/settings'
+    | '/storage-stats'
+    | '/storage'
     | '/tasks'
     | '/users'
     | '/vocab-questions'
     | '/vocab-records'
     | '/wordbooks'
+    | '/settings/login-history'
+    | '/settings/operation-logs'
   id:
     | '__root__'
     | '/_authenticated'
@@ -484,6 +640,12 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/'
     | '/_authenticated/errors/$error'
+    | '/_authenticated/mail-templates/$id'
+    | '/_authenticated/mail-templates/new'
+    | '/_authenticated/notification-channels/$id'
+    | '/_authenticated/notification-channels/new'
+    | '/_authenticated/notification-templates/$id'
+    | '/_authenticated/notification-templates/new'
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/appearance'
     | '/_authenticated/settings/display'
@@ -497,14 +659,21 @@ export interface FileRouteTypes {
     | '/_authenticated/cloud-users/'
     | '/_authenticated/coaching/'
     | '/_authenticated/help-center/'
-    | '/_authenticated/login-history/'
-    | '/_authenticated/operation-logs/'
+    | '/_authenticated/inbox-notifications/'
+    | '/_authenticated/mail-logs/'
+    | '/_authenticated/mail-templates/'
+    | '/_authenticated/notification-channels/'
+    | '/_authenticated/notification-templates/'
     | '/_authenticated/settings/'
+    | '/_authenticated/storage-stats/'
+    | '/_authenticated/storage/'
     | '/_authenticated/tasks/'
     | '/_authenticated/users/'
     | '/_authenticated/vocab-questions/'
     | '/_authenticated/vocab-records/'
     | '/_authenticated/wordbooks/'
+    | '/_authenticated/settings/login-history/'
+    | '/_authenticated/settings/operation-logs/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -687,6 +856,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTasksIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/storage/': {
+      id: '/_authenticated/storage/'
+      path: '/storage'
+      fullPath: '/storage/'
+      preLoaderRoute: typeof AuthenticatedStorageIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/storage-stats/': {
+      id: '/_authenticated/storage-stats/'
+      path: '/storage-stats'
+      fullPath: '/storage-stats/'
+      preLoaderRoute: typeof AuthenticatedStorageStatsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings/': {
       id: '/_authenticated/settings/'
       path: '/'
@@ -694,18 +877,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
-    '/_authenticated/operation-logs/': {
-      id: '/_authenticated/operation-logs/'
-      path: '/operation-logs'
-      fullPath: '/operation-logs/'
-      preLoaderRoute: typeof AuthenticatedOperationLogsIndexRouteImport
+    '/_authenticated/notification-templates/': {
+      id: '/_authenticated/notification-templates/'
+      path: '/notification-templates'
+      fullPath: '/notification-templates/'
+      preLoaderRoute: typeof AuthenticatedNotificationTemplatesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/login-history/': {
-      id: '/_authenticated/login-history/'
-      path: '/login-history'
-      fullPath: '/login-history/'
-      preLoaderRoute: typeof AuthenticatedLoginHistoryIndexRouteImport
+    '/_authenticated/notification-channels/': {
+      id: '/_authenticated/notification-channels/'
+      path: '/notification-channels'
+      fullPath: '/notification-channels/'
+      preLoaderRoute: typeof AuthenticatedNotificationChannelsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mail-templates/': {
+      id: '/_authenticated/mail-templates/'
+      path: '/mail-templates'
+      fullPath: '/mail-templates/'
+      preLoaderRoute: typeof AuthenticatedMailTemplatesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mail-logs/': {
+      id: '/_authenticated/mail-logs/'
+      path: '/mail-logs'
+      fullPath: '/mail-logs/'
+      preLoaderRoute: typeof AuthenticatedMailLogsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inbox-notifications/': {
+      id: '/_authenticated/inbox-notifications/'
+      path: '/inbox-notifications'
+      fullPath: '/inbox-notifications/'
+      preLoaderRoute: typeof AuthenticatedInboxNotificationsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/help-center/': {
@@ -799,12 +1003,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsAccountRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/notification-templates/new': {
+      id: '/_authenticated/notification-templates/new'
+      path: '/notification-templates/new'
+      fullPath: '/notification-templates/new'
+      preLoaderRoute: typeof AuthenticatedNotificationTemplatesNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notification-templates/$id': {
+      id: '/_authenticated/notification-templates/$id'
+      path: '/notification-templates/$id'
+      fullPath: '/notification-templates/$id'
+      preLoaderRoute: typeof AuthenticatedNotificationTemplatesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notification-channels/new': {
+      id: '/_authenticated/notification-channels/new'
+      path: '/notification-channels/new'
+      fullPath: '/notification-channels/new'
+      preLoaderRoute: typeof AuthenticatedNotificationChannelsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notification-channels/$id': {
+      id: '/_authenticated/notification-channels/$id'
+      path: '/notification-channels/$id'
+      fullPath: '/notification-channels/$id'
+      preLoaderRoute: typeof AuthenticatedNotificationChannelsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mail-templates/new': {
+      id: '/_authenticated/mail-templates/new'
+      path: '/mail-templates/new'
+      fullPath: '/mail-templates/new'
+      preLoaderRoute: typeof AuthenticatedMailTemplatesNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mail-templates/$id': {
+      id: '/_authenticated/mail-templates/$id'
+      path: '/mail-templates/$id'
+      fullPath: '/mail-templates/$id'
+      preLoaderRoute: typeof AuthenticatedMailTemplatesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/errors/$error': {
       id: '/_authenticated/errors/$error'
       path: '/errors/$error'
       fullPath: '/errors/$error'
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings/operation-logs/': {
+      id: '/_authenticated/settings/operation-logs/'
+      path: '/operation-logs'
+      fullPath: '/settings/operation-logs/'
+      preLoaderRoute: typeof AuthenticatedSettingsOperationLogsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
+    '/_authenticated/settings/login-history/': {
+      id: '/_authenticated/settings/login-history/'
+      path: '/login-history'
+      fullPath: '/settings/login-history/'
+      preLoaderRoute: typeof AuthenticatedSettingsLoginHistoryIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
   }
 }
@@ -815,6 +1075,8 @@ interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
   AuthenticatedSettingsNotificationsRoute: typeof AuthenticatedSettingsNotificationsRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
+  AuthenticatedSettingsLoginHistoryIndexRoute: typeof AuthenticatedSettingsLoginHistoryIndexRoute
+  AuthenticatedSettingsOperationLogsIndexRoute: typeof AuthenticatedSettingsOperationLogsIndexRoute
 }
 
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
@@ -825,6 +1087,10 @@ const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteCh
     AuthenticatedSettingsNotificationsRoute:
       AuthenticatedSettingsNotificationsRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
+    AuthenticatedSettingsLoginHistoryIndexRoute:
+      AuthenticatedSettingsLoginHistoryIndexRoute,
+    AuthenticatedSettingsOperationLogsIndexRoute:
+      AuthenticatedSettingsOperationLogsIndexRoute,
   }
 
 const AuthenticatedSettingsRouteRouteWithChildren =
@@ -836,14 +1102,25 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
+  AuthenticatedMailTemplatesIdRoute: typeof AuthenticatedMailTemplatesIdRoute
+  AuthenticatedMailTemplatesNewRoute: typeof AuthenticatedMailTemplatesNewRoute
+  AuthenticatedNotificationChannelsIdRoute: typeof AuthenticatedNotificationChannelsIdRoute
+  AuthenticatedNotificationChannelsNewRoute: typeof AuthenticatedNotificationChannelsNewRoute
+  AuthenticatedNotificationTemplatesIdRoute: typeof AuthenticatedNotificationTemplatesIdRoute
+  AuthenticatedNotificationTemplatesNewRoute: typeof AuthenticatedNotificationTemplatesNewRoute
   AuthenticatedWordbooksBookIdRoute: typeof AuthenticatedWordbooksBookIdRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
   AuthenticatedCloudUsersIndexRoute: typeof AuthenticatedCloudUsersIndexRoute
   AuthenticatedCoachingIndexRoute: typeof AuthenticatedCoachingIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
-  AuthenticatedLoginHistoryIndexRoute: typeof AuthenticatedLoginHistoryIndexRoute
-  AuthenticatedOperationLogsIndexRoute: typeof AuthenticatedOperationLogsIndexRoute
+  AuthenticatedInboxNotificationsIndexRoute: typeof AuthenticatedInboxNotificationsIndexRoute
+  AuthenticatedMailLogsIndexRoute: typeof AuthenticatedMailLogsIndexRoute
+  AuthenticatedMailTemplatesIndexRoute: typeof AuthenticatedMailTemplatesIndexRoute
+  AuthenticatedNotificationChannelsIndexRoute: typeof AuthenticatedNotificationChannelsIndexRoute
+  AuthenticatedNotificationTemplatesIndexRoute: typeof AuthenticatedNotificationTemplatesIndexRoute
+  AuthenticatedStorageStatsIndexRoute: typeof AuthenticatedStorageStatsIndexRoute
+  AuthenticatedStorageIndexRoute: typeof AuthenticatedStorageIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedVocabQuestionsIndexRoute: typeof AuthenticatedVocabQuestionsIndexRoute
@@ -855,14 +1132,32 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
+  AuthenticatedMailTemplatesIdRoute: AuthenticatedMailTemplatesIdRoute,
+  AuthenticatedMailTemplatesNewRoute: AuthenticatedMailTemplatesNewRoute,
+  AuthenticatedNotificationChannelsIdRoute:
+    AuthenticatedNotificationChannelsIdRoute,
+  AuthenticatedNotificationChannelsNewRoute:
+    AuthenticatedNotificationChannelsNewRoute,
+  AuthenticatedNotificationTemplatesIdRoute:
+    AuthenticatedNotificationTemplatesIdRoute,
+  AuthenticatedNotificationTemplatesNewRoute:
+    AuthenticatedNotificationTemplatesNewRoute,
   AuthenticatedWordbooksBookIdRoute: AuthenticatedWordbooksBookIdRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
   AuthenticatedCloudUsersIndexRoute: AuthenticatedCloudUsersIndexRoute,
   AuthenticatedCoachingIndexRoute: AuthenticatedCoachingIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
-  AuthenticatedLoginHistoryIndexRoute: AuthenticatedLoginHistoryIndexRoute,
-  AuthenticatedOperationLogsIndexRoute: AuthenticatedOperationLogsIndexRoute,
+  AuthenticatedInboxNotificationsIndexRoute:
+    AuthenticatedInboxNotificationsIndexRoute,
+  AuthenticatedMailLogsIndexRoute: AuthenticatedMailLogsIndexRoute,
+  AuthenticatedMailTemplatesIndexRoute: AuthenticatedMailTemplatesIndexRoute,
+  AuthenticatedNotificationChannelsIndexRoute:
+    AuthenticatedNotificationChannelsIndexRoute,
+  AuthenticatedNotificationTemplatesIndexRoute:
+    AuthenticatedNotificationTemplatesIndexRoute,
+  AuthenticatedStorageStatsIndexRoute: AuthenticatedStorageStatsIndexRoute,
+  AuthenticatedStorageIndexRoute: AuthenticatedStorageIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedVocabQuestionsIndexRoute: AuthenticatedVocabQuestionsIndexRoute,

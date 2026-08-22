@@ -3,8 +3,11 @@ package bootstrap
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
+	CloudStepsGo "github.com/LingByte/CloudStepsGo"
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/internal/notify"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	lbconfig "github.com/LingByte/ling-base/common/config"
@@ -35,6 +38,158 @@ func (s *SeedService) SeedAll() error {
 		return err
 	}
 	return nil
+}
+
+func (s *SeedService) seedNotificationDefaults() error {
+	if err := s.seedNotificationTemplates(); err != nil {
+		return err
+	}
+	return s.seedDefaultEmailChannel()
+}
+
+func (s *SeedService) seedNotificationTemplates() error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	if s.db.Dialector.Name() == "mysql" {
+		for _, tbl := range []string{"mail_templates", "mail_logs", "notification_channels"} {
+			_ = s.db.Exec("ALTER TABLE " + tbl + " CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci").Error
+		}
+	}
+	if err := models.SplitLegacyMailTemplates(s.db); err != nil {
+		return err
+	}
+	type tplDef struct {
+		code, emailName, inboxName, subject, html, desc, inboxTitle, inboxBody string
+	}
+	siteName := "CloudSteps"
+	if config.GlobalConfig != nil && config.GlobalConfig.Server.Name != "" {
+		siteName = config.GlobalConfig.Server.Name
+	}
+	defs := []tplDef{
+		{notify.TmplWelcome, "欢迎邮件", "欢迎通知", "欢迎加入 " + siteName, CloudStepsGo.WelcomeHTML, "用户注册成功通知",
+			"欢迎注册",
+			"欢迎加入 " + siteName + "，{{.Username}}！请查收邮件完成邮箱验证，或前往登录页开始使用。"},
+		{notify.TmplVerification, "通用验证码", "验证码通知", "您的 " + siteName + " 验证码", CloudStepsGo.VerificationHTML, "通用 6 位验证码通知",
+			"验证码",
+			"您的验证码是 {{.Code}}，请在 10 分钟内完成验证。"},
+		{notify.TmplEmailVerification, "邮箱验证", "邮箱验证通知", "请验证您的邮箱地址", CloudStepsGo.EmailVerificationHTML, "注册后邮箱地址验证通知",
+			"邮箱验证",
+			"{{.Username}}，请查收邮件完成邮箱验证。如未收到邮件，可在登录页重新发送。"},
+		{notify.TmplPasswordReset, "密码重置", "密码重置通知", "密码重置请求", CloudStepsGo.PasswordResetHTML, "密码重置通知",
+			"密码重置",
+			"{{.Username}}，您已申请重置密码，请查收邮件完成操作。如非本人操作请忽略本消息。"},
+		{notify.TmplDeviceVerification, "设备验证码", "设备验证通知", "设备验证码", CloudStepsGo.DeviceVerificationHTML, "设备验证码通知",
+			"设备验证",
+			"{{.Username}}，您正在新设备上登录，验证码为 {{.Code}}（设备 ID：{{.DeviceID}}）。"},
+		{notify.TmplGroupInvitation, "组织邀请", "团队邀请通知", "您收到了来自 {{.InviterName}} 的组织邀请", CloudStepsGo.GroupInvitationHTML, "组织 / 团队邀请通知",
+			"团队邀请",
+			"{{.InviterName}} 邀请您加入「{{.GroupName}}」（{{.GroupType}}）。请查收邮件接受邀请。"},
+		{notify.TmplNewDeviceLogin, "新设备登录提醒", "登录安全通知", "{{if .IsSuspicious}}可疑登录警告{{else}}新设备登录提醒{{end}}", CloudStepsGo.NewDeviceLoginHTML, "新设备 / 异地登录提醒",
+			"{{if .IsSuspicious}}可疑登录提醒{{else}}新设备登录提醒{{end}}",
+			"{{if .IsSuspicious}}检测到可疑登录：{{else}}您的账号在新设备登录：{{end}}{{.LoginTime}}，设备 {{.DeviceLabel}}，IP {{.IPAddress}}{{if .Location}}（{{.Location}}）{{end}}。如非本人操作，请立即修改密码。"},
+		{notify.TmplLogin, "登录提醒", "登录通知", "账号登录提醒", CloudStepsGo.LoginHTML, "用户登录成功通知",
+			"登录成功",
+			"{{.Username}}，您的账号于 {{.LoginTime}} 登录（IP：{{.IPAddress}}）。如非本人操作请立即修改密码。"},
+		{notify.TmplLogout, "登出提醒", "登出通知", "账号登出提醒", CloudStepsGo.LogoutHTML, "用户登出通知",
+			"已安全登出",
+			"{{.Username}}，您的账号于 {{.LogoutTime}} 已登出（IP：{{.IPAddress}}）。"},
+		{notify.TmplChangeEmail, "更换邮箱验证", "更换邮箱通知", "请确认更换邮箱", CloudStepsGo.ChangeEmailHTML, "更换邮箱验证通知",
+			"更换邮箱验证",
+			"{{.Username}}，您正在将邮箱更换为 {{.NewEmail}}，请查收邮件完成确认。"},
+		{notify.TmplChangeEmailDone, "邮箱更换成功", "邮箱更换完成", "您的邮箱已更换", CloudStepsGo.ChangeEmailDoneHTML, "邮箱更换完成通知",
+			"邮箱已更换",
+			"{{.Username}}，您的账号邮箱已由 {{.OldEmail}} 更换为 {{.NewEmail}}。如非本人操作请立即联系管理员。"},
+	}
+	for _, d := range defs {
+		if err := upsertNotificationTemplate(s.db, d.code, d.emailName, models.NotificationTemplateTypeEmail, d.subject, d.html, d.desc, "", ""); err != nil {
+			return err
+		}
+		if err := upsertNotificationTemplate(s.db, d.code, d.inboxName, models.NotificationTemplateTypeInbox, "", "", d.desc, d.inboxTitle, d.inboxBody); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func upsertNotificationTemplate(db *gorm.DB, code, name, channelType, subject, html, desc, inboxTitle, inboxBody string) error {
+	var existing models.MailTemplate
+	err := db.Where("code = ? AND locale = ? AND channel_type = ?", code, "", channelType).First(&existing).Error
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		tpl := &models.MailTemplate{
+			Code:        code,
+			Name:        name,
+			ChannelType: channelType,
+			Subject:     subject,
+			Description: desc,
+			InboxTitle:  inboxTitle,
+			InboxBody:   inboxBody,
+			Locale:      "",
+			Enabled:     true,
+		}
+		if channelType == models.NotificationTemplateTypeEmail {
+			models.ApplyMailTemplateHTMLDerivedFields(tpl, html, "")
+		} else {
+			models.ApplyInboxTemplateDerivedFields(tpl, "")
+		}
+		return db.Create(tpl).Error
+	}
+	existing.Name = name
+	existing.ChannelType = channelType
+	existing.Subject = subject
+	existing.Description = desc
+	existing.InboxTitle = inboxTitle
+	existing.InboxBody = inboxBody
+	existing.Locale = ""
+	existing.Enabled = true
+	existing.IsDeleted = models.SoftDeleteStatusActive
+	if channelType == models.NotificationTemplateTypeEmail {
+		models.ApplyMailTemplateHTMLDerivedFields(&existing, html, existing.Variables)
+	} else {
+		models.ApplyInboxTemplateDerivedFields(&existing, existing.Variables)
+	}
+	return db.Save(&existing).Error
+}
+
+func (s *SeedService) seedDefaultEmailChannel() error {
+	if s == nil || s.db == nil || config.GlobalConfig == nil {
+		return nil
+	}
+	var n int64
+	if err := s.db.Model(&models.NotificationChannel{}).
+		Where("type = ? AND is_deleted = ?", models.NotificationChannelTypeEmail, models.SoftDeleteStatusActive).
+		Count(&n).Error; err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+	mail := config.GlobalConfig.Services.Mail
+	driver := strings.ToLower(strings.TrimSpace(mail.Provider))
+	if driver == "" {
+		return nil
+	}
+	cfgJSON, err := models.BuildEmailChannelConfigJSON(
+		driver, "default",
+		mail.Host, mail.Port, mail.Username, mail.Password, mail.From, "",
+		mail.APIUser, mail.APIKey, mail.From,
+	)
+	if err != nil {
+		return nil
+	}
+	row := models.NotificationChannel{
+		Type:       models.NotificationChannelTypeEmail,
+		Code:       "E-default",
+		Name:       "默认邮件渠道",
+		SortOrder:  0,
+		Enabled:    true,
+		Remark:     "从环境配置导入",
+		ConfigJSON: cfgJSON,
+	}
+	return s.db.Create(&row).Error
 }
 
 func (s *SeedService) seedScenarios() error {
