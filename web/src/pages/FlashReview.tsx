@@ -313,7 +313,7 @@ export default function FlashReview() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6 max-w-3xl mx-auto w-full pb-28">
+      <div className="px-4 mt-6 max-w-5xl mx-auto w-full pb-28">
         <p className="text-center text-sm text-[#718096] mb-6">
           {isRetryMode
             ? "点红剪刀表示不熟（会重新排队），点青剪刀表示掌握"
@@ -504,7 +504,7 @@ export default function FlashReview() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-3xl mx-auto w-full flex items-center justify-between gap-2">
+        <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
           <div className="flex gap-2 flex-wrap">
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>

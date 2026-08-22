@@ -410,8 +410,8 @@ export default function WordPractice() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center justify-center gap-2 flex-wrap">
-          <div className="flex gap-2 flex-wrap justify-center">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
+          <div className="flex gap-2 flex-wrap">
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
@@ -443,14 +443,17 @@ export default function WordPractice() {
               拓展
             </CloudButton>
           </div>
-          <StudyNoteLauncher
-            storageKey={`study-note:global:${wordBookId}`}
-            label="随心记"
-            className="shrink-0"
-          />
-          <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
+          <div className="flex items-center gap-2 shrink-0">
+            <StudyNoteLauncher
+              storageKey={`study-note:global:${wordBookId}`}
+              label="随心记"
+              className="shrink-0"
+            />
+            <div className="w-16 shrink-0" aria-hidden="true" />
+            <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
             <ArrowRight size={24} />
           </CloudButton>
+          </div>
         </div>
       </div>
     </FlowPageShell>
