@@ -382,7 +382,8 @@ export function VocabTestResultView({
                         }}
                         data-stage={row.stage}
                         data-rung={item.rung}
-                        className="flex min-w-0 flex-1 items-center justify-center text-[clamp(0.8rem,3vw,1.8rem)] font-extrabold leading-none text-white"
+                        title={`${row.stage} · ${item.rung}（约 ${VOCAB_LEVEL_MAP[item.level]} 词）`}
+                        className="flex min-w-0 flex-1 cursor-default items-center justify-center text-[clamp(0.8rem,3vw,1.8rem)] font-extrabold leading-none text-white transition-[filter,box-shadow] duration-200 hover:z-10 hover:brightness-110 hover:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.75)]"
                         style={{ backgroundColor: item.color }}
                       >
                         {item.rung}
