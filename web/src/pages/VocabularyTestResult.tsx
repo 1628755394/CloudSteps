@@ -63,9 +63,9 @@ export default function VocabularyTestResult() {
   const hasResult = useMemo(() => Boolean(result), [result]);
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] pb-20">
+    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F7F9FC] pb-20">
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-11 px-3">
+        <div className="flex items-center h-11 w-full max-w-6xl mx-auto px-3">
           <CloudButton
             type="button"
             variant="ghost"
@@ -79,13 +79,13 @@ export default function VocabularyTestResult() {
         </div>
       </div>
 
-      <div className="pt-14 px-4">
+      <div className="pt-14 px-4 sm:px-6">
         {loading ? (
-          <div className="max-w-2xl mx-auto text-center text-[#718096] py-16">
+          <div className="max-w-3xl mx-auto text-center text-[#718096] py-16">
             结果加载中...
           </div>
         ) : !hasResult || !result ? (
-          <div className="max-w-2xl mx-auto bg-white rounded-2xl p-8 text-center shadow-sm border border-[#E2E8F0]">
+          <div className="max-w-3xl mx-auto bg-white rounded-2xl p-6 sm:p-8 text-center shadow-sm border border-[#E2E8F0]">
             <div className="text-[#2D3748] font-semibold text-base">暂无测试结果</div>
             <div className="text-[#718096] text-sm mt-2">去开始一次词汇量测试吧</div>
             <CloudButton
@@ -98,10 +98,10 @@ export default function VocabularyTestResult() {
             </CloudButton>
           </div>
         ) : (
-          <div className="max-w-2xl mx-auto space-y-4">
+          <div className="max-w-3xl mx-auto min-w-0 space-y-4">
             <VocabTestResultView result={result} />
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <CloudButton
                 variant="brand"
                 size="pill"

@@ -19,9 +19,9 @@ export default function VocabularyTest() {
   }, []);
 
   return (
-    <div className="relative h-dvh overflow-hidden bg-[#F7F9FC]">
+    <div className="relative h-dvh w-full min-w-0 overflow-hidden bg-[#F7F9FC]">
       <header className="absolute top-0 left-0 right-0 z-10 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-11 px-3">
+        <div className="flex items-center h-11 w-full max-w-6xl mx-auto px-3">
           <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })} className="mr-2">
             <ChevronLeft size={20} className="text-[#2D3748]" />
           </CloudButton>
@@ -29,8 +29,8 @@ export default function VocabularyTest() {
         </div>
       </header>
 
-      <div className="h-full flex items-center justify-center px-6 pt-11 pb-6">
-        <div className="w-full max-w-sm flex flex-col items-center text-center">
+      <div className="h-full w-full min-w-0 flex items-center justify-center px-4 sm:px-6 pt-11 pb-6">
+        <div className="w-full max-w-md min-w-0 flex flex-col items-center text-center">
           <div className="mb-4">
             <h2 className="text-base font-semibold text-[#2D3748] mb-1.5">测一测你的词汇量</h2>
             <p className="text-[#718096] text-xs leading-relaxed">

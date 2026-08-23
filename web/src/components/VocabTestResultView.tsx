@@ -250,8 +250,8 @@ export function VocabTestResultView({
   const summary = useMemo(() => buildVocabTestSummary(result), [result]);
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
+    <div className={`w-full min-w-0 space-y-4 ${className}`}>
+      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-[#E2E8F0]">
         <div className="flex items-start justify-between">
           <div>
             <div className="text-sm text-[#718096]">词汇水平</div>
@@ -264,25 +264,25 @@ export function VocabTestResultView({
             <TrendingUp className="w-6 h-6 text-[#4ECDC4]" />
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-[#F7F9FC] p-3">
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="rounded-xl bg-[#F7F9FC] p-2 sm:p-3">
             <div className="text-xs text-[#718096]">估算词汇量</div>
             <div className="text-lg font-semibold text-[#2D3748] mt-1">{result.estimatedVocab}</div>
           </div>
-          <div className="rounded-xl bg-[#F7F9FC] p-3">
+          <div className="rounded-xl bg-[#F7F9FC] p-2 sm:p-3">
             <div className="text-xs text-[#718096]">正确</div>
             <div className="text-lg font-semibold text-[#2D3748] mt-1">
               {result.correctCount}/{result.totalCount}
             </div>
           </div>
-          <div className="rounded-xl bg-[#F7F9FC] p-3">
+          <div className="rounded-xl bg-[#F7F9FC] p-2 sm:p-3">
             <div className="text-xs text-[#718096]">正确率</div>
             <div className="text-lg font-semibold text-[#2D3748] mt-1">{accuracy}%</div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-[#E2E8F0]">
         {!compact && (
           <>
             <div className="text-base font-semibold text-[#2D3748]">词汇量金字塔</div>
@@ -292,7 +292,7 @@ export function VocabTestResultView({
               。
             </div>
 
-            <div className="mt-5 relative mx-auto w-full max-w-[520px] pr-[5.5rem]">
+            <div className="mt-5 relative mx-auto w-full max-w-[36rem] min-w-0 pr-[4.75rem] sm:pr-[5.5rem]">
               <img
                 src="/pyramid.png"
                 alt="词汇量金字塔"
@@ -300,8 +300,8 @@ export function VocabTestResultView({
                 draggable={false}
               />
               <div
-                className="absolute flex items-center gap-1 whitespace-nowrap text-[13px] font-semibold text-[#2D3748] pointer-events-none -translate-y-1/2"
-                style={{ top: `${PYRAMID_MARKER_TOP[summary.level]}%`, left: "calc(100% - 5.25rem)" }}
+                className="absolute flex items-center gap-1 whitespace-nowrap text-xs sm:text-[13px] font-semibold text-[#2D3748] pointer-events-none -translate-y-1/2"
+                style={{ top: `${PYRAMID_MARKER_TOP[summary.level]}%`, left: "calc(100% - 4.5rem)" }}
               >
                 <User size={16} strokeWidth={2.25} className="shrink-0" />
                 您的位置
