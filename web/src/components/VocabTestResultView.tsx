@@ -69,12 +69,16 @@ const PYRAMID_ROWS: Array<{
   stage: string;
   stageColor: string;
   left: string;
+  top: string;
+  height: string;
   levels: Array<{ level: VocabLevel; rung: string; color: string }>;
 }> = [
   {
     stage: "臻学",
     stageColor: "#16805E",
     left: "77%",
+    top: "0%",
+    height: "24%",
     levels: [
       { level: "L10", rung: "进阶", color: "#16805E" },
       { level: "L9", rung: "初阶", color: "#2EA789" },
@@ -84,6 +88,8 @@ const PYRAMID_ROWS: Array<{
     stage: "拾阶",
     stageColor: "#4DAA48",
     left: "54%",
+    top: "25%",
+    height: "24%",
     levels: [
       { level: "L8", rung: "进阶", color: "#4DAA48" },
       { level: "L7", rung: "基础", color: "#69C47E" },
@@ -94,6 +100,8 @@ const PYRAMID_ROWS: Array<{
     stage: "筑基",
     stageColor: "#FFAD00",
     left: "31.5%",
+    top: "50%",
+    height: "24%",
     levels: [
       { level: "L5", rung: "进阶", color: "#FFAD00" },
       { level: "L4", rung: "基础", color: "#FFCA00" },
@@ -104,6 +112,8 @@ const PYRAMID_ROWS: Array<{
     stage: "启蒙",
     stageColor: "#E74718",
     left: "13.5%",
+    top: "75%",
+    height: "25%",
     levels: [
       { level: "L2", rung: "进阶", color: "#E74718" },
       { level: "L1", rung: "基础", color: "#F56548" },
@@ -361,8 +371,8 @@ export function VocabTestResultView({
               {PYRAMID_ROWS.map((row) => (
                 <div
                   key={row.stage}
-                  className="absolute inset-x-0 h-[24%]"
-                  style={{ top: row.stage === "臻学" ? "0%" : row.stage === "拾阶" ? "25%" : row.stage === "筑基" ? "50%" : "75%" }}
+                  className="absolute inset-x-0"
+                  style={{ top: row.top, height: row.height }}
                 >
                   <div
                     className="absolute top-1/2 w-[13%] -translate-y-1/2 text-right text-[clamp(0.75rem,2.6vw,1.6rem)] font-extrabold leading-none"
