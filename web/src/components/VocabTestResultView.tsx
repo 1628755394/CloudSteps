@@ -365,7 +365,7 @@ export function VocabTestResultView({
                   style={{ top: row.stage === "臻学" ? "0%" : row.stage === "拾阶" ? "25%" : row.stage === "筑基" ? "50%" : "75%" }}
                 >
                   <div
-                    className="absolute top-1/2 w-[13%] -translate-y-1/2 text-right text-[clamp(0.85rem,3.3vw,2rem)] font-extrabold leading-none"
+                    className="absolute top-1/2 w-[13%] -translate-y-1/2 text-right text-[clamp(0.75rem,2.6vw,1.6rem)] font-extrabold leading-none"
                     style={{ left: `max(0px, calc(${row.left} - 13.5%))`, color: row.stageColor }}
                   >
                     {row.stage}
@@ -383,7 +383,7 @@ export function VocabTestResultView({
                         data-stage={row.stage}
                         data-rung={item.rung}
                         title={`${row.stage} · ${item.rung}（约 ${VOCAB_LEVEL_MAP[item.level]} 词）`}
-                        className="flex min-w-0 flex-1 cursor-default items-center justify-center text-[clamp(0.8rem,3vw,1.8rem)] font-extrabold leading-none text-white transition-[filter,box-shadow] duration-200 hover:z-10 hover:brightness-110 hover:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.75)]"
+                        className="flex min-w-0 flex-1 cursor-default items-center justify-center text-[clamp(0.7rem,2.25vw,1.4rem)] font-extrabold leading-none text-white transition-[filter,box-shadow] duration-200 hover:z-10 hover:brightness-110 hover:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.75)]"
                         style={{ backgroundColor: item.color }}
                       >
                         {item.rung}
