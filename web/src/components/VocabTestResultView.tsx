@@ -80,8 +80,8 @@ const PYRAMID_ROWS: Array<{
     top: "0%",
     height: "24%",
     levels: [
-      { level: "L9", rung: "初阶", color: "#2EA789" },
       { level: "L10", rung: "进阶", color: "#16805E" },
+      { level: "L9", rung: "初阶", color: "#2EA789" },
     ],
   },
   {
@@ -91,9 +91,9 @@ const PYRAMID_ROWS: Array<{
     top: "25%",
     height: "24%",
     levels: [
-      { level: "L6", rung: "初阶", color: "#93E1C2" },
-      { level: "L7", rung: "基础", color: "#69C47E" },
       { level: "L8", rung: "进阶", color: "#4DAA48" },
+      { level: "L7", rung: "基础", color: "#69C47E" },
+      { level: "L6", rung: "初阶", color: "#93E1C2" },
     ],
   },
   {
@@ -103,9 +103,9 @@ const PYRAMID_ROWS: Array<{
     top: "50%",
     height: "24%",
     levels: [
-      { level: "L3", rung: "初阶", color: "#FFE3A8" },
-      { level: "L4", rung: "基础", color: "#FFCA00" },
       { level: "L5", rung: "进阶", color: "#FFAD00" },
+      { level: "L4", rung: "基础", color: "#FFCA00" },
+      { level: "L3", rung: "初阶", color: "#FFE3A8" },
     ],
   },
   {
@@ -115,9 +115,9 @@ const PYRAMID_ROWS: Array<{
     top: "75%",
     height: "25%",
     levels: [
-      { level: "L0", rung: "初阶", color: "#FA8876" },
-      { level: "L1", rung: "基础", color: "#F56548" },
       { level: "L2", rung: "进阶", color: "#E74718" },
+      { level: "L1", rung: "基础", color: "#F56548" },
+      { level: "L0", rung: "初阶", color: "#FA8876" },
     ],
   },
 ];
@@ -381,7 +381,7 @@ export function VocabTestResultView({
                     {row.stage}
                   </div>
                   <div
-                    className="absolute inset-y-0 right-0 flex flex-row-reverse overflow-hidden rounded-tl-[2.5rem]"
+                    className="absolute inset-y-0 right-0 flex flex-col overflow-hidden rounded-tl-[2.5rem]"
                     style={{ left: row.left }}
                   >
                     {row.levels.map((item) => (
