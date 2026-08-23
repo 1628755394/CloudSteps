@@ -81,6 +81,8 @@ const PYRAMID_MARKER_TOP: Record<VocabLevel, number> = {
   L11: 6.3, // 臻学 · 进阶
 };
 
+const PYRAMID_IMAGE_URL = `${import.meta.env.BASE_URL}pyramid.png`;
+
 /** 对应 CEFR 参考 */
 export const VOCAB_LEVEL_CEFR: Record<VocabLevel, string> = {
   L0: "Pre-A1",
@@ -267,7 +269,7 @@ export function VocabTestResultView({
         <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
           <div className="rounded-xl bg-[#F7F9FC] p-2 sm:p-3">
             <div className="text-xs text-[#718096]">估算词汇量</div>
-            <div className="text-lg font-semibold text-[#2D3748] mt-1">{result.estimatedVocab}</div>
+            <div className="text-lg font-semibold text-[#2D3748] mt-1">{summary.vocab}</div>
           </div>
           <div className="rounded-xl bg-[#F7F9FC] p-2 sm:p-3">
             <div className="text-xs text-[#718096]">正确</div>
@@ -294,7 +296,7 @@ export function VocabTestResultView({
 
             <div className="mt-5 relative mx-auto w-full max-w-[36rem] min-w-0 pr-[4.75rem] sm:pr-[5.5rem]">
               <img
-                src="/pyramid.png"
+                src={PYRAMID_IMAGE_URL}
                 alt="词汇量金字塔"
                 className="w-full h-auto object-contain select-none"
                 draggable={false}

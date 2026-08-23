@@ -13,6 +13,23 @@ import {
   type VocabTestResultPayload,
 } from "../components/VocabTestResultView";
 
+function normalizeVocabResult(raw: any): VocabTestResultPayload | null {
+  const data = raw?.record || raw;
+  if (!data) return null;
+
+  const estimatedVocab = Number(data.estimatedVocab);
+  const correctCount = Number(data.correctCount);
+  const totalCount = Number(data.totalCount ?? data.questionCount);
+  if (!data.level && !data.estimatedLevel && !Number.isFinite(estimatedVocab)) return null;
+
+  return {
+    level: String(data.level ?? data.estimatedLevel ?? ""),
+    estimatedVocab: Number.isFinite(estimatedVocab) ? estimatedVocab : 0,
+    correctCount: Number.isFinite(correctCount) ? correctCount : 0,
+    totalCount: Number.isFinite(totalCount) ? totalCount : 0,
+  };
+}
+
 export default function VocabularyTestResult() {
   const navigate = useNavigate();
   const [result, setResult] = useState<VocabTestResultPayload | null>(null);
@@ -25,23 +42,18 @@ export default function VocabularyTestResult() {
         setLoading(true);
         const cached = sessionStorage.getItem("vocabulary_test_result");
         if (cached) {
-          const parsed = JSON.parse(cached);
-          if (mounted) setResult(parsed);
-          return;
+          const parsed = normalizeVocabResult(JSON.parse(cached));
+          if (parsed) {
+            if (mounted) setResult(parsed);
+            return;
+          }
+          sessionStorage.removeItem("vocabulary_test_result");
         }
 
         const res = await getVocabResult();
         if (res.code === 200) {
-          const r = res.data?.record;
-          if (r) {
-            const mapped: VocabTestResultPayload = {
-              level: r.estimatedLevel,
-              estimatedVocab: r.estimatedVocab,
-              correctCount: r.correctCount,
-              totalCount: r.questionCount,
-            };
-            if (mounted) setResult(mapped);
-          }
+          const mapped = normalizeVocabResult(res.data);
+          if (mounted && mapped) setResult(mapped);
         }
       } catch (e) {
         console.error(e);
