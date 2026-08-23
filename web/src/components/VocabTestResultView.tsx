@@ -289,22 +289,26 @@ export function VocabTestResultView({
   }, [result]);
 
   const summary = useMemo(() => buildVocabTestSummary(result), [result]);
+  const frameRef = useRef<HTMLDivElement>(null);
   const pyramidRef = useRef<HTMLDivElement>(null);
   const levelRefs = useRef<Partial<Record<VocabLevel, HTMLDivElement | null>>>({});
-  const [marker, setMarker] = useState<{ top: number } | null>(null);
+  const [marker, setMarker] = useState<{ left: number; top: number } | null>(null);
 
   useLayoutEffect(() => {
+    const frame = frameRef.current;
     const pyramid = pyramidRef.current;
     const levelElement = levelRefs.current[summary.level];
-    if (!pyramid || !levelElement) {
+    if (!frame || !pyramid || !levelElement) {
       setMarker(null);
       return;
     }
 
     const measureMarker = () => {
+      const frameRect = frame.getBoundingClientRect();
       const pyramidRect = pyramid.getBoundingClientRect();
       const levelRect = levelElement.getBoundingClientRect();
       setMarker({
+        left: frameRect.width - 40,
         top: levelRect.top - pyramidRect.top + levelRect.height / 2,
       });
     };
@@ -363,10 +367,14 @@ export function VocabTestResultView({
             </div>
 
             <div
-              ref={pyramidRef}
-              className="mt-5 relative mx-auto w-full max-w-[36rem] min-w-0 aspect-[1024/629] overflow-visible"
+              ref={frameRef}
+              className="mt-5 relative mx-auto w-full max-w-[36rem] min-w-0 overflow-visible"
               aria-label="词汇量金字塔"
             >
+              <div
+                ref={pyramidRef}
+                className="relative mr-auto aspect-[1024/629] w-[calc(100%-3.5rem)] overflow-visible"
+              >
               {PYRAMID_ROWS.map((row) => (
                 <div
                   key={row.stage}
@@ -401,10 +409,11 @@ export function VocabTestResultView({
                   </div>
                 </div>
               ))}
+              </div>
               {marker && (
                 <div
-                  className="absolute right-0 z-10 flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-[#2D3748] pointer-events-none"
-                  style={{ top: marker.top }}
+                  className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-[#2D3748] pointer-events-none"
+                  style={{ left: marker.left, top: marker.top }}
                 >
                   <span className="h-3.5 w-3.5 rounded-full border-2 border-white bg-[#4ECDC4] shadow-[0_1px_4px_rgba(45,55,72,0.45)]" />
                   您的位置
