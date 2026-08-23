@@ -291,7 +291,7 @@ export function VocabTestResultView({
   const summary = useMemo(() => buildVocabTestSummary(result), [result]);
   const pyramidRef = useRef<HTMLDivElement>(null);
   const levelRefs = useRef<Partial<Record<VocabLevel, HTMLDivElement | null>>>({});
-  const [marker, setMarker] = useState<{ left: number; top: number } | null>(null);
+  const [marker, setMarker] = useState<{ top: number } | null>(null);
 
   useLayoutEffect(() => {
     const pyramid = pyramidRef.current;
@@ -305,7 +305,6 @@ export function VocabTestResultView({
       const pyramidRect = pyramid.getBoundingClientRect();
       const levelRect = levelElement.getBoundingClientRect();
       setMarker({
-        left: levelRect.left - pyramidRect.left + levelRect.width / 2,
         top: levelRect.top - pyramidRect.top + levelRect.height / 2,
       });
     };
@@ -404,8 +403,8 @@ export function VocabTestResultView({
               ))}
               {marker && (
                 <div
-                  className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-[#2D3748] pointer-events-none"
-                  style={{ left: marker.left, top: marker.top }}
+                  className="absolute right-0 z-10 flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-[#2D3748] pointer-events-none"
+                  style={{ top: marker.top }}
                 >
                   <span className="h-3.5 w-3.5 rounded-full border-2 border-white bg-[#4ECDC4] shadow-[0_1px_4px_rgba(45,55,72,0.45)]" />
                   您的位置
