@@ -7,7 +7,7 @@ import { TopBar } from "../components/TopBar";
 import { Shuffle, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { playFirstWordAudio, playWordAudio, parseAudioUrls } from "../utils/audioPlayer";
+import { playFirstWordAudio, playWordAudio, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { formatTranslation } from "../utils/wordFormat";
 import { nextWordTapState } from "../utils/wordReveal";
 
@@ -44,7 +44,7 @@ export default function WordReview() {
     const urls = parseAudioUrls(word.audioUrl);
     if (urls.length === 0) return;
     const prev = audioIndexMap.get(word.id) ?? 0;
-    const next = prev >= urls.length ? 1 : prev + 1;
+    const next = prev >= Math.min(urls.length, WORD_AUDIO_SLOT_COUNT) ? 1 : prev + 1;
     setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
 

@@ -1,6 +1,6 @@
-export type AudioUrlParts = [string, string, string]
+export type AudioUrlParts = [string, string]
 
-export const AUDIO_SLOT_LABELS = ['单词', '连读', '英+中'] as const
+export const AUDIO_SLOT_LABELS = ['单词', '连读'] as const
 
 function audioDedupKey(url: string): string {
   const u = url.trim().toLowerCase().split('?')[0] ?? ''
@@ -12,7 +12,7 @@ function audioDedupKey(url: string): string {
 
 export function splitAudioUrls(audioUrl: string | undefined): AudioUrlParts {
   const parts = (audioUrl || '').split(';').map((s) => s.trim())
-  return [parts[0] || '', parts[1] || '', parts[2] || '']
+  return [parts[0] || '', parts[1] || '']
 }
 
 export function joinAudioUrls(parts: AudioUrlParts): string {

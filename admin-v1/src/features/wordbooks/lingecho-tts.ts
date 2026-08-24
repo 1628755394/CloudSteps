@@ -22,8 +22,8 @@ export function buildWordAudioTexts(
   translation?: string
 ): string[] {
   const w = word.trim()
-  const zh = pickChineseGloss(w, translation)
-  return [w, `${w} ${w} ${w}`, `${w} ${w} ${zh}`]
+  void translation
+  return [w, `${w} ${w} ${w}`]
 }
 
 export async function generateWordAudioUrls(

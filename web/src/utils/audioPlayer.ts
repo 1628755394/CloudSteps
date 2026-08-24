@@ -1,5 +1,8 @@
 import { resolveMediaUrl } from './mediaUrl'
 
+/** 词库单词音频槽位数：0=英文，1=英文，2=简译中文 */
+export const WORD_AUDIO_SLOT_COUNT = 3
+
 const MUTE_KEY = 'lb_audio_muted'
 const MUTE_EVENT = 'lb-audio-muted'
 
@@ -45,12 +48,13 @@ export function subscribeAudioMuted(listener: (muted: boolean) => void): () => v
 }
 
 /**
- * 解析分号分隔的音频URL字符串，返回有效URL数组（压缩空槽，适合顺序轮播）。
+ * 解析分号分隔的音频URL字符串，返回有效URL数组（最多两段，适合顺序轮播）。
  */
 export function parseAudioUrls(audioUrl?: string | null): string[] {
   if (!audioUrl?.trim()) return []
   return audioUrl
     .split(';')
+    .slice(0, WORD_AUDIO_SLOT_COUNT)
     .map(u => u.trim())
     .filter(Boolean)
     .map(u => resolveMediaUrl(u))
@@ -65,6 +69,7 @@ export function parseAudioUrlSlots(audioUrl?: string | null): (string | null)[] 
   if (audioUrl == null) return []
   return String(audioUrl)
     .split(';')
+    .slice(0, WORD_AUDIO_SLOT_COUNT)
     .map((u) => {
       const t = u.trim()
       if (!t) return null

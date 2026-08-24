@@ -12,11 +12,10 @@ describe('pickChineseGloss', () => {
 })
 
 describe('buildWordAudioTexts', () => {
-  it('builds the three TTS lines used for word audio slots', () => {
+  it('builds the two TTS lines used for word audio slots', () => {
     expect(buildWordAudioTexts('apple', '["n. 苹果"]')).toEqual([
       'apple',
       'apple apple apple',
-      'apple apple 苹果',
     ])
   })
 })
