@@ -15,11 +15,7 @@ import {
   type StudentWordBookItem,
   type TeacherCoachingQuotaRow,
 } from "../api/coaching";
-import {
-  fetchLighthouse,
-  getCachedLighthouse,
-  revalidateLighthouse,
-} from "../utils/lighthouseCache";
+import { fetchLighthouse, getCachedLighthouse } from "../utils/lighthouseCache";
 import {
   getCachedWordBooks,
   loadWordBooksStaleWhileRevalidate,
@@ -29,13 +25,7 @@ import { getTrainingStudent, setTrainingStudent } from "../utils/trainingStudent
 
 type LighthouseDay = { id: string; count: number; label: string };
 
-// TODO: 后端 /api/study/lighthouse 目前只返回 `days`（未来复习日程计划的每日词条数），
-// 并不是记忆九宫格所需的「02-08 各复习阶段箱」词条分布。
-// 之前把 memoryData(days) 直接当作九宫格 boxes 使用是错误映射，
-// 会导致宫格内显示不相关的天数计划数字（例如151/38/114/42/11）。
-// 在后端补充「各复习阶段词条数」字段前，先用与设计稿一致的占位数据展示，
-// 避免把误导性的数值呈现给用户；数组顺序对应 02→08 共 7 个复习阶段箱。
-const LIGHTHOUSE_BOX_PLACEHOLDER = [23, 9, 8, 0, 1, 0, 0];
+// `/api/study/lighthouse` 返回的 `days` 按复习阶段提供词条数，数组顺序对应 02→08。
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const fmtYMD = (d: Date) =>
@@ -123,7 +113,6 @@ export default function WordTraining() {
     setSelectedWordBookId(wb.id);
     sessionStorage.setItem("lb_wordbook_id", String(wb.id));
     sessionStorage.setItem("lb_wordbook_name", wb.name);
-    revalidateLighthouse(wb.id);
     if (opts?.fromUser && studentId) {
       userPickedByStudent.current[studentId] = wb.id;
     }
@@ -253,11 +242,18 @@ export default function WordTraining() {
     if (!selectedWordBookId) return;
 
     const cached = getCachedLighthouse(selectedWordBookId);
-    if (cached) applyLighthouse(cached);
+    if (cached) {
+      applyLighthouse(cached);
+    } else {
+      setMemoryData([]);
+      setPendingCount(0);
+      setMasteredCount(0);
+      setTodayNewLearned(0);
+    }
 
     (async () => {
       try {
-        const data = await fetchLighthouse(selectedWordBookId);
+        const data = await fetchLighthouse(selectedWordBookId, { force: true });
         if (!mounted) return;
         applyLighthouse(data);
       } catch {
@@ -305,6 +301,8 @@ export default function WordTraining() {
       })),
     [students]
   );
+
+  const lighthouseBoxes = memoryData.map(({ count }) => ({ count }));
 
   return (
     <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
@@ -399,12 +397,12 @@ export default function WordTraining() {
 
           <MemoryLighthouse
             data={{
-              boxes: LIGHTHOUSE_BOX_PLACEHOLDER.map((count) => ({ count })),
+              boxes: lighthouseBoxes,
               mastered: masteredCount,
               unlearned: pendingCount,
               total:
                 pendingCount +
-                LIGHTHOUSE_BOX_PLACEHOLDER.reduce((sum, c) => sum + c, 0) +
+                lighthouseBoxes.reduce((sum, box) => sum + box.count, 0) +
                 masteredCount,
             } as MemoryLighthouseData}
             onBlockClick={(type, _wordNum, tips) => {

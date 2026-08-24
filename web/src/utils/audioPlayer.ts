@@ -59,7 +59,7 @@ export function parseAudioUrls(audioUrl?: string | null): string[] {
 
 /**
  * 按原始分号槽位解析（保留空位），保证「第 1/2/3 段」索引稳定。
- * 词库 TTS 约定：0=单词一遍，1=单词三遍，2=单词+中文。
+ * 词库 TTS 约定：0=英文，1=英文，2=简译中文。
  */
 export function parseAudioUrlSlots(audioUrl?: string | null): (string | null)[] {
   if (audioUrl == null) return []
@@ -175,7 +175,7 @@ export function playFirstWordAudio(
 }
 
 /**
- * 播放第二个音频（槽位 1：单词三遍）。没有第二段则回退第一段。
+ * 播放第二个音频（槽位 1：英文）。没有第二段则回退第一段。
  */
 export function playSecondWordAudio(
   audioUrl: string | undefined | null,

@@ -446,12 +446,13 @@ export default function TrainingRecords() {
         showToast.error("暂无单词可导出");
         return;
       }
-      const { headers, tableRows } = buildExportTable(words, "both");
+      const { headers, tableRows } = buildExportTable(words, exportContent);
       const who = selectedStudentName || "学员";
       const day = item.day || todayCompact();
       const book = item.wordBookName || "词库";
       const kind = tab === "review" ? "抗遗忘" : "训练";
-      const fileBase = `【${who}-${day}-${book}-${kind}】`;
+      const contentLabel = exportContentLabel(exportContent);
+      const fileBase = `【${who}-${day}-${book}-${kind}-${contentLabel}】`;
       await downloadExportFile({ format, fileBase, headers, tableRows });
       showToast.success(`已导出 ${words.length} 个单词`);
       setRowExportItem(null);
@@ -640,6 +641,7 @@ export default function TrainingRecords() {
                       disabled={exporting}
                       onClick={(e) => {
                         e.stopPropagation();
+                        setExportContent("both");
                         setRowExportItem(item);
                       }}
                     >
@@ -716,7 +718,33 @@ export default function TrainingRecords() {
                 <X size={20} className="text-muted-foreground" />
               </CloudButton>
             </div>
-            <div className="px-4 py-4 space-y-2">
+            <div className="px-4 py-4 space-y-3">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">选择导出内容</p>
+                <div className="flex gap-2">
+                  {(
+                    [
+                      { id: "both", label: "中英" },
+                      { id: "zh", label: "中文" },
+                      { id: "en", label: "英文" },
+                    ] as const
+                  ).map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      disabled={exporting}
+                      onClick={() => setExportContent(f.id)}
+                      className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                        exportContent === f.id
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card text-muted-foreground border-border"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground mb-1">选择导出格式</p>
               <CloudButton
                 type="button"

@@ -1,16 +1,18 @@
 // 给缺少 audio_url 的活跃单词补音频：
+//
 //  1. 同拼写已有音频的，直接复用（不重新合成）
+//
 //  2. 整组都没有的，TTS 合成一次后写回所有缺音频行
 //
-//	go run ./cmd/fill-missing-word-audio --dry-run
-//	go run ./cmd/fill-missing-word-audio --execute
-//	go run ./cmd/fill-missing-word-audio --execute --copy-only
-//	go run ./cmd/fill-missing-word-audio --execute --tts-limit=500
+//     go run ./cmd/fill-missing-word-audio --dry-run
+//     go run ./cmd/fill-missing-word-audio --execute
+//     go run ./cmd/fill-missing-word-audio --execute --copy-only
+//     go run ./cmd/fill-missing-word-audio --execute --tts-limit=500
 package main
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -37,6 +39,7 @@ import (
 )
 
 var posPrefixRe = regexp.MustCompile(`(?i)^[a-z]+\.\s+`)
+var englishGlossRe = regexp.MustCompile(`(?i)[a-z][a-z\s\-']*`)
 
 type wordRow struct {
 	ID          uint   `gorm:"column:id"`
@@ -387,7 +390,7 @@ func buildWordAudioTexts(word, translation string) []string {
 		return nil
 	}
 	zh := pickChineseGloss(w, translation)
-	return []string{w, w + " " + w + " " + w, w + " " + w + " " + zh}
+	return []string{w, w, zh}
 }
 
 func pickChineseGloss(word, translation string) string {
@@ -397,11 +400,22 @@ func pickChineseGloss(word, translation string) string {
 	}
 	var items []string
 	if err := json.Unmarshal([]byte(translation), &items); err == nil && len(items) > 0 {
-		if s := strings.TrimSpace(items[0]); s != "" {
-			return stripPosFromGloss(s, word)
-		}
+		translation = items[0]
 	}
-	return stripPosFromGloss(translation, word)
+	gloss := stripPosFromGloss(translation, word)
+	gloss = englishGlossRe.ReplaceAllString(gloss, " ")
+	fields := strings.Fields(gloss)
+	if len(fields) == 0 {
+		return word
+	}
+	gloss = strings.TrimSpace(fields[0])
+	if i := strings.IndexAny(gloss, "；;，,"); i >= 0 {
+		gloss = strings.TrimSpace(gloss[:i])
+	}
+	if gloss == "" {
+		return word
+	}
+	return gloss
 }
 
 func stripPosFromGloss(s, word string) string {

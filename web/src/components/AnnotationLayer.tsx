@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 type Tool = "pen" | "eraser" | "select" | "circle" | "rect" | "text";
-type BrushMode = "fountain" | "pencil";
+type BrushMode = "fountain" | "pencil" | "highlighter";
 type DockSide = "left" | "right";
 
 type Stroke = {
@@ -168,6 +168,9 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   } else if (s.tool === "pen" && s.brush === "pencil") {
     ctx.globalCompositeOperation = "source-over";
     ctx.strokeStyle = hexToRgba(s.color, 0.55);
+  } else if (s.tool === "pen" && s.brush === "highlighter") {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = hexToRgba(s.color, 0.35);
   } else {
     ctx.globalCompositeOperation = "source-over";
     ctx.strokeStyle = s.color;
@@ -356,6 +359,8 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     let strokeWidth = width;
     if (tool === "pen" && brushMode === "pencil") {
       strokeWidth = Math.max(1, width * 0.65);
+    } else if (tool === "pen" && brushMode === "highlighter") {
+      strokeWidth = Math.max(8, width * 3);
     }
     currentRef.current = {
       tool,
@@ -417,17 +422,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
     setRedoStack([]);
   };
 
-  // Click on blank area (outside the toolbar panel) deselects color -> switch to select tool.
-  useEffect(() => {
-    if (!open) return;
-    const onDocMouseDown = (e: MouseEvent) => {
-      const panel = panelRef.current;
-      if (panel && panel.contains(e.target as Node)) return;
-      setTool("select");
-    };
-    document.addEventListener("mousedown", onDocMouseDown);
-    return () => document.removeEventListener("mousedown", onDocMouseDown);
-  }, [open]);
+  // Clicking outside the panel must not change the active tool, so a collapsed panel remains usable.
 
   if (!open) return null;
 
@@ -593,6 +588,10 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
                 {brushChip("pencil", "铅笔", tool === "pen" && brushMode === "pencil", () => {
                   setTool("pen");
                   setBrushMode("pencil");
+                })}
+                {brushChip("highlighter", "荧光笔", tool === "pen" && brushMode === "highlighter", () => {
+                  setTool("pen");
+                  setBrushMode("highlighter");
                 })}
               </div>
             </div>

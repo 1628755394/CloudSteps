@@ -1,4 +1,4 @@
-import { Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
@@ -179,6 +179,7 @@ export default function WordPractice() {
       })
     );
     setDetailWord(syncDetailWordWithTap(detailMode, next, word));
+    handleCountClick(word.id);
   };
 
   const handleCountClick = (id: number) => {
@@ -334,16 +335,6 @@ export default function WordPractice() {
                       {audioIndexMap.get(cardWord.id) ?? 0}
                     </CloudButton>
                   )}
-                  <CloudButton
-                    variant={words.findIndex((w) => w.id === cardWord.id) === activeIndex ? "mint" : "ghost"}
-                    size="iconRound"
-                    className={`size-12 ${
-                      words.findIndex((w) => w.id === cardWord.id) !== activeIndex ? "text-[#A0AEC0]" : ""
-                    }`}
-                    onClick={() => handleCountClick(cardWord.id)}
-                  >
-                    <Check size={20} />
-                  </CloudButton>
                 </div>
               )}
             </div>
@@ -409,14 +400,6 @@ export default function WordPractice() {
                           {audioIndexMap.get(word.id) ?? 0}
                         </CloudButton>
                       )}
-                      <CloudButton
-                        variant={index === activeIndex ? "mint" : "ghost"}
-                        size="iconRound"
-                        className={`size-12 ${index !== activeIndex ? "text-[#A0AEC0]" : ""}`}
-                        onClick={() => handleCountClick(word.id)}
-                      >
-                        <Check size={20} />
-                      </CloudButton>
                     </div>
                   )}
                 </div>
