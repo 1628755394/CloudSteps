@@ -15,7 +15,6 @@ import (
 	"github.com/LingByte/ling-base/voice/realtime"
 	_ "github.com/LingByte/ling-base/voice/realtime/aliyunomni"
 	_ "github.com/LingByte/ling-base/voice/realtime/volcdialogue"
-	lingllm "github.com/LingByte/lingllm/realtime"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -29,13 +28,6 @@ type SessionContext struct {
 	ExpressionHistory  []string // 表情历史记录
 	OnTurn             func(role, content string, hasCorrection, hasPronunciation bool)
 	mu                 sync.RWMutex // 保护并发访问
-}
-
-var pendingDeviceID atomic.Value // string, set per incoming WS before upgrade
-
-// SetPendingDeviceID marks the next WS connection's device-id (xiaozhi calls NewAgent before OnSessionStart).
-func SetPendingDeviceID(deviceID string) {
-	pendingDeviceID.Store(strings.TrimSpace(deviceID))
 }
 
 // RealtimeFactory creates ling-base realtime agents for scenario dialogue.
@@ -58,7 +50,7 @@ func (f *RealtimeFactory) RegisterSession(ctx *SessionContext) {
 	f.sessions.Store(ctx.SessionID, ctx)
 }
 
-// BindCall associates a xiaozhi callID with a session.
+// BindCall associates a realtime callID with a session.
 func (f *RealtimeFactory) BindCall(callID string, sessionID uint) {
 	f.callMap.Store(callID, sessionID)
 
@@ -98,27 +90,14 @@ func (f *RealtimeFactory) GetSessionByCallID(callID string) *SessionContext {
 	return nil
 }
 
-// NewAgent implements xiaozhi.RealtimeAgentFactory.
-func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent func(lingllm.Event)) (lingllm.Agent, int, int, error) {
+// NewAgent creates and starts a ling-base realtime agent for the given call.
+func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent func(realtime.Event)) (realtime.Agent, int, int, error) {
 	sessionCtx := f.resolveSession(callID)
-	if sessionCtx == nil {
-		if v := pendingDeviceID.Load(); v != nil {
-			if deviceID, ok := v.(string); ok && deviceID != "" {
-				if _, sessionID, ok2 := ParseDeviceSessionID(deviceID); ok2 {
-					if ctxVal, ok3 := f.sessions.Load(sessionID); ok3 {
-						sessionCtx = ctxVal.(*SessionContext)
-						f.BindCall(callID, sessionID)
-					}
-				}
-			}
-		}
-	}
 	systemPrompt := defaultSystemPrompt()
 	if sessionCtx != nil && sessionCtx.SystemPrompt != "" {
 		systemPrompt = sessionCtx.SystemPrompt
 	}
 
-	// 根据用户的微表情调整系统提示
 	if sessionCtx != nil {
 		expressions := sessionCtx.GetCurrentExpressions()
 		if expressions != "" {
@@ -139,9 +118,9 @@ func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent f
 
 	inSR := int(common.GetIntEnvWithDefault("REALTIME_INPUT_SR", 16000))
 	outSR := int(common.GetIntEnvWithDefault("REALTIME_OUTPUT_SR", 24000))
-	voice := strings.TrimSpace(common.GetEnv("REALTIME_VOICE"))
-	if voice == "" {
-		voice = "Cherry"
+	voiceName := strings.TrimSpace(common.GetEnv("REALTIME_VOICE"))
+	if voiceName == "" {
+		voiceName = "Cherry"
 	}
 
 	var turnUser strings.Builder
@@ -149,7 +128,7 @@ func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent f
 
 	agent, err := realtime.NewAgentFromCredential(cfg, realtime.Options{
 		SystemPrompt:     systemPrompt,
-		Voice:            voice,
+		Voice:            voiceName,
 		InputSampleRate:  inSR,
 		OutputSampleRate: outSR,
 		OnEvent: func(ev realtime.Event) {
@@ -157,7 +136,7 @@ func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent f
 				f.handleSessionEvent(sessionCtx, ev, &turnUser, &turnAssistant)
 			}
 			if onEvent != nil {
-				onEvent(adaptEvent(ev))
+				onEvent(ev)
 			}
 		},
 	})
@@ -172,7 +151,7 @@ func (f *RealtimeFactory) NewAgent(ctx context.Context, callID string, onEvent f
 		return nil, 0, 0, err
 	}
 	setLastInitError("")
-	return adapt(agent), inSR, outSR, nil
+	return agent, inSR, outSR, nil
 }
 
 var lastInitError atomic.Value

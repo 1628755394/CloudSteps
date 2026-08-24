@@ -11,7 +11,6 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/ling-base/cache/lru"
 	lbconfig "github.com/LingByte/ling-base/common/config"
-	"github.com/LingByte/lingllm/protocol/voice/xiaozhi"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -22,7 +21,6 @@ type Handlers struct {
 	configStore     *lbconfig.Store
 	sysMetrics      *sysmetrics.Service
 	realtimeFactory *voice.RealtimeFactory
-	xiaozhiServer   *xiaozhi.Server
 }
 
 func NewHandlers(db *gorm.DB, cache *lru.Cache[string, any], configStore *lbconfig.Store, metrics *sysmetrics.Service) *Handlers {
