@@ -369,6 +369,10 @@ export default function ReviewCheck() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+              <StudyNoteLauncher
+                storageKey={`study-note:global:${wordBookId}`}
+                label="随心记"
+              />
               <CloudButton
                 variant={detailMode ? "brand" : "outline"}
                 size="pill"
@@ -391,10 +395,6 @@ export default function ReviewCheck() {
               <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
                 全选
               </CloudButton>
-              <StudyNoteLauncher
-                storageKey={`study-note:global:${wordBookId}`}
-                label="随心记"
-              />
             </div>
           </div>
           <CloudButton

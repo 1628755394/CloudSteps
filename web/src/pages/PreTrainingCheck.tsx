@@ -552,6 +552,10 @@ export default function PreTrainingCheck() {
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
+            <StudyNoteLauncher
+              storageKey={`study-note:global:${wordBookId}`}
+              label="随心记"
+            />
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
               variant={detailMode ? "brand" : "outline"}
@@ -592,10 +596,6 @@ export default function PreTrainingCheck() {
             <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
               全选
             </CloudButton>
-            <StudyNoteLauncher
-              storageKey={`study-note:global:${wordBookId}`}
-              label="随心记"
-            />
           </div>
         </div>
         <div className="flex gap-3">

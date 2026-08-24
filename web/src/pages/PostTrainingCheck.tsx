@@ -574,6 +574,10 @@ export default function PostTrainingCheck() {
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
+            <StudyNoteLauncher
+              storageKey={`study-note:global:${wordBookId}`}
+              label="随心记"
+            />
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
@@ -592,10 +596,6 @@ export default function PostTrainingCheck() {
               <BookOpen size={16} />
               拓展
             </CloudButton>
-            <StudyNoteLauncher
-              storageKey={`study-note:global:${wordBookId}`}
-              label="随心记"
-            />
           </div>
           <div className="text-sm text-[#718096] text-right">
             正确 <span className="text-[#4ECDC4] font-semibold">{correctCount}</span> · 错误{" "}
