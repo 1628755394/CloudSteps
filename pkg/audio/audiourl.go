@@ -2,6 +2,9 @@ package audio
 
 import "strings"
 
+// WordAudioSlotCount 词库单词音频槽位数：0=单词一遍，1=单词三遍（连读）。
+const WordAudioSlotCount = 2
+
 // DedupKey 用于判断两段音频是否为同一资源（完全相同的 URL，或 ddjdc 同 hash 的 _uk/_us）。
 func DedupKey(raw string) string {
 	u := strings.TrimSpace(raw)
@@ -57,8 +60,41 @@ func SplitSlots(raw string) []string {
 	return strings.Split(raw, ";")
 }
 
+// ThirdSlotURL returns slot index 2 (legacy 英+中), or "" if absent.
+func ThirdSlotURL(raw string) string {
+	parts := SplitSlots(raw)
+	if len(parts) < 3 {
+		return ""
+	}
+	return strings.TrimSpace(parts[2])
+}
+
+// HasThirdSlot reports whether slot 2 has non-empty content.
+func HasThirdSlot(raw string) bool {
+	return ThirdSlotURL(raw) != ""
+}
+
+// DropThirdSlot keeps slots 0–1 and removes slot 2 onward.
+func DropThirdSlot(raw string) string {
+	parts := SplitSlots(raw)
+	if len(parts) <= WordAudioSlotCount {
+		return trimTrailingEmptySlots(parts)
+	}
+	return trimTrailingEmptySlots(parts[:WordAudioSlotCount])
+}
+
+func trimTrailingEmptySlots(parts []string) string {
+	for len(parts) > 0 && strings.TrimSpace(parts[len(parts)-1]) == "" {
+		parts = parts[:len(parts)-1]
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, ";")
+}
+
 // RewritePronunciationSlots replaces slots 0 and 1 (word / triple-word TTS)
-// with shared URLs. Later slots (usually the gloss) are kept as-is.
+// with shared URLs. Slots from index 2 onward are dropped.
 func RewritePronunciationSlots(raw, slot0, slot1 string) string {
 	parts := SplitSlots(raw)
 	slot0 = strings.TrimSpace(slot0)
@@ -76,10 +112,10 @@ func RewritePronunciationSlots(raw, slot0, slot1 string) string {
 		}
 		parts[1] = slot1
 	}
-	for len(parts) > 0 && strings.TrimSpace(parts[len(parts)-1]) == "" {
-		parts = parts[:len(parts)-1]
+	if len(parts) > WordAudioSlotCount {
+		parts = parts[:WordAudioSlotCount]
 	}
-	return strings.Join(parts, ";")
+	return trimTrailingEmptySlots(parts)
 }
 
 func EachSlot(raw string, fn func(url string)) {

@@ -34,7 +34,7 @@ func TestRewritePronunciationSlots(t *testing.T) {
 	canon1 := "https://cdn.example/keep1.mp3"
 
 	got := RewritePronunciationSlots(a+";"+b+";"+c, canon0, canon1)
-	want := canon0 + ";" + canon1 + ";" + c
+	want := canon0 + ";" + canon1
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
@@ -45,5 +45,37 @@ func TestRewritePronunciationSlots(t *testing.T) {
 	}
 	if RewritePronunciationSlots("", "", "") != "" {
 		t.Fatal("empty")
+	}
+}
+
+func TestDropThirdSlot(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"", ""},
+		{"/a.mp3", "/a.mp3"},
+		{"/a.mp3;/b.mp3", "/a.mp3;/b.mp3"},
+		{"/a.mp3;/b.mp3;/c.mp3", "/a.mp3;/b.mp3"},
+		{"/a.mp3;;/c.mp3", "/a.mp3"},
+		{"/a.mp3;/b.mp3;/c.mp3;/d.mp3", "/a.mp3;/b.mp3"},
+	}
+	for _, tt := range tests {
+		got := DropThirdSlot(tt.in)
+		if got != tt.want {
+			t.Errorf("DropThirdSlot(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestHasThirdSlot(t *testing.T) {
+	if !HasThirdSlot("/a;/b;/c") {
+		t.Fatal("expected third slot")
+	}
+	if HasThirdSlot("/a;/b") {
+		t.Fatal("expected no third slot")
+	}
+	if HasThirdSlot("/a;;") {
+		t.Fatal("empty third should not count")
 	}
 }
