@@ -60,7 +60,7 @@ export function WordMutateDrawer({
 }: WordMutateDrawerProps) {
   const isEdit = !!word
   const [form, setForm] = useState<WordForm>(emptyWordForm)
-  const [audioParts, setAudioParts] = useState<AudioUrlParts>(['', '', ''])
+  const [audioParts, setAudioParts] = useState<AudioUrlParts>(['', ''])
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -76,7 +76,7 @@ export function WordMutateDrawer({
 
     if (!word) {
       setForm(emptyWordForm())
-      setAudioParts(['', '', ''])
+      setAudioParts(['', ''])
       return
     }
 
@@ -102,7 +102,7 @@ export function WordMutateDrawer({
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  const setAudioPart = (idx: 0 | 1 | 2, value: string) => {
+  const setAudioPart = (idx: 0 | 1, value: string) => {
     const next: AudioUrlParts = [...audioParts]
     next[idx] = value
     setAudioParts(next)
@@ -515,7 +515,7 @@ export function WordMutateDrawer({
               </div>
 
               <div className='space-y-4'>
-                {([0, 1, 2] as const).map((idx) => {
+                {([0, 1] as const).map((idx) => {
                   const src = mediaSrc(audioParts[idx])
                   return (
                     <div key={idx} className='space-y-2 rounded-lg border p-3'>

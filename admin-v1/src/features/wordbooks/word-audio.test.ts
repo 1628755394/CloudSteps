@@ -6,29 +6,28 @@ import {
 } from './word-audio'
 
 describe('splitAudioUrls', () => {
-  it('splits up to three semicolon-separated slots', () => {
+  it('splits up to two semicolon-separated slots', () => {
     expect(splitAudioUrls('/a.mp3;/b.mp3;/c.mp3')).toEqual([
       '/a.mp3',
       '/b.mp3',
-      '/c.mp3',
     ])
   })
 
   it('pads missing slots with empty strings', () => {
-    expect(splitAudioUrls('/a.mp3')).toEqual(['/a.mp3', '', ''])
-    expect(splitAudioUrls(undefined)).toEqual(['', '', ''])
+    expect(splitAudioUrls('/a.mp3')).toEqual(['/a.mp3', ''])
+    expect(splitAudioUrls(undefined)).toEqual(['', ''])
   })
 })
 
 describe('joinAudioUrls', () => {
   it('joins filled slots and drops trailing empties', () => {
-    expect(joinAudioUrls(['/a.mp3', '/b.mp3', ''])).toBe('/a.mp3;/b.mp3')
+    expect(joinAudioUrls(['/a.mp3', '/b.mp3'])).toBe('/a.mp3;/b.mp3')
   })
 
   it('clears a later slot that duplicates an earlier UK/US stem', () => {
-    expect(
-      joinAudioUrls(['/voice_us.mp3', '/voice_uk.mp3', '/other.mp3'])
-    ).toBe('/voice_us.mp3;;/other.mp3')
+    expect(joinAudioUrls(['/voice_us.mp3', '/voice_uk.mp3'])).toBe(
+      '/voice_us.mp3'
+    )
   })
 })
 
