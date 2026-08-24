@@ -313,6 +313,29 @@ func TestRegistrationGuard_CheckRegistrationAllowed(t *testing.T) {
 	}
 }
 
+func TestRegistrationGuard_CheckRegistrationAllowed_Username(t *testing.T) {
+	rg, cleanup := setupTestRegistrationGuard(t)
+	defer cleanup()
+
+	err := rg.CheckRegistrationAllowed("192.168.1.1", "teacher01", "password123")
+	if err != nil {
+		t.Fatalf("username registration should be allowed, got: %v", err)
+	}
+}
+
+func TestRegistrationGuard_CheckRegistrationAllowed_InvalidEmail(t *testing.T) {
+	rg, cleanup := setupTestRegistrationGuard(t)
+	defer cleanup()
+
+	err := rg.CheckRegistrationAllowed("192.168.1.1", "not-an-email@", "password123")
+	if err == nil {
+		t.Fatal("invalid email account should be rejected")
+	}
+	if IsRegistrationThrottleError(err) {
+		t.Fatal("invalid email should not be treated as throttle")
+	}
+}
+
 func TestInitGlobalRegistrationGuard(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	cache, _ := lru.New[string, any](1000, lru.WithDefaultTTL(1*time.Hour))

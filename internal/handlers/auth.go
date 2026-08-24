@@ -319,10 +319,10 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	var user *models.User
 	var err error
 	if form.Password != "" {
-		user, err = models.GetUserByUsername(db, form.Username)
+		user, err = models.GetUserByLoginAccount(db, form.Username)
 		if err != nil {
-			logger.Warn("Login attempt with non-existent email", zap.String("email", form.Username), zap.String("ip", clientIP), zap.Error(err))
-			response.Fail(c, "用户不存在，请检查用户名", nil)
+			logger.Warn("Login attempt with non-existent account", zap.String("account", form.Username), zap.String("ip", clientIP), zap.Error(err))
+			response.Fail(c, "用户不存在，请检查用户名或邮箱", nil)
 			return
 		}
 
@@ -472,7 +472,7 @@ func (h *Handlers) handleUserSignin(c *gin.Context) {
 	var user *models.User
 	var err error
 	if form.Password != "" {
-		user, err = models.GetUserByUsername(db, form.Username)
+		user, err = models.GetUserByLoginAccount(db, form.Username)
 		if err != nil {
 			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("user not exists"))
 			return
@@ -548,7 +548,11 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	if utils.GlobalRegistrationGuard != nil {
 		if err := utils.GlobalRegistrationGuard.CheckRegistrationAllowed(clientIP, form.Username, form.Password); err != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
-			CloudStepsGo.AbortWithJSONError(c, http.StatusTooManyRequests, err)
+			status := http.StatusBadRequest
+			if utils.IsRegistrationThrottleError(err) {
+				status = http.StatusTooManyRequests
+			}
+			CloudStepsGo.AbortWithJSONError(c, status, err)
 			return
 		}
 	}
@@ -667,7 +671,11 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	if utils.GlobalRegistrationGuard != nil {
 		if err := utils.GlobalRegistrationGuard.CheckRegistrationAllowed(clientIP, form.Username, form.Password); err != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
-			CloudStepsGo.AbortWithJSONError(c, http.StatusTooManyRequests, err)
+			status := http.StatusBadRequest
+			if utils.IsRegistrationThrottleError(err) {
+				status = http.StatusTooManyRequests
+			}
+			CloudStepsGo.AbortWithJSONError(c, status, err)
 			return
 		}
 	}
