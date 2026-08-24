@@ -502,15 +502,6 @@ export default function ReviewWordList() {
               </>
             )}
             <div className="flex-1" />
-            <CloudButton
-              type="button"
-              variant={globalNoteOpen ? "brand" : "outline"}
-              size="pill"
-              onClick={() => setGlobalNoteOpen(true)}
-              aria-label="打开随心记"
-            >
-              随心记
-            </CloudButton>
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
               type="button"
@@ -525,6 +516,15 @@ export default function ReviewWordList() {
             >
               <BookOpen size={16} />
               拓展
+            </CloudButton>
+            <CloudButton
+              type="button"
+              variant={globalNoteOpen ? "brand" : "outline"}
+              size="pill"
+              onClick={() => setGlobalNoteOpen(true)}
+              aria-label="打开随心记"
+            >
+              随心记
             </CloudButton>
           </div>
           {!viewOnly && (

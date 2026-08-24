@@ -450,14 +450,13 @@ export default function WordPractice() {
               <BookOpen size={16} />
               拓展
             </CloudButton>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <StudyNoteLauncher
               storageKey={`study-note:global:${wordBookId}`}
               label="随心记"
               className="shrink-0"
             />
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-16 shrink-0" aria-hidden="true" />
             <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
             <ArrowRight size={24} />
           </CloudButton>
