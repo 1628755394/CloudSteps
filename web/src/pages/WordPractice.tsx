@@ -12,7 +12,7 @@ import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
-import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls } from "../utils/audioPlayer";
+import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
@@ -57,7 +57,7 @@ export default function WordPractice() {
     const index = prev % urls.length;
     const abort = playAudioAtIndex(word.audioUrl, index, () => setPlayingId(null));
     abortRef.current = abort;
-    const next = prev === 0 ? 1 : (prev % 3) + 1;
+    const next = prev === 0 ? 1 : (prev % WORD_AUDIO_SLOT_COUNT) + 1;
     setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
 

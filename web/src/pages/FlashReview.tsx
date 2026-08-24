@@ -125,7 +125,7 @@ export default function FlashReview() {
     if (!word.audioUrl) return;
     abortRef.current?.();
     setPlayingId(word.id);
-    // 快闪喇叭固定播第 2 段（单词三遍）；按分号槽位取，避免空段压缩后误播第 3 段
+    // 快闪喇叭固定播第 2 段（连读）
     const abort = playSecondWordAudio(word.audioUrl, () => setPlayingId(null));
     abortRef.current = abort;
   };
