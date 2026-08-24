@@ -553,8 +553,8 @@ func buildWordAudioTexts(word, translation string) []string {
 	if w == "" {
 		return nil
 	}
-	zh := pickChineseGloss(w, translation)
-	return []string{w, w + " " + w + " " + w, w + " " + w + " " + zh}
+	_ = translation
+	return []string{w, w + " " + w + " " + w}
 }
 
 func pickChineseGloss(word, translation string) string {
