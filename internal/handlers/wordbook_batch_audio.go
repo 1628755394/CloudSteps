@@ -22,6 +22,7 @@ import (
 )
 
 var posPrefixRe = regexp.MustCompile(`(?i)^[a-z]+\.\s+`)
+var englishGlossRe = regexp.MustCompile(`(?i)[a-z][a-z\s\-']*`)
 
 type wordBookBatchAudioJob struct {
 	mu            sync.Mutex
@@ -553,8 +554,8 @@ func buildWordAudioTexts(word, translation string) []string {
 	if w == "" {
 		return nil
 	}
-	_ = translation
-	return []string{w, w + " " + w + " " + w}
+	zh := pickChineseGloss(w, translation)
+	return []string{w, w, zh}
 }
 
 func pickChineseGloss(word, translation string) string {
@@ -564,11 +565,22 @@ func pickChineseGloss(word, translation string) string {
 	}
 	var items []string
 	if err := json.Unmarshal([]byte(translation), &items); err == nil && len(items) > 0 {
-		if s := strings.TrimSpace(items[0]); s != "" {
-			return stripPosFromGloss(s, word)
-		}
+		translation = items[0]
 	}
-	return stripPosFromGloss(translation, word)
+	gloss := stripPosFromGloss(translation, word)
+	gloss = englishGlossRe.ReplaceAllString(gloss, " ")
+	fields := strings.Fields(gloss)
+	if len(fields) == 0 {
+		return word
+	}
+	gloss = strings.TrimSpace(fields[0])
+	if i := strings.IndexAny(gloss, "；;，,"); i >= 0 {
+		gloss = strings.TrimSpace(gloss[:i])
+	}
+	if gloss == "" {
+		return word
+	}
+	return gloss
 }
 
 func stripPosFromGloss(s, word string) string {

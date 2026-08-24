@@ -171,9 +171,9 @@ export default function VocabularyTestTesting() {
   const busy = loading || submitting;
 
   return (
-    <div className="h-dvh flex flex-col bg-[#F7F9FC] overflow-hidden">
+    <div className="h-dvh w-full min-w-0 flex flex-col bg-[#F7F9FC] overflow-hidden">
       <header className="shrink-0 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-11 px-3">
+        <div className="flex items-center h-11 w-full max-w-6xl mx-auto px-3">
           <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })} className="mr-2">
             <ChevronLeft size={20} className="text-[#2D3748]" />
           </CloudButton>
@@ -181,8 +181,8 @@ export default function VocabularyTestTesting() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col min-h-0 px-4 py-3 max-w-5xl mx-auto w-full">
-        <div className="shrink-0 flex items-center gap-2 mb-3 max-w-2xl mx-auto w-full">
+      <main className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto overflow-x-hidden flex flex-col px-4 py-3 max-w-6xl mx-auto">
+        <div className="shrink-0 flex items-center gap-2 mb-3 max-w-5xl mx-auto w-full min-w-0">
           <div className="text-[#4ECDC4] text-sm font-semibold tabular-nums">
             {questions.length > 0
               ? `${String(currentIndex + 1).padStart(2, "0")}/${questions.length}`
@@ -200,12 +200,12 @@ export default function VocabularyTestTesting() {
         </div>
 
         {showWarning && !busy && (
-          <p className="shrink-0 text-center text-[11px] text-amber-600 mb-2 max-w-2xl mx-auto w-full">
+          <p className="shrink-0 text-center text-[11px] text-amber-600 mb-2 max-w-5xl mx-auto w-full min-w-0">
             超过 8 秒，建议选「不认识」
           </p>
         )}
 
-        <div className="shrink-0 w-full max-w-2xl mx-auto bg-white rounded-2xl px-4 py-6 mb-3 text-center shadow-sm border border-[#E2E8F0]/80">
+        <div className="shrink-0 w-full max-w-5xl min-w-0 mx-auto bg-white rounded-2xl px-4 sm:px-6 py-6 mb-3 text-center shadow-sm border border-[#E2E8F0]/80">
           <div className="flex flex-col items-center justify-center gap-2 min-h-[88px]">
             {busy || !currentQuestion ? (
               <p className="text-[#A0AEC0] text-sm animate-pulse">加载中…</p>
@@ -226,7 +226,7 @@ export default function VocabularyTestTesting() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col justify-center gap-2 py-1 max-w-2xl mx-auto w-full">
+        <div className="flex-1 min-h-0 flex flex-col justify-center gap-2 py-1 max-w-5xl mx-auto w-full min-w-0">
           {options.map((option, index) => (
             <CloudButton
               key={index}
@@ -246,7 +246,7 @@ export default function VocabularyTestTesting() {
       </main>
 
       <footer className="shrink-0 bg-white border-t border-[#E2E8F0] py-2.5 px-4">
-        <div className="flex items-center justify-around max-w-2xl mx-auto">
+        <div className="flex items-center justify-around max-w-5xl mx-auto w-full min-w-0">
           <div className="text-center">
             <div className="text-base font-bold text-[#2D3748]">{correctCount}</div>
             <div className="text-[11px] text-[#718096]">正确</div>

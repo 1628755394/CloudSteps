@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { TrendingUp, User } from "lucide-react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { TrendingUp } from "lucide-react";
 
 export type VocabTestResultPayload = {
   level: string;
@@ -65,21 +65,62 @@ export function vocabPyramidLabel(lv: VocabLevel): string {
   return `${stage} · ${rung}`;
 }
 
-/** 标记中心相对 pyramid.png 高度的 %（各色带垂直中点） */
-const PYRAMID_MARKER_TOP: Record<VocabLevel, number> = {
-  L0: 95.6, // 启蒙 · 初阶
-  L1: 86.6, // 启蒙 · 基础
-  L2: 78.3, // 启蒙 · 进阶
-  L3: 69.2, // 筑基 · 初阶
-  L4: 61.6, // 筑基 · 基础
-  L5: 53.8, // 筑基 · 进阶
-  L6: 44.3, // 拾阶 · 初阶
-  L7: 36.1, // 拾阶 · 基础
-  L8: 28.5, // 拾阶 · 进阶
-  L9: 17.8, // 臻学 · 初阶
-  L10: 6.3, // 臻学 · 进阶
-  L11: 6.3, // 臻学 · 进阶
-};
+const PYRAMID_ROWS: Array<{
+  stage: string;
+  stageColor: string;
+  left: string;
+  top: string;
+  height: string;
+  levels: Array<{ level: VocabLevel; rung: string; color: string }>;
+}> = [
+  {
+    stage: "臻学",
+    stageColor: "#16805E",
+    left: "77%",
+    top: "0%",
+    height: "24%",
+    levels: [
+      { level: "L10", rung: "进阶", color: "#16805E" },
+      { level: "L9", rung: "初阶", color: "#2EA789" },
+    ],
+  },
+  {
+    stage: "拾阶",
+    stageColor: "#4DAA48",
+    left: "54%",
+    top: "25%",
+    height: "24%",
+    levels: [
+      { level: "L8", rung: "进阶", color: "#4DAA48" },
+      { level: "L7", rung: "基础", color: "#69C47E" },
+      { level: "L6", rung: "初阶", color: "#93E1C2" },
+    ],
+  },
+  {
+    stage: "筑基",
+    stageColor: "#FFAD00",
+    left: "31.5%",
+    top: "50%",
+    height: "24%",
+    levels: [
+      { level: "L5", rung: "进阶", color: "#FFAD00" },
+      { level: "L4", rung: "基础", color: "#FFCA00" },
+      { level: "L3", rung: "初阶", color: "#FFE3A8" },
+    ],
+  },
+  {
+    stage: "启蒙",
+    stageColor: "#E74718",
+    left: "13.5%",
+    top: "75%",
+    height: "25%",
+    levels: [
+      { level: "L2", rung: "进阶", color: "#E74718" },
+      { level: "L1", rung: "基础", color: "#F56548" },
+      { level: "L0", rung: "初阶", color: "#FA8876" },
+    ],
+  },
+];
 
 /** 对应 CEFR 参考 */
 export const VOCAB_LEVEL_CEFR: Record<VocabLevel, string> = {
@@ -248,10 +289,40 @@ export function VocabTestResultView({
   }, [result]);
 
   const summary = useMemo(() => buildVocabTestSummary(result), [result]);
+  const pyramidRef = useRef<HTMLDivElement>(null);
+  const levelRefs = useRef<Partial<Record<VocabLevel, HTMLDivElement | null>>>({});
+  const [marker, setMarker] = useState<{ left: number; top: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const pyramid = pyramidRef.current;
+    const levelElement = levelRefs.current[summary.level];
+    if (!pyramid || !levelElement) {
+      setMarker(null);
+      return;
+    }
+
+    const measureMarker = () => {
+      const pyramidRect = pyramid.getBoundingClientRect();
+      const levelRect = levelElement.getBoundingClientRect();
+      setMarker({
+        left: pyramidRect.width + 12,
+        top: levelRect.top - pyramidRect.top + levelRect.height / 2,
+      });
+    };
+
+    measureMarker();
+    const observer = new ResizeObserver(measureMarker);
+    observer.observe(pyramid);
+    window.addEventListener("resize", measureMarker);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measureMarker);
+    };
+  }, [summary.level]);
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
+    <div className={`w-full min-w-0 space-y-4 ${className}`}>
+      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-[#E2E8F0]">
         <div className="flex items-start justify-between">
           <div>
             <div className="text-sm text-[#718096]">词汇水平</div>
@@ -264,25 +335,25 @@ export function VocabTestResultView({
             <TrendingUp className="w-6 h-6 text-[#4ECDC4]" />
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-[#F7F9FC] p-3">
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="rounded-xl bg-[#F7F9FC] p-2 sm:p-3">
             <div className="text-xs text-[#718096]">估算词汇量</div>
-            <div className="text-lg font-semibold text-[#2D3748] mt-1">{result.estimatedVocab}</div>
+            <div className="text-lg font-semibold text-[#2D3748] mt-1">{summary.vocab}</div>
           </div>
-          <div className="rounded-xl bg-[#F7F9FC] p-3">
+          <div className="rounded-xl bg-[#F7F9FC] p-2 sm:p-3">
             <div className="text-xs text-[#718096]">正确</div>
             <div className="text-lg font-semibold text-[#2D3748] mt-1">
               {result.correctCount}/{result.totalCount}
             </div>
           </div>
-          <div className="rounded-xl bg-[#F7F9FC] p-3">
+          <div className="rounded-xl bg-[#F7F9FC] p-2 sm:p-3">
             <div className="text-xs text-[#718096]">正确率</div>
             <div className="text-lg font-semibold text-[#2D3748] mt-1">{accuracy}%</div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E2E8F0]">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-[#E2E8F0]">
         {!compact && (
           <>
             <div className="text-base font-semibold text-[#2D3748]">词汇量金字塔</div>
@@ -292,20 +363,58 @@ export function VocabTestResultView({
               。
             </div>
 
-            <div className="mt-5 relative mx-auto w-full max-w-[520px] pr-[5.5rem]">
-              <img
-                src="/pyramid.png"
-                alt="词汇量金字塔"
-                className="w-full h-auto object-contain select-none"
-                draggable={false}
-              />
+            <div
+              className="mt-5 relative mx-auto w-full max-w-[36rem] min-w-0 overflow-visible"
+              aria-label="词汇量金字塔"
+            >
               <div
-                className="absolute flex items-center gap-1 whitespace-nowrap text-[13px] font-semibold text-[#2D3748] pointer-events-none -translate-y-1/2"
-                style={{ top: `${PYRAMID_MARKER_TOP[summary.level]}%`, left: "calc(100% - 5.25rem)" }}
+                ref={pyramidRef}
+                className="relative mr-auto aspect-[1024/629] w-[calc(100%-3.5rem)] overflow-visible"
               >
-                <User size={16} strokeWidth={2.25} className="shrink-0" />
-                您的位置
+              {PYRAMID_ROWS.map((row) => (
+                <div
+                  key={row.stage}
+                  className="absolute inset-x-0"
+                  style={{ top: row.top, height: row.height }}
+                >
+                  <div
+                    className="absolute top-1/2 w-[13%] -translate-y-1/2 text-right text-[clamp(0.75rem,2.6vw,1.6rem)] font-extrabold leading-none"
+                    style={{ left: `max(0px, calc(${row.left} - 13.5%))`, color: row.stageColor }}
+                  >
+                    {row.stage}
+                  </div>
+                  <div
+                    className="absolute inset-y-0 right-0 flex flex-col overflow-hidden rounded-tl-[2.5rem]"
+                    style={{ left: row.left }}
+                  >
+                    {row.levels.map((item) => (
+                      <div
+                        key={item.level}
+                        ref={(element) => {
+                          levelRefs.current[item.level] = element;
+                        }}
+                        data-stage={row.stage}
+                        data-rung={item.rung}
+                        title={`${row.stage} · ${item.rung}（约 ${VOCAB_LEVEL_MAP[item.level]} 词）`}
+                        className="flex min-w-0 flex-1 cursor-default items-center justify-center text-[clamp(0.7rem,2.25vw,1.4rem)] font-extrabold leading-none text-white transition-[filter,box-shadow] duration-200 hover:z-10 hover:brightness-110 hover:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.75)]"
+                        style={{ backgroundColor: item.color }}
+                      >
+                        {item.rung}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
               </div>
+              {marker && (
+                <div
+                  className="absolute z-10 flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-[#2D3748] pointer-events-none"
+                  style={{ left: marker.left, top: marker.top }}
+                >
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-white bg-[#4ECDC4] shadow-[0_1px_4px_rgba(45,55,72,0.45)]" />
+                  您的位置
+                </div>
+              )}
             </div>
           </>
         )}

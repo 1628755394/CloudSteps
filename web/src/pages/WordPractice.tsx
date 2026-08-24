@@ -1,6 +1,6 @@
-import { Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight, PanelTop } from "lucide-react";
 import { useNavigate } from "react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS, PRACTICE_CARD_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
@@ -10,7 +10,7 @@ import { TopBar } from "../components/TopBar";
 import { StudentWordMarkButton, useStudentWordMarks } from "../components/StudentWordMarkButton";
 import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { StudyNoteLauncher } from "../components/StudyNotePanel";
+import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
@@ -46,6 +46,52 @@ export default function WordPractice() {
   const abortRef = useRef<(() => void) | null>(null);
 
   const [audioIndexMap, setAudioIndexMap] = useState<Map<number, number>>(new Map());
+
+  // ---- Split-screen 随心记 state (mirrors ReviewWordList) ----
+  const [globalNoteOpen, setGlobalNoteOpen] = useState(false);
+  const [noteSide, setNoteSide] = useState<"left" | "right">("right");
+  const [noteWidth, setNoteWidth] = useState(() => {
+    try {
+      const raw = localStorage.getItem("lb_practice_note_width");
+      if (raw) {
+        const n = Number(raw);
+        if (Number.isFinite(n)) return Math.max(200, n);
+      }
+    } catch { /* ignore */ }
+    return 420;
+  });
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const startNoteResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startW = noteWidth;
+    let latestW = startW;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "ew-resize";
+    const onMove = (ev: PointerEvent) => {
+      ev.preventDefault();
+      const delta = ev.clientX - startX;
+      const next = Math.max(200, startW + (noteSide === "right" ? -delta : delta));
+      latestW = next;
+      setNoteWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      try { localStorage.setItem("lb_practice_note_width", String(latestW)); } catch { /* ignore */ }
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [noteWidth, noteSide]);
 
   const handlePlayNextAudio = (word: PracticeWord) => {
     if (!word.audioUrl) return;
@@ -179,6 +225,7 @@ export default function WordPractice() {
       })
     );
     setDetailWord(syncDetailWordWithTap(detailMode, next, word));
+    handleCountClick(word.id);
   };
 
   const handleCountClick = (id: number) => {
@@ -268,7 +315,13 @@ export default function WordPractice() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6 max-w-2xl lg:max-w-5xl mx-auto w-full pb-28">
+      {/* Split container: word content + note panel on the same layer (desktop). */}
+      <div
+        className={`px-4 mt-6 w-full pb-28 ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2 lg:mx-0" : "max-w-2xl lg:max-w-5xl mx-auto"}`}
+        style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}
+      >
+        {/* Word content pane */}
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {viewMode === "card" && cardWord ? (
@@ -334,16 +387,6 @@ export default function WordPractice() {
                       {audioIndexMap.get(cardWord.id) ?? 0}
                     </CloudButton>
                   )}
-                  <CloudButton
-                    variant={words.findIndex((w) => w.id === cardWord.id) === activeIndex ? "mint" : "ghost"}
-                    size="iconRound"
-                    className={`size-12 ${
-                      words.findIndex((w) => w.id === cardWord.id) !== activeIndex ? "text-[#A0AEC0]" : ""
-                    }`}
-                    onClick={() => handleCountClick(cardWord.id)}
-                  >
-                    <Check size={20} />
-                  </CloudButton>
                 </div>
               )}
             </div>
@@ -409,14 +452,6 @@ export default function WordPractice() {
                           {audioIndexMap.get(word.id) ?? 0}
                         </CloudButton>
                       )}
-                      <CloudButton
-                        variant={index === activeIndex ? "mint" : "ghost"}
-                        size="iconRound"
-                        className={`size-12 ${index !== activeIndex ? "text-[#A0AEC0]" : ""}`}
-                        onClick={() => handleCountClick(word.id)}
-                      >
-                        <Check size={20} />
-                      </CloudButton>
                     </div>
                   )}
                 </div>
@@ -432,7 +467,50 @@ export default function WordPractice() {
             ))}
           </div>
         )}
+        </div>
+
+        {/* Note panel pane — same layer as word content (desktop split only) */}
+        {globalNoteOpen && isDesktop && (
+          <>
+            {/* Drag handle between word content and note panel */}
+            <div
+              className={`group hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none lg:select-none ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}
+              style={{ width: "10px", flexShrink: 0 }}
+              onPointerDown={startNoteResize}
+              title="拖动调整随心记宽度"
+              aria-label="拖动调整随心记宽度"
+            >
+              <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 group-hover:bg-[#4ECDC4]/60 group-hover:w-1.5 transition-all" />
+            </div>
+            <div
+              className={`lg:flex lg:flex-col ${noteSide === "right" ? "lg:order-3" : "lg:order-1"}`}
+              style={{ width: `${noteWidth}px`, flexShrink: 0 }}
+            >
+              <StudyNotePanel
+                open={globalNoteOpen}
+                onClose={() => setGlobalNoteOpen(false)}
+                storageKey={`study-note:global:${wordBookId}`}
+                title="随心记"
+                side={noteSide}
+                split
+                onSideChange={setNoteSide}
+              />
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Mobile: note panel as floating overlay */}
+      {globalNoteOpen && !isDesktop && (
+        <StudyNotePanel
+          open={globalNoteOpen}
+          onClose={() => setGlobalNoteOpen(false)}
+          storageKey={`study-note:global:${wordBookId}`}
+          title="随心记"
+          side={noteSide}
+          onSideChange={setNoteSide}
+        />
+      )}
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
@@ -467,11 +545,16 @@ export default function WordPractice() {
               <BookOpen size={16} />
               拓展
             </CloudButton>
-            <StudyNoteLauncher
-              storageKey={`study-note:global:${wordBookId}`}
-              label="随心记"
-              className="shrink-0"
-            />
+            <CloudButton
+              type="button"
+              variant={globalNoteOpen ? "brand" : "outline"}
+              size="pill"
+              onClick={() => setGlobalNoteOpen((v) => !v)}
+              aria-label="打开随心记"
+            >
+              <PanelTop size={16} className={globalNoteOpen ? "text-white" : "text-[#c45c78]"} />
+              随心记
+            </CloudButton>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="w-16 shrink-0" aria-hidden="true" />

@@ -176,9 +176,9 @@ export default function Settings() {
 
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden">
-      <PageBackHeader title="设置" fallbackTo="/coach-center" maxWidthClass="max-w-[800px]" />
+      <PageBackHeader title="设置" fallbackTo="/coach-center" maxWidthClass="max-w-[1100px]" />
 
-      <div className="flex-1 min-h-0 max-w-[800px] w-full mx-auto px-3 py-3 flex flex-col gap-2.5 overflow-y-auto">
+      <div className="flex-1 min-h-0 max-w-[1100px] w-full mx-auto px-3 py-3 flex flex-col gap-2.5 overflow-y-auto">
         <CloudCard className="p-3 shrink-0">
           <h2 className="text-xs font-semibold text-muted-foreground px-1 pb-2 flex items-center gap-1.5">
             <SunMoon size={13} />

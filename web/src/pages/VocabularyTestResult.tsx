@@ -13,6 +13,23 @@ import {
   type VocabTestResultPayload,
 } from "../components/VocabTestResultView";
 
+function normalizeVocabResult(raw: any): VocabTestResultPayload | null {
+  const data = raw?.record || raw;
+  if (!data) return null;
+
+  const estimatedVocab = Number(data.estimatedVocab);
+  const correctCount = Number(data.correctCount);
+  const totalCount = Number(data.totalCount ?? data.questionCount);
+  if (!data.level && !data.estimatedLevel && !Number.isFinite(estimatedVocab)) return null;
+
+  return {
+    level: String(data.level ?? data.estimatedLevel ?? ""),
+    estimatedVocab: Number.isFinite(estimatedVocab) ? estimatedVocab : 0,
+    correctCount: Number.isFinite(correctCount) ? correctCount : 0,
+    totalCount: Number.isFinite(totalCount) ? totalCount : 0,
+  };
+}
+
 export default function VocabularyTestResult() {
   const navigate = useNavigate();
   const [result, setResult] = useState<VocabTestResultPayload | null>(null);
@@ -25,23 +42,18 @@ export default function VocabularyTestResult() {
         setLoading(true);
         const cached = sessionStorage.getItem("vocabulary_test_result");
         if (cached) {
-          const parsed = JSON.parse(cached);
-          if (mounted) setResult(parsed);
-          return;
+          const parsed = normalizeVocabResult(JSON.parse(cached));
+          if (parsed) {
+            if (mounted) setResult(parsed);
+            return;
+          }
+          sessionStorage.removeItem("vocabulary_test_result");
         }
 
         const res = await getVocabResult();
         if (res.code === 200) {
-          const r = res.data?.record;
-          if (r) {
-            const mapped: VocabTestResultPayload = {
-              level: r.estimatedLevel,
-              estimatedVocab: r.estimatedVocab,
-              correctCount: r.correctCount,
-              totalCount: r.questionCount,
-            };
-            if (mounted) setResult(mapped);
-          }
+          const mapped = normalizeVocabResult(res.data);
+          if (mounted && mapped) setResult(mapped);
         }
       } catch (e) {
         console.error(e);
@@ -63,9 +75,9 @@ export default function VocabularyTestResult() {
   const hasResult = useMemo(() => Boolean(result), [result]);
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] pb-20">
+    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F7F9FC] pb-20">
       <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-11 px-3">
+        <div className="flex items-center h-11 w-full max-w-6xl mx-auto px-3">
           <CloudButton
             type="button"
             variant="ghost"
@@ -79,13 +91,13 @@ export default function VocabularyTestResult() {
         </div>
       </div>
 
-      <div className="pt-14 px-4">
+      <div className="pt-14 px-4 sm:px-6">
         {loading ? (
-          <div className="max-w-2xl mx-auto text-center text-[#718096] py-16">
+          <div className="max-w-3xl mx-auto text-center text-[#718096] py-16">
             结果加载中...
           </div>
         ) : !hasResult || !result ? (
-          <div className="max-w-2xl mx-auto bg-white rounded-2xl p-8 text-center shadow-sm border border-[#E2E8F0]">
+          <div className="max-w-3xl mx-auto bg-white rounded-2xl p-6 sm:p-8 text-center shadow-sm border border-[#E2E8F0]">
             <div className="text-[#2D3748] font-semibold text-base">暂无测试结果</div>
             <div className="text-[#718096] text-sm mt-2">去开始一次词汇量测试吧</div>
             <CloudButton
@@ -98,10 +110,10 @@ export default function VocabularyTestResult() {
             </CloudButton>
           </div>
         ) : (
-          <div className="max-w-2xl mx-auto space-y-4">
+          <div className="max-w-3xl mx-auto min-w-0 space-y-4">
             <VocabTestResultView result={result} />
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <CloudButton
                 variant="brand"
                 size="pill"
