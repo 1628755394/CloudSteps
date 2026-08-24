@@ -7,6 +7,36 @@ const getApiBaseUrl = () => {
   return getApiBaseURL()
 }
 
+/** ling-base business codes for expired / missing / invalid session token */
+const AUTH_EXPIRED_CODES = new Set([1002, 1104, 1105])
+
+let handlingAuthExpired = false
+
+function isAuthExpiredPayload(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false
+  const body = data as { code?: number; error?: string }
+  if (typeof body.code === 'number' && AUTH_EXPIRED_CODES.has(body.code)) return true
+  return body.error === 'UNAUTHORIZED'
+}
+
+/** Toast once + clear session + redirect to login (deduped for parallel 401s). */
+function handleAuthExpired() {
+  if (handlingAuthExpired) return
+  handlingAuthExpired = true
+
+  useAuthStore.getState().clearUser()
+  toast.error('登录已过期，请重新登录')
+
+  const currentPath = window.location.pathname + window.location.search
+  if (currentPath.startsWith('/login')) {
+    handlingAuthExpired = false
+    return
+  }
+  setTimeout(() => {
+    window.location.href = `/login?next=${encodeURIComponent(currentPath)}`
+  }, 1200)
+}
+
 // 创建axios实例
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: getApiBaseUrl(),
@@ -57,7 +87,18 @@ axiosInstance.interceptors.request.use(
 // 响应拦截器 - 只处理通用错误，不处理业务逻辑
 axiosInstance.interceptors.response.use(
   (response: AxiosResponse) => {
-    // 直接返回完整响应，让业务层处理
+    // ling-base AbortWithStatusJSON always returns HTTP 200 with business code
+    // (e.g. 1002 UNAUTHORIZED / "token expired"). Handle session expiry here;
+    // leave other non-200 codes to the page layer.
+    if (isAuthExpiredPayload(response.data)) {
+      handleAuthExpired()
+      return Promise.reject({
+        code: response.data?.code ?? 1002,
+        msg: response.data?.msg || '登录已过期，请重新登录',
+        data: null,
+        error: response.data?.error || 'UNAUTHORIZED',
+      })
+    }
     return response
   },
   (error) => {
@@ -67,22 +108,14 @@ axiosInstance.interceptors.response.use(
         console.log('Response status:', error.response.status)
       // 服务器返回了错误状态码
       const status = error.response.status
+      const data = error.response.data
+
+      if (status === 401 || isAuthExpiredPayload(data)) {
+        handleAuthExpired()
+        return Promise.reject(error)
+      }
 
       switch (status) {
-        case 401: {
-          console.log('Unauthorized')
-          useAuthStore.getState().clearUser()
-          // 中文提示 + 跳转登录页
-          toast.error('登录已过期，请重新登录')
-          // 延迟跳转，让用户看到提示
-          const currentPath = window.location.pathname + window.location.search
-          if (!currentPath.startsWith('/login')) {
-            setTimeout(() => {
-              window.location.href = `/login?next=${encodeURIComponent(currentPath)}`
-            }, 1200)
-          }
-          break
-        }
         case 403:
           console.error('Forbidden: Access denied')
           toast.error('没有权限执行此操作')
@@ -94,7 +127,7 @@ axiosInstance.interceptors.response.use(
           console.error('Internal Server Error')
           break
         default:
-          console.error(`HTTP Error ${status}:`, error.response.data)
+          console.error(`HTTP Error ${status}:`, data)
       }
     } else if (error.request) {
       // 网络错误 - 连接被拒绝或超时
