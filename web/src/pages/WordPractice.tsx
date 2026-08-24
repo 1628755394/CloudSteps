@@ -100,10 +100,12 @@ export default function WordPractice() {
     abortRef.current?.();
     setPlayingId(word.id);
     const prev = audioIndexMap.get(word.id) ?? 0;
-    const index = prev % urls.length;
+    const n = Math.min(urls.length, WORD_AUDIO_SLOT_COUNT);
+    const index = prev % n;
     const abort = playAudioAtIndex(word.audioUrl, index, () => setPlayingId(null));
     abortRef.current = abort;
-    const next = prev === 0 ? 1 : (prev % WORD_AUDIO_SLOT_COUNT) + 1;
+    // 初始显示 0；点一次 1、再点 2，然后回到 1（两段音频）
+    const next = prev >= n ? 1 : prev + 1;
     setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
 

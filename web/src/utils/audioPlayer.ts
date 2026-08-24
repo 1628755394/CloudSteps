@@ -1,7 +1,7 @@
 import { resolveMediaUrl } from './mediaUrl'
 
-/** 词库单词音频槽位数：0=英文，1=英文，2=简译中文 */
-export const WORD_AUDIO_SLOT_COUNT = 3
+/** 词库单词音频槽位数：0=单词一遍，1=单词三遍（连读） */
+export const WORD_AUDIO_SLOT_COUNT = 2
 
 const MUTE_KEY = 'lb_audio_muted'
 const MUTE_EVENT = 'lb-audio-muted'
@@ -62,8 +62,8 @@ export function parseAudioUrls(audioUrl?: string | null): string[] {
 }
 
 /**
- * 按原始分号槽位解析（保留空位），保证「第 1/2/3 段」索引稳定。
- * 词库 TTS 约定：0=英文，1=英文，2=简译中文。
+ * 按原始分号槽位解析（保留空位，最多两段），保证「第 1/2 段」索引稳定。
+ * 词库 TTS 约定：0=单词一遍，1=单词三遍（连读）。
  */
 export function parseAudioUrlSlots(audioUrl?: string | null): (string | null)[] {
   if (audioUrl == null) return []
