@@ -1,0 +1,212 @@
+/**
+ * 词汇测试结果页样式 — Warm Mint 主题。
+ */
+.vtr {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background);
+  box-sizing: border-box;
+}
+
+/* ============ 顶部导航 ============ */
+.vtr__nav {
+  display: flex;
+  align-items: center;
+  height: 96rpx;
+  padding: 0 24rpx;
+  background-color: var(--card);
+  border-bottom: 2rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.vtr__nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+.vtr__nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.vtr__nav-placeholder {
+  width: 64rpx;
+  flex-shrink: 0;
+}
+
+/* ============ 内容区 ============ */
+.vtr__body {
+  flex: 1;
+  min-height: 0;
+  padding: 32rpx 32rpx 64rpx;
+}
+
+.vtr__state {
+  padding: 96rpx 32rpx;
+  text-align: center;
+}
+
+.vtr__state-text {
+  font-size: 28rpx;
+  color: var(--muted-foreground);
+}
+
+/* ============ 空状态 ============ */
+.vtr__empty {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 64rpx 32rpx;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  box-shadow: var(--shadow-rest);
+}
+
+.vtr__empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.vtr__empty-desc {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+}
+
+.vtr__empty-btn {
+  margin-top: 24rpx;
+  width: 100%;
+  max-width: 480rpx;
+}
+
+/* ============ 结果内容 ============ */
+.vtr__content {
+  display: flex;
+  flex-direction: column;
+  gap: 32rpx;
+}
+
+/* ============ 词汇量大数字 ============ */
+.vtr__hero {
+  background: linear-gradient(135deg, var(--primary) 0%, #55A3FF 100%);
+  border-radius: var(--radius-lg);
+  padding: 56rpx 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  box-shadow: var(--shadow-rest);
+}
+
+.vtr__hero-label {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.vtr__hero-number {
+  font-size: 96rpx;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.vtr__hero-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx 24rpx;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 999rpx;
+}
+
+.vtr__hero-level-text {
+  font-size: 24rpx;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* ============ 答题统计 ============ */
+.vtr__stats {
+  display: flex;
+  gap: 16rpx;
+}
+
+.vtr__stat-card {
+  flex: 1;
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  padding: 28rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  box-shadow: var(--shadow-rest);
+}
+
+.vtr__stat-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4rpx;
+
+  &--total {
+    background-color: rgba(85, 163, 255, 0.12);
+  }
+
+  &--correct {
+    background-color: rgba(26, 174, 57, 0.12);
+  }
+
+  &--rate {
+    background-color: var(--primary-soft);
+  }
+}
+
+.vtr__stat-value {
+  font-size: 38rpx;
+  font-weight: 700;
+  color: var(--charcoal);
+  line-height: 1.2;
+}
+
+.vtr__stat-label {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+/* ============ 操作按钮 ============ */
+.vtr__actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.vtr__action-btn {
+  flex: 1;
+}
+
+.vtr__refresh-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

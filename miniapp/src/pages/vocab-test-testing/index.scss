@@ -1,0 +1,228 @@
+/**
+ * 词汇测试答题页样式 — Warm Mint 主题。
+ */
+.vtt {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background);
+  box-sizing: border-box;
+}
+
+/* ============ 顶部导航 ============ */
+.vtt__nav {
+  display: flex;
+  align-items: center;
+  height: 96rpx;
+  padding: 0 24rpx;
+  background-color: var(--card);
+  border-bottom: 2rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.vtt__nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+.vtt__nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 30rpx;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.vtt__nav-placeholder {
+  width: 64rpx;
+  flex-shrink: 0;
+}
+
+/* ============ 进度条 ============ */
+.vtt__progress {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 32rpx;
+  flex-shrink: 0;
+}
+
+.vtt__progress-num {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  min-width: 56rpx;
+}
+
+.vtt__progress-bar {
+  flex: 1;
+  height: 8rpx;
+  background-color: var(--border);
+  border-radius: 999rpx;
+  overflow: hidden;
+}
+
+.vtt__progress-fill {
+  height: 100%;
+  background-color: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.vtt__progress-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+/* ============ 警告 ============ */
+.vtt__warning {
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--warning);
+  padding: 0 32rpx 12rpx;
+  flex-shrink: 0;
+}
+
+/* ============ 内容区 ============ */
+.vtt__body {
+  flex: 1;
+  min-height: 0;
+  padding: 16rpx 32rpx 24rpx;
+}
+
+/* ============ 题目卡片 ============ */
+.vtt__question-card {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 56rpx 32rpx;
+  margin-bottom: 24rpx;
+  text-align: center;
+  box-shadow: var(--shadow-rest);
+  min-height: 200rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vtt__question-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.vtt__word {
+  font-size: 56rpx;
+  font-weight: 600;
+  color: var(--charcoal);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.vtt__audio-btn {
+  padding: 12rpx 32rpx;
+  border-radius: 999rpx;
+  background-color: var(--tint-sky);
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.vtt__audio-text {
+  font-size: 24rpx;
+  color: var(--secondary-brand);
+}
+
+.vtt__loading-text {
+  font-size: 28rpx;
+  color: var(--muted-soft);
+}
+
+/* ============ 选项 ============ */
+.vtt__options {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.vtt__option {
+  width: 100% !important;
+  justify-content: flex-start !important;
+  padding: 28rpx 32rpx !important;
+  height: auto !important;
+  min-height: 96rpx;
+  text-align: left;
+  border-radius: var(--radius) !important;
+
+  &--selected {
+    border: 2rpx solid var(--primary) !important;
+    background-color: var(--primary-soft) !important;
+  }
+
+  &--disabled {
+    opacity: 0.6;
+  }
+}
+
+.vtt__option-text {
+  font-size: 28rpx;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* ============ 底部统计 ============ */
+.vtt__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 20rpx 32rpx;
+  background-color: var(--card);
+  border-top: 2rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.vtt__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.vtt__stat-value {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--charcoal);
+
+  &--accent {
+    color: var(--primary);
+  }
+}
+
+.vtt__stat-label {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+.vtt__stat-divider {
+  width: 2rpx;
+  height: 56rpx;
+  background-color: var(--border);
+}

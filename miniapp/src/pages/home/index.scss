@@ -1,60 +1,289 @@
 @import '../../styles/vars.scss';
 
-.page {
+.home {
   min-height: 100vh;
+  background-color: var(--background);
   padding: 32rpx;
   box-sizing: border-box;
 
-  &__header {
-    margin-bottom: 40rpx;
+  /* ============ 顶部欢迎区 ============ */
+  &__hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32rpx;
   }
 
-  &__title {
-    display: block;
-    font-size: 48rpx;
-    font-weight: 600;
-    color: var(--foreground);
-    line-height: 1.25;
+  &__hero-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    min-width: 0;
+    flex: 1;
   }
 
-  &__subtitle {
-    display: block;
-    margin-top: 8rpx;
-    font-size: 28rpx;
+  &__greeting {
+    font-size: 26rpx;
     color: var(--muted-foreground);
   }
 
-  &__body {
-    display: flex;
-    flex-direction: column;
-    gap: 32rpx;
-  }
-}
-
-.cs-card {
-  background: var(--card);
-  border: 2rpx solid var(--border);
-  border-radius: var(--radius);
-  padding: 32rpx;
-  box-shadow: var(--shadow-rest);
-
-  &__title {
-    display: block;
-    font-size: 32rpx;
+  &__name {
+    font-size: 44rpx;
     font-weight: 600;
-    color: var(--charcoal);
-    margin-bottom: 24rpx;
+    color: var(--foreground);
+    line-height: 1.2;
   }
 
-  &__actions {
+  &__hero-avatar {
+    width: 88rpx;
+    height: 88rpx;
+    border-radius: 50%;
+    background-color: var(--primary-soft);
+    border: 2rpx solid var(--border);
+    overflow: hidden;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__avatar-img {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__avatar-text {
+    font-size: 36rpx;
+    font-weight: 600;
+    color: var(--primary);
+  }
+
+  /* ============ 学员选择器 ============ */
+  &__student-bar {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    margin-bottom: 16rpx;
+  }
+
+  &__student-label {
+    font-size: 24rpx;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  &__student-picker {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12rpx;
+    height: 72rpx;
+    padding: 0 24rpx;
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  &__student-value {
+    font-size: 26rpx;
+    color: var(--charcoal);
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    &--placeholder {
+      color: var(--muted-soft);
+    }
+  }
+
+  &__student-dropdown {
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 24rpx;
+    box-shadow: var(--shadow-rest);
+  }
+
+  &__student-empty {
+    padding: 32rpx;
+    text-align: center;
+    font-size: 26rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__student-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24rpx 32rpx;
+    border-bottom: 2rpx solid var(--border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:active {
+      background-color: var(--surface-soft);
+    }
+
+    &--active {
+      background-color: var(--primary-soft);
+    }
+  }
+
+  &__student-option-text {
+    font-size: 28rpx;
+    color: var(--charcoal);
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* ============ 区块 ============ */
+  &__section {
+    margin-bottom: 32rpx;
+  }
+
+  &__section-title {
+    display: block;
+    font-size: 24rpx;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    margin-bottom: 16rpx;
+    padding-left: 8rpx;
+  }
+
+  /* ============ 常用功能 2x2 网格 ============ */
+  &__quick-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 16rpx;
   }
-}
 
-.btn-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
+  &__quick-card {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    padding: 24rpx;
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-rest);
+
+    &:active {
+      background-color: var(--surface-soft);
+    }
+  }
+
+  &__quick-icon {
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &--mint {
+      background-color: var(--primary-soft);
+    }
+    &--sky {
+      background-color: var(--tint-sky);
+    }
+    &--cream {
+      background-color: var(--tint-cream);
+    }
+  }
+
+  &__quick-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    min-width: 0;
+  }
+
+  &__quick-title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: var(--foreground);
+    line-height: 1.3;
+  }
+
+  &__quick-desc {
+    font-size: 22rpx;
+    color: var(--muted-foreground);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* ============ 训练资料列表 ============ */
+  &__material-card {
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-rest);
+  }
+
+  &__material-item {
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
+    padding: 24rpx 28rpx;
+
+    &--border {
+      border-bottom: 2rpx solid var(--border);
+    }
+
+    &:active {
+      background-color: var(--surface-soft);
+    }
+  }
+
+  &__material-icon {
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 12rpx;
+    background-color: var(--surface-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__material-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    min-width: 0;
+  }
+
+  &__material-name {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  &__material-desc {
+    font-size: 22rpx;
+    color: var(--muted-foreground);
+  }
+
+  /* ============ 底部 ============ */
+  &__footer {
+    padding: 16rpx 0 32rpx;
+    text-align: center;
+  }
+
+  &__footer-text {
+    font-size: 22rpx;
+    color: var(--muted-soft);
+  }
 }
