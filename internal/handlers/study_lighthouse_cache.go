@@ -117,9 +117,32 @@ func computeStudyLighthouse(db *gorm.DB, userID uint, wordBookID int) gin.H {
 		days = append(days, dayItem{ID: pad2(i + 1), Count: stageMap[i], Label: label})
 	}
 
+	// 待学计数：用「词库总词数 - 已进入学习流程的词数」，
+	// 让九宫格 01 待学与词库单词数量挂钩；只要词库有词就显示待学数，不能为 0。
+	pendingCount := agg.PendingCount
+	if wordBookID > 0 {
+		var totalWords int64
+		_ = db.Model(&models.Word{}).
+			Where("word_book_id = ? AND is_deleted = ?", uint(wordBookID), models.SoftDeleteStatusActive).
+			Count(&totalWords).Error
+
+		var learnedCount int64
+		_ = scope(db.Model(&models.UserWordState{})).
+			Where("learn_status IN ?", []string{"learning", "learned", "mastered"}).
+			Count(&learnedCount).Error
+
+		// 词库有词时始终用「总词数 - 已学词数」覆盖，未开始的词库显示满词数
+		if totalWords > 0 {
+			pendingCount = totalWords - learnedCount
+			if pendingCount < 0 {
+				pendingCount = 0
+			}
+		}
+	}
+
 	return gin.H{
 		"days":            days,
-		"pendingCount":    agg.PendingCount,
+		"pendingCount":    pendingCount,
 		"masteredCount":   agg.MasteredCount,
 		"todayNewLearned": agg.TodayNewLearned,
 	}

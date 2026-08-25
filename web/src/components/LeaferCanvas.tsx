@@ -3,11 +3,6 @@ import { App, Group, Path, Text, Rect, Ellipse, UI, DragEvent as LeaferDragEvent
 import "@leafer-in/editor";
 import "@leafer-in/text-editor";
 import "@leafer-in/export";
-import GeometryFactory from "jsts/org/locationtech/jts/geom/GeometryFactory.js";
-import Coordinate from "jsts/org/locationtech/jts/geom/Coordinate.js";
-import BufferOp from "jsts/org/locationtech/jts/operation/buffer/BufferOp.js";
-import OverlayOp from "jsts/org/locationtech/jts/operation/overlay/OverlayOp.js";
-import RBush from "rbush";
 
 // ---- Types ----
 export type Tool = "select" | "pen" | "eraser" | "circle" | "rect" | "text";
@@ -59,65 +54,6 @@ function pointsToPathString(points: Pt[], width: number): string {
     d += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`;
   }
   return d;
-}
-
-// ---- jsts geometry helpers for precision eraser ----
-const geoFactory = new GeometryFactory();
-
-// RBush item type for spatial indexing of strokes
-interface StrokeBBox {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-  id: string;
-}
-
-// Convert points to jsts LineString
-function pointsToLineString(points: Pt[]): unknown {
-  const coords = points.map(p => new Coordinate(p.x, p.y));
-  return geoFactory.createLineString(coords);
-}
-
-// Create eraser capsule: buffer of eraser polyline by radius → Polygon
-function createEraserCapsule(eraserPoints: Pt[], radius: number): unknown {
-  if (eraserPoints.length === 1) {
-    // Single point: create a point and buffer it
-    const pt = geoFactory.createPoint(new Coordinate(eraserPoints[0].x, eraserPoints[0].y));
-    return BufferOp.bufferOp(pt, radius);
-  }
-  const line = pointsToLineString(eraserPoints);
-  return BufferOp.bufferOp(line, radius);
-}
-
-// Boolean difference: stroke LineString − eraser capsule Polygon → MultiLineString
-function diffStrokeWithEraser(strokePoints: Pt[], eraserCapsule: unknown): Pt[][] {
-  if (strokePoints.length < 2) return [strokePoints];
-  const strokeLine = pointsToLineString(strokePoints);
-  const diff = OverlayOp.difference(strokeLine, eraserCapsule);
-  if (!diff || diff.isEmpty()) return [];
-
-  const segments: Pt[][] = [];
-  const numGeoms = (diff as { getNumGeometries: () => number }).getNumGeometries();
-  for (let i = 0; i < numGeoms; i++) {
-    const g = (diff as { getGeometryN: (n: number) => { getCoordinates: () => { x: number; y: number }[] } }).getGeometryN(i);
-    const coords = g.getCoordinates();
-    if (coords.length < 2) continue;
-    segments.push(coords.map(c => ({ x: c.x, y: c.y })));
-  }
-  return segments;
-}
-
-// Bounding box of a point list
-function getPointsBounds(points: Pt[]): { minX: number; minY: number; maxX: number; maxY: number } {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const p of points) {
-    if (p.x < minX) minX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y > maxY) maxY = p.y;
-  }
-  return { minX, minY, maxX, maxY };
 }
 
 // ---- Undo/Redo stack ----
@@ -238,103 +174,40 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     return path;
   }, []);
 
-  // ---- Precision eraser: jsts boolean difference + rbush spatial index ----
-  // Only erases the geometrically overlapping portion of strokes.
-  // Strokes that don't intersect the eraser capsule are left completely untouched.
+  // ---- 笔画擦除：橡皮触碰到的笔画整条删除 ----
   const eraseStrokes = useCallback((eraserPoints: Pt[], eraserRadius: number) => {
     const layer = drawLayerRef.current;
     if (!layer || eraserPoints.length === 0) return;
 
-    // Build eraser capsule: buffer of eraser polyline by radius → Polygon
-    const eraserCapsule = createEraserCapsule(eraserPoints, eraserRadius);
-
-    // Build rbush spatial index of all strokes for fast bbox filtering
-    const tree = new RBush<StrokeBBox>();
-    const strokeByChild = new Map<string, Path>();
-    for (const child of layer.children) {
+    const r2 = eraserRadius * eraserRadius;
+    for (const child of [...layer.children]) {
       if (!(child instanceof Path)) continue;
       const pathId = (child as unknown as { id?: string }).id;
       if (!pathId || !strokePointsMap.current.has(pathId)) continue;
       const pts = strokePointsMap.current.get(pathId)!;
-      const b = getPointsBounds(pts);
-      tree.insert({ minX: b.minX, minY: b.minY, maxX: b.maxX, maxY: b.maxY, id: pathId });
-      strokeByChild.set(pathId, child);
-    }
 
-    // Query rbush for strokes whose bbox intersects eraser capsule bbox
-    const eraserB = getPointsBounds(eraserPoints);
-    const candidates = tree.search({
-      minX: eraserB.minX - eraserRadius,
-      minY: eraserB.minY - eraserRadius,
-      maxX: eraserB.maxX + eraserRadius,
-      maxY: eraserB.maxY + eraserRadius,
-    });
-
-    for (const candidate of candidates) {
-      const child = strokeByChild.get(candidate.id);
-      if (!child) continue;
-      const pathId = candidate.id;
-      const originalPoints = strokePointsMap.current.get(pathId);
-      if (!originalPoints) continue;
-
-      // jsts boolean difference: stroke LineString − eraser capsule Polygon
-      const segments = diffStrokeWithEraser(originalPoints, eraserCapsule);
-
-      // If nothing was erased, skip this stroke entirely
-      if (segments.length === 1 &&
-          segments[0].length === originalPoints.length) {
-        // Check if points are identical (no change)
-        let same = true;
-        for (let i = 0; i < segments[0].length; i++) {
-          if (Math.abs(segments[0][i].x - originalPoints[i].x) > 0.01 ||
-              Math.abs(segments[0][i].y - originalPoints[i].y) > 0.01) {
-            same = false;
+      // 检查笔画的任意点是否落在橡皮圆内
+      let hit = false;
+      for (const sp of pts) {
+        for (const ep of eraserPoints) {
+          const dx = sp.x - ep.x;
+          const dy = sp.y - ep.y;
+          if (dx * dx + dy * dy <= r2) {
+            hit = true;
             break;
           }
         }
-        if (same) continue;
+        if (hit) break;
       }
 
-      // If no segments remain, the entire stroke was erased
-      if (segments.length === 0) {
+      if (hit) {
         child.remove();
         strokePointsMap.current.delete(pathId);
-        continue;
-      }
-
-      // Get original style for new segments
-      const strokeColor = (child as unknown as { stroke?: string }).stroke || "#000";
-      const strokeWidth = (child as unknown as { strokeWidth?: number }).strokeWidth || 1;
-      const opacity = (child as unknown as { opacity?: number }).opacity ?? 1;
-
-      // 方案 A：所有笔迹始终固定在 x:0, y:0，路径数据全部使用画布坐标。
-      // jsts 计算出的裁切结果本身就是画布坐标，直接写回 Path 并强制 x/y 为 0，
-      // 避免与 Path 自身的局部坐标叠加导致偏移。
-      const firstSeg = segments[0];
-      const firstPathStr = pointsToPathString(firstSeg, strokeWidth);
-      const childData = child as unknown as {
-        set?: (data: { path: string; x: number; y: number }) => void;
-        path: string;
-      };
-      if (childData.set) {
-        childData.set({ path: firstPathStr, x: 0, y: 0 });
-      } else {
-        childData.path = firstPathStr;
-      }
-      child.forceUpdate();
-      strokePointsMap.current.set(pathId, firstSeg);
-
-      // Create new Path elements for any additional segments
-      // createStrokePath 内部已固定 x:0, y:0，与第一段使用同一坐标基准。
-      for (let si = 1; si < segments.length; si++) {
-        const seg = segments[si];
-        if (seg.length < 2) continue;
-        createStrokePath(seg, strokeColor, strokeWidth, opacity);
       }
     }
 
     appRef.current?.tree.forceUpdate();
-  }, [createStrokePath]);
+  }, []);
 
   // ---- Init Leafer app ----
   useEffect(() => {
@@ -410,7 +283,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     // 烘焙进 strokePointsMap 的点位，再把 Path 的变换全部归一（identity），
     // 按新画布坐标重建路径。
     // 这样所有笔迹始终满足不变量：Path 固定在 (0,0) 且无缩放/旋转，
-    // 点位为画布坐标，擦除时 jsts 不会因坐标系混用而偏移。
+    // 点位为画布坐标，笔画擦除时不会因坐标系混用而偏移。
     // 坐标变换委托给 Leafer 的 getWorldPointByLocal(p, drawLayer)，
     // 它内部用 worldTransform 矩阵（含 around 原点），比手写矩阵更可靠。
     const onStrokeDragEnd = () => {
@@ -456,7 +329,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         });
 
         // strokeWidth 按缩放平均值烘焙，保持视觉粗细一致
-        // （仅影响视觉；擦除命中只看中心线点位，与 strokeWidth 无关）
+        // （仅影响视觉；笔画擦除命中只看中心线点位，与 strokeWidth 无关）
         const oldSW = data.strokeWidth || 1;
         const newSW = oldSW * (Math.abs(sx) + Math.abs(sy)) / 2;
 
@@ -679,7 +552,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           eraserPreviewRef.current.remove();
           eraserPreviewRef.current = null;
         }
-        // Execute precision erasure: only erases geometrically overlapping portions
+        // 笔画擦除：删除橡皮触碰到的整条笔画
         if (pts.length > 0) {
           const eraserRadius = eraserWidthRef.current / 2;
           eraseStrokes(pts, eraserRadius);

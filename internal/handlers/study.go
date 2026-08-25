@@ -59,6 +59,38 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	endOfToday := startOfToday.Add(24 * time.Hour)
 
+	// 待学列表：以 words 为基表 LEFT JOIN user_word_states，列出词库中所有
+	// 尚未进入学习流程的词（无 state 记录 或 learn_status = 'pending'），
+	// 与九宫格 01 待学计数（词库总词数 - 已学词数）保持一致。
+	if step == "pending" && wordBookID > 0 {
+		joinClause := "FROM words w LEFT JOIN user_word_states uws ON uws.word_id = w.id AND uws.user_id = ?"
+		whereClause := "w.word_book_id = ? AND w.is_deleted = 0 AND (uws.id IS NULL OR uws.learn_status = 'pending')"
+		queryArgs := []any{user.ID, uint(wordBookID)}
+
+		var total int64
+		_ = db.Raw("SELECT COUNT(*) "+joinClause+" WHERE "+whereClause, queryArgs...).Scan(&total).Error
+		if total == 0 {
+			response.SuccessMsg(c, "success", gin.H{"words": []models.WordLite{}, "total": 0})
+			return
+		}
+
+		offset := (page - 1) * pageSize
+		dataSQL := `SELECT w.id, w.word_book_id, w.word, w.phonetic, w.phonetic_uk, w.phonetic_us,
+			w.translation, w.part_of_speech, w.definition, w.audio_url, w.sort_order ` +
+			joinClause + " WHERE " + whereClause +
+			" ORDER BY w.sort_order ASC, w.id ASC LIMIT ? OFFSET ?"
+		dataArgs := append(append(queryArgs, pageSize), offset)
+
+		var words []models.WordLite
+		if err := db.Raw(dataSQL, dataArgs...).Scan(&words).Error; err != nil {
+			response.Fail(c, "查询失败", err)
+			return
+		}
+
+		response.SuccessMsg(c, "success", gin.H{"words": words, "total": total})
+		return
+	}
+
 	var stateWhere string
 	var stateArgs []any
 	switch {

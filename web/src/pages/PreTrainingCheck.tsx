@@ -209,6 +209,9 @@ export default function PreTrainingCheck() {
   }, [initialLoading, viewMode, words.length, hasMore, loading, attachObserver]);
 
   const handleStatusClick = useCallback((id: number, newStatus: "correct" | "wrong") => {
+    const currentWord = words[cardIndex];
+    const isSelectingCurrentCard = viewMode === "card" && currentWord?.id === id;
+
     setWords((prev) =>
       prev.map((word) => {
         if (word.id === id) {
@@ -227,7 +230,12 @@ export default function PreTrainingCheck() {
         return word;
       })
     );
-  }, []);
+
+    // 卡片模式标记后自动定位下一张，边框始终提示下一次点击目标。
+    if (isSelectingCurrentCard && currentWord.status !== newStatus) {
+      setCardIndex((index) => Math.min(index + 1, Math.max(0, words.length - 1)));
+    }
+  }, [cardIndex, viewMode, words]);
 
   const handleWordClick = useCallback((word: WordItem) => {
     const next = nextWordTapState({
