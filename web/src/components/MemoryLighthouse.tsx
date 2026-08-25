@@ -10,7 +10,7 @@
  *   - 圆心 DOM 面板：大脑图标 + 记忆九宫格 + 统计，pointer-events:none 穿透
  *   - 外发光：CSS filter drop-shadow 淡黄色，不模糊分割线
  *   - 图标：lucide-react 矢量 SVG（Brain / Lightbulb），非位图
- *   - 空状态：全 0 时隐藏环形，展示「暂无记忆词条，快去添加知识点」
+ *   - 空状态：全 0 时仍保留九宫格结构，展示各阶段的 0 值
  *
  * 顺序：01(First) → 02(Second) → ... → 09(Ninth)，从底部顺时针
  */
@@ -86,9 +86,6 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
     })),
     [boxes, unlearnedCount, masteredCount]
   );
-
-  /** 空状态判断：所有阶段 realValue 均为 0 */
-  const isEmpty = rawData.every((d) => d.realValue === 0);
 
   const chartRef = useRef<HTMLDivElement | null>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -181,7 +178,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
   );
 
   useEffect(() => {
-    if (!chartRef.current || isEmpty) return;
+    if (!chartRef.current) return;
     const chart = echarts.init(chartRef.current);
     chartInstance.current = chart;
     chart.setOption(buildOption());
@@ -224,7 +221,7 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
       chart.dispose();
       chartInstance.current = null;
     };
-  }, [buildOption, isEmpty, onBlockClick, rawData]);
+  }, [buildOption, onBlockClick, rawData]);
 
   /**
    * 外圈标签 DOM 定位：9 等分，每份 40°
@@ -274,16 +271,8 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
         ))}
       </div>
 
-      {isEmpty ? (
-        /* 空状态 */
-        <div className="aspect-square flex flex-col items-center justify-center text-center text-[#A0AEC0] px-6 max-w-[440px] sm:max-w-[500px] mx-auto">
-          <div className="text-4xl mb-2">🪹</div>
-          <p className="text-sm">暂无记忆词条</p>
-          <p className="text-xs mt-1">快去添加知识点</p>
-        </div>
-      ) : (
-        /* 环形图 + 外发光 + 外圈 DOM 标签 + 圆心 DOM 面板 */
-        <div
+      {/* 环形图 + 外发光 + 外圈 DOM 标签 + 圆心 DOM 面板 */}
+      <div
           className="relative aspect-square w-full max-w-[440px] sm:max-w-[500px] mx-auto overflow-visible"
           style={{
             // 外圈柔和淡黄色外发光光晕（CSS filter，不模糊分割线）
@@ -362,7 +351,6 @@ export function MemoryLighthouse({ data, onBlockClick }: MemoryLighthouseProps) 
             <div className="tracking-wider text-[#A0AEC0]" style={{ fontSize: isMobile ? 7 : 9 }}>MEMORY NINE-GRID</div>
           </div>
         </div>
-      )}
     </div>
   );
 }
