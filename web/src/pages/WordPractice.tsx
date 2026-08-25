@@ -280,11 +280,16 @@ export default function WordPractice() {
     );
   };
 
-  if (words.length === 0 && mode === "review") {
+  if (words.length === 0) {
     return (
       <FlowPageShell>
-        <TopBar title="开始复习" onBack={handleBack} />
-        <p className="text-center text-[#718096] py-16 px-4">暂无复习单词，请返回重新勾选</p>
+        <TopBar title={mode === "review" ? "开始复习" : "单词练习"} onBack={handleBack} />
+        <div className="flex flex-col items-center gap-4 text-center text-[#718096] py-16 px-4">
+          <p>{mode === "review" ? "暂无复习单词，请返回重新勾选" : "暂无待练习单词，请返回重新选择"}</p>
+          <CloudButton variant="brand" size="pillLg" onClick={handleBack}>
+            返回选择单词
+          </CloudButton>
+        </div>
       </FlowPageShell>
     );
   }

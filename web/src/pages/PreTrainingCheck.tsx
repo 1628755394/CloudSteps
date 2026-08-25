@@ -334,6 +334,11 @@ export default function PreTrainingCheck() {
       const res = await startStudySession({ wordBookId, knownIds, unknownIds });
       const sessionId = res.data?.sessionId;
       const sessionWords = res.data?.words;
+      if (res.data?.finished || !Array.isArray(sessionWords) || sessionWords.length === 0) {
+        setError("当前没有待练习单词，请返回词库重新选择需要识记的单词");
+        setStarting(false);
+        return;
+      }
       if (sessionId) {
         sessionStorage.setItem("lb_study_session_id", String(sessionId));
       }
