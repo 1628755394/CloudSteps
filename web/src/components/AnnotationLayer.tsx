@@ -413,16 +413,20 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
   }
 
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current) return;
     const p = getPos(e);
 
-    // 笔画擦除：实时检测命中并删除整条笔画
+    // 橡皮模式下始终显示当前位置和擦除范围，避免拖动时光标消失
     if (tool === "eraser") {
-      eraserPointsRef.current.push(p);
       setEraserCursor({ x: p.x, y: p.y, show: true });
+      if (!drawingRef.current) return;
+
+      // 笔画擦除：实时检测命中并删除整条笔画
+      eraserPointsRef.current.push(p);
       eraseHitStrokes([p]);
       return;
     }
+
+    if (!drawingRef.current) return;
 
     const cur = currentRef.current;
     if (!cur) return;
