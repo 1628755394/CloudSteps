@@ -1,0 +1,80 @@
+/**
+ * CaptchaWidget 样式 — 对齐 web 端 CaptchaWidget 的视觉。
+ */
+.captcha {
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+  }
+
+  &__input {
+    flex: 1;
+    height: 88rpx;
+    padding: 0 24rpx;
+    border-radius: var(--radius);
+    background-color: var(--card);
+    border: 2rpx solid var(--input);
+    color: var(--charcoal);
+    font-size: 30rpx;
+    box-sizing: border-box;
+
+    &--math {
+      flex: 1;
+    }
+  }
+
+  &__placeholder {
+    color: var(--muted-soft);
+  }
+
+  &__image-btn {
+    width: 200rpx;
+    height: 88rpx;
+    border-radius: var(--radius);
+    border: 2rpx solid var(--input);
+    background-color: var(--card);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__question {
+    padding: 16rpx 24rpx;
+    border-radius: var(--radius);
+    background-color: var(--surface-soft);
+    font-family: var(--font-mono);
+    font-size: 28rpx;
+    white-space: nowrap;
+    color: var(--charcoal);
+  }
+
+  &__refresh {
+    font-size: 24rpx;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  &__error {
+    font-size: 26rpx;
+    color: var(--destructive);
+  }
+
+  &__retry {
+    font-size: 24rpx;
+    color: var(--primary);
+    margin-left: 16rpx;
+  }
+
+  &__loading {
+    font-size: 24rpx;
+    color: var(--muted-foreground);
+  }
+}

@@ -1,0 +1,53 @@
+export default defineAppConfig({
+  pages: [
+    'pages/home/index',
+    'pages/login/index',
+    'pages/wordbooks/index',
+    'pages/coach/index',
+    'pages/profile/index',
+    'pages/profile-edit/index',
+    'pages/settings/index',
+    'pages/about/index',
+    'pages/terms/index',
+    'pages/privacy/index',
+  ],
+  window: {
+    backgroundTextStyle: 'light',
+    navigationBarBackgroundColor: '#ffffff',
+    navigationBarTitleText: '云阶',
+    navigationBarTextStyle: 'black',
+    backgroundColor: '#f6f5f4',
+  },
+  tabBar: {
+    color: '#787671',
+    selectedColor: '#4ECDC4',
+    backgroundColor: '#ffffff',
+    borderStyle: 'white',
+    list: [
+      {
+        pagePath: 'pages/home/index',
+        text: '首页',
+        iconPath: 'assets/tabbar/home.png',
+        selectedIconPath: 'assets/tabbar/home-active.png',
+      },
+      {
+        pagePath: 'pages/wordbooks/index',
+        text: '词库',
+        iconPath: 'assets/tabbar/wordbooks.png',
+        selectedIconPath: 'assets/tabbar/wordbooks-active.png',
+      },
+      {
+        pagePath: 'pages/coach/index',
+        text: '教练',
+        iconPath: 'assets/tabbar/coach.png',
+        selectedIconPath: 'assets/tabbar/coach-active.png',
+      },
+      {
+        pagePath: 'pages/profile/index',
+        text: '我的',
+        iconPath: 'assets/tabbar/profile.png',
+        selectedIconPath: 'assets/tabbar/profile-active.png',
+      },
+    ],
+  },
+})

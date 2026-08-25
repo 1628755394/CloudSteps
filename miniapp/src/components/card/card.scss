@@ -1,0 +1,23 @@
+/**
+ * CloudCard 样式 — Warm Mint 主题:
+ * white canvas + hairline border + radius 12px + 微阴影
+ */
+.cs-card {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-rest);
+  box-sizing: border-box;
+
+  &--pad-default {
+    padding: 32rpx;
+  }
+
+  &--pad-compact {
+    padding: 24rpx;
+  }
+
+  &--pad-none {
+    padding: 0;
+  }
+}

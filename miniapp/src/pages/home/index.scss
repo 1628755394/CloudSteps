@@ -1,0 +1,60 @@
+@import '../../styles/vars.scss';
+
+.page {
+  min-height: 100vh;
+  padding: 32rpx;
+  box-sizing: border-box;
+
+  &__header {
+    margin-bottom: 40rpx;
+  }
+
+  &__title {
+    display: block;
+    font-size: 48rpx;
+    font-weight: 600;
+    color: var(--foreground);
+    line-height: 1.25;
+  }
+
+  &__subtitle {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 28rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 32rpx;
+  }
+}
+
+.cs-card {
+  background: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  padding: 32rpx;
+  box-shadow: var(--shadow-rest);
+
+  &__title {
+    display: block;
+    font-size: 32rpx;
+    font-weight: 600;
+    color: var(--charcoal);
+    margin-bottom: 24rpx;
+  }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+}
+
+.btn-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}

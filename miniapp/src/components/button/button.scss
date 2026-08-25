@@ -1,0 +1,184 @@
+/**
+ * CloudSteps Button 样式 — 对齐 web/src/components/ui/button.tsx 的 variants。
+ * Warm Mint 主题:mint CTA / hairline borders / 无重阴影。
+ * 覆盖微信小程序 Button 的默认样式。
+ */
+
+/* ============ 基础重置 ============ */
+.cs-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 28rpx;
+  line-height: 1;
+  border: none;
+  box-sizing: border-box;
+  white-space: nowrap;
+  padding: 0 32rpx;
+  height: 72rpx;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+
+  /* 覆盖微信小程序 button 默认样式 */
+  &::after {
+    border: none !important;
+  }
+
+  /* 重置微信 button 默认背景 */
+  background-color: transparent;
+  color: var(--charcoal);
+}
+
+/* ============ Variants ============ */
+
+.cs-btn--brand {
+  background-color: var(--primary);
+  color: #ffffff;
+
+  &:active {
+    background-color: var(--primary-deep);
+  }
+}
+
+.cs-btn--brand-outline {
+  background-color: transparent;
+  color: var(--primary);
+  border: 2rpx solid var(--primary);
+
+  &:active {
+    background-color: var(--primary-soft);
+  }
+}
+
+.cs-btn--mint {
+  background-color: #4ECDC4;
+  color: #ffffff;
+
+  &:active {
+    background-color: #3DB8B0;
+  }
+}
+
+.cs-btn--mint-outline {
+  background-color: transparent;
+  color: #4ECDC4;
+  border: 2rpx solid #4ECDC4;
+
+  &:active {
+    background-color: rgba(78, 205, 196, 0.1);
+  }
+}
+
+.cs-btn--destructive {
+  background-color: var(--destructive);
+  color: #ffffff;
+
+  &:active {
+    background-color: rgba(224, 49, 49, 0.9);
+  }
+}
+
+.cs-btn--outline {
+  background-color: var(--card);
+  color: var(--charcoal);
+  border: 2rpx solid var(--input);
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+.cs-btn--secondary {
+  background-color: var(--tint-sky);
+  color: var(--foreground);
+}
+
+.cs-btn--ghost {
+  background-color: transparent;
+  color: var(--charcoal);
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+.cs-btn--card {
+  height: auto;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  border-radius: var(--radius);
+  border: 2rpx solid var(--border);
+  background-color: var(--card);
+  color: var(--charcoal);
+  padding: 32rpx;
+  box-shadow: var(--shadow-rest);
+
+  &:active {
+    border-color: var(--primary);
+  }
+}
+
+/* ============ Sizes ============ */
+
+.cs-btn--sm {
+  height: 64rpx;
+  padding: 0 24rpx;
+  font-size: 24rpx;
+  border-radius: var(--radius-sm);
+}
+
+.cs-btn--md {
+  height: 72rpx;
+  padding: 0 32rpx;
+}
+
+.cs-btn--lg {
+  height: 88rpx;
+  padding: 0 48rpx;
+  border-radius: var(--radius-sm);
+}
+
+.cs-btn--pill {
+  height: 72rpx;
+  padding: 0 32rpx;
+  border-radius: 999rpx;
+}
+
+.cs-btn--pill-lg {
+  height: 88rpx;
+  padding: 0 48rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+}
+
+.cs-btn--icon {
+  width: 72rpx;
+  height: 72rpx;
+  padding: 0;
+  border-radius: var(--radius-sm);
+}
+
+.cs-btn--icon-round {
+  width: 72rpx;
+  height: 72rpx;
+  padding: 0;
+  border-radius: 999rpx;
+}
+
+/* ============ Loading ============ */
+
+.cs-btn__spinner {
+  font-size: 24rpx;
+  color: currentColor;
+  margin-right: 8rpx;
+}
+
+/* ============ Disabled ============ */
+
+.cs-btn--disabled {
+  opacity: 0.5;
+}

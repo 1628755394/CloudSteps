@@ -1,0 +1,60 @@
+/**
+ * 全局样式 — CloudSteps Warm Mint 主题(对齐 DESIGN.md / web/src/styles/theme.css)。
+ * 小程序端用 CSS 变量 + SCSS 变量双轨:CSS 变量供组件运行时引用,
+ * SCSS 变量供 .scss 文件编译期引用。
+ */
+
+/* ============ CSS 变量(运行时,对齐 web theme.css :root) ============ */
+page {
+  /* 字体 */
+  --font-sans: "Plus Jakarta Sans", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 品牌色 */
+  --primary: #4ECDC4;
+  --primary-deep: #3DB8B0;
+  --primary-soft: rgba(78, 205, 196, 0.12);
+  --secondary-brand: #55A3FF;
+
+  /* 表面 */
+  --background: #f6f5f4;
+  --card: #ffffff;
+  --surface-soft: #fafaf9;
+
+  /* 边框 */
+  --border: #e5e3df;
+  --input: #c8c4be;
+
+  /* 文字 */
+  --foreground: #1a1a1a;
+  --charcoal: #37352f;
+  --muted-foreground: #787671;
+  --muted-soft: #a4a097;
+
+  /* 语义色 */
+  --success: #1aae39;
+  --warning: #c37d0d;
+  --destructive: #e03131;
+
+  /* 色调卡片 */
+  --tint-mint: #e8f8f5;
+  --tint-sky: #e8f2fc;
+  --tint-cream: #f8f5e8;
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+
+  /* 阴影 */
+  --shadow-rest: 0 1px 2px rgba(0, 0, 0, 0.04);
+
+  /* 焦点环 */
+  --ring: rgba(78, 205, 196, 0.4);
+
+  background-color: var(--background);
+  color: var(--charcoal);
+  font-family: var(--font-sans);
+  font-size: 32rpx;
+  line-height: 1.55;
+}

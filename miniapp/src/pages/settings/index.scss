@@ -1,0 +1,202 @@
+.settings {
+  min-height: 100vh;
+  background-color: var(--background);
+  padding: 32rpx;
+  box-sizing: border-box;
+
+  &__header, &__panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32rpx;
+  }
+
+  &__back, &__panel-back {
+    color: var(--primary);
+    font-size: 28rpx;
+    width: 80rpx;
+  }
+
+  &__title, &__panel-title {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  &__section {
+    margin-bottom: 32rpx;
+  }
+
+  &__section-title {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    margin-bottom: 16rpx;
+    padding-left: 8rpx;
+  }
+
+  &__card {
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-rest);
+  }
+
+  &__menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28rpx 32rpx;
+
+    &--border { border-bottom: 2rpx solid var(--border); }
+    &:active { background-color: var(--surface-soft); }
+  }
+
+  &__menu-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+  }
+
+  &__menu-label {
+    font-size: 28rpx;
+    font-weight: 500;
+    color: var(--charcoal);
+  }
+
+  &__menu-desc {
+    font-size: 22rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__menu-arrow {
+    color: var(--muted-soft);
+    font-size: 28rpx;
+  }
+
+  &__logout {
+    margin-top: 16rpx;
+  }
+
+  /* ============ 子面板 ============ */
+  &__panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 28rpx;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 12rpx;
+  }
+
+  &__label {
+    font-size: 26rpx;
+    font-weight: 500;
+    color: var(--charcoal);
+  }
+
+  &__input {
+    width: 100%;
+    height: 88rpx;
+    padding: 0 32rpx;
+    border-radius: var(--radius);
+    background-color: var(--card);
+    border: 2rpx solid var(--input);
+    color: var(--charcoal);
+    font-size: 28rpx;
+    box-sizing: border-box;
+
+    &--code { flex: 1; }
+  }
+
+  &__placeholder { color: var(--muted-soft); }
+
+  &__code-row {
+    display: flex;
+    gap: 16rpx;
+    align-items: center;
+  }
+
+  &__send-btn {
+    flex-shrink: 0;
+    height: 88rpx;
+    padding: 0 24rpx;
+    border-radius: var(--radius);
+    border: 2rpx solid var(--input);
+    color: var(--foreground);
+    font-size: 26rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+
+    &--disabled { color: var(--muted-foreground); opacity: 0.6; }
+  }
+
+  &__error {
+    background-color: rgba(224,49,49,0.05);
+    border: 2rpx solid rgba(224,49,49,0.2);
+    border-radius: var(--radius);
+    padding: 24rpx;
+    color: var(--destructive);
+    font-size: 26rpx;
+  }
+
+  /* 当前邮箱 */
+  &__current-email {
+    padding: 24rpx;
+    border-radius: var(--radius);
+    background-color: var(--surface-soft);
+    border: 2rpx solid var(--border);
+  }
+  &__current-label { font-size: 22rpx; color: var(--muted-foreground); }
+  &__current-value { display: block; font-size: 28rpx; color: var(--foreground); margin-top: 8rpx; word-break: break-all; }
+
+  /* 通知项 */
+  &__notif-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24rpx;
+    border-radius: var(--radius);
+    border: 2rpx solid var(--border);
+  }
+  &__notif-info { flex: 1; }
+  &__notif-label { font-size: 28rpx; font-weight: 500; color: var(--charcoal); }
+  &__notif-desc { display: block; font-size: 22rpx; color: var(--muted-foreground); margin-top: 4rpx; }
+
+  /* 账号安全 */
+  &__security-item {
+    padding: 24rpx;
+    border-radius: var(--radius);
+    border: 2rpx solid var(--border);
+  }
+  &__security-label { font-size: 28rpx; font-weight: 500; color: var(--charcoal); }
+  &__security-value { display: block; font-size: 26rpx; color: var(--muted-foreground); margin-top: 8rpx; }
+  &__security-sub { display: block; font-size: 22rpx; color: var(--muted-foreground); margin-top: 4rpx; }
+
+  &__activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+  &__activity-empty {
+    font-size: 26rpx;
+    color: var(--muted-foreground);
+    text-align: center;
+    padding: 32rpx;
+  }
+  &__activity-item {
+    padding: 20rpx 24rpx;
+    border-radius: var(--radius);
+    background-color: var(--surface-soft);
+    border: 2rpx solid var(--border);
+  }
+  &__activity-action { font-size: 26rpx; font-weight: 500; color: var(--charcoal); }
+  &__activity-time { display: block; font-size: 22rpx; color: var(--muted-foreground); margin-top: 4rpx; }
+}

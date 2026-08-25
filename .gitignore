@@ -74,3 +74,4 @@ go.work.sum
 
 # Word audio dedupe checkpoint
 .dedupe-word-audio/
+.idea/

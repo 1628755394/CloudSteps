@@ -1,0 +1,283 @@
+/**
+ * 个人中心样式 — Warm Mint 主题,移动端布局。
+ */
+.profile {
+  min-height: 100vh;
+  background-color: var(--background);
+  padding: 32rpx 32rpx 64rpx;
+  box-sizing: border-box;
+
+  &--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__loading-text {
+    color: var(--muted-foreground);
+    font-size: 28rpx;
+  }
+}
+
+/* ============ 用户头部 ============ */
+.profile__header {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 32rpx;
+  background: linear-gradient(135deg, var(--primary) 0%, #55A3FF 100%);
+  border-radius: var(--radius-lg);
+  margin-bottom: 32rpx;
+}
+
+.profile__avatar {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 999rpx;
+  background-color: rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 4rpx solid rgba(255, 255, 255, 0.4);
+}
+
+.profile__avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 999rpx;
+}
+
+.profile__avatar-text {
+  color: #ffffff;
+  font-size: 52rpx;
+  font-weight: 600;
+}
+
+.profile__user-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.profile__name {
+  color: #ffffff;
+  font-size: 36rpx;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile__role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 6rpx 20rpx;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 999rpx;
+  align-self: flex-start;
+}
+
+.profile__role-text {
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.profile__header-actions {
+  display: flex;
+  gap: 16rpx;
+  flex-shrink: 0;
+}
+
+.profile__icon-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: var(--radius-sm);
+  background-color: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============ 统计卡片 ============ */
+.profile__stats {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+}
+
+.profile__stat-card {
+  flex: 1;
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  padding: 24rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  box-shadow: var(--shadow-rest);
+}
+
+.profile__stat-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4rpx;
+}
+
+.profile__stat-value {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+.profile__stat-label {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+/* ============ 通用 section ============ */
+.profile__section {
+  margin-bottom: 32rpx;
+}
+
+.profile__section-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--charcoal);
+  margin-bottom: 16rpx;
+  padding-left: 8rpx;
+}
+
+.profile__card {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-rest);
+}
+
+/* ============ 信息列表项 ============ */
+.profile__info-item {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 28rpx 32rpx;
+
+  &--border {
+    border-bottom: 2rpx solid var(--border);
+  }
+}
+
+.profile__info-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profile__info-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.profile__info-label {
+  font-size: 22rpx;
+  color: var(--muted-soft);
+}
+
+.profile__info-value {
+  font-size: 28rpx;
+  color: var(--charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============ 菜单列表项 ============ */
+.profile__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 28rpx 32rpx;
+
+  &--border {
+    border-bottom: 2rpx solid var(--border);
+  }
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+.profile__menu-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: var(--radius-sm);
+  background-color: var(--primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profile__menu-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.profile__menu-label {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--charcoal);
+}
+
+.profile__menu-desc {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+/* ============ 退出登录 ============ */
+.profile__logout {
+  margin-top: 16rpx;
+  margin-bottom: 32rpx;
+}
+
+.profile__logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============ 底部 ============ */
+.profile__footer {
+  text-align: center;
+  padding: 16rpx 0;
+}
+
+.profile__footer-text {
+  font-size: 22rpx;
+  color: var(--muted-soft);
+}
