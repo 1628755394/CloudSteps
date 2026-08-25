@@ -349,6 +349,23 @@ func GetUserByUsername(db *gorm.DB, username string) (user *User, err error) {
 	return &val, nil
 }
 
+// GetUserByLoginAccount resolves password-login identity: username first,
+// then email when the account looks like an email address.
+func GetUserByLoginAccount(db *gorm.DB, account string) (user *User, err error) {
+	account = strings.TrimSpace(account)
+	if account == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	user, err = GetUserByUsername(db, account)
+	if err == nil {
+		return user, nil
+	}
+	if strings.Contains(account, "@") {
+		return GetUserByEmail(db, account)
+	}
+	return nil, err
+}
+
 func IsExistsByUsername(db *gorm.DB, username string) bool {
 	_, err := GetUserByUsername(db, username)
 	return err == nil

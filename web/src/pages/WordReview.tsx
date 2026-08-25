@@ -44,7 +44,8 @@ export default function WordReview() {
     const urls = parseAudioUrls(word.audioUrl);
     if (urls.length === 0) return;
     const prev = audioIndexMap.get(word.id) ?? 0;
-    const next = prev >= Math.min(urls.length, WORD_AUDIO_SLOT_COUNT) ? 1 : prev + 1;
+    const n = Math.min(urls.length, WORD_AUDIO_SLOT_COUNT);
+    const next = prev >= n ? 1 : prev + 1;
     setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
 

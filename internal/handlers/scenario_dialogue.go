@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,9 +14,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/logger"
-	"github.com/LingByte/lingllm/protocol/voice/xiaozhi"
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -46,7 +43,9 @@ func (h *Handlers) registerScenarioDialogueRoutes(r *gin.RouterGroup) {
 		admin.PATCH("/:id/toggle", h.handleAdminToggleScenario)
 	}
 
-	// xiaozhi realtime WebSocket (no AuthRequired — validated via device-id)
+	// Direct ling-base realtime WebSocket (validated via device-id)
+	r.GET("/voice/realtime/", h.handleScenarioVoiceWS)
+	// Legacy path kept for older clients during rollout
 	r.GET("/voice/CloudStepsGo/v1/", h.handleScenarioVoiceWS)
 }
 
@@ -55,44 +54,11 @@ func (h *Handlers) ensureRealtimeFactory() *voice.RealtimeFactory {
 		h.realtimeFactory = voice.NewRealtimeFactory(h.db)
 		voice.LogRealtimeConfig(logger.Lg)
 	}
-	if h.xiaozhiServer == nil {
-		factory := h.realtimeFactory
-		srv, err := xiaozhi.NewServer(xiaozhi.ServerConfig{
-			Mode:            xiaozhi.ModeRealtime,
-			RealtimeFactory: factory,
-			CallIDPrefix:    "cs",
-			OnSessionStart: func(_ context.Context, callID, deviceID string) {
-				_, sessionID, ok := voice.ParseDeviceSessionID(deviceID)
-				if ok {
-					factory.BindCall(callID, sessionID)
-					markScenarioSessionActive(h.db, sessionID)
-				}
-				logger.Info("scenario dialogue WS started",
-					zap.String("callID", callID),
-					zap.String("deviceId", deviceID))
-			},
-			OnSessionEnd: func(_ context.Context, callID, reason string) {
-				factory.UnregisterCall(callID)
-				logger.Info("scenario dialogue WS ended",
-					zap.String("callID", callID),
-					zap.String("reason", reason))
-			},
-		})
-		if err != nil {
-			logger.Error("failed to init xiaozhi server", zap.Error(err))
-		} else {
-			h.xiaozhiServer = srv
-		}
-	}
 	return h.realtimeFactory
 }
 
 func (h *Handlers) handleScenarioVoiceWS(c *gin.Context) {
-	h.ensureRealtimeFactory()
-	if h.xiaozhiServer == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"code": 503, "msg": "语音服务未就绪"})
-		return
-	}
+	factory := h.ensureRealtimeFactory()
 
 	deviceID := strings.TrimSpace(c.Query("device-id"))
 	if deviceID == "" {
@@ -123,8 +89,9 @@ func (h *Handlers) handleScenarioVoiceWS(c *gin.Context) {
 		return
 	}
 
-	voice.SetPendingDeviceID(deviceID)
-	h.xiaozhiServer.Handle(c.Writer, c.Request)
+	callID := fmt.Sprintf("cs-%d-%d-%d", userID, sessionID, time.Now().UnixNano())
+	factory.BindCall(callID, sessionID)
+	factory.ServeRealtimeWS(c.Writer, c.Request, callID)
 }
 
 func (h *Handlers) handleVoiceReady(c *gin.Context) {
@@ -196,7 +163,7 @@ func (h *Handlers) handleStartScenarioSession(c *gin.Context) {
 		apiPrefix = "/api"
 	}
 	deviceID := fmt.Sprintf("cs-%d-%d", user.ID, sess.ID)
-	wsPath := fmt.Sprintf("%s/voice/CloudStepsGo/v1/?device-id=%s", apiPrefix, deviceID)
+	wsPath := fmt.Sprintf("%s/voice/realtime/?device-id=%s", apiPrefix, deviceID)
 
 	voiceReady := voice.CheckReady()
 	response.SuccessMsg(c, "ok", gin.H{

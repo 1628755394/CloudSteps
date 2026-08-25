@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 
 const SAMPLE_RATE = 16000
 const FRAME_MS = 20
-const FRAME_SAMPLES = Math.floor(SAMPLE_RATE * FRAME_MS / 1000)
+const FRAME_SAMPLES = Math.floor((SAMPLE_RATE * FRAME_MS) / 1000)
 
 export type VoiceStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'
 
@@ -16,18 +16,19 @@ interface UseRealtimeVoiceOptions {
 }
 
 export interface LatencyMetrics {
-  // 用户说话到 AI 开始回应的延迟
   userToAILatency?: number
-  // 最近的网络延迟（毫秒）
   networkLatency?: number
-  // 音频播放延迟
   audioPlaybackLatency?: number
-  // 总端到端延迟
   totalLatency?: number
-  // 样本数量（用于计算平均值）
   sampleCount?: number
 }
 
+/**
+ * Thin PCM bridge to CloudSteps realtime WS (ling-base Agent).
+ *
+ * Client → server: binary PCM16LE @ 16kHz; JSON {type:"abort"|"stop"}
+ * Server → client: binary PCM16LE @ output rate; JSON ready/stt/assistant/error
+ */
 export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
   const { wsUrl, onUserText, onAssistantText, onError, onConnected, onLatencyUpdate } = options
   const [status, setStatus] = useState<VoiceStatus>('idle')
@@ -40,18 +41,17 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
   const playbackCtxRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const pcmSendBufRef = useRef<Int16Array>(new Int16Array(0))
-  const listeningRef = useRef(false)
+  const streamingRef = useRef(false)
   const mutedRef = useRef(false)
   const [muted, setMuted] = useState(false)
-  const playbackRateRef = useRef(SAMPLE_RATE)
+  const playbackRateRef = useRef(24000)
   const nextPlayTimeRef = useRef(0)
   const playbackSourcesRef = useRef<AudioBufferSourceNode[]>([])
-  
-  // 延迟监测 - 单次轮次延迟
+
   const latencyMetricsRef = useRef<LatencyMetrics>({})
-  const turnStartTimeRef = useRef<number>(0)  // 用户开始说话的时间
-  const aiFirstResponseTimeRef = useRef<number>(0)  // AI 首次回应的时间
-  const audioPlayStartTimeRef = useRef<number>(0)  // 音频开始播放的时间
+  const turnStartTimeRef = useRef(0)
+  const aiFirstResponseTimeRef = useRef(0)
+  const audioPlayStartTimeRef = useRef(0)
   const networkLatencySamplesRef = useRef<number[]>([])
 
   const downsample = (input: Float32Array, fromRate: number, toRate: number) => {
@@ -90,38 +90,49 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
 
   const stopPlayback = useCallback(() => {
     playbackSourcesRef.current.forEach((s) => {
-      try { s.stop() } catch { /* ignore */ }
+      try {
+        s.stop()
+      } catch {
+        /* ignore */
+      }
     })
     playbackSourcesRef.current = []
     nextPlayTimeRef.current = playbackCtxRef.current?.currentTime ?? 0
   }, [])
 
-  const playPCM = useCallback((bytes: Uint8Array) => {
-    const rate = playbackRateRef.current
-    if (!playbackCtxRef.current || playbackCtxRef.current.sampleRate !== rate) {
-      stopPlayback()
-      playbackCtxRef.current?.close()
-      playbackCtxRef.current = new AudioContext({ sampleRate: rate })
-    }
-    const ctx = playbackCtxRef.current!
-    if (ctx.state === 'suspended') ctx.resume()
-    const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2)
-    const floats = new Float32Array(int16.length)
-    for (let i = 0; i < int16.length; i++) floats[i] = int16[i] / 32768
-    const buffer = ctx.createBuffer(1, floats.length, rate)
-    buffer.copyToChannel(floats, 0)
-    const src = ctx.createBufferSource()
-    src.buffer = buffer
-    src.connect(ctx.destination)
-    const now = ctx.currentTime
-    if (nextPlayTimeRef.current < now) nextPlayTimeRef.current = now
-    src.start(nextPlayTimeRef.current)
-    nextPlayTimeRef.current += buffer.duration
-    playbackSourcesRef.current.push(src)
-    src.onended = () => {
-      playbackSourcesRef.current = playbackSourcesRef.current.filter((x) => x !== src)
-    }
-  }, [stopPlayback])
+  const playPCM = useCallback(
+    (bytes: Uint8Array) => {
+      const rate = playbackRateRef.current
+      if (!playbackCtxRef.current || playbackCtxRef.current.sampleRate !== rate) {
+        stopPlayback()
+        playbackCtxRef.current?.close()
+        playbackCtxRef.current = new AudioContext({ sampleRate: rate })
+      }
+      const ctx = playbackCtxRef.current!
+      if (ctx.state === 'suspended') void ctx.resume()
+      const int16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2)
+      const floats = new Float32Array(int16.length)
+      for (let i = 0; i < int16.length; i++) floats[i] = int16[i] / 32768
+      const buffer = ctx.createBuffer(1, floats.length, rate)
+      buffer.copyToChannel(floats, 0)
+      const src = ctx.createBufferSource()
+      src.buffer = buffer
+      src.connect(ctx.destination)
+      const now = ctx.currentTime
+      if (nextPlayTimeRef.current < now) nextPlayTimeRef.current = now
+      src.start(nextPlayTimeRef.current)
+      nextPlayTimeRef.current += buffer.duration
+      playbackSourcesRef.current.push(src)
+      src.onended = () => {
+        playbackSourcesRef.current = playbackSourcesRef.current.filter((x) => x !== src)
+      }
+
+      if (audioPlayStartTimeRef.current === 0) {
+        audioPlayStartTimeRef.current = Date.now()
+      }
+    },
+    [stopPlayback]
+  )
 
   const sendJSON = useCallback((obj: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -140,101 +151,99 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
     pcmSendBufRef.current = new Int16Array(0)
   }, [])
 
-  const cleanup = useCallback((notifyStop: boolean) => {
-    listeningRef.current = false
-    if (notifyStop) sendJSON({ type: 'listen', state: 'stop' })
-    stopMic()
-    stopPlayback()
-    if (wsRef.current) {
-      wsRef.current.onclose = null
-      if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
-        wsRef.current.close()
+  const cleanup = useCallback(
+    (notifyStop: boolean) => {
+      streamingRef.current = false
+      if (notifyStop) sendJSON({ type: 'stop' })
+      stopMic()
+      stopPlayback()
+      if (wsRef.current) {
+        wsRef.current.onclose = null
+        if (
+          wsRef.current.readyState === WebSocket.OPEN ||
+          wsRef.current.readyState === WebSocket.CONNECTING
+        ) {
+          wsRef.current.close()
+        }
+        wsRef.current = null
       }
-      wsRef.current = null
-    }
-  }, [sendJSON, stopMic, stopPlayback])
+    },
+    [sendJSON, stopMic, stopPlayback]
+  )
 
-  // 计算和报告延迟指标（单次轮次）
   const updateLatencyMetrics = useCallback(() => {
     const metrics: LatencyMetrics = {}
-    
-    // 计算用户→AI 延迟（用户说话到 AI 首次回应）
     if (turnStartTimeRef.current > 0 && aiFirstResponseTimeRef.current > 0) {
       metrics.userToAILatency = aiFirstResponseTimeRef.current - turnStartTimeRef.current
     }
-    
-    // 计算网络延迟（平均值）
     if (networkLatencySamplesRef.current.length > 0) {
       const sum = networkLatencySamplesRef.current.reduce((a, b) => a + b, 0)
       metrics.networkLatency = Math.round(sum / networkLatencySamplesRef.current.length)
       metrics.sampleCount = networkLatencySamplesRef.current.length
     }
-    
-    // 计算总端到端延迟（用户说话到音频开始播放）
     if (turnStartTimeRef.current > 0 && audioPlayStartTimeRef.current > 0) {
       metrics.totalLatency = audioPlayStartTimeRef.current - turnStartTimeRef.current
     }
-    
     latencyMetricsRef.current = metrics
     onLatencyUpdate?.(metrics)
   }, [onLatencyUpdate])
 
-  const handleText = useCallback((raw: string) => {
-    let msg: Record<string, unknown>
-    try { msg = JSON.parse(raw) } catch { return }
-    switch (msg.type) {
-      case 'hello': {
-        const ap = (msg.audio_params as Record<string, number>) || {}
-        if (ap.sample_rate > 0) playbackRateRef.current = ap.sample_rate
-        setStatus('connected')
-        sendJSON({ type: 'listen', state: 'start', mode: 'auto' })
-        listeningRef.current = true
-        onConnected?.()
-        break
+  const handleText = useCallback(
+    (raw: string) => {
+      let msg: Record<string, unknown>
+      try {
+        msg = JSON.parse(raw)
+      } catch {
+        return
       }
-      case 'stt': {
-        const text = String(msg.text || '')
-        // 用户开始说话时记录时间（仅第一次）
-        if (text && turnStartTimeRef.current === 0) {
-          // 重置上一轮的延迟数据
-          aiFirstResponseTimeRef.current = 0
-          audioPlayStartTimeRef.current = 0
-          // 记录新轮次的开始时间
-          turnStartTimeRef.current = Date.now()
+      switch (msg.type) {
+        case 'ready': {
+          const outRate = Number(msg.output_sample_rate || 0)
+          if (outRate > 0) playbackRateRef.current = outRate
+          streamingRef.current = true
+          setStatus('connected')
+          onConnected?.()
+          break
         }
-        setUserText(text)
-        onUserText?.(text)
-        break
-      }
-      case 'llm_response': {
-        const text = String(msg.text || '')
-        // AI 首次回应时记录时间（仅第一次）
-        if (text && aiFirstResponseTimeRef.current === 0) {
-          aiFirstResponseTimeRef.current = Date.now()
-          updateLatencyMetrics()
+        case 'stt': {
+          const text = String(msg.text || '')
+          if (text && turnStartTimeRef.current === 0) {
+            aiFirstResponseTimeRef.current = 0
+            audioPlayStartTimeRef.current = 0
+            turnStartTimeRef.current = Date.now()
+          }
+          setUserText(text)
+          onUserText?.(text)
+          break
         }
-        setAssistantText(text)
-        onAssistantText?.(text)
-        break
-      }
-      case 'tts':
-        if (msg.state === 'start') {
-          stopPlayback()
-          // 音频开始播放时记录时间
-          if (audioPlayStartTimeRef.current === 0) {
-            audioPlayStartTimeRef.current = Date.now()
+        case 'assistant': {
+          const text = String(msg.text || '')
+          if (text && aiFirstResponseTimeRef.current === 0) {
+            aiFirstResponseTimeRef.current = Date.now()
             updateLatencyMetrics()
           }
+          if (msg.final) {
+            setAssistantText(text)
+            if (text) onAssistantText?.(text)
+          } else if (text) {
+            setAssistantText((prev) => prev + text)
+          }
+          break
         }
-        break
-      case 'error': {
-        const message = String(msg.message || 'unknown error')
-        onError?.(message)
-        if (msg.fatal) setStatus('error')
-        break
+        case 'barge_in': {
+          stopPlayback()
+          break
+        }
+        case 'error': {
+          const message = String(msg.message || 'unknown error')
+          onError?.(message)
+          if (msg.fatal) setStatus('error')
+          break
+        }
       }
-    }
-  }, [onAssistantText, onConnected, onError, onUserText, sendJSON, stopPlayback, updateLatencyMetrics])
+    },
+    [onAssistantText, onConnected, onError, onUserText, stopPlayback, updateLatencyMetrics]
+  )
 
   const connect = useCallback(async () => {
     if (!wsUrl) return
@@ -243,15 +252,14 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
     setMuted(false)
     cleanup(false)
     try {
-      // 请求麦克风权限
       let stream: MediaStream
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          audio: { 
-            echoCancellation: true, 
-            noiseSuppression: true, 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
             channelCount: 1,
-            autoGainControl: true
+            autoGainControl: true,
           },
           video: false,
         })
@@ -261,19 +269,20 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
           setStatus('error')
           onError?.('麦克风权限被拒绝。请在浏览器设置中允许访问麦克风。')
           return
-        } else if (err.name === 'NotFoundError') {
+        }
+        if (err.name === 'NotFoundError') {
           setStatus('error')
           onError?.('未找到麦克风设备。请检查硬件连接。')
           return
-        } else if (err.name === 'NotReadableError') {
+        }
+        if (err.name === 'NotReadableError') {
           setStatus('error')
           onError?.('麦克风被其他应用占用。请关闭其他使用麦克风的应用。')
           return
-        } else {
-          throw err
         }
+        throw err
       }
-      
+
       micStreamRef.current = stream
       const ctx = new AudioContext({ sampleRate: SAMPLE_RATE })
       captureCtxRef.current = ctx
@@ -282,7 +291,9 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
       const processor = ctx.createScriptProcessor(4096, 1, 1)
       processorRef.current = processor
       processor.onaudioprocess = (ev) => {
-        if (!listeningRef.current || mutedRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return
+        if (!streamingRef.current || mutedRef.current || wsRef.current?.readyState !== WebSocket.OPEN) {
+          return
+        }
         const input = ev.inputBuffer.getChannelData(0)
         const down = downsample(input, ctx.sampleRate, SAMPLE_RATE)
         appendPCM(floatToInt16(down))
@@ -298,42 +309,16 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
       wsRef.current = ws
 
       ws.onopen = () => {
-        // 重置延迟指标（不在这里重置，而是在每次轮次开始时重置）
         networkLatencySamplesRef.current = []
-        
-        sendJSON({
-          type: 'hello',
-          version: 1,
-          transport: 'websocket',
-          audio_params: {
-            format: 'pcm',
-            sample_rate: SAMPLE_RATE,
-            channels: 1,
-            frame_duration: FRAME_MS,
-            bit_depth: 16,
-          },
-          timestamp: Date.now(),
-        })
       }
       ws.onmessage = (ev) => {
-        // 测量网络延迟（基于消息接收时间）
-        const receiveTime = Date.now()
         if (typeof ev.data === 'string') {
-          try {
-            const msg = JSON.parse(ev.data)
-            if (msg.timestamp) {
-              const latency = receiveTime - msg.timestamp
-              networkLatencySamplesRef.current.push(latency)
-              // 保留最近 20 个样本
-              if (networkLatencySamplesRef.current.length > 20) {
-                networkLatencySamplesRef.current.shift()
-              }
-            }
-          } catch {
-            // 忽略解析错误
-          }
           handleText(ev.data)
         } else if (ev.data instanceof ArrayBuffer) {
+          if (audioPlayStartTimeRef.current === 0) {
+            audioPlayStartTimeRef.current = Date.now()
+            updateLatencyMetrics()
+          }
           playPCM(new Uint8Array(ev.data))
         }
       }
@@ -351,7 +336,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
       onError?.(errorMsg)
       cleanup(false)
     }
-  }, [appendPCM, cleanup, handleText, onError, playPCM, sendJSON, wsUrl])
+  }, [appendPCM, cleanup, handleText, onError, playPCM, updateLatencyMetrics, wsUrl])
 
   const disconnect = useCallback(() => {
     cleanup(true)

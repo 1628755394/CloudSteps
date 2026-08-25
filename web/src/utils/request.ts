@@ -22,6 +22,16 @@ const request = async <T = any>(
     // 返回完整的响应结构，让业务层处理
     return response.data
   } catch (error: any) {
+    // Already normalized by axios interceptor (e.g. business-code auth expiry)
+    if (error && typeof error === 'object' && error.code !== undefined && error.msg && !error.response && !error.isAxiosError) {
+      throw {
+        code: error.code,
+        msg: error.msg,
+        data: error.data ?? null,
+        error: error.error,
+      }
+    }
+
     // 如果是axios错误，尝试从响应中获取错误信息
     if (error.response?.data) {
       const errorData = error.response.data

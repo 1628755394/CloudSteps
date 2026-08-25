@@ -340,6 +340,7 @@ func DefaultTimeoutConfig() TimeoutConfig {
 			"/api/chat/send":      60 * time.Second,
 
 			// 语音接口：10分钟超时（支持长时间语音会话）
+			"/api/voice/realtime/":       10 * time.Minute,
 			"/api/voice/CloudStepsGo/v1/": 10 * time.Minute,
 
 			// 工作流执行：10分钟超时
@@ -493,7 +494,8 @@ func CombinedTimeoutCircuitMiddleware() gin.HandlerFunc {
 
 		// 跳过 WebSocket 语音连接的熔断器检查
 		// WebSocket 是长连接，不适合用熔断器
-		if endpoint == "/api/voice/CloudStepsGo/v1/" ||
+		if endpoint == "/api/voice/realtime/" ||
+			endpoint == "/api/voice/CloudStepsGo/v1/" ||
 			endpoint == "/api/voice/CloudStepsGo/v2/" ||
 			endpoint == "/api/voice/ws" {
 			c.Next()

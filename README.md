@@ -6,7 +6,7 @@
 
 - 后端仓库：[LingByte/CloudSteps](https://github.com/LingByte/CloudSteps)
 - 基础库：[LingByte/ling-base](https://github.com/LingByte/ling-base)
-- LLM 能力：[LingByte/lingllm](https://github.com/LingByte/lingllm)
+- 实时语音：[ling-base/voice/realtime](https://github.com/LingByte/ling-base)（阿里云 Omni 等）
 
 ## 功能概览
 
@@ -38,7 +38,7 @@
 |---|---|
 | 后端 | Go 1.26 · Gin · GORM（MySQL / SQLite） |
 | 基础库 | [ling-base](https://github.com/LingByte/ling-base)（多 module：bootstrap / cache / common / captcha / stores / synthesizer / realtime / queue / notification …） |
-| LLM | [lingllm](https://github.com/LingByte/lingllm) |
+| 实时语音 | [ling-base/voice/realtime](https://github.com/LingByte/ling-base)（Aliyun Omni / Volc 等） |
 | web 前端 | React 18 · Vite 6 · TypeScript · Tailwind · shadcn/ui · Zustand · React Router 7 |
 | admin 后台 | React 19 · Vite · TypeScript · shadcn/ui · Tailwind · Zustand · TanStack Router |
 | CI | GitHub Actions（go test / vet + web & admin 构建 + GitHub Pages 部署） |

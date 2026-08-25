@@ -314,8 +314,21 @@ func (rg *RegistrationGuard) ValidateIP(ip string) error {
 	return nil
 }
 
-// CheckRegistrationAllowed 综合检查是否允许注册
-func (rg *RegistrationGuard) CheckRegistrationAllowed(ip string, email string, password string) error {
+// IsRegistrationThrottleError reports whether err is an IP / attempt throttle
+// (should map to HTTP 429), as opposed to field validation failures.
+func IsRegistrationThrottleError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "rate limit") ||
+		strings.Contains(msg, "too many failed") ||
+		strings.Contains(msg, "blacklisted")
+}
+
+// CheckRegistrationAllowed 综合检查是否允许注册。
+// account 可以是用户名或邮箱：仅当包含 "@" 时才做邮箱格式/域名校验。
+func (rg *RegistrationGuard) CheckRegistrationAllowed(ip string, account string, password string) error {
 	// 1. 验证IP
 	if err := rg.ValidateIP(ip); err != nil {
 		return err
@@ -331,15 +344,17 @@ func (rg *RegistrationGuard) CheckRegistrationAllowed(ip string, email string, p
 		return err
 	}
 
-	// 4. 验证邮箱
-	if err := rg.ValidateEmail(email); err != nil {
-		rg.RecordRegistrationAttempt(ip, email, false, err.Error())
-		return err
+	// 4. 仅邮箱账号校验格式/域名；纯用户名注册不强制邮箱
+	if strings.Contains(account, "@") {
+		if err := rg.ValidateEmail(account); err != nil {
+			rg.RecordRegistrationAttempt(ip, account, false, err.Error())
+			return err
+		}
 	}
 
 	// 5. 验证密码
 	if err := rg.ValidatePassword(password); err != nil {
-		rg.RecordRegistrationAttempt(ip, email, false, err.Error())
+		rg.RecordRegistrationAttempt(ip, account, false, err.Error())
 		return err
 	}
 

@@ -33,6 +33,24 @@ func TestPrepareEmailRegister_rejectsInvalidUsernameChars(t *testing.T) {
 	}
 }
 
+func TestPreparePasswordLogin_acceptsUsernameOrEmail(t *testing.T) {
+	userForm := &models.LoginForm{Username: "teacher01", Password: "password1"}
+	if err := PreparePasswordLogin(userForm); err != nil {
+		t.Fatalf("username login: %v", err)
+	}
+	if userForm.Username != "teacher01" {
+		t.Fatalf("username = %q", userForm.Username)
+	}
+
+	emailForm := &models.LoginForm{Email: "User@Example.com", Password: "password1"}
+	if err := PreparePasswordLogin(emailForm); err != nil {
+		t.Fatalf("email login: %v", err)
+	}
+	if emailForm.Username != "user@example.com" {
+		t.Fatalf("normalized email = %q", emailForm.Username)
+	}
+}
+
 func TestPreparePasswordRegister_acceptsPlainUsername(t *testing.T) {
 	form := &models.RegisterUserForm{
 		Username: "teacher01",
