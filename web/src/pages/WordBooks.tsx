@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router";
-import { BookOpen, ChevronRight, ChevronLeft, Search } from "lucide-react";
+import { BookOpen, ChevronRight, ChevronLeft, ClipboardList, FileText, Search, Users } from "lucide-react";
+import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudEmpty, CloudSpin, CloudInput, CloudSelect } from "../components/cloudsteps/arco";
 import { listWordBooks, type WordBookItem, type WordBookGroup } from "../api/wordbooks";
 import { useAuthStore } from "../stores/authStore";
 import { listAllTeacherCoachingQuotas, type TeacherCoachingQuotaRow } from "../api/coaching";
 import { getTrainingStudent, setTrainingStudent, studentLabelFromQuota } from "../utils/trainingStudent";
+import { kickoffVocabTestPrefetch } from "../utils/vocabTestCache";
+import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
 
 // 封面渐变色组（按 tag hash 分配）
 const COVER_GRADIENTS = [
@@ -165,6 +168,79 @@ export default function WordBooks() {
 
   return (
     <div className="space-y-4">
+      <section className="space-y-2.5">
+        <h2 className="text-xs font-medium text-muted-foreground">常用</h2>
+        <div className="grid grid-cols-2 gap-2.5">
+          <CloudButton
+            type="button"
+            variant="card"
+            onClick={() => {
+              kickoffVocabTestPrefetch();
+              navigate("/vocabulary-test");
+            }}
+            className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
+          >
+            <div className="w-8 h-8 shrink-0 bg-primary-soft rounded-xl flex items-center justify-center">
+              <FileText className="text-primary" size={16} />
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <div className="text-foreground text-sm font-semibold leading-snug">词汇测试</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">进入测评</p>
+            </div>
+          </CloudButton>
+
+          <CloudButton
+            type="button"
+            variant="card"
+            onClick={() => {
+              kickoffWordBooksPrefetch();
+              navigate("/word-training");
+            }}
+            className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
+          >
+            <div className="w-8 h-8 shrink-0 bg-tint-sky rounded-xl flex items-center justify-center">
+              <BookOpen className="text-secondary-brand" size={16} />
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <div className="text-foreground text-sm font-semibold leading-snug">单词训练</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">选择词库</p>
+            </div>
+          </CloudButton>
+
+          {isCoach && (
+            <CloudButton
+              type="button"
+              variant="card"
+              onClick={() => navigate("/my-students")}
+              className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
+            >
+              <div className="w-8 h-8 shrink-0 bg-tint-sky rounded-xl flex items-center justify-center">
+                <Users className="text-secondary-brand" size={16} />
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <div className="text-foreground text-sm font-semibold leading-snug">学员管理</div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">学员与时长</p>
+              </div>
+            </CloudButton>
+          )}
+
+          <CloudButton
+            type="button"
+            variant="card"
+            onClick={() => navigate("/training-records")}
+            className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
+          >
+            <div className="w-8 h-8 shrink-0 bg-tint-mint rounded-xl flex items-center justify-center">
+              <ClipboardList className="text-success" size={16} />
+            </div>
+            <div className="min-w-0 flex-1 text-left">
+              <div className="text-foreground text-sm font-semibold leading-snug">学习记录</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">正课与复习</p>
+            </div>
+          </CloudButton>
+        </div>
+      </section>
+
       {isCoach && (
         <div className="flex items-center justify-end gap-2">
           <span className="text-xs text-muted-foreground">学员</span>
