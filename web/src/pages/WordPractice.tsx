@@ -202,8 +202,8 @@ export default function WordPractice() {
   /** 连续点击同一个词时，第一次发音、第二次显示音标和释义。 */
   const handleWordTap = (word: PracticeWord) => {
     const idx = words.findIndex((w) => w.id === word.id);
-    if (idx !== activeIndex || sequence.length === 0) return;
-
+    if (idx < 0) return;
+    const followsGuide = sequence.length > 0 && idx === activeIndex;
     const isContinuation = lastTappedIndexRef.current === idx;
     const next = nextWordTapState({
       showTranslation: isContinuation ? word.showTranslation : false,
@@ -220,14 +220,14 @@ export default function WordPractice() {
     setWords((prev) =>
       prev.map((w) => {
         if (w.id === word.id) {
-          return { ...w, heard: next.heard, showTranslation: next.showTranslation, count: (w.count + 1) % 4 };
+          return { ...w, heard: next.heard, showTranslation: next.showTranslation, count: followsGuide ? (w.count + 1) % 4 : w.count };
         }
         if (!isContinuation) return { ...w, heard: false, showTranslation: false };
         return next.showTranslation ? { ...w, showTranslation: false } : w;
       })
     );
     setDetailWord(syncDetailWordWithTap(detailMode, next, word));
-    if (frameIdx < sequence.length - 1) setFrameIdx((f) => f + 1);
+    if (followsGuide && frameIdx < sequence.length - 1) setFrameIdx((f) => f + 1);
   };
 
   const handleShuffle = () => {
