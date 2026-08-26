@@ -1,5 +1,6 @@
 import { defineConfig, type UserConfigExport } from '@tarojs/cli'
 import TsconfigPathsPlugin from 'tsconfig-paths-webpack-plugin'
+import path from 'path'
 import devConfig from './dev'
 import prodConfig from './prod'
 import vitePluginImp from 'vite-plugin-imp'
@@ -48,6 +49,9 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
       type: 'vite'
     },
     mini: {
+      alias: {
+        '@': path.resolve(__dirname, '..', 'src'),
+      },
       postcss: {
         pxtransform: {
           enable: true,
@@ -66,6 +70,9 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
     },
     h5: {
       publicPath: '/',
+      alias: {
+        '@': path.resolve(__dirname, '..', 'src'),
+      },
       staticDirectory: 'static',
 
       miniCssExtractPluginOption: {

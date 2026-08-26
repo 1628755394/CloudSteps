@@ -1,25 +1,24 @@
 /**
  * 复习单词列表页 — 对齐 web/src/pages/ReviewWordList.tsx。
  *
- * 功能:
- *  1. 通过 URL 参数 wordBookId + date 加载待复习单词
- *  2. view=1 时为只读模式(查看),否则为复习模式
- *  3. 每个单词:点击播放音频、点击翻面看释义
- *  4. 标记认识(✓)/不认识(✗)
- *  5. 全部标记后提交复习结果
- *  6. 提交成功后返回上一页
+ * 布局:
+ *  1. 顶部导航栏(返回 + 标题)
+ *  2. 单词计数描述
+ *  3. 统计栏(认识/不认识/待标记)
+ *  4. 单词列表:每行 = 序号 + 单词(点击翻面看释义) + 音频按钮 + ✓/✗ 按钮
+ *  5. 底部固定操作栏:全部认识 / 清空 + 提交复习(带进度 x/total)
  */
 import React, { useEffect, useMemo, useState, useRef } from 'react'
-import { View, Text, ScrollView, Image } from '@tarojs/components'
+import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { ArrowLeft, Check, Close, VolumeMax } from '@nutui/icons-react-taro'
 import {
   getReviewToday,
   startReviewSession,
   completeReviewSession,
-} from '../../api/review'
-import { resolveMediaUrl } from '../../utils/mediaUrl'
-import { CloudButton } from '../../components/button'
+} from '@/api/review'
+import { resolveMediaUrl } from '@/utils/mediaUrl'
+import { CloudButton } from '@/components/button'
 import './index.scss'
 
 interface ReviewWordItem {
@@ -123,7 +122,6 @@ export default function ReviewWordList() {
   }
 
   const handleWordClick = (item: ReviewWordItem) => {
-    // 点击单词:第一次播放音频,第二次翻面看释义
     if (!item.heard && item.audioUrl) {
       playAudio(item)
       setWords((prev) => prev.map((w) => w.id === item.id ? { ...w, heard: true } : w))
@@ -217,30 +215,37 @@ export default function ReviewWordList() {
             <Text className="rwl__state-text">加载中...</Text>
           </View>
         ) : words.length === 0 ? (
-          <View className="rwl__empty">
-            <Text className="rwl__empty-text">暂无待复习单词</Text>
+          <View className="rwl__state">
+            <Text className="rwl__state-text">该日暂无待复习单词</Text>
           </View>
         ) : (
           <>
-            {/* 统计栏 */}
-            <View className="rwl__stats">
-              <View className="rwl__stat">
-                <Text className="rwl__stat-value rwl__stat-value--total">{words.length}</Text>
-                <Text className="rwl__stat-label">总数</Text>
-              </View>
-              <View className="rwl__stat">
-                <Text className="rwl__stat-value rwl__stat-value--correct">{correctCount}</Text>
-                <Text className="rwl__stat-label">认识</Text>
-              </View>
-              <View className="rwl__stat">
-                <Text className="rwl__stat-value rwl__stat-value--wrong">{wrongCount}</Text>
-                <Text className="rwl__stat-label">不认识</Text>
-              </View>
-              <View className="rwl__stat">
-                <Text className="rwl__stat-value rwl__stat-value--pending">{unmarkedCount}</Text>
-                <Text className="rwl__stat-label">待标记</Text>
-              </View>
+            {/* 单词计数描述 */}
+            <View className="rwl__desc">
+              <Text className="rwl__desc-text">
+                {viewOnly
+                  ? `当前共有 ${words.length} 个单词`
+                  : `当前共有 ${words.length} 个可选单词`}
+              </Text>
             </View>
+
+            {/* 统计栏 */}
+            {!viewOnly && (
+              <View className="rwl__stats">
+                <View className="rwl__stat rwl__stat--correct">
+                  <Text className="rwl__stat-value">{correctCount}</Text>
+                  <Text className="rwl__stat-label">认识</Text>
+                </View>
+                <View className="rwl__stat rwl__stat--wrong">
+                  <Text className="rwl__stat-value">{wrongCount}</Text>
+                  <Text className="rwl__stat-label">不认识</Text>
+                </View>
+                <View className="rwl__stat rwl__stat--pending">
+                  <Text className="rwl__stat-value">{unmarkedCount}</Text>
+                  <Text className="rwl__stat-label">待标记</Text>
+                </View>
+              </View>
+            )}
 
             {/* 单词列表 */}
             <View className="rwl__word-list">
@@ -252,78 +257,90 @@ export default function ReviewWordList() {
                     item.status === 'wrong' ? 'rwl__word-card--wrong' : ''
                   }`}
                 >
-                  <View
-                    className="rwl__word-main"
-                    onClick={() => handleWordClick(item)}
-                  >
-                    <View className="rwl__word-header">
-                      <Text className="rwl__word-index">{idx + 1}</Text>
+                  <View className="rwl__word-left">
+                    <Text className="rwl__word-index">{idx + 1}</Text>
+                    <View
+                      className="rwl__word-content"
+                      onClick={() => handleWordClick(item)}
+                    >
                       <Text className="rwl__word-text">{item.word}</Text>
-                      {item.audioUrl && (
-                        <View
-                          className={`rwl__word-audio ${playingId === item.id ? 'rwl__word-audio--playing' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); playAudio(item) }}
-                        >
-                          <VolumeMax size={18} color="#4ECDC4" />
-                        </View>
+                      {item.showTranslation && item.translation && (
+                        <Text className="rwl__word-translation">{item.translation}</Text>
                       )}
                     </View>
-                    {item.showTranslation && item.translation && (
-                      <View className="rwl__word-translation">
-                        <Text className="rwl__word-translation-text">{item.translation}</Text>
+                  </View>
+                  <View className="rwl__word-right">
+                    {item.audioUrl && (
+                      <View
+                        className={`rwl__icon-btn ${playingId === item.id ? 'rwl__icon-btn--playing' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); playAudio(item) }}
+                      >
+                        <VolumeMax size={18} color={playingId === item.id ? '#4ECDC4' : '#55A3FF'} />
                       </View>
                     )}
+                    {!viewOnly && (
+                      <>
+                        <View
+                          className={`rwl__icon-btn rwl__icon-btn--check ${item.status === 'correct' ? 'rwl__icon-btn--active-mint' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); handleStatusClick(item.id, 'correct') }}
+                        >
+                          <Check size={18} color={item.status === 'correct' ? '#fff' : '#4ECDC4'} />
+                        </View>
+                        <View
+                          className={`rwl__icon-btn rwl__icon-btn--cross ${item.status === 'wrong' ? 'rwl__icon-btn--active-red' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); handleStatusClick(item.id, 'wrong') }}
+                        >
+                          <Close size={18} color={item.status === 'wrong' ? '#fff' : '#e03131'} />
+                        </View>
+                      </>
+                    )}
                   </View>
-                  {!viewOnly && (
-                    <View className="rwl__word-actions">
-                      <View
-                        className={`rwl__mark rwl__mark--correct ${item.status === 'correct' ? 'rwl__mark--active' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); handleStatusClick(item.id, 'correct') }}
-                      >
-                        <Check size={18} color={item.status === 'correct' ? '#fff' : '#4ECDC4'} />
-                      </View>
-                      <View
-                        className={`rwl__mark rwl__mark--wrong ${item.status === 'wrong' ? 'rwl__mark--active' : ''}`}
-                        onClick={(e) => { e.stopPropagation(); handleStatusClick(item.id, 'wrong') }}
-                      >
-                        <Close size={18} color={item.status === 'wrong' ? '#fff' : '#e03131'} />
-                      </View>
-                    </View>
-                  )}
                 </View>
               ))}
             </View>
 
-            {/* 提示 */}
-            {hint && (
-              <View className="rwl__hint">
-                <Text className="rwl__hint-text">{hint}</Text>
-              </View>
-            )}
-
-            {/* 底部操作栏 */}
-            {!viewOnly && (
-              <View className="rwl__footer">
-                <View className="rwl__footer-btn rwl__footer-btn--outline" onClick={markAllCorrect}>
-                  <Text className="rwl__footer-btn-text">全部认识</Text>
-                </View>
-                <View className="rwl__footer-btn rwl__footer-btn--outline" onClick={clearMarks}>
-                  <Text className="rwl__footer-btn-text">清空标记</Text>
-                </View>
-                <CloudButton
-                  variant="brand"
-                  loading={submitting}
-                  disabled={!allMarked}
-                  onClick={handleSubmit}
-                >
-                  提交复习
-                </CloudButton>
-              </View>
-            )}
+            <View style={{ height: '200rpx' }} />
           </>
         )}
-        <View style={{ height: '48rpx' }} />
       </ScrollView>
+
+      {/* 底部固定操作栏 */}
+      {!viewOnly && !loading && words.length > 0 && (
+        <View className="rwl__footer">
+          <View className="rwl__footer-top">
+            <View className="rwl__footer-btn" onClick={markAllCorrect}>
+              <Text className="rwl__footer-btn-text">全部认识</Text>
+            </View>
+            <View
+              className={`rwl__footer-btn ${markedCount === 0 ? 'rwl__footer-btn--disabled' : ''}`}
+              onClick={() => markedCount > 0 && clearMarks()}
+            >
+              <Text className="rwl__footer-btn-text">清空</Text>
+            </View>
+          </View>
+          <CloudButton
+            variant="brand"
+            loading={submitting}
+            disabled={submitting || !allMarked}
+            onClick={handleSubmit}
+          >
+            提交复习 ({markedCount}/{words.length})
+          </CloudButton>
+          {hint && (
+            <Text className="rwl__footer-hint rwl__footer-hint--error">{hint}</Text>
+          )}
+          {!hint && !allMarked && (
+            <Text className="rwl__footer-hint rwl__footer-hint--warn">
+              还有 {unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交
+            </Text>
+          )}
+          {!hint && allMarked && (
+            <Text className="rwl__footer-hint rwl__footer-hint--ok">
+              已全部勾选，可提交复习
+            </Text>
+          )}
+        </View>
+      )}
     </View>
   )
 }
