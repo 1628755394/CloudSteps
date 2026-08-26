@@ -3,7 +3,9 @@
  *
  * 1. 日期选择卡片:上一日 / 日期显示 / 下一日
  * 2. 复习任务按学生分组,每组显示学员头像/首字母 + 任务数
- * 3. 每个任务:第一行(时间 + 词包名),第二行(词数/训练时长 + 复习/查看按钮)
+ * 3. 每个任务两行布局:
+ *    第一行:时间(固定宽) + 词包名(flex-1)
+ *    第二行:词数·训练时长(左) + 复习/查看按钮(右)
  * 4. 今天点"复习"跳转 review-word-list(标记模式)
  * 5. 非今天点"查看"跳转 review-word-list(只读模式)
  */
@@ -11,9 +13,9 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft, ArrowRight, Clock, Eye } from '@nutui/icons-react-taro'
-import { useAuthStore } from '../../stores/authStore'
-import { listReviewBooksByDate, type ReviewBookStatRow } from '../../api/review'
-import { CloudButton } from '../../components/button'
+import { useAuthStore } from '@/stores/authStore'
+import { listReviewBooksByDate, type ReviewBookStatRow } from '@/api/review'
+import { CloudButton } from '@/components/button'
 import './index.scss'
 
 function toDateInputValue(d: Date) {
@@ -187,31 +189,33 @@ export default function AntiForgetting() {
                 {tasks.map((task) => (
                   <View key={task.id} className="anti__task">
                     {/* 第一行:时间 + 词包名 */}
-                    <View className="anti__task-row anti__task-row--top">
+                    <View className="anti__task-line">
                       <View className="anti__task-time">
                         <Clock size={14} color="#4ECDC4" />
                         <Text className="anti__task-time-text">{task.time}</Text>
                       </View>
-                      <Text className="anti__task-pack-name">{task.vocabularyPack}</Text>
+                      <Text className="anti__task-pack-name" numberOfLines={1}>{task.vocabularyPack}</Text>
                     </View>
-                    {/* 第二行:词数/训练时长 + 按钮 */}
-                    <View className="anti__task-row anti__task-row--bottom">
+                    {/* 第二行:词数/训练时长(左) + 按钮(右) */}
+                    <View className="anti__task-line anti__task-line--bottom">
                       <Text className="anti__task-meta">
                         {task.count} 词 · {task.trainingTime}
                       </Text>
-                      <CloudButton
-                        variant="brand"
-                        size="sm"
-                        disabled={task.count <= 0}
-                        onClick={() => handleOpenTask(task)}
-                      >
-                        <View className="anti__task-btn-inner">
-                          <Eye size={14} color="#fff" />
-                          <Text className="anti__task-btn-text">
-                            {task.count <= 0 ? '暂无词' : isToday ? '复习' : '查看'}
-                          </Text>
-                        </View>
-                      </CloudButton>
+                      <View className="anti__task-btn-wrap">
+                        <CloudButton
+                          variant="brand"
+                          size="sm"
+                          disabled={task.count <= 0}
+                          onClick={() => handleOpenTask(task)}
+                        >
+                          <View className="anti__task-btn-inner">
+                            <Eye size={14} color="#fff" />
+                            <Text className="anti__task-btn-text">
+                              {task.count <= 0 ? '暂无词' : isToday ? '复习' : '查看'}
+                            </Text>
+                          </View>
+                        </CloudButton>
+                      </View>
                     </View>
                   </View>
                 ))}
