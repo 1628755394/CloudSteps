@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   ChevronLeft,
-  ClipboardList,
   Clock,
   KeyRound,
   Loader2,
@@ -150,12 +149,6 @@ export default function MyStudents() {
 
   const openDetail = (r: TeacherCoachingQuotaRow) => {
     navigate(`/my-students/${r.studentId}`, {
-      state: { studentName: studentLabel(r) },
-    });
-  };
-
-  const openActivity = (r: TeacherCoachingQuotaRow) => {
-    navigate(`/my-students/${r.studentId}/training`, {
       state: { studentName: studentLabel(r) },
     });
   };
@@ -383,16 +376,6 @@ export default function MyStudents() {
                     >
                       <KeyRound size={14} />
                       <span className="hidden sm:inline">密码</span>
-                    </CloudButton>
-                    <CloudButton
-                      type="button"
-                      variant="brandOutline"
-                      size="sm"
-                      className="px-2.5"
-                      onClick={() => openActivity(r)}
-                    >
-                      <ClipboardList size={14} />
-                      <span className="hidden sm:inline">活动</span>
                     </CloudButton>
                   </div>
                 </div>

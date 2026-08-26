@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "../components/Layout";
 import Home from "../pages/Home";
 import AntiForgetting from "../pages/AntiForgetting";
@@ -22,7 +22,6 @@ import PreTrainingCheck from "../pages/PreTrainingCheck";
 import ReviewCheck from "../pages/ReviewCheck";
 import ReviewWordList from "../pages/ReviewWordList";
 import WordPractice from "../pages/WordPractice";
-import WordReview from "../pages/WordReview";
 import FlashReview from "../pages/FlashReview";
 import PostTrainingCheck from "../pages/PostTrainingCheck";
 import ListenIdentify from "../pages/ListenIdentify";
@@ -39,7 +38,6 @@ import { PublicOnly, RequireAuth, RequireRole } from "../components/AuthGuard";
 import MyStudents from "../pages/MyStudents";
 import CreateStudent from "../pages/CreateStudent";
 import StudentDetail from "../pages/StudentDetail";
-import StudentTrainingRecords from "../pages/StudentTrainingRecords";
 import WordBooks from "../pages/WordBooks";
 import WordBookWords from "../pages/WordBookWords";
 import LighthouseWords from "../pages/LighthouseWords";
@@ -57,7 +55,7 @@ export const router = createBrowserRouter(
     ),
     errorElement: <RouteErrorBoundary />,
     children: [
-      { index: true, element: <LessonPrep /> },
+      { index: true, element: <WordBooks /> },
       {
         path: "my-students",
         element: (
@@ -75,14 +73,6 @@ export const router = createBrowserRouter(
         ),
       },
       {
-        path: "my-students/:studentId/training",
-        element: (
-          <RequireRole roles={["user", "teacher", "admin"]}>
-            <StudentTrainingRecords />
-          </RequireRole>
-        ),
-      },
-      {
         path: "my-students/:studentId",
         element: (
           <RequireRole roles={["user", "teacher", "admin"]}>
@@ -91,7 +81,7 @@ export const router = createBrowserRouter(
         ),
       },
       { path: "lesson-prep", element: <Home /> },
-      { path: "word-books", element: <WordBooks /> },
+      { path: "word-books", element: <LessonPrep /> },
       { path: "word-books/:id", element: <WordBookWords /> },
       { path: "training-records", element: <TrainingRecords /> },
       { path: "anti-forgetting", element: <AntiForgetting /> },
@@ -294,7 +284,7 @@ export const router = createBrowserRouter(
     path: "/word-review",
     element: (
       <RequireAuth>
-        <WordReview />
+        <Navigate to="/word-practice" replace />
       </RequireAuth>
     ),
   },

@@ -8,13 +8,7 @@ import { MemoryLighthouse, type MemoryLighthouseData } from "../components/Memor
 import { TopBar } from "../components/TopBar";
 import { AudioMuteToggleButton } from "../components/AudioMuteToggleButton";
 import { useAuthStore } from "../stores/authStore";
-import {
-  listAllTeacherCoachingQuotas,
-  getTeacherCoachingWeek,
-  listStudentWordBooksAsTeacher,
-  type StudentWordBookItem,
-  type TeacherCoachingQuotaRow,
-} from "../api/coaching";
+import { listStudentWordBooksAsTeacher, type StudentWordBookItem } from "../api/coaching";
 import { fetchLighthouse, getCachedLighthouse } from "../utils/lighthouseCache";
 import {
   getCachedWordBooks,
@@ -37,11 +31,6 @@ function resolvePick(wbs: CachedWordBook[]): CachedWordBook | undefined {
   return wbs.find((x) => x.id === cachedId) || wbs.find((x) => x.name === cachedName) || wbs[0];
 }
 
-function studentLabel(row: TeacherCoachingQuotaRow) {
-  const s = row.student;
-  return s?.displayName || s?.username || s?.email || `学员 #${row.studentId}`;
-}
-
 export default function WordTraining() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -49,21 +38,8 @@ export default function WordTraining() {
   const isStudent = role === "student";
   const isCoach = !isStudent;
 
-  const selfName =
-    (user as { displayName?: string; username?: string } | null)?.displayName ||
-    (user as { username?: string } | null)?.username ||
-    (user as { email?: string } | null)?.email ||
-    "-";
-
   const cachedStudent = getTrainingStudent();
-  const [studentId, setStudentId] = useState<string>(
-    cachedStudent?.id ? String(cachedStudent.id) : ""
-  );
-  const [studentName, setStudentName] = useState(
-    isStudent ? selfName : cachedStudent?.name || ""
-  );
-  const [students, setStudents] = useState<TeacherCoachingQuotaRow[]>([]);
-  const [studentsLoading, setStudentsLoading] = useState(false);
+  const studentId = cachedStudent?.id ? String(cachedStudent.id) : "";
 
   const initialBooks = getCachedWordBooks() || [];
   const initialPick = resolvePick(initialBooks);
@@ -117,56 +93,6 @@ export default function WordTraining() {
       userPickedByStudent.current[studentId] = wb.id;
     }
   };
-
-  useEffect(() => {
-    if (isStudent) {
-      setStudentName(selfName);
-      return;
-    }
-    let mounted = true;
-    setStudentsLoading(true);
-    (async () => {
-      try {
-        const [rows, weekRes] = await Promise.all([
-          listAllTeacherCoachingQuotas(),
-          getTeacherCoachingWeek(fmtYMD(new Date())).catch(() => null),
-        ]);
-        if (!mounted) return;
-        setStudents(rows);
-
-        // 优先：已选学员 → 今日进行中课次学员 → 名下第一位
-        const saved = getTrainingStudent();
-        const inProgress = (weekRes?.data?.schedules || []).find((s) => s.status === "in_progress");
-        const fromClassId = inProgress?.studentId ? Number(inProgress.studentId) : 0;
-        const fromClassRow = fromClassId ? rows.find((r) => r.studentId === fromClassId) : undefined;
-        const fromClassName =
-          inProgress?.students?.[0] || (fromClassRow ? studentLabel(fromClassRow) : "");
-
-        let pickId = saved?.id || 0;
-        let pickName = saved?.name || "";
-        if (!pickId && fromClassId) {
-          pickId = fromClassId;
-          pickName = fromClassName || `学员 #${fromClassId}`;
-        }
-        if (!pickId && rows[0]) {
-          pickId = rows[0].studentId;
-          pickName = studentLabel(rows[0]);
-        }
-        if (pickId) {
-          setStudentId(String(pickId));
-          setStudentName(pickName);
-          setTrainingStudent(pickId, pickName);
-        }
-      } catch {
-        if (mounted) setStudents([]);
-      } finally {
-        if (mounted) setStudentsLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [isStudent, selfName]);
 
   useEffect(() => {
     let mounted = true;
@@ -293,15 +219,6 @@ export default function WordTraining() {
     return wordBooks.find((x) => x.id === id)?.name || "";
   };
 
-  const studentOptions = useMemo(
-    () =>
-      students.map((r) => ({
-        label: studentLabel(r),
-        value: String(r.studentId),
-      })),
-    [students]
-  );
-
   const lighthouseBoxes = memoryData.map(({ count }) => ({ count }));
 
   return (
@@ -332,34 +249,6 @@ export default function WordTraining() {
           <div className="flex items-center justify-between text-sm">
             <span className="text-[#718096]">今日训新</span>
             <span className="text-[#2D3748] font-medium">{todayNewLearned} 词</span>
-          </div>
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="text-[#718096] shrink-0">学生信息</span>
-            {isCoach ? (
-              <div className="min-w-0 flex-1 max-w-[70%]">
-                <CloudSelect
-                  value={studentId || undefined}
-                  onChange={(v) => {
-                    const id = String(v ?? "");
-                    const row = students.find((r) => String(r.studentId) === id);
-                    const name = row ? studentLabel(row) : "";
-                    setStudentId(id);
-                    setStudentName(name);
-                    if (id && name) setTrainingStudent(Number(id), name);
-                  }}
-                  options={studentOptions}
-                  placeholder={studentsLoading ? "加载学员…" : "选择学员"}
-                  disabled={studentsLoading || !studentOptions.length}
-                  showSearch
-                  allowClear={false}
-                  sheetTitle="选择学员"
-                />
-              </div>
-            ) : (
-              <span className="text-[#2D3748] font-medium truncate max-w-[60%] text-right">
-                {studentName || selfName}
-              </span>
-            )}
           </div>
         </div>
 

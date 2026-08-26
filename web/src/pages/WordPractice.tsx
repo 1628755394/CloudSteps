@@ -13,8 +13,11 @@ import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel"
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
-import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+import { syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
+import { buildWordPracticeSequence } from "../utils/wordPracticeSequence";
+import { getPracticeTapState } from "../utils/wordPracticeTap";
+import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 
 type PracticeWord = {
   id: number;
@@ -32,10 +35,11 @@ type PracticeWord = {
 export default function WordPractice() {
   const navigate = useNavigate();
   const [words, setWords] = useState<PracticeWord[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [manualReadMode, setManualReadMode] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [frameIdx, setFrameIdx] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const lastTappedIndexRef = useRef<number | null>(null);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
@@ -46,51 +50,15 @@ export default function WordPractice() {
 
   const [audioIndexMap, setAudioIndexMap] = useState<Map<number, number>>(new Map());
 
-  // ---- Split-screen 随心记 state (mirrors ReviewWordList) ----
-  const [globalNoteOpen, setGlobalNoteOpen] = useState(false);
-  const [noteSide, setNoteSide] = useState<"left" | "right">("right");
-  const [noteWidth, setNoteWidth] = useState(() => {
-    try {
-      const raw = localStorage.getItem("lb_practice_note_width");
-      if (raw) {
-        const n = Number(raw);
-        if (Number.isFinite(n)) return Math.max(200, n);
-      }
-    } catch { /* ignore */ }
-    return 420;
-  });
-  const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
-  useEffect(() => {
-    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const startNoteResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startW = noteWidth;
-    let latestW = startW;
-    document.body.style.userSelect = "none";
-    document.body.style.cursor = "ew-resize";
-    const onMove = (ev: PointerEvent) => {
-      ev.preventDefault();
-      const delta = ev.clientX - startX;
-      const next = Math.max(200, startW + (noteSide === "right" ? -delta : delta));
-      latestW = next;
-      setNoteWidth(next);
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-      try { localStorage.setItem("lb_practice_note_width", String(latestW)); } catch { /* ignore */ }
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }, [noteWidth, noteSide]);
+  const {
+    open: globalNoteOpen,
+    setOpen: setGlobalNoteOpen,
+    side: noteSide,
+    setSide: setNoteSide,
+    width: noteWidth,
+    isDesktop,
+    startResize: startNoteResize,
+  } = useSplitScreenNote("lb_practice_note_width");
 
   const handlePlayNextAudio = (word: PracticeWord) => {
     if (!word.audioUrl) return;
@@ -174,77 +142,53 @@ export default function WordPractice() {
         heard: false,
       }));
       setWords(mapped);
-      setCurrentIndex(0);
       setCardIndex(0);
       setFrameIdx(0);
+      setSelectedIndex(null);
+      lastTappedIndexRef.current = null;
     } catch {
       // ignore
     }
   }, [batchIdx, mode]);
 
-  const sequence = useMemo(() => {
-    const n = words.length;
-    if (n <= 0) return [] as number[];
-    const seq: number[] = [0];
-    for (let i = 1; i < n; i++) {
-      seq.push(i);
-      for (let j = 0; j <= i; j++) seq.push(j);
-    }
-    return seq;
-  }, [words]);
+  const sequence = useMemo(() => buildWordPracticeSequence(words.length), [words.length]);
 
-  const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : 0;
-  /** 序列中「下一步」要去的词（与当前不同时才显示引导标记） */
-  const nextGuideIndex =
-    frameIdx + 1 < sequence.length ? sequence[frameIdx + 1] : -1;
+  const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : -1;
+  const nextGuideIndex = activeIndex;
 
-  /** 点单词：第一次发音，第二次显示音标+释义；拓展仅在释义时增幅 */
+  /** 连续点击同一个词时，第一次发音、第二次显示音标和释义。 */
   const handleWordTap = (word: PracticeWord) => {
     const idx = words.findIndex((w) => w.id === word.id);
-    if (idx >= 0) setCurrentIndex(idx);
-    const next = nextWordTapState({
-      showTranslation: word.showTranslation,
-      heard: word.heard,
-    });
+    if (idx < 0) return;
+    const followsGuide = sequence.length > 0 && idx === activeIndex;
+    const isContinuation = lastTappedIndexRef.current === idx;
+    const next = getPracticeTapState(idx, lastTappedIndexRef.current, word);
+    lastTappedIndexRef.current = idx;
     if (next.shouldPlay && word.audioUrl) {
       abortRef.current?.();
       setPlayingId(word.id);
       const abort = playFirstWordAudio(word.audioUrl, () => setPlayingId(null));
       abortRef.current = abort;
     }
+    setSelectedIndex(idx);
     setWords((prev) =>
       prev.map((w) => {
         if (w.id === word.id) {
-          return { ...w, heard: next.heard, showTranslation: next.showTranslation };
+          return { ...w, heard: next.heard, showTranslation: next.showTranslation, count: followsGuide ? (w.count + 1) % 4 : w.count };
         }
-        if (next.showTranslation) {
-          return { ...w, showTranslation: false };
-        }
-        return w;
+        if (!isContinuation) return { ...w, heard: false, showTranslation: false };
+        return next.showTranslation ? { ...w, showTranslation: false } : w;
       })
     );
     setDetailWord(syncDetailWordWithTap(detailMode, next, word));
-    handleCountClick(word.id);
-  };
-
-  const handleCountClick = (id: number) => {
-    const idx = words.findIndex((w) => w.id === id);
-    if (idx !== activeIndex) return;
-
-    if (sequence.length === 0) return;
-    setWords((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, count: (w.count + 1) % 4 } : w))
-    );
-    if (frameIdx >= sequence.length - 1) {
-      return;
-    }
-    setFrameIdx((f) => f + 1);
+    if (followsGuide && frameIdx < sequence.length - 1) setFrameIdx((f) => f + 1);
   };
 
   const handleShuffle = () => {
     const shuffled = [...words].sort(() => Math.random() - 0.5);
     setWords(shuffled);
-    setCurrentIndex(0);
+    setSelectedIndex(null);
+    lastTappedIndexRef.current = null;
     setCardIndex(0);
     setFrameIdx(0);
   };
@@ -282,11 +226,16 @@ export default function WordPractice() {
     );
   };
 
-  if (words.length === 0 && mode === "review") {
+  if (words.length === 0) {
     return (
       <FlowPageShell>
-        <TopBar title="开始复习" onBack={handleBack} />
-        <p className="text-center text-[#718096] py-16 px-4">暂无复习单词，请返回重新勾选</p>
+        <TopBar title={mode === "review" ? "开始复习" : "单词练习"} onBack={handleBack} />
+        <div className="flex flex-col items-center gap-4 text-center text-[#718096] py-16 px-4">
+          <p>{mode === "review" ? "暂无复习单词，请返回重新勾选" : "暂无待练习单词，请返回重新选择"}</p>
+          <CloudButton variant="brand" size="pillLg" onClick={handleBack}>
+            返回选择单词
+          </CloudButton>
+        </div>
       </FlowPageShell>
     );
   }
@@ -316,18 +265,18 @@ export default function WordPractice() {
 
       {/* Split container: word content + note panel on the same layer (desktop). */}
       <div
-        className={`px-4 mt-6 w-full pb-28 ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2 lg:mx-0" : "max-w-2xl lg:max-w-5xl mx-auto"}`}
+        className={`box-border min-h-[calc(100dvh-9.5rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2 lg:mx-0" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`}
         style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}
       >
         {/* Word content pane */}
-        <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {viewMode === "card" && cardWord ? (
           <div className="flex w-full flex-col gap-3">
             <div
               className={`relative flex w-full flex-col overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition-colors ${
-                !manualReadMode && words.findIndex((w) => w.id === cardWord.id) === activeIndex
+                !manualReadMode && words.findIndex((w) => w.id === cardWord.id) === selectedIndex
                   ? "border-[#4ECDC4] bg-[#4ECDC4]/10"
                   : "border-[#E2E8F0]"
               }`}
@@ -393,16 +342,20 @@ export default function WordPractice() {
             )}
           </div>
         ) : (
-          <div className="space-y-3 mb-6">
+          <div
+            className={globalNoteOpen && isDesktop
+              ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,1fr))] gap-2.5 overflow-y-auto"
+              : "space-y-3 mb-6"}
+          >
             {words.map((word, index) => (
-              <div
-                key={word.id}
-                className={`relative bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
-                  !manualReadMode && index === activeIndex
-                    ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
-                    : "border-transparent"
-                }`}
-              >
+              <div key={word.id} className={globalNoteOpen && isDesktop ? "min-h-0" : ""}>
+                <div
+                  className={`relative h-full bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
+                    !manualReadMode && index === selectedIndex
+                      ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
+                      : "border-transparent"
+                  }`}
+                >
                 <SequenceNextMark
                   show={!manualReadMode && nextGuideIndex >= 0 && index === nextGuideIndex}
                 />
@@ -445,6 +398,7 @@ export default function WordPractice() {
                     onClose={() => setDetailWord(null)}
                   />
                 )}
+                </div>
               </div>
             ))}
           </div>

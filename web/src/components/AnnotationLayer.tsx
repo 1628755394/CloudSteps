@@ -162,10 +162,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   ctx.lineJoin = "round";
 
   ctx.lineWidth = s.width;
-  if (s.tool === "eraser") {
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.strokeStyle = "rgba(0,0,0,1)";
-  } else if (s.tool === "pen" && s.brush === "pencil") {
+  if (s.tool === "pen" && s.brush === "pencil") {
     ctx.globalCompositeOperation = "source-over";
     ctx.strokeStyle = hexToRgba(s.color, 0.55);
   } else if (s.tool === "pen" && s.brush === "highlighter") {
@@ -196,11 +193,21 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
   const [collapsed, setCollapsed] = useState(false);
   const [dockSide, setDockSide] = useState<DockSide>(loadDockSide);
   const [panelWidth, setPanelWidth] = useState(loadPanelWidth);
-  const [strokes, setStrokes] = useState<Stroke[]>([]);
-  const [redoStack, setRedoStack] = useState<Stroke[]>([]);
+  const [history, setHistory] = useState<Stroke[][]>([[]]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const strokes = history[historyIndex] || [];
+  const [eraserWidth, setEraserWidth] = useState(20);
+  const [eraserCursor, setEraserCursor] = useState({ x: 0, y: 0, show: false });
   const drawingRef = useRef(false);
   const currentRef = useRef<Stroke | null>(null);
+  const eraserPointsRef = useRef<Array<{ x: number; y: number }>>([]);
+  const eraserWorkingRef = useRef<Stroke[] | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+
+  const commit = useCallback((next: Stroke[]) => {
+    setHistory((prev) => [...prev.slice(0, historyIndex + 1), next]);
+    setHistoryIndex((prev) => prev + 1);
+  }, [historyIndex]);
 
   const selectColor = useCallback((c: string) => {
     setColor(c);
@@ -302,7 +309,10 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
       const raw = sessionStorage.getItem(`anno:${storageKey}`);
       if (raw) {
         const parsed = JSON.parse(raw) as Stroke[];
-        if (Array.isArray(parsed)) setStrokes(parsed);
+        if (Array.isArray(parsed)) {
+          setHistory([parsed]);
+          setHistoryIndex(0);
+        }
       }
     } catch {
       // ignore
@@ -348,14 +358,23 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
         points: [p],
         text: text.trim(),
       };
-      setStrokes((prev) => [...prev, stroke]);
-      setRedoStack([]);
+      commit([...strokes, stroke]);
       return;
     }
 
     e.currentTarget.setPointerCapture(e.pointerId);
     drawingRef.current = true;
     const p = getPos(e);
+
+    // 笔画擦除：橡皮触碰到的笔画整条删除
+    if (tool === "eraser") {
+      eraserPointsRef.current = [p];
+      eraserWorkingRef.current = [...strokes];
+      setEraserCursor({ x: p.x, y: p.y, show: true });
+      eraseHitStrokes([p]);
+      return;
+    }
+
     let strokeWidth = width;
     if (tool === "pen" && brushMode === "pencil") {
       strokeWidth = Math.max(1, width * 0.65);
@@ -369,13 +388,48 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
       points: [p],
       ...(tool === "pen" ? { brush: brushMode } : {}),
     };
-    setRedoStack([]);
   };
 
+  /** 笔画擦除：检查 working strokes 中是否有任意点落在橡皮圆内，命中则整条删除 */
+  function eraseHitStrokes(eraserPts: Array<{ x: number; y: number }>) {
+    const working = eraserWorkingRef.current;
+    if (!working) return;
+    const r = eraserWidth / 2;
+    const r2 = r * r;
+    const next = working.filter((s) => {
+      for (const sp of s.points) {
+        for (const ep of eraserPts) {
+          const dx = sp.x - ep.x;
+          const dy = sp.y - ep.y;
+          if (dx * dx + dy * dy <= r2) return false; // 命中 → 删除此笔画
+        }
+      }
+      return true;
+    });
+    if (next.length !== working.length) {
+      eraserWorkingRef.current = next;
+      redraw(next);
+    }
+  }
+
   const onPointerMove = (e: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current || !currentRef.current) return;
     const p = getPos(e);
+
+    // 橡皮模式下始终显示当前位置和擦除范围，避免拖动时光标消失
+    if (tool === "eraser") {
+      setEraserCursor({ x: p.x, y: p.y, show: true });
+      if (!drawingRef.current) return;
+
+      // 笔画擦除：实时检测命中并删除整条笔画
+      eraserPointsRef.current.push(p);
+      eraseHitStrokes([p]);
+      return;
+    }
+
+    if (!drawingRef.current) return;
+
     const cur = currentRef.current;
+    if (!cur) return;
     if (cur.tool === "circle" || cur.tool === "rect") {
       cur.points = [cur.points[0], p];
     } else {
@@ -385,41 +439,43 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
   };
 
   const onPointerUp = () => {
-    if (!drawingRef.current || !currentRef.current) return;
+    if (!drawingRef.current) return;
     drawingRef.current = false;
+
+    // 笔画擦除：提交删除后的笔画列表
+    if (tool === "eraser") {
+      const working = eraserWorkingRef.current;
+      eraserPointsRef.current = [];
+      eraserWorkingRef.current = null;
+      setEraserCursor((s) => ({ ...s, show: false }));
+      if (working && working.length !== strokes.length) {
+        commit(working);
+      }
+      return;
+    }
+
     const done = currentRef.current;
     currentRef.current = null;
+    if (!done) return;
     const ok =
       done.tool === "circle" || done.tool === "rect"
         ? done.points.length >= 2
         : done.points.length > 1;
     if (ok) {
-      setStrokes((prev) => [...prev, done]);
+      commit([...strokes, done]);
     }
   };
 
   const undo = () => {
-    setStrokes((prev) => {
-      if (!prev.length) return prev;
-      const next = prev.slice(0, -1);
-      const removed = prev[prev.length - 1];
-      setRedoStack((r) => [...r, removed]);
-      return next;
-    });
+    if (historyIndex > 0) setHistoryIndex((prev) => prev - 1);
   };
 
   const redo = () => {
-    setRedoStack((prev) => {
-      if (!prev.length) return prev;
-      const last = prev[prev.length - 1];
-      setStrokes((s) => [...s, last]);
-      return prev.slice(0, -1);
-    });
+    if (historyIndex < history.length - 1) setHistoryIndex((prev) => prev + 1);
   };
 
   const clearAll = () => {
-    setStrokes([]);
-    setRedoStack([]);
+    commit([]);
   };
 
   // Clicking outside the panel must not change the active tool, so a collapsed panel remains usable.
@@ -476,13 +532,31 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
       <canvas
         ref={canvasRef}
         className={`fixed inset-0 z-[70] ${
-          tool === "select" ? "pointer-events-none" : "pointer-events-auto touch-none cursor-crosshair"
+          tool === "select"
+            ? "pointer-events-none"
+            : tool === "eraser"
+              ? "pointer-events-auto touch-none cursor-none"
+              : "pointer-events-auto touch-none cursor-crosshair"
         }`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onPointerLeave={() => setEraserCursor((s) => ({ ...s, show: false }))}
       />
+
+      {/* 笔画擦除光标圆 */}
+      {tool === "eraser" && eraserCursor.show && (
+        <div
+          className="pointer-events-none fixed z-[71] rounded-full border-2 border-[#5f7890]/60 bg-[#5f7890]/10"
+          style={{
+            width: `${eraserWidth}px`,
+            height: `${eraserWidth}px`,
+            left: `${eraserCursor.x - eraserWidth / 2}px`,
+            top: `${eraserCursor.y - eraserWidth / 2}px`,
+          }}
+        />
+      )}
 
       <div
         className={`fixed z-[80] top-16 transition-transform ${
@@ -662,6 +736,20 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
                 className="w-full accent-[var(--primary)]"
               />
             </div>
+
+            {tool === "eraser" && (
+              <div>
+                <div className="text-[11px] text-muted-foreground mb-1.5">橡皮大小 {eraserWidth}px</div>
+                <input
+                  type="range"
+                  min={6}
+                  max={80}
+                  value={eraserWidth}
+                  onChange={(e) => setEraserWidth(Number(e.target.value))}
+                  className="w-full accent-[var(--primary)]"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

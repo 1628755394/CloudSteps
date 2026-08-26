@@ -22,6 +22,7 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
+import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 
 type ReviewWordItem = {
@@ -54,24 +55,15 @@ export default function ReviewWordList() {
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
-  const [globalNoteOpen, setGlobalNoteOpen] = useState(false);
-  const [noteSide, setNoteSide] = useState<"left" | "right">("right");
-  const [noteWidth, setNoteWidth] = useState(() => {
-    try {
-      const raw = localStorage.getItem("lb_review_note_width");
-      if (raw) {
-        const n = Number(raw);
-        if (Number.isFinite(n)) return Math.max(200, n);
-      }
-    } catch { /* ignore */ }
-    return 420;
-  });
-  const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
-  useEffect(() => {
-    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  const {
+    open: globalNoteOpen,
+    setOpen: setGlobalNoteOpen,
+    side: noteSide,
+    setSide: setNoteSide,
+    width: noteWidth,
+    isDesktop,
+    startResize: startNoteResize,
+  } = useSplitScreenNote("lb_review_note_width");
 
   const wordBookId = useMemo(() => {
     const url = new URL(window.location.href);
@@ -102,33 +94,6 @@ export default function ReviewWordList() {
     const abort = playWordAudio(item.audioUrl, 300, () => setPlayingId(null));
     abortRef.current = abort;
   };
-
-  const startNoteResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startW = noteWidth;
-    let latestW = startW;
-    document.body.style.userSelect = "none";
-    document.body.style.cursor = "ew-resize";
-    const onMove = (ev: PointerEvent) => {
-      ev.preventDefault();
-      const delta = ev.clientX - startX;
-      // right side: drag left increases width; left side: drag right increases width
-      const next = Math.max(200, startW + (noteSide === "right" ? -delta : delta));
-      latestW = next;
-      setNoteWidth(next);
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-      try { localStorage.setItem("lb_review_note_width", String(latestW)); } catch { /* ignore */ }
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }, [noteWidth, noteSide]);
 
   useEffect(() => {
     if (viewOnly) return;
@@ -308,9 +273,9 @@ export default function ReviewWordList() {
       />
 
       {/* Split container: word content + note panel on the same layer. */}
-      <div className={`px-4 pt-3 pb-4 w-full ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
+      <div className={`box-border min-h-[calc(100dvh-9.5rem)] px-4 pt-3 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
         {/* Word content pane */}
-        <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
             <p className="text-[#718096] text-sm">
               {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
@@ -347,7 +312,7 @@ export default function ReviewWordList() {
             />
           </div>
         ) : (
-          <div className="space-y-2.5 mt-3">
+          <div className={globalNoteOpen && isDesktop ? "min-h-0 flex-1 overflow-y-auto space-y-2.5 mt-3" : "space-y-2.5 mt-3"}>
             {words.map((item, index) => {
               return (
                 <div

@@ -41,6 +41,9 @@ func LoggerMiddleware(logger *zap.Logger) gin.HandlerFunc {
 		if shouldLog {
 			end := time.Now()
 			latency := end.Sub(start)
+			if latency <= 0 {
+				latency = time.Nanosecond
+			}
 			logger.Info("Request",
 				zap.Int("status", c.Writer.Status()),
 				zap.String("method", method),

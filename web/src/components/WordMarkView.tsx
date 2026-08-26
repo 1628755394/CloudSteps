@@ -152,7 +152,6 @@ export function WordCardPanel({
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
   const [localDetail, setLocalDetail] = useState(false);
-
   const detailControlled = detailWordId !== undefined;
   const detailOpen = amplifyDetail
     ? !!word?.showTranslation

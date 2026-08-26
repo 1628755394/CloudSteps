@@ -42,8 +42,9 @@ export interface StartStudySessionRequest {
 }
 
 export interface StartStudySessionResponse {
-  sessionId: number
-  words: any[]
+  sessionId?: number
+  words?: any[]
+  finished?: boolean
 }
 
 export interface CompleteSessionResult {
