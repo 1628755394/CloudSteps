@@ -390,7 +390,7 @@ export default function Home() {
   }
 
   return (
-    <ScrollView className="home" scrollY enableFlex>
+    <ScrollView className="lp" scrollY enableFlex>
       {/* 顶部欢迎区 + 头像入口 */}
       <View className="lp__hero">
         <View className="lp__hero-info">

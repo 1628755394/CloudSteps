@@ -151,7 +151,7 @@ export default function LessonPrep() {
   }
 
   return (
-    <ScrollView className="lp" scrollY enableFlex>
+    <ScrollView className="home" scrollY enableFlex>
       {/* 顶部欢迎区 + 头像入口 */}
       <View className="home__hero">
         <View className="home__hero-info">
