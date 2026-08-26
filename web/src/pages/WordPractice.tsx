@@ -36,6 +36,7 @@ export default function WordPractice() {
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [frameIdx, setFrameIdx] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const lastTappedIndexRef = useRef<number | null>(null);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
@@ -177,6 +178,7 @@ export default function WordPractice() {
       setCardIndex(0);
       setFrameIdx(0);
       setSelectedIndex(null);
+      lastTappedIndexRef.current = null;
     } catch {
       // ignore
     }
@@ -197,52 +199,42 @@ export default function WordPractice() {
   const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : -1;
   const nextGuideIndex = activeIndex;
 
-  /** 点单词：第一次发音，第二次显示音标+释义；拓展仅在释义时增幅 */
+  /** 连续点击同一个词时，第一次发音、第二次显示音标和释义。 */
   const handleWordTap = (word: PracticeWord) => {
+    const idx = words.findIndex((w) => w.id === word.id);
+    if (idx !== activeIndex || sequence.length === 0) return;
+
+    const isContinuation = lastTappedIndexRef.current === idx;
     const next = nextWordTapState({
-      showTranslation: word.showTranslation,
-      heard: word.heard,
+      showTranslation: isContinuation ? word.showTranslation : false,
+      heard: isContinuation ? word.heard : false,
     });
+    lastTappedIndexRef.current = idx;
     if (next.shouldPlay && word.audioUrl) {
       abortRef.current?.();
       setPlayingId(word.id);
       const abort = playFirstWordAudio(word.audioUrl, () => setPlayingId(null));
       abortRef.current = abort;
     }
+    setSelectedIndex(idx);
     setWords((prev) =>
       prev.map((w) => {
         if (w.id === word.id) {
-          return { ...w, heard: next.heard, showTranslation: next.showTranslation };
+          return { ...w, heard: next.heard, showTranslation: next.showTranslation, count: (w.count + 1) % 4 };
         }
-        if (next.showTranslation) {
-          return { ...w, showTranslation: false };
-        }
-        return w;
+        if (!isContinuation) return { ...w, heard: false, showTranslation: false };
+        return next.showTranslation ? { ...w, showTranslation: false } : w;
       })
     );
     setDetailWord(syncDetailWordWithTap(detailMode, next, word));
-    handleCountClick(word.id);
-  };
-
-  const handleCountClick = (id: number) => {
-    const idx = words.findIndex((w) => w.id === id);
-    if (idx !== activeIndex) return;
-
-    if (sequence.length === 0) return;
-    setSelectedIndex(idx);
-    setWords((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, count: (w.count + 1) % 4 } : w))
-    );
-    if (frameIdx >= sequence.length - 1) {
-      return;
-    }
-    setFrameIdx((f) => f + 1);
+    if (frameIdx < sequence.length - 1) setFrameIdx((f) => f + 1);
   };
 
   const handleShuffle = () => {
     const shuffled = [...words].sort(() => Math.random() - 0.5);
     setWords(shuffled);
-    setCurrentIndex(0);
+    setSelectedIndex(null);
+    lastTappedIndexRef.current = null;
     setCardIndex(0);
     setFrameIdx(0);
   };
