@@ -4,7 +4,7 @@
 	"description": "miniapp",
 	"appid": "wxed6ad84ef3fe585b",
 	"setting": {
-		"urlCheck": true,
+		"urlCheck": false,
 		"es6": false,
     "enhance": false,
     "compileHotReLoad": false,

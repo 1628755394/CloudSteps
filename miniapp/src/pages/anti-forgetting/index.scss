@@ -15,7 +15,7 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding: 28rpx 24rpx;
+  padding: 24rpx 24rpx;
   background-color: var(--card);
   border: 2rpx solid var(--border);
   border-radius: var(--radius);
@@ -27,14 +27,14 @@
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background-color: var(--surface-soft);
+  background-color: var(--primary-soft);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 
   &:active {
-    background-color: var(--primary-soft);
+    background-color: rgba(78, 205, 196, 0.2);
   }
 }
 
@@ -44,15 +44,12 @@
   flex-direction: column;
   align-items: center;
   gap: 6rpx;
+  padding: 8rpx 0;
 }
 
 .anti__date-label {
   font-size: 22rpx;
   color: var(--muted-foreground);
-}
-
-.anti__date-picker {
-  padding: 4rpx 8rpx;
 }
 
 .anti__date-value {
@@ -170,8 +167,7 @@
 
 .anti__task {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 16rpx;
   padding: 24rpx 28rpx;
   border-bottom: 2rpx solid var(--border);
@@ -185,20 +181,27 @@
   }
 }
 
-.anti__task-main {
+.anti__task-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  flex: 1;
-  min-width: 0;
+  gap: 12rpx;
+
+  &--top {
+    /* 时间 + 词包名 */
+  }
+
+  &--bottom {
+    /* 词数/训练时长 + 按钮 */
+    justify-content: space-between;
+  }
 }
 
 .anti__task-time {
   display: flex;
   align-items: center;
   gap: 6rpx;
-  width: 140rpx;
   flex-shrink: 0;
+  width: 120rpx;
 }
 
 .anti__task-time-text {
@@ -207,17 +210,11 @@
   color: var(--foreground);
 }
 
-.anti__task-pack {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  flex: 1;
-  min-width: 0;
-}
-
 .anti__task-pack-name {
   font-size: 26rpx;
   color: var(--charcoal);
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -226,11 +223,6 @@
 .anti__task-meta {
   font-size: 22rpx;
   color: var(--muted-foreground);
-  flex-shrink: 0;
-}
-
-.anti__task-action {
-  flex-shrink: 0;
 }
 
 .anti__task-btn-inner {

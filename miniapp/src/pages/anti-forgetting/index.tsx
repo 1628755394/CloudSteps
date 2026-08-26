@@ -3,14 +3,14 @@
  *
  * 1. 日期选择卡片:上一日 / 日期显示 / 下一日
  * 2. 复习任务按学生分组,每组显示学员头像/首字母 + 任务数
- * 3. 每个任务:时间 + 词包名 + 词数/训练时长 + 复习/查看按钮
+ * 3. 每个任务:第一行(时间 + 词包名),第二行(词数/训练时长 + 复习/查看按钮)
  * 4. 今天点"复习"跳转 review-word-list(标记模式)
  * 5. 非今天点"查看"跳转 review-word-list(只读模式)
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ArrowLeft, Right, Clock, List, Eye } from '@nutui/icons-react-taro'
+import { ArrowLeft, ArrowRight, Clock, Eye } from '@nutui/icons-react-taro'
 import { useAuthStore } from '../../stores/authStore'
 import { listReviewBooksByDate, type ReviewBookStatRow } from '../../api/review'
 import { CloudButton } from '../../components/button'
@@ -132,22 +132,20 @@ export default function AntiForgetting() {
       {/* 日期选择卡片 */}
       <View className="anti__date-card">
         <View className="anti__date-arrow" onClick={() => shiftDate(-1)}>
-          <ArrowLeft size={24} color="#4ECDC4" />
+          <ArrowLeft size={22} color="#4ECDC4" />
         </View>
-        <View className="anti__date-center">
-          <Text className="anti__date-label">选择日期</Text>
-          <Picker
-            mode="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(String(e.detail.value))}
-          >
-            <View className="anti__date-picker">
-              <Text className="anti__date-value">{formatDateLabel(selectedDate)}</Text>
-            </View>
-          </Picker>
-        </View>
+        <Picker
+          mode="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(String(e.detail.value))}
+        >
+          <View className="anti__date-center">
+            <Text className="anti__date-label">选择日期</Text>
+            <Text className="anti__date-value">{formatDateLabel(selectedDate)}</Text>
+          </View>
+        </Picker>
         <View className="anti__date-arrow" onClick={() => shiftDate(1)}>
-          <Right size={24} color="#4ECDC4" />
+          <ArrowRight size={22} color="#4ECDC4" />
         </View>
       </View>
 
@@ -159,7 +157,7 @@ export default function AntiForgetting() {
       ) : reviewTasks.length === 0 ? (
         <View className="anti__empty">
           <View className="anti__empty-icon">
-            <List size={40} color="#a4a097" />
+            <Clock size={40} color="#a4a097" />
           </View>
           <Text className="anti__empty-text">
             该日暂无待复习词库任务{'\n'}可切换日期查看其它天的计划
@@ -188,20 +186,19 @@ export default function AntiForgetting() {
               <View className="anti__task-list">
                 {tasks.map((task) => (
                   <View key={task.id} className="anti__task">
-                    <View className="anti__task-main">
+                    {/* 第一行:时间 + 词包名 */}
+                    <View className="anti__task-row anti__task-row--top">
                       <View className="anti__task-time">
                         <Clock size={14} color="#4ECDC4" />
                         <Text className="anti__task-time-text">{task.time}</Text>
                       </View>
-                      <View className="anti__task-pack">
-                        <List size={15} color="#55A3FF" />
-                        <Text className="anti__task-pack-name">{task.vocabularyPack}</Text>
-                      </View>
+                      <Text className="anti__task-pack-name">{task.vocabularyPack}</Text>
+                    </View>
+                    {/* 第二行:词数/训练时长 + 按钮 */}
+                    <View className="anti__task-row anti__task-row--bottom">
                       <Text className="anti__task-meta">
                         {task.count} 词 · {task.trainingTime}
                       </Text>
-                    </View>
-                    <View className="anti__task-action">
                       <CloudButton
                         variant="brand"
                         size="sm"
