@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { BookOpen, ChevronRight, ChevronLeft, ClipboardList, FileText, Search, Users } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudEmpty, CloudSpin, CloudInput, CloudSelect } from "../components/cloudsteps/arco";
@@ -67,6 +67,7 @@ const DEFAULT_GROUPS: WordBookGroup[] = [
 ];
 
 export default function WordBooks() {
+  const navigate = useNavigate();
   const role = useAuthStore((s) => s.user?.role) || "user";
   const isCoach = role === "user" || role === "admin" || role === "teacher";
   const [students, setStudents] = useState<TeacherCoachingQuotaRow[]>([]);
