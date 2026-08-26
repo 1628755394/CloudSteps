@@ -24,11 +24,8 @@ import {
   deleteTeacherCoachingAppointment,
   startCoachingAppointment,
   endCoachingAppointment,
-  searchCoachingStudents,
-  addTeacherCoachingStudent,
   type CoachingWeekSchedule,
   type TeacherCoachingQuotaRow,
-  type CoachingStudentSearchResult,
 } from '@/api/coaching'
 import { CloudButton } from '@/components/button'
 import './index.scss'
@@ -105,7 +102,6 @@ export default function LessonPrep() {
 
   // 教练: 新建排课表单
   const [showScheduleForm, setShowScheduleForm] = useState(false)
-  const [showStudentForm, setShowStudentForm] = useState(false)
   const [quotas, setQuotas] = useState<TeacherCoachingQuotaRow[]>([])
   const [aStudent, setAStudent] = useState('')
   const [aDate, setADate] = useState(fmtYMD(new Date()))
@@ -113,14 +109,6 @@ export default function LessonPrep() {
   const [aEnd, setAEnd] = useState('10:00')
   const [aTitle, setATitle] = useState('')
   const [creatingAppt, setCreatingAppt] = useState(false)
-
-  // 教练: 添加学员表单
-  const [searchQ, setSearchQ] = useState('')
-  const [searchResults, setSearchResults] = useState<CoachingStudentSearchResult[]>([])
-  const [searching, setSearching] = useState(false)
-  const [pickedStudent, setPickedStudent] = useState<CoachingStudentSearchResult | null>(null)
-  const [quotaMinutes, setQuotaMinutes] = useState(60)
-  const [addingStudent, setAddingStudent] = useState(false)
 
   // 选中的课程(点击卡片后弹出详情)
   const [selectedSchedule, setSelectedSchedule] = useState<CoachingWeekSchedule | null>(null)
@@ -304,51 +292,6 @@ export default function LessonPrep() {
     }
   }
 
-  const onSearchStudents = async () => {
-    const q = searchQ.trim()
-    if (q.length < 2) {
-      Taro.showToast({ title: '请输入至少 2 个字符', icon: 'none' })
-      return
-    }
-    setSearching(true)
-    try {
-      const res = await searchCoachingStudents(q)
-      setSearchResults(Array.isArray(res.data) ? res.data : [])
-    } catch {
-      setSearchResults([])
-    } finally {
-      setSearching(false)
-    }
-  }
-
-  const onAddStudent = async () => {
-    if (!pickedStudent) {
-      Taro.showToast({ title: '请先选择学员', icon: 'none' })
-      return
-    }
-    setAddingStudent(true)
-    try {
-      const res = await addTeacherCoachingStudent({
-        studentId: pickedStudent.id,
-        remainingMinutes: quotaMinutes,
-      })
-      if (res.code !== 200) {
-        Taro.showToast({ title: res.msg || '添加失败', icon: 'none' })
-        return
-      }
-      Taro.showToast({ title: '已添加学员', icon: 'success' })
-      setPickedStudent(null)
-      setSearchQ('')
-      setSearchResults([])
-      setShowStudentForm(false)
-      void loadQuotas()
-    } catch {
-      Taro.showToast({ title: '添加失败', icon: 'none' })
-    } finally {
-      setAddingStudent(false)
-    }
-  }
-
   const displayName = user?.displayName || user?.email?.split('@')[0] || '同学'
 
   return (
@@ -357,13 +300,20 @@ export default function LessonPrep() {
       <View className="lp__header">
         <View className="lp__header-top">
           <View className="lp__header-info">
-            <Text className="lp__title">{isCoach ? '陪练排课' : '我的课表'}</Text>
+            <View className="lp__title-row">
+              <Text className="lp__title">{isCoach ? '陪练排课' : '我的课表'}</Text>
+              <View className="lp__count-badge">
+                <Text className="lp__count-text">待上 {activeCount}</Text>
+              </View>
+            </View>
             <Text className="lp__week-range">{weekRangeLabel}</Text>
           </View>
-          <View className="lp__header-count">
-            <Text className="lp__count-num">{activeCount}</Text>
-            <Text className="lp__count-label">待上</Text>
-          </View>
+          {isCoach && (
+            <View className="lp__add-btn" onClick={() => setShowScheduleForm(true)}>
+              <Plus size={18} color="#fff" />
+              <Text className="lp__add-btn-text">排课</Text>
+            </View>
+          )}
         </View>
         <View className="lp__week-nav">
           <View className="lp__week-nav-btn" onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}>
@@ -445,20 +395,6 @@ export default function LessonPrep() {
         </View>
       </ScrollView>
 
-      {/* 教练: 底部浮动操作按钮 */}
-      {isCoach && !showScheduleForm && !showStudentForm && (
-        <View className="lp__fab-bar">
-          <View className="lp__fab-btn lp__fab-btn--brand" onClick={() => { setShowStudentForm(false); setShowScheduleForm(true) }}>
-            <Plus size={18} color="#fff" />
-            <Text className="lp__fab-text lp__fab-text--white">新建排课</Text>
-          </View>
-          <View className="lp__fab-btn lp__fab-btn--outline" onClick={() => { setShowScheduleForm(false); setShowStudentForm(true) }}>
-            <Plus size={18} color="#4ECDC4" />
-            <Text className="lp__fab-text">添加学员</Text>
-          </View>
-        </View>
-      )}
-
       {/* 教练: 新建排课表单(底部弹窗) */}
       {isCoach && showScheduleForm && (
         <View className="lp__modal-mask" onClick={() => setShowScheduleForm(false)}>
@@ -528,55 +464,6 @@ export default function LessonPrep() {
             </View>
             <CloudButton variant="brand" loading={creatingAppt} onClick={onCreateAppt}>
               确认排课
-            </CloudButton>
-          </View>
-        </View>
-      )}
-
-      {/* 教练: 添加学员表单(底部弹窗) */}
-      {isCoach && showStudentForm && (
-        <View className="lp__modal-mask" onClick={() => setShowStudentForm(false)}>
-          <View className="lp__modal-sheet" onClick={(e) => e.stopPropagation()}>
-            <View className="lp__modal-header">
-              <Text className="lp__modal-title">添加学员</Text>
-              <Text className="lp__modal-close" onClick={() => setShowStudentForm(false)}>关闭</Text>
-            </View>
-            <Input
-              className="lp__form-input"
-              value={searchQ}
-              onInput={(e) => setSearchQ(e.detail.value)}
-              placeholder="搜索用户名、昵称或手机号"
-            />
-            <CloudButton variant="brand" loading={searching} onClick={onSearchStudents}>
-              搜索
-            </CloudButton>
-            {searchResults.length > 0 && (
-              <View className="lp__search-results">
-                {searchResults.map((u) => (
-                  <View
-                    key={u.id}
-                    className={`lp__search-item ${pickedStudent?.id === u.id ? 'lp__search-item--active' : ''}`}
-                    onClick={() => setPickedStudent(u)}
-                  >
-                    <Text className="lp__search-name">{u.displayName || u.username}</Text>
-                    <Text className="lp__search-sub">
-                      {u.username}{u.phone ? ` · ${u.phone}` : ''}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-            <View className="lp__form-row">
-              <Text className="lp__form-label">陪练剩余分钟</Text>
-              <Input
-                className="lp__form-input"
-                type="number"
-                value={String(quotaMinutes)}
-                onInput={(e) => setQuotaMinutes(Number(e.detail.value) || 0)}
-              />
-            </View>
-            <CloudButton variant="brand" loading={addingStudent} onClick={onAddStudent}>
-              确认添加
             </CloudButton>
           </View>
         </View>

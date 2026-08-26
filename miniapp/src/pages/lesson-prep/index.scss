@@ -20,15 +20,24 @@
 
 .lp__header-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 20rpx;
+  gap: 16rpx;
 }
 
 .lp__header-info {
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 6rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.lp__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
 }
 
 .lp__title {
@@ -37,30 +46,44 @@
   color: var(--foreground);
 }
 
+.lp__count-badge {
+  padding: 4rpx 14rpx;
+  background-color: var(--primary-soft);
+  border-radius: 999rpx;
+  flex-shrink: 0;
+}
+
+.lp__count-text {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: var(--primary);
+  white-space: nowrap;
+}
+
 .lp__week-range {
   font-size: 24rpx;
   color: var(--muted-foreground);
 }
 
-.lp__header-count {
+.lp__add-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 8rpx 24rpx;
-  background-color: var(--primary-soft);
-  border-radius: 16rpx;
+  gap: 6rpx;
+  padding: 14rpx 24rpx;
+  background-color: var(--primary);
+  border-radius: 999rpx;
+  flex-shrink: 0;
+
+  &:active {
+    opacity: 0.85;
+  }
 }
 
-.lp__count-num {
-  font-size: 36rpx;
-  font-weight: 600;
-  color: var(--primary);
-  line-height: 1.2;
-}
-
-.lp__count-label {
-  font-size: 20rpx;
-  color: var(--muted-foreground);
+.lp__add-btn-text {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
 }
 
 .lp__week-nav {
@@ -293,55 +316,6 @@
 .lp__grid-loading-text {
   font-size: 26rpx;
   color: var(--muted-foreground);
-}
-
-/* ============ 底部浮动操作栏(教练) ============ */
-.lp__fab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  gap: 16rpx;
-  padding: 20rpx 32rpx;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  background-color: var(--card);
-  border-top: 2rpx solid var(--border);
-  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
-  z-index: 50;
-}
-
-.lp__fab-btn {
-  flex: 1;
-  height: 80rpx;
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-
-  &--brand {
-    background-color: var(--primary);
-  }
-
-  &--outline {
-    background-color: var(--card);
-    border: 2rpx solid var(--primary);
-  }
-
-  &:active {
-    opacity: 0.85;
-  }
-}
-
-.lp__fab-text {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: var(--primary);
-
-  &--white {
-    color: #fff;
-  }
 }
 
 /* ============ 底部弹窗(表单/详情) ============ */
