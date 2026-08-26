@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "../components/Layout";
 import Home from "../pages/Home";
 import AntiForgetting from "../pages/AntiForgetting";
@@ -22,7 +22,6 @@ import PreTrainingCheck from "../pages/PreTrainingCheck";
 import ReviewCheck from "../pages/ReviewCheck";
 import ReviewWordList from "../pages/ReviewWordList";
 import WordPractice from "../pages/WordPractice";
-import WordReview from "../pages/WordReview";
 import FlashReview from "../pages/FlashReview";
 import PostTrainingCheck from "../pages/PostTrainingCheck";
 import ListenIdentify from "../pages/ListenIdentify";
@@ -285,7 +284,7 @@ export const router = createBrowserRouter(
     path: "/word-review",
     element: (
       <RequireAuth>
-        <WordReview />
+        <Navigate to="/word-practice" replace />
       </RequireAuth>
     ),
   },

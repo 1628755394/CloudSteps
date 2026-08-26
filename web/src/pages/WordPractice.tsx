@@ -13,8 +13,11 @@ import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel"
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
-import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+import { syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
+import { buildWordPracticeSequence } from "../utils/wordPracticeSequence";
+import { getPracticeTapState } from "../utils/wordPracticeTap";
+import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 
 type PracticeWord = {
   id: number;
@@ -47,51 +50,15 @@ export default function WordPractice() {
 
   const [audioIndexMap, setAudioIndexMap] = useState<Map<number, number>>(new Map());
 
-  // ---- Split-screen 随心记 state (mirrors ReviewWordList) ----
-  const [globalNoteOpen, setGlobalNoteOpen] = useState(false);
-  const [noteSide, setNoteSide] = useState<"left" | "right">("right");
-  const [noteWidth, setNoteWidth] = useState(() => {
-    try {
-      const raw = localStorage.getItem("lb_practice_note_width");
-      if (raw) {
-        const n = Number(raw);
-        if (Number.isFinite(n)) return Math.max(200, n);
-      }
-    } catch { /* ignore */ }
-    return 420;
-  });
-  const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
-  useEffect(() => {
-    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const startNoteResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startX = e.clientX;
-    const startW = noteWidth;
-    let latestW = startW;
-    document.body.style.userSelect = "none";
-    document.body.style.cursor = "ew-resize";
-    const onMove = (ev: PointerEvent) => {
-      ev.preventDefault();
-      const delta = ev.clientX - startX;
-      const next = Math.max(200, startW + (noteSide === "right" ? -delta : delta));
-      latestW = next;
-      setNoteWidth(next);
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-      try { localStorage.setItem("lb_practice_note_width", String(latestW)); } catch { /* ignore */ }
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }, [noteWidth, noteSide]);
+  const {
+    open: globalNoteOpen,
+    setOpen: setGlobalNoteOpen,
+    side: noteSide,
+    setSide: setNoteSide,
+    width: noteWidth,
+    isDesktop,
+    startResize: startNoteResize,
+  } = useSplitScreenNote("lb_practice_note_width");
 
   const handlePlayNextAudio = (word: PracticeWord) => {
     if (!word.audioUrl) return;
@@ -184,17 +151,7 @@ export default function WordPractice() {
     }
   }, [batchIdx, mode]);
 
-  const sequence = useMemo(() => {
-    const n = words.length;
-    if (n <= 0) return [] as number[];
-    const result = [0];
-    for (let end = 1; end < n; end++) {
-      const start = end === 2 ? 0 : 1;
-      for (let index = start; index <= end; index++) result.push(index);
-      for (let index = end - 1; index >= 0; index--) result.push(index);
-    }
-    return result;
-  }, [words]);
+  const sequence = useMemo(() => buildWordPracticeSequence(words.length), [words.length]);
 
   const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : -1;
   const nextGuideIndex = activeIndex;
@@ -205,10 +162,7 @@ export default function WordPractice() {
     if (idx < 0) return;
     const followsGuide = sequence.length > 0 && idx === activeIndex;
     const isContinuation = lastTappedIndexRef.current === idx;
-    const next = nextWordTapState({
-      showTranslation: isContinuation ? word.showTranslation : false,
-      heard: isContinuation ? word.heard : false,
-    });
+    const next = getPracticeTapState(idx, lastTappedIndexRef.current, word);
     lastTappedIndexRef.current = idx;
     if (next.shouldPlay && word.audioUrl) {
       abortRef.current?.();
