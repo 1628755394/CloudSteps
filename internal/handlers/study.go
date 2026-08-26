@@ -59,15 +59,27 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	endOfToday := startOfToday.Add(24 * time.Hour)
 
+	// 待学：与训前检测列表一致——词库中尚未 learned/mastered 的词
+	if step == "pending" {
+		if wordBookID <= 0 {
+			response.SuccessMsg(c, "success", gin.H{"words": []models.WordLite{}, "total": 0})
+			return
+		}
+		words, total, err := models.ListStudyWordsLite(db, uint(wordBookID), user.ID, page, pageSize, false, 0)
+		if err != nil {
+			response.Fail(c, "查询失败", err)
+			return
+		}
+		response.SuccessMsg(c, "success", gin.H{"words": words, "total": total})
+		return
+	}
+
 	var stateWhere string
 	var stateArgs []any
 	switch {
 	case step == "today":
 		stateWhere = "uws.user_id = ? AND uws.first_learned_at IS NOT NULL AND uws.first_learned_at >= ? AND uws.first_learned_at < ?"
 		stateArgs = []any{user.ID, startOfToday, endOfToday}
-	case step == "pending":
-		stateWhere = "uws.user_id = ? AND uws.screen_result = ? AND uws.learn_status = ?"
-		stateArgs = []any{user.ID, "unknown", "pending"}
 	case step == "mastered":
 		stateWhere = "uws.user_id = ? AND uws.learn_status = ?"
 		stateArgs = []any{user.ID, "mastered"}

@@ -72,7 +72,6 @@ func computeStudyLighthouse(db *gorm.DB, userID uint, wordBookID int) gin.H {
 	}
 	type aggRow struct {
 		TodayNewLearned int64 `gorm:"column:today_new"`
-		PendingCount    int64 `gorm:"column:pending_cnt"`
 		MasteredCount   int64 `gorm:"column:mastered_cnt"`
 	}
 
@@ -98,10 +97,30 @@ func computeStudyLighthouse(db *gorm.DB, userID uint, wordBookID int) gin.H {
 	var agg aggRow
 	_ = scope(db.Model(&models.UserWordState{})).
 		Select(`SUM(CASE WHEN first_learned_at IS NOT NULL AND first_learned_at >= ? AND first_learned_at < ? THEN 1 ELSE 0 END) AS today_new,
-			SUM(CASE WHEN screen_result = ? AND learn_status = ? THEN 1 ELSE 0 END) AS pending_cnt,
 			SUM(CASE WHEN learn_status = ? THEN 1 ELSE 0 END) AS mastered_cnt`,
-			startOfToday, endOfToday, "unknown", "pending", "mastered").
+			startOfToday, endOfToday, "mastered").
 		Scan(&agg).Error
+
+	// 待学 = 词库中尚未 learned/mastered 的单词数（未入状态表的也算待学）
+	var pendingCount int64
+	if wordBookID > 0 {
+		totalWords, err := models.GetWordCountByBookID(db, uint(wordBookID))
+		if err == nil {
+			var done int64
+			_ = db.Model(&models.UserWordState{}).
+				Where("user_id = ? AND word_book_id = ? AND learn_status IN ?", userID, uint(wordBookID), []string{"learned", "mastered"}).
+				Count(&done).Error
+			pendingCount = totalWords - done
+			if pendingCount < 0 {
+				pendingCount = 0
+			}
+		}
+	} else {
+		// 无词库时退回：仅统计已产生 unknown+pending 状态的行（无法推断全库未学数）
+		_ = scope(db.Model(&models.UserWordState{})).
+			Where("screen_result = ? AND learn_status = ?", "unknown", "pending").
+			Count(&pendingCount).Error
+	}
 
 	days := make([]dayItem, 0, 7)
 	intervals := models.EbbinghausIntervals
@@ -119,7 +138,7 @@ func computeStudyLighthouse(db *gorm.DB, userID uint, wordBookID int) gin.H {
 
 	return gin.H{
 		"days":            days,
-		"pendingCount":    agg.PendingCount,
+		"pendingCount":    pendingCount,
 		"masteredCount":   agg.MasteredCount,
 		"todayNewLearned": agg.TodayNewLearned,
 	}

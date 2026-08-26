@@ -582,6 +582,12 @@ export default function PreTrainingCheck() {
             )}
           </div>
           <div className="flex gap-2">
+            {shuffleMode && (
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
+                <Shuffle size={16} />
+                重新乱序
+              </CloudButton>
+            )}
             {shuffleMode ? (
               <CloudButton variant="outline" size="pill" onClick={handleSequential}>
                 <ArrowDownAZ size={16} />
