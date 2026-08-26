@@ -1,15 +1,21 @@
 /**
- * 备课页(tab) — 对齐 web/src/pages/Home.tsx + CoachingSchedulePanel.tsx。
+ * 备课页(tab) — 学校课表样式。
  *
- * 教练视角:陪练排课面板(周切换 + 下一节课卡片 + 统计 + 排课列表 + 开始/下课/删除)
- * 学生视角:我的课表(周切换 + 待上课程列表)
+ * 布局:
+ *  1. 顶部:标题 + 周切换(上一周/本周/下一周)
+ *  2. 课表网格:
+ *     - 左侧第一列:时间段(第1节~第8节,对应 08:00~20:00)
+ *     - 顶部第一行:周一~周日(带日期)
+ *     - 格子:有课则显示课程卡片(标题+学员+状态色),无课空白
+ *     - 高亮当天所在列
+ *  3. 点击课程卡片:教练可开始/下课/删除;学生查看详情
+ *  4. 教练:底部浮动按钮(新建排课/添加学员) + 弹出表单
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Image, Picker, Input } from '@tarojs/components'
+import { View, Text, ScrollView, Picker, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Clock, Right, Plus, Refresh } from '@nutui/icons-react-taro'
-import { useAuthStore } from '../../stores/authStore'
-import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { Plus, Right } from '@nutui/icons-react-taro'
+import { useAuthStore } from '@/stores/authStore'
 import {
   getTeacherCoachingWeek,
   getStudentCoachingWeek,
@@ -23,12 +29,13 @@ import {
   type CoachingWeekSchedule,
   type TeacherCoachingQuotaRow,
   type CoachingStudentSearchResult,
-} from '../../api/coaching'
-import { CloudButton } from '../../components/button'
+} from '@/api/coaching'
+import { CloudButton } from '@/components/button'
 import './index.scss'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 const fmtYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+const fmtMD = (d: Date) => `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`
 
 function addDays(d: Date, n: number) {
   const x = new Date(d)
@@ -49,21 +56,20 @@ function studentLabel(s?: { displayName?: string; username?: string }, fallbackI
   return s?.displayName || s?.username || (fallbackId ? `学员 #${fallbackId}` : '学员')
 }
 
-function parseSlotEnd(scheduledDate: string, endTime: string): Date | null {
-  try {
-    const dt = new Date(`${scheduledDate.slice(0, 10)}T${endTime.length === 5 ? endTime : endTime.slice(0, 5)}:00`)
-    if (Number.isNaN(dt.getTime())) return null
-    return dt
-  } catch {
-    return null
-  }
-}
+/* 课表节次定义 */
+const PERIODS = [
+  { label: '第1节', start: '08:00', end: '09:00' },
+  { label: '第2节', start: '09:00', end: '10:00' },
+  { label: '第3节', start: '10:00', end: '11:00' },
+  { label: '第4节', start: '11:00', end: '12:00' },
+  { label: '第5节', start: '14:00', end: '15:00' },
+  { label: '第6节', start: '15:00', end: '16:00' },
+  { label: '第7节', start: '16:00', end: '17:00' },
+  { label: '第8节', start: '19:00', end: '20:00' },
+  { label: '第9节', start: '20:00', end: '21:00' },
+]
 
-function minutesUntilEnd(scheduledDate: string, endTime: string, nowTs: number): number | null {
-  const end = parseSlotEnd(scheduledDate, endTime)
-  if (!end) return null
-  return Math.max(0, Math.ceil((end.getTime() - nowTs) / 60000))
-}
+const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
 
 const STATUS_LABEL: Record<string, string> = {
   scheduled: '待上课',
@@ -72,7 +78,20 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: '已取消',
 }
 
-export default function Home() {
+const STATUS_COLOR: Record<string, string> = {
+  scheduled: '#4ECDC4',
+  in_progress: '#55A3FF',
+  completed: '#a4a097',
+  cancelled: '#e03131',
+}
+
+/** 判断课程属于哪个节次(按 startTime 匹配) */
+function findPeriodIndex(startTime: string): number {
+  const idx = PERIODS.findIndex((p) => p.start === startTime)
+  return idx >= 0 ? idx : -1
+}
+
+export default function LessonPrep() {
   const user = useAuthStore((s) => s.user)
   const role = (user as { role?: string } | null)?.role || 'user'
   const isStudent = role === 'student'
@@ -86,6 +105,7 @@ export default function Home() {
 
   // 教练: 新建排课表单
   const [showScheduleForm, setShowScheduleForm] = useState(false)
+  const [showStudentForm, setShowStudentForm] = useState(false)
   const [quotas, setQuotas] = useState<TeacherCoachingQuotaRow[]>([])
   const [aStudent, setAStudent] = useState('')
   const [aDate, setADate] = useState(fmtYMD(new Date()))
@@ -95,7 +115,6 @@ export default function Home() {
   const [creatingAppt, setCreatingAppt] = useState(false)
 
   // 教练: 添加学员表单
-  const [showStudentForm, setShowStudentForm] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [searchResults, setSearchResults] = useState<CoachingStudentSearchResult[]>([])
   const [searching, setSearching] = useState(false)
@@ -103,29 +122,51 @@ export default function Home() {
   const [quotaMinutes, setQuotaMinutes] = useState(60)
   const [addingStudent, setAddingStudent] = useState(false)
 
+  // 选中的课程(点击卡片后弹出详情)
+  const [selectedSchedule, setSelectedSchedule] = useState<CoachingWeekSchedule | null>(null)
+
   const weekMon = useMemo(() => weekMonday(weekAnchor), [weekAnchor])
-  const weekSun = useMemo(() => addDays(weekMon, 6), [weekMon])
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekMon, i)),
+    [weekMon],
+  )
   const weekRangeLabel = useMemo(
-    () => `${fmtYMD(weekMon).replace(/-/g, '.')} – ${fmtYMD(weekSun).replace(/-/g, '.')}`,
-    [weekMon, weekSun],
+    () => `${fmtYMD(weekMon).replace(/-/g, '.')} – ${fmtYMD(addDays(weekMon, 6)).replace(/-/g, '.')}`,
+    [weekMon],
   )
 
-  const activeSchedules = useMemo(
-    () => schedules.filter((s) => s.status === 'scheduled' || s.status === 'in_progress'),
+  const todayYMD = fmtYMD(new Date())
+
+  // 把 schedules 按 (dayIndex, periodIndex) 组织成网格
+  const grid = useMemo(() => {
+    const g: (CoachingWeekSchedule | null)[][] = Array.from(
+      { length: PERIODS.length },
+      () => Array(7).fill(null),
+    )
+    schedules.forEach((s) => {
+      const sDate = s.scheduledDate?.slice?.(0, 10) || s.scheduledDate
+      const dayIdx = weekDays.findIndex((d) => fmtYMD(d) === sDate)
+      if (dayIdx < 0) return
+      const pIdx = findPeriodIndex(s.startTime)
+      if (pIdx < 0) {
+        // 不在标准节次里,找最近的
+        const near = PERIODS.reduce((best, p, i) => {
+          const diff = Math.abs(p.start.localeCompare(s.startTime))
+          return diff < best.diff ? { idx: i, diff } : best
+        }, { idx: 0, diff: Infinity })
+        if (!g[near.idx][dayIdx]) g[near.idx][dayIdx] = s
+        return
+      }
+      // 如果格子已被占,保留第一个
+      if (!g[pIdx][dayIdx]) g[pIdx][dayIdx] = s
+    })
+    return g
+  }, [schedules, weekDays])
+
+  const activeCount = useMemo(
+    () => schedules.filter((s) => s.status === 'scheduled' || s.status === 'in_progress').length,
     [schedules],
   )
-
-  const nextClass = useMemo(() => {
-    const inProgress = activeSchedules.find((s) => s.status === 'in_progress')
-    if (inProgress) return inProgress
-    const upcoming = activeSchedules
-      .filter((s) => s.status === 'scheduled')
-      .find((s) => {
-        const end = parseSlotEnd(s.scheduledDate, s.endTime)
-        return !end || end.getTime() >= nowTs
-      })
-    return upcoming || activeSchedules.find((s) => s.status === 'scheduled')
-  }, [activeSchedules, nowTs])
 
   const loadWeek = useCallback(async () => {
     const ref = fmtYMD(weekAnchor)
@@ -165,7 +206,6 @@ export default function Home() {
     [quotas],
   )
 
-  // 教练操作
   const onStart = async (id: number) => {
     setPendingAction((p) => ({ ...p, [id]: 'start' }))
     try {
@@ -175,6 +215,7 @@ export default function Home() {
         return
       }
       Taro.showToast({ title: '已开始上课', icon: 'success' })
+      setSelectedSchedule(null)
       void loadWeek()
       Taro.navigateTo({ url: '/pages/material-selection/index' })
     } catch {
@@ -193,6 +234,7 @@ export default function Home() {
         return
       }
       Taro.showToast({ title: '已下课', icon: 'success' })
+      setSelectedSchedule(null)
       void loadWeek()
     } catch {
       Taro.showToast({ title: '下课失败', icon: 'none' })
@@ -216,6 +258,7 @@ export default function Home() {
             return
           }
           Taro.showToast({ title: '已删除', icon: 'success' })
+          setSelectedSchedule(null)
           void loadWeek()
         } catch {
           Taro.showToast({ title: '删除失败', icon: 'none' })
@@ -307,319 +350,311 @@ export default function Home() {
   }
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || '同学'
-  const avatarUrl = resolveMediaUrl(user?.avatar)
-  const avatarText = (displayName || '?').charAt(0).toUpperCase()
-
-  const renderScheduleCard = (s: CoachingWeekSchedule) => {
-    const st = s.status
-    const canStart = st === 'scheduled'
-    const canEnd = st === 'in_progress'
-    const canEnter = st === 'in_progress'
-    const slotEnd = parseSlotEnd(s.scheduledDate, s.endTime)
-    const isPastSlot = st === 'scheduled' && !!slotEnd && slotEnd.getTime() < nowTs
-    const minsLeft = st === 'in_progress' ? minutesUntilEnd(s.scheduledDate, s.endTime, nowTs) : null
-    const pa = pendingAction[s.id] ?? null
-
-    return (
-      <View
-        key={s.id}
-        className={`lp__schedule-card ${canEnter ? 'lp__schedule-card--clickable' : ''}`}
-        onClick={() => canEnter && Taro.navigateTo({ url: '/pages/material-selection/index' })}
-      >
-        <View className="lp__schedule-main">
-          <Text className="lp__schedule-title">{s.title || `排课 #${s.id}`}</Text>
-          <View className="lp__schedule-meta">
-            <View className="lp__schedule-meta-item">
-              <Clock size={14} color="#787671" />
-              <Text className="lp__schedule-meta-text">
-                {s.scheduledDate?.slice?.(0, 10) || s.scheduledDate} · {s.startTime}–{s.endTime}
-              </Text>
-            </View>
-            {s.students && s.students.length > 0 && (
-              <View className="lp__schedule-meta-item">
-                <Text className="lp__schedule-meta-text">{s.students.join('、')}</Text>
-              </View>
-            )}
-          </View>
-          {st === 'scheduled' && !isPastSlot && (
-            <Text className="lp__schedule-hint lp__schedule-hint--mint">可提前开始上课</Text>
-          )}
-          {isPastSlot && (
-            <Text className="lp__schedule-hint lp__schedule-hint--muted">计划时段已过，仍可开始或删除</Text>
-          )}
-          {st === 'in_progress' && minsLeft != null && (
-            <Text className="lp__schedule-hint lp__schedule-hint--mint">
-              上课中 · 距结束约 {minsLeft} 分钟
-            </Text>
-          )}
-        </View>
-        <View className="lp__schedule-actions">
-          {st === 'scheduled' && (
-            <View
-              className="lp__schedule-btn lp__schedule-btn--danger"
-              onClick={(e) => { e.stopPropagation(); onDelete(s.id) }}
-            >
-              <Text className="lp__schedule-btn-text lp__schedule-btn-text--danger">删除</Text>
-            </View>
-          )}
-          {canStart && (
-            <CloudButton
-              variant="brand"
-              size="sm"
-              loading={pa === 'start'}
-              disabled={pa !== null}
-              onClick={(e: any) => { e.stopPropagation(); onStart(s.id) }}
-            >
-              开始上课
-            </CloudButton>
-          )}
-          {canEnd && (
-            <CloudButton
-              variant="destructive"
-              size="sm"
-              loading={pa === 'end'}
-              disabled={pa !== null}
-              onClick={(e: any) => { e.stopPropagation(); onEnd(s.id) }}
-            >
-              下课
-            </CloudButton>
-          )}
-        </View>
-      </View>
-    )
-  }
 
   return (
-    <ScrollView className="lp" scrollY enableFlex>
-      {/* 顶部欢迎区 + 头像入口 */}
-      <View className="lp__hero">
-        <View className="lp__hero-info">
-          <Text className="lp__greeting">{isCoach ? '陪练排课' : '我的课表'}</Text>
-          <Text className="lp__week-range">{weekRangeLabel}</Text>
+    <View className="lp">
+      {/* 顶部标题 + 周切换 */}
+      <View className="lp__header">
+        <View className="lp__header-top">
+          <View className="lp__header-info">
+            <Text className="lp__title">{isCoach ? '陪练排课' : '我的课表'}</Text>
+            <Text className="lp__week-range">{weekRangeLabel}</Text>
+          </View>
+          <View className="lp__header-count">
+            <Text className="lp__count-num">{activeCount}</Text>
+            <Text className="lp__count-label">待上</Text>
+          </View>
         </View>
-        <View
-          className="lp__hero-avatar"
-          onClick={() => Taro.navigateTo({ url: '/pages/profile/index' })}
-        >
-          {avatarUrl ? (
-            <Image className="lp__avatar-img" src={avatarUrl} mode="aspectFill" />
+        <View className="lp__week-nav">
+          <View className="lp__week-nav-btn" onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}>
+            <Text className="lp__week-nav-text">‹ 上一周</Text>
+          </View>
+          <View className="lp__week-nav-btn lp__week-nav-btn--center" onClick={() => setWeekAnchor(new Date())}>
+            <Text className="lp__week-nav-text lp__week-nav-text--primary">本周</Text>
+          </View>
+          <View className="lp__week-nav-btn" onClick={() => setWeekAnchor(addDays(weekAnchor, 7))}>
+            <Text className="lp__week-nav-text">下一周 ›</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 课表网格 */}
+      <ScrollView className="lp__grid-scroll" scrollX scrollY enableFlex>
+        <View className="lp__grid">
+          {/* 表头:节次 + 周一~周日 */}
+          <View className="lp__grid-row lp__grid-row--header">
+            <View className="lp__grid-cell lp__grid-cell--corner">
+              <Text className="lp__corner-text">节次</Text>
+            </View>
+            {weekDays.map((d, i) => {
+              const ymd = fmtYMD(d)
+              const isToday = ymd === todayYMD
+              return (
+                <View key={i} className={`lp__grid-cell lp__grid-cell--dayhead ${isToday ? 'lp__grid-cell--today' : ''}`}>
+                  <Text className={`lp__day-label ${isToday ? 'lp__day-label--today' : ''}`}>周{WEEKDAY_LABELS[i]}</Text>
+                  <Text className={`lp__day-date ${isToday ? 'lp__day-date--today' : ''}`}>{fmtMD(d)}</Text>
+                </View>
+              )
+            })}
+          </View>
+
+          {/* 每个节次一行 */}
+          {loading ? (
+            <View className="lp__grid-loading">
+              <Text className="lp__grid-loading-text">加载中...</Text>
+            </View>
           ) : (
-            <Text className="lp__avatar-text">{avatarText}</Text>
+            PERIODS.map((period, pIdx) => (
+              <View key={pIdx} className="lp__grid-row">
+                {/* 左侧节次标签 */}
+                <View className="lp__grid-cell lp__grid-cell--period">
+                  <Text className="lp__period-label">{period.label}</Text>
+                  <Text className="lp__period-time">{period.start}</Text>
+                </View>
+                {/* 7 天的格子 */}
+                {weekDays.map((d, dIdx) => {
+                  const s = grid[pIdx][dIdx]
+                  const isToday = fmtYMD(d) === todayYMD
+                  if (!s) {
+                    return (
+                      <View key={dIdx} className={`lp__grid-cell lp__grid-cell--empty ${isToday ? 'lp__grid-cell--today-col' : ''}`} />
+                    )
+                  }
+                  const color = STATUS_COLOR[s.status] || '#4ECDC4'
+                  return (
+                    <View
+                      key={dIdx}
+                      className={`lp__grid-cell lp__grid-cell--lesson ${isToday ? 'lp__grid-cell--today-col' : ''}`}
+                      onClick={() => setSelectedSchedule(s)}
+                    >
+                      <View className="lp__lesson-card" style={{ borderLeftColor: color }}>
+                        <Text className="lp__lesson-title" numberOfLines={2}>{s.title || '课程'}</Text>
+                        {s.students && s.students.length > 0 && (
+                          <Text className="lp__lesson-student" numberOfLines={1}>{s.students[0]}</Text>
+                        )}
+                        <View className="lp__lesson-status" style={{ backgroundColor: `${color}1a` }}>
+                          <Text className="lp__lesson-status-text" style={{ color }}>{STATUS_LABEL[s.status] || s.status}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )
+                })}
+              </View>
+            ))
           )}
         </View>
-      </View>
+      </ScrollView>
 
-      {/* 周切换 */}
-      <View className="lp__week-nav">
-        <View className="lp__week-nav-btn" onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}>
-          <Text className="lp__week-nav-text">上一周</Text>
-        </View>
-        <View className="lp__week-nav-btn" onClick={() => setWeekAnchor(new Date())}>
-          <Text className="lp__week-nav-text lp__week-nav-text--primary">本周</Text>
-        </View>
-        <View className="lp__week-nav-btn" onClick={() => setWeekAnchor(addDays(weekAnchor, 7))}>
-          <Text className="lp__week-nav-text">下一周</Text>
-        </View>
-      </View>
-
-      {/* 教练: 下一节课 + 统计 */}
-      {isCoach && (
-        <View className="lp__coach-grid">
-          <View
-            className={`lp__next-card ${!nextClass ? 'lp__next-card--disabled' : ''}`}
-            onClick={() => {
-              if (!nextClass) return
-              if (nextClass.status === 'in_progress') {
-                Taro.navigateTo({ url: '/pages/material-selection/index' })
-              } else {
-                onStart(nextClass.id)
-              }
-            }}
-          >
-            {nextClass ? (
-              <>
-                <Text className="lp__next-title">
-                  {nextClass.title || nextClass.students?.[0] || '当前课程'}
-                </Text>
-                <Text className="lp__next-meta">
-                  {nextClass.scheduledDate?.slice(0, 10)} · {nextClass.startTime}–{nextClass.endTime}
-                </Text>
-              </>
-            ) : (
-              <Text className="lp__next-title lp__next-title--muted">暂无待上课程</Text>
-            )}
+      {/* 教练: 底部浮动操作按钮 */}
+      {isCoach && !showScheduleForm && !showStudentForm && (
+        <View className="lp__fab-bar">
+          <View className="lp__fab-btn lp__fab-btn--brand" onClick={() => { setShowStudentForm(false); setShowScheduleForm(true) }}>
+            <Plus size={18} color="#fff" />
+            <Text className="lp__fab-text lp__fab-text--white">新建排课</Text>
           </View>
-          <View className="lp__stat-card">
-            <View className="lp__stat-header">
-              <Clock size={16} color="#55A3FF" />
-              <Text className="lp__stat-label">待上 / 进行中</Text>
-            </View>
-            <Text className="lp__stat-value">{activeSchedules.length}</Text>
+          <View className="lp__fab-btn lp__fab-btn--outline" onClick={() => { setShowScheduleForm(false); setShowStudentForm(true) }}>
+            <Plus size={18} color="#4ECDC4" />
+            <Text className="lp__fab-text">添加学员</Text>
           </View>
         </View>
       )}
 
-      {/* 教练: 新建排课 / 添加学员 */}
-      {isCoach && (
-        <View className="lp__action-grid">
-          <View
-            className="lp__action-btn lp__action-btn--brand"
-            onClick={() => { setShowStudentForm(false); setShowScheduleForm((v) => !v) }}
-          >
-            <Plus size={16} color="#fff" />
-            <Text className="lp__action-btn-text lp__action-btn-text--white">新建排课</Text>
-          </View>
-          <View
-            className="lp__action-btn lp__action-btn--outline"
-            onClick={() => { setShowScheduleForm(false); setShowStudentForm((v) => !v) }}
-          >
-            <Plus size={16} color="#4ECDC4" />
-            <Text className="lp__action-btn-text">添加学员</Text>
-          </View>
-        </View>
-      )}
-
-      {/* 教练: 新建排课表单 */}
+      {/* 教练: 新建排课表单(底部弹窗) */}
       {isCoach && showScheduleForm && (
-        <View className="lp__form-card">
-          <Text className="lp__form-title">新建排课</Text>
-          <View className="lp__form-row">
-            <Text className="lp__form-label">学员</Text>
-            <Picker
-              mode="selector"
-              range={studentOptions.map((o) => o.label)}
-              value={Math.max(0, studentOptions.findIndex((o) => o.value === aStudent))}
-              onChange={(e) => {
-                const idx = Number(e.detail.value)
-                if (studentOptions[idx]) setAStudent(studentOptions[idx].value)
-              }}
-            >
-              <View className="lp__form-picker">
-                <Text className={aStudent ? 'lp__form-picker-text' : 'lp__form-picker-text lp__form-picker-text--placeholder'}>
-                  {aStudent
-                    ? studentOptions.find((o) => o.value === aStudent)?.label || '选择学员'
-                    : studentOptions.length ? '选择学员' : '请先添加学员'}
-                </Text>
-                <Right size={14} color="#a4a097" />
-              </View>
-            </Picker>
-          </View>
-          <View className="lp__form-row">
-            <Text className="lp__form-label">日期</Text>
-            <Picker
-              mode="date"
-              value={aDate}
-              onChange={(e) => setADate(String(e.detail.value))}
-            >
-              <View className="lp__form-picker">
-                <Text className="lp__form-picker-text">{aDate}</Text>
-                <Right size={14} color="#a4a097" />
-              </View>
-            </Picker>
-          </View>
-          <View className="lp__form-row lp__form-row--two">
-            <View className="lp__form-col">
-              <Text className="lp__form-label">开始</Text>
+        <View className="lp__modal-mask" onClick={() => setShowScheduleForm(false)}>
+          <View className="lp__modal-sheet" onClick={(e) => e.stopPropagation()}>
+            <View className="lp__modal-header">
+              <Text className="lp__modal-title">新建排课</Text>
+              <Text className="lp__modal-close" onClick={() => setShowScheduleForm(false)}>关闭</Text>
+            </View>
+            <View className="lp__form-row">
+              <Text className="lp__form-label">学员</Text>
               <Picker
-                mode="time"
-                value={aStart}
-                onChange={(e) => setAStart(String(e.detail.value))}
+                mode="selector"
+                range={studentOptions.map((o) => o.label)}
+                value={Math.max(0, studentOptions.findIndex((o) => o.value === aStudent))}
+                onChange={(e) => {
+                  const idx = Number(e.detail.value)
+                  if (studentOptions[idx]) setAStudent(studentOptions[idx].value)
+                }}
               >
                 <View className="lp__form-picker">
-                  <Text className="lp__form-picker-text">{aStart}</Text>
+                  <Text className={aStudent ? 'lp__form-picker-text' : 'lp__form-picker-text lp__form-picker-text--placeholder'}>
+                    {aStudent
+                      ? studentOptions.find((o) => o.value === aStudent)?.label || '选择学员'
+                      : studentOptions.length ? '选择学员' : '请先添加学员'}
+                  </Text>
                   <Right size={14} color="#a4a097" />
                 </View>
               </Picker>
             </View>
-            <View className="lp__form-col">
-              <Text className="lp__form-label">结束</Text>
-              <Picker
-                mode="time"
-                value={aEnd}
-                onChange={(e) => setAEnd(String(e.detail.value))}
-              >
+            <View className="lp__form-row">
+              <Text className="lp__form-label">日期</Text>
+              <Picker mode="date" value={aDate} onChange={(e) => setADate(String(e.detail.value))}>
                 <View className="lp__form-picker">
-                  <Text className="lp__form-picker-text">{aEnd}</Text>
+                  <Text className="lp__form-picker-text">{aDate}</Text>
                   <Right size={14} color="#a4a097" />
                 </View>
               </Picker>
             </View>
+            <View className="lp__form-row lp__form-row--two">
+              <View className="lp__form-col">
+                <Text className="lp__form-label">开始</Text>
+                <Picker mode="time" value={aStart} onChange={(e) => setAStart(String(e.detail.value))}>
+                  <View className="lp__form-picker">
+                    <Text className="lp__form-picker-text">{aStart}</Text>
+                    <Right size={14} color="#a4a097" />
+                  </View>
+                </Picker>
+              </View>
+              <View className="lp__form-col">
+                <Text className="lp__form-label">结束</Text>
+                <Picker mode="time" value={aEnd} onChange={(e) => setAEnd(String(e.detail.value))}>
+                  <View className="lp__form-picker">
+                    <Text className="lp__form-picker-text">{aEnd}</Text>
+                    <Right size={14} color="#a4a097" />
+                  </View>
+                </Picker>
+              </View>
+            </View>
+            <View className="lp__form-row">
+              <Text className="lp__form-label">标题(可选)</Text>
+              <Input
+                className="lp__form-input"
+                value={aTitle}
+                onInput={(e) => setATitle(e.detail.value)}
+                placeholder="如：四级词汇陪练"
+              />
+            </View>
+            <CloudButton variant="brand" loading={creatingAppt} onClick={onCreateAppt}>
+              确认排课
+            </CloudButton>
           </View>
-          <View className="lp__form-row">
-            <Text className="lp__form-label">标题(可选)</Text>
+        </View>
+      )}
+
+      {/* 教练: 添加学员表单(底部弹窗) */}
+      {isCoach && showStudentForm && (
+        <View className="lp__modal-mask" onClick={() => setShowStudentForm(false)}>
+          <View className="lp__modal-sheet" onClick={(e) => e.stopPropagation()}>
+            <View className="lp__modal-header">
+              <Text className="lp__modal-title">添加学员</Text>
+              <Text className="lp__modal-close" onClick={() => setShowStudentForm(false)}>关闭</Text>
+            </View>
             <Input
               className="lp__form-input"
-              value={aTitle}
-              onInput={(e) => setATitle(e.detail.value)}
-              placeholder="如：四级词汇陪练"
+              value={searchQ}
+              onInput={(e) => setSearchQ(e.detail.value)}
+              placeholder="搜索用户名、昵称或手机号"
             />
+            <CloudButton variant="brand" loading={searching} onClick={onSearchStudents}>
+              搜索
+            </CloudButton>
+            {searchResults.length > 0 && (
+              <View className="lp__search-results">
+                {searchResults.map((u) => (
+                  <View
+                    key={u.id}
+                    className={`lp__search-item ${pickedStudent?.id === u.id ? 'lp__search-item--active' : ''}`}
+                    onClick={() => setPickedStudent(u)}
+                  >
+                    <Text className="lp__search-name">{u.displayName || u.username}</Text>
+                    <Text className="lp__search-sub">
+                      {u.username}{u.phone ? ` · ${u.phone}` : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            <View className="lp__form-row">
+              <Text className="lp__form-label">陪练剩余分钟</Text>
+              <Input
+                className="lp__form-input"
+                type="number"
+                value={String(quotaMinutes)}
+                onInput={(e) => setQuotaMinutes(Number(e.detail.value) || 0)}
+              />
+            </View>
+            <CloudButton variant="brand" loading={addingStudent} onClick={onAddStudent}>
+              确认添加
+            </CloudButton>
           </View>
-          <CloudButton variant="brand" loading={creatingAppt} onClick={onCreateAppt}>
-            确认排课
-          </CloudButton>
         </View>
       )}
 
-      {/* 教练: 添加学员表单 */}
-      {isCoach && showStudentForm && (
-        <View className="lp__form-card">
-          <Text className="lp__form-title">添加学员</Text>
-          <Input
-            className="lp__form-input"
-            value={searchQ}
-            onInput={(e) => setSearchQ(e.detail.value)}
-            placeholder="搜索用户名、昵称或手机号"
-          />
-          <CloudButton variant="brand" loading={searching} onClick={onSearchStudents}>
-            搜索
-          </CloudButton>
-          {searchResults.length > 0 && (
-            <View className="lp__search-results">
-              {searchResults.map((u) => (
-                <View
-                  key={u.id}
-                  className={`lp__search-item ${pickedStudent?.id === u.id ? 'lp__search-item--active' : ''}`}
-                  onClick={() => setPickedStudent(u)}
-                >
-                  <Text className="lp__search-name">{u.displayName || u.username}</Text>
-                  <Text className="lp__search-sub">
-                    {u.username}{u.phone ? ` · ${u.phone}` : ''}
+      {/* 课程详情弹窗(点击格子后) */}
+      {selectedSchedule && (
+        <View className="lp__modal-mask" onClick={() => setSelectedSchedule(null)}>
+          <View className="lp__modal-sheet" onClick={(e) => e.stopPropagation()}>
+            <View className="lp__modal-header">
+              <Text className="lp__modal-title">{selectedSchedule.title || '课程详情'}</Text>
+              <Text className="lp__modal-close" onClick={() => setSelectedSchedule(null)}>关闭</Text>
+            </View>
+            <View className="lp__detail-info">
+              <View className="lp__detail-row">
+                <Text className="lp__detail-label">时间</Text>
+                <Text className="lp__detail-value">
+                  {selectedSchedule.scheduledDate?.slice?.(0, 10) || selectedSchedule.scheduledDate} · {selectedSchedule.startTime}–{selectedSchedule.endTime}
+                </Text>
+              </View>
+              {selectedSchedule.students && selectedSchedule.students.length > 0 && (
+                <View className="lp__detail-row">
+                  <Text className="lp__detail-label">学员</Text>
+                  <Text className="lp__detail-value">{selectedSchedule.students.join('、')}</Text>
+                </View>
+              )}
+              <View className="lp__detail-row">
+                <Text className="lp__detail-label">状态</Text>
+                <View className="lp__detail-status" style={{ backgroundColor: `${STATUS_COLOR[selectedSchedule.status] || '#4ECDC4'}1a` }}>
+                  <Text className="lp__detail-status-text" style={{ color: STATUS_COLOR[selectedSchedule.status] || '#4ECDC4' }}>
+                    {STATUS_LABEL[selectedSchedule.status] || selectedSchedule.status}
                   </Text>
                 </View>
-              ))}
+              </View>
             </View>
-          )}
-          <View className="lp__form-row">
-            <Text className="lp__form-label">陪练剩余分钟</Text>
-            <Input
-              className="lp__form-input"
-              type="number"
-              value={String(quotaMinutes)}
-              onInput={(e) => setQuotaMinutes(Number(e.detail.value) || 0)}
-            />
+            {isCoach && (
+              <View className="lp__detail-actions">
+                {selectedSchedule.status === 'scheduled' && (
+                  <>
+                    <CloudButton
+                      variant="brand"
+                      loading={pendingAction[selectedSchedule.id] === 'start'}
+                      disabled={pendingAction[selectedSchedule.id] !== null && pendingAction[selectedSchedule.id] !== undefined}
+                      onClick={() => onStart(selectedSchedule.id)}
+                    >
+                      开始上课
+                    </CloudButton>
+                    <View className="lp__detail-btn-danger" onClick={() => onDelete(selectedSchedule.id)}>
+                      <Text className="lp__detail-btn-danger-text">删除排课</Text>
+                    </View>
+                  </>
+                )}
+                {selectedSchedule.status === 'in_progress' && (
+                  <>
+                    <CloudButton
+                      variant="brand"
+                      onClick={() => {
+                        setSelectedSchedule(null)
+                        Taro.navigateTo({ url: '/pages/material-selection/index' })
+                      }}
+                    >
+                      进入课堂
+                    </CloudButton>
+                    <CloudButton
+                      variant="destructive"
+                      loading={pendingAction[selectedSchedule.id] === 'end'}
+                      disabled={pendingAction[selectedSchedule.id] !== null && pendingAction[selectedSchedule.id] !== undefined}
+                      onClick={() => onEnd(selectedSchedule.id)}
+                    >
+                      下课
+                    </CloudButton>
+                  </>
+                )}
+              </View>
+            )}
           </View>
-          <CloudButton variant="brand" loading={addingStudent} onClick={onAddStudent}>
-            确认添加
-          </CloudButton>
         </View>
       )}
-
-      {/* 课表列表 */}
-      <View className="lp__schedule-list">
-        {loading ? (
-          <View className="lp__state">
-            <Text className="lp__state-text">加载中...</Text>
-          </View>
-        ) : activeSchedules.length === 0 ? (
-          <View className="lp__state">
-            <Text className="lp__state-title">本周暂无待上课程</Text>
-          </View>
-        ) : (
-          activeSchedules.map(renderScheduleCard)
-        )}
-      </View>
-
-      <View style={{ height: '48rpx' }} />
-    </ScrollView>
+    </View>
   )
 }
