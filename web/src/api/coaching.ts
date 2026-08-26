@@ -217,55 +217,6 @@ export const removeStudentWordBookAsTeacher = async (
   return del(`/teacher/coaching/students/${studentId}/wordbooks/${wordBookId}`)
 }
 
-export type StudentWordMarkItem = {
-  id: number
-  wordId: number
-  wordBookId: number
-  word: string
-  phonetic?: string
-  translation?: string
-  audioUrl?: string
-  wordBookName?: string
-  createdAt?: string
-  note?: string
-}
-
-/** 学员被标记单词列表 */
-export const listStudentWordMarksAsTeacher = async (
-  studentId: number,
-  params?: { page?: number; pageSize?: number; keyword?: string }
-): Promise<
-  ApiResponse<{ list: StudentWordMarkItem[]; total: number; page: number; pageSize: number }>
-> => {
-  return get(`/teacher/coaching/students/${studentId}/word-marks`, { params })
-}
-
-/** 批量查询当前组哪些词已被标记 */
-export const getStudentWordMarkIdsAsTeacher = async (
-  studentId: number,
-  wordIds: number[]
-): Promise<ApiResponse<{ markedIds: number[] }>> => {
-  return get(`/teacher/coaching/students/${studentId}/word-marks/ids`, {
-    params: { wordIds: wordIds.filter((id) => id > 0).join(',') },
-  })
-}
-
-/** 为学员标记单词 */
-export const addStudentWordMarkAsTeacher = async (
-  studentId: number,
-  body: { wordId: number; wordBookId?: number; note?: string }
-): Promise<ApiResponse<{ id: number; wordId: number; wordBookId: number; marked: boolean }>> => {
-  return post(`/teacher/coaching/students/${studentId}/word-marks`, body)
-}
-
-/** 取消学员单词标记 */
-export const removeStudentWordMarkAsTeacher = async (
-  studentId: number,
-  wordId: number
-): Promise<ApiResponse<{ wordId: number; marked: boolean }>> => {
-  return del(`/teacher/coaching/students/${studentId}/word-marks/${wordId}`)
-}
-
 export const getStudentCoachingSessionAsTeacher = async (
   studentId: number,
   sessionId: number

@@ -51,10 +51,6 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 		t.GET("/students/:studentId/wordbooks", h.coachingTeacherListStudentWordBooks)
 		t.POST("/students/:studentId/wordbooks", h.coachingTeacherAddStudentWordBook)
 		t.DELETE("/students/:studentId/wordbooks/:wordBookId", h.coachingTeacherRemoveStudentWordBook)
-		t.GET("/students/:studentId/word-marks/ids", h.coachingTeacherStudentWordMarkIDs)
-		t.GET("/students/:studentId/word-marks", h.coachingTeacherListStudentWordMarks)
-		t.POST("/students/:studentId/word-marks", h.coachingTeacherAddStudentWordMark)
-		t.DELETE("/students/:studentId/word-marks/:wordId", h.coachingTeacherRemoveStudentWordMark)
 		t.POST("/appointments/:id/start", h.coachingTeacherStart)
 		t.POST("/appointments/:id/end", h.coachingTeacherEnd)
 		// 无排课练习：按所选学员开课计时并扣额度

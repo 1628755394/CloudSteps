@@ -7,7 +7,6 @@ import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
-import { StudentWordMarkButton, useStudentWordMarks } from "../components/StudentWordMarkButton";
 import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
@@ -112,8 +111,6 @@ export default function WordPractice() {
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
   const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
-  const wordIds = useMemo(() => words.map((w) => w.id), [words]);
-  const wordMarks = useStudentWordMarks(wordIds);
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -371,14 +368,6 @@ export default function WordPractice() {
               </div>
               {!manualReadMode && (
                 <div className="flex items-center justify-center gap-3 border-t border-[#E2E8F0] px-4 py-4">
-                  <StudentWordMarkButton
-                    wordId={cardWord.id}
-                    wordBookId={wordBookId}
-                    marked={wordMarks.isMarked(cardWord.id)}
-                    enabled={wordMarks.enabled}
-                    busy={wordMarks.busyId === cardWord.id}
-                    onToggle={wordMarks.toggle}
-                  />
                   {parseAudioUrls(cardWord.audioUrl).length > 0 && (
                     <CloudButton
                       variant={playingId === cardWord.id ? "mint" : "mintOutline"}
@@ -435,15 +424,6 @@ export default function WordPractice() {
                           className="h-9 px-2"
                         />
                       </div>
-                      <StudentWordMarkButton
-                        wordId={word.id}
-                        wordBookId={wordBookId}
-                        marked={wordMarks.isMarked(word.id)}
-                        enabled={wordMarks.enabled}
-                        busy={wordMarks.busyId === word.id}
-                        onToggle={wordMarks.toggle}
-                        className="size-10"
-                      />
                       {parseAudioUrls(word.audioUrl).length > 0 && (
                         <CloudButton
                           variant={playingId === word.id ? "mint" : "mintOutline"}

@@ -1,7 +1,6 @@
 import { BookOpen, Check, ChevronLeft, ChevronRight, LayoutGrid, List, Volume2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { PRACTICE_TRANS_CLASS, PRACTICE_CARD_WORD_CLASS } from "./PracticeFontSettings";
-import { StudentWordMarkButton, useStudentWordMarks } from "./StudentWordMarkButton";
 import { CloudButton } from "./cloudsteps";
 import { WordDetailPanel } from "./WordDetailPanel";
 import { StudyNoteLauncher } from "./StudyNotePanel";
@@ -153,15 +152,6 @@ export function WordCardPanel({
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
   const [localDetail, setLocalDetail] = useState(false);
-  const wordIds = useMemo(() => words.map((w) => w.id), [words]);
-  const wordMarks = useStudentWordMarks(wordIds);
-  const wordBookId = useMemo(() => {
-    try {
-      return Number(sessionStorage.getItem("lb_wordbook_id") || 0);
-    } catch {
-      return 0;
-    }
-  }, []);
 
   const detailControlled = detailWordId !== undefined;
   const detailOpen = amplifyDetail
@@ -248,14 +238,6 @@ export function WordCardPanel({
         </div>
 
         <div className="flex items-center justify-center gap-4 border-t border-border/60 px-4 py-4">
-          <StudentWordMarkButton
-            wordId={word.id}
-            wordBookId={wordBookId}
-            marked={wordMarks.isMarked(word.id)}
-            enabled={wordMarks.enabled}
-            busy={wordMarks.busyId === word.id}
-            onToggle={wordMarks.toggle}
-          />
           {noteStorageKey && (
             <StudyNoteLauncher
               storageKey={noteStorageKey(word)}
