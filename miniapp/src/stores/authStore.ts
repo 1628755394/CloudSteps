@@ -1,8 +1,8 @@
 /**
  * Auth Store — 对齐 web/src/stores/authStore.ts。
- * 用 Zustand + Taro Storage 持久化(替代 localStorage)。
+ * 用极简 createStore(React 18 useSyncExternalStore)替代 Zustand,
+ * 彻底避免 Taro 构建器把 zustand 的 create 转成 taro.react_production_min.create。
  */
-import { create as createStore } from 'zustand'
 import Taro from '@tarojs/taro'
 import {
   getUserInfo,
@@ -11,6 +11,7 @@ import {
   type RegisterUserForm,
 } from '../api/auth'
 import { setToken, clearToken, getToken } from '../utils/request'
+import { createStore, useStore, type StoreApi } from './createStore'
 
 const USER_KEY = 'auth_user'
 
@@ -19,7 +20,6 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   token: string | null
-  /** 是否已从 storage 恢复 */
   hasHydrated: boolean
 
   setHasHydrated: (hydrated: boolean) => void
@@ -30,18 +30,17 @@ interface AuthState {
   refreshUserInfo: () => Promise<void>
   updateProfile: (data: Partial<User>) => void
   clearUser: () => void
-  /** 从 Taro Storage 恢复状态(启动时调用) */
   hydrate: () => void
 }
 
-export const useAuthStore = createStore<AuthState>((set, get) => ({
+const store: StoreApi<AuthState> = createStore<AuthState>({
   user: null,
   isAuthenticated: false,
   isLoading: false,
   token: null,
   hasHydrated: false,
 
-  setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
+  setHasHydrated: (hydrated) => store.setState({ hasHydrated: hydrated }),
 
   hydrate: () => {
     const token = getToken()
@@ -54,7 +53,7 @@ export const useAuthStore = createStore<AuthState>((set, get) => ({
         user = null
       }
     }
-    set({
+    store.setState({
       token,
       user,
       isAuthenticated: !!token,
@@ -63,23 +62,22 @@ export const useAuthStore = createStore<AuthState>((set, get) => ({
   },
 
   login: async (token, user) => {
-    set({ isLoading: true })
+    store.setState({ isLoading: true })
     try {
       setToken(token)
-      set({
+      store.setState({
         isAuthenticated: true,
         token,
         user: user ?? null,
       })
 
       if (user) {
-        set({ isLoading: false })
-        // 后台静默刷新一次,避免登录接口 user 字段不完整
+        store.setState({ isLoading: false })
         void (async () => {
           try {
             const res = await getUserInfo()
             if (res.code === 200 && res.data) {
-              set({ user: res.data })
+              store.setState({ user: res.data })
               Taro.setStorageSync(USER_KEY, JSON.stringify(res.data))
             }
           } catch {
@@ -89,27 +87,25 @@ export const useAuthStore = createStore<AuthState>((set, get) => ({
         return true
       }
 
-      // 没有 user,主动拉一次
       try {
         const res = await getUserInfo()
         if (res.code === 200 && res.data) {
-          set({ user: res.data, isLoading: false })
+          store.setState({ user: res.data, isLoading: false })
           Taro.setStorageSync(USER_KEY, JSON.stringify(res.data))
           return true
         }
       } catch {
         // ignore
       }
-      set({ isLoading: false })
+      store.setState({ isLoading: false })
       return false
     } catch {
-      set({ isLoading: false })
+      store.setState({ isLoading: false })
       return false
     }
   },
 
   register: async (data) => {
-    // 注册逻辑由页面层调用 registerUser API 处理,这里只做状态转换
     void data
     return true
   },
@@ -120,16 +116,16 @@ export const useAuthStore = createStore<AuthState>((set, get) => ({
     } catch {
       // ignore
     }
-    get().clearUser()
+    store.getState().clearUser()
   },
 
-  setLoading: (loading) => set({ isLoading: loading }),
+  setLoading: (loading) => store.setState({ isLoading: loading }),
 
   refreshUserInfo: async () => {
     try {
       const res = await getUserInfo()
       if (res.code === 200 && res.data) {
-        set({ user: res.data })
+        store.setState({ user: res.data })
         Taro.setStorageSync(USER_KEY, JSON.stringify(res.data))
       }
     } catch {
@@ -138,16 +134,27 @@ export const useAuthStore = createStore<AuthState>((set, get) => ({
   },
 
   updateProfile: (data) => {
-    const current = get().user
+    const current = store.getState().user
     if (!current) return
     const updated = { ...current, ...data }
-    set({ user: updated })
+    store.setState({ user: updated })
     Taro.setStorageSync(USER_KEY, JSON.stringify(updated))
   },
 
   clearUser: () => {
     clearToken()
     Taro.removeStorageSync(USER_KEY)
-    set({ user: null, isAuthenticated: false, token: null })
+    store.setState({ user: null, isAuthenticated: false, token: null })
   },
-}))
+})
+
+/**
+ * Hook:用法跟 zustand 一致。
+ *   const user = useAuthStore((s) => s.user)
+ */
+export function useAuthStore<S>(selector: (state: AuthState) => S): S {
+  return useStore(store, selector)
+}
+
+/** 直接访问 store API(非 hook 场景) */
+export const authStore = store
