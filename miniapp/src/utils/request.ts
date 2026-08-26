@@ -53,10 +53,16 @@ function handleAuthExpired(msg: string): void {
   if (AUTH_EXPIRED_HANDLING_FLAG.current) return
   AUTH_EXPIRED_HANDLING_FLAG.current = true
   clearToken()
+  // 同步清除 authStore 持久化数据,避免下次进入仍认为已登录
+  try {
+    Taro.removeStorageSync('auth_user')
+  } catch {
+    /* ignore */
+  }
   Taro.showToast({ title: msg || '登录已过期,请重新登录', icon: 'none', duration: 1500 })
   setTimeout(() => {
     AUTH_EXPIRED_HANDLING_FLAG.current = false
-    Taro.reLaunch({ url: '/pages/home/index' })
+    Taro.reLaunch({ url: '/pages/login/index' })
   }, 1200)
 }
 
