@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft, Right, Clock, List } from '@nutui/icons-react-taro'
+// ArrowLeft used in date navigation arrows
 import { CloudButton } from '../../components/button'
 import { listReviewBooksByDate, type ReviewBookStatRow } from '../../api/review'
 import './index.scss'
@@ -88,15 +89,6 @@ export default function AntiForgetting() {
 
   return (
     <View className="anti">
-      {/* 顶部导航栏 */}
-      <View className="anti__navbar">
-        <View className="anti__nav-btn" onClick={() => Taro.navigateBack()}>
-          <ArrowLeft size={22} color="#37352f" />
-        </View>
-        <Text className="anti__nav-title">防遗忘</Text>
-        <View className="anti__nav-btn" />
-      </View>
-
       <ScrollView className="anti__body" scrollY enableFlex>
         {/* 日期选择卡片 */}
         <View className="anti__date-card">

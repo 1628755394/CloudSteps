@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: '教练',
+  navigationBarTitleText: '陪练中心',
 })
