@@ -1,0 +1,272 @@
+/**
+ * 复习单词列表页样式 — Warm Mint 主题。
+ */
+@import '../../styles/vars.scss';
+
+.rwl {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f7f9fc;
+}
+
+/* 导航栏 */
+.rwl__navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background-color: var(--card);
+  border-bottom: 2rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.rwl__nav-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rwl__nav-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* 主体 */
+.rwl__body {
+  flex: 1;
+  padding: 24rpx 32rpx 0;
+  box-sizing: border-box;
+}
+
+/* 状态 */
+.rwl__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+}
+
+.rwl__state-text {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+}
+
+.rwl__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+}
+
+.rwl__empty-text {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+}
+
+/* 统计栏 */
+.rwl__stats {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.rwl__stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+  padding: 20rpx 0;
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+}
+
+.rwl__stat-value {
+  font-size: 36rpx;
+  font-weight: 600;
+
+  &--total { color: var(--foreground); }
+  &--correct { color: var(--primary); }
+  &--wrong { color: var(--destructive); }
+  &--pending { color: var(--muted-foreground); }
+}
+
+.rwl__stat-label {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+/* 单词列表 */
+.rwl__word-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.rwl__word-card {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-rest);
+
+  &--correct {
+    border-color: rgba(78, 205, 196, 0.4);
+    background-color: rgba(78, 205, 196, 0.04);
+  }
+
+  &--wrong {
+    border-color: rgba(224, 49, 49, 0.3);
+    background-color: rgba(224, 49, 49, 0.03);
+  }
+}
+
+.rwl__word-main {
+  flex: 1;
+  padding: 24rpx 28rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  min-width: 0;
+}
+
+.rwl__word-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.rwl__word-index {
+  font-size: 22rpx;
+  color: var(--muted-soft);
+  width: 40rpx;
+  flex-shrink: 0;
+}
+
+.rwl__word-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--foreground);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rwl__word-audio {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background-color: var(--primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &--playing {
+    background-color: var(--primary);
+  }
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.rwl__word-translation {
+  padding: 16rpx 20rpx;
+  background-color: var(--surface-soft);
+  border-radius: 12rpx;
+}
+
+.rwl__word-translation-text {
+  font-size: 26rpx;
+  color: var(--charcoal);
+  line-height: 1.6;
+}
+
+/* 标记按钮 */
+.rwl__word-actions {
+  display: flex;
+  flex-shrink: 0;
+  border-left: 2rpx solid var(--border);
+}
+
+.rwl__mark {
+  width: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 2rpx solid var(--border);
+
+  &:last-child {
+    border-right: none;
+  }
+
+  &--correct {
+    &:active {
+      background-color: rgba(78, 205, 196, 0.1);
+    }
+  }
+
+  &--wrong {
+    &:active {
+      background-color: rgba(224, 49, 49, 0.08);
+    }
+  }
+
+  &--active {
+    &.rwl__mark--correct {
+      background-color: var(--primary);
+    }
+    &.rwl__mark--wrong {
+      background-color: var(--destructive);
+    }
+  }
+}
+
+/* 提示 */
+.rwl__hint {
+  padding: 20rpx 24rpx;
+  margin-top: 20rpx;
+  background-color: rgba(224, 49, 49, 0.08);
+  border-radius: 12rpx;
+}
+
+.rwl__hint-text {
+  font-size: 24rpx;
+  color: var(--destructive);
+}
+
+/* 底部操作栏 */
+.rwl__footer {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 24rpx;
+  padding: 20rpx 0;
+  align-items: center;
+}
+
+.rwl__footer-btn {
+  padding: 16rpx 24rpx;
+  border: 2rpx solid var(--border);
+  border-radius: 12rpx;
+  background-color: var(--card);
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+.rwl__footer-btn-text {
+  font-size: 26rpx;
+  color: var(--charcoal);
+}

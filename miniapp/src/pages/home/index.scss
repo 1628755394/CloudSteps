@@ -6,32 +6,31 @@
   padding: 32rpx;
   box-sizing: border-box;
 
-  /* ============ 顶部欢迎区 ============ */
   &__hero {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 32rpx;
+    margin-bottom: 24rpx;
   }
 
   &__hero-info {
     display: flex;
     flex-direction: column;
     gap: 4rpx;
-    min-width: 0;
     flex: 1;
+    min-width: 0;
   }
 
   &__greeting {
-    font-size: 26rpx;
-    color: var(--muted-foreground);
-  }
-
-  &__name {
-    font-size: 44rpx;
+    font-size: 40rpx;
     font-weight: 600;
     color: var(--foreground);
     line-height: 1.2;
+  }
+
+  &__week-range {
+    font-size: 24rpx;
+    color: var(--muted-foreground);
   }
 
   &__hero-avatar {
@@ -58,232 +57,362 @@
     color: var(--primary);
   }
 
-  /* ============ 学员选择器 ============ */
-  &__student-bar {
+  /* 周切换 */
+  &__week-nav {
+    display: flex;
+    gap: 16rpx;
+    margin-bottom: 24rpx;
+  }
+
+  &__week-nav-btn {
+    flex: 1;
+    height: 72rpx;
+    border-radius: var(--radius);
+    border: 2rpx solid var(--border);
+    background-color: var(--card);
     display: flex;
     align-items: center;
+    justify-content: center;
+
+    &:active {
+      background-color: var(--surface-soft);
+    }
+  }
+
+  &__week-nav-text {
+    font-size: 26rpx;
+    color: var(--charcoal);
+
+    &--primary {
+      color: var(--primary);
+      font-weight: 600;
+    }
+  }
+
+  /* 教练: 下一节 + 统计 */
+  &__coach-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 16rpx;
     margin-bottom: 16rpx;
   }
 
-  &__student-label {
-    font-size: 24rpx;
-    color: var(--muted-foreground);
-    flex-shrink: 0;
-  }
-
-  &__student-picker {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12rpx;
-    height: 72rpx;
-    padding: 0 24rpx;
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
+  &__next-card {
+    background-color: var(--primary);
     border-radius: var(--radius);
+    padding: 28rpx 24rpx;
+    min-height: 192rpx;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8rpx;
+
+    &:active {
+      opacity: 0.92;
+    }
+
+    &--disabled {
+      opacity: 0.6;
+    }
   }
 
-  &__student-value {
-    font-size: 26rpx;
-    color: var(--charcoal);
-    flex: 1;
+  &__next-title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #fff;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+
+    &--muted {
+      opacity: 0.8;
+      font-size: 26rpx;
+    }
+  }
+
+  &__next-meta {
+    font-size: 22rpx;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  &__stat-card {
+    background-color: rgba(85, 163, 255, 0.08);
+    border: 2rpx solid rgba(85, 163, 255, 0.15);
+    border-radius: var(--radius);
+    padding: 28rpx 24rpx;
+    min-height: 192rpx;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  &__stat-header {
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
+  }
+
+  &__stat-label {
+    font-size: 24rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__stat-value {
+    font-size: 56rpx;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  /* 教练: 操作按钮 */
+  &__action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16rpx;
+    margin-bottom: 16rpx;
+  }
+
+  &__action-btn {
+    height: 80rpx;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8rpx;
+
+    &--brand {
+      background-color: var(--primary);
+    }
+
+    &--outline {
+      background-color: var(--card);
+      border: 2rpx solid var(--border);
+    }
+
+    &:active {
+      opacity: 0.92;
+    }
+  }
+
+  &__action-btn-text {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: var(--primary);
+
+    &--white {
+      color: #fff;
+    }
+  }
+
+  /* 表单 */
+  &__form-card {
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    padding: 28rpx;
+    margin-bottom: 16rpx;
+    display: flex;
+    flex-direction: column;
+    gap: 20rpx;
+  }
+
+  &__form-title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  &__form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+
+    &--two {
+      flex-direction: row;
+      gap: 16rpx;
+    }
+  }
+
+  &__form-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+  }
+
+  &__form-label {
+    font-size: 24rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__form-picker {
+    height: 72rpx;
+    border: 2rpx solid var(--border);
+    border-radius: 12rpx;
+    padding: 0 20rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--surface);
+  }
+
+  &__form-picker-text {
+    font-size: 28rpx;
+    color: var(--foreground);
 
     &--placeholder {
       color: var(--muted-soft);
     }
   }
 
-  &__student-dropdown {
-    background-color: var(--card);
+  &__form-input {
+    height: 72rpx;
     border: 2rpx solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    margin-bottom: 24rpx;
-    box-shadow: var(--shadow-rest);
+    border-radius: 12rpx;
+    padding: 0 20rpx;
+    font-size: 28rpx;
+    color: var(--foreground);
+    background-color: var(--surface);
   }
 
-  &__student-empty {
-    padding: 32rpx;
-    text-align: center;
-    font-size: 26rpx;
-    color: var(--muted-foreground);
-  }
-
-  &__student-option {
+  &__search-results {
+    max-height: 320rpx;
+    overflow-y: auto;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 24rpx 32rpx;
-    border-bottom: 2rpx solid var(--border);
+    flex-direction: column;
+    gap: 12rpx;
+  }
 
-    &:last-child {
-      border-bottom: none;
-    }
-
-    &:active {
-      background-color: var(--surface-soft);
-    }
+  &__search-item {
+    padding: 20rpx;
+    border: 2rpx solid var(--border);
+    border-radius: 12rpx;
 
     &--active {
+      border-color: var(--primary);
       background-color: var(--primary-soft);
     }
   }
 
-  &__student-option-text {
+  &__search-name {
     font-size: 28rpx;
-    color: var(--charcoal);
-    flex: 1;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  /* ============ 区块 ============ */
-  &__section {
-    margin-bottom: 32rpx;
-  }
-
-  &__section-title {
-    display: block;
-    font-size: 24rpx;
     font-weight: 500;
+    color: var(--foreground);
+  }
+
+  &__search-sub {
+    font-size: 24rpx;
     color: var(--muted-foreground);
-    margin-bottom: 16rpx;
-    padding-left: 8rpx;
+    margin-top: 4rpx;
   }
 
-  /* ============ 常用功能 2x2 网格 ============ */
-  &__quick-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16rpx;
-  }
-
-  &__quick-card {
+  /* 课表列表 */
+  &__schedule-list {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 16rpx;
-    padding: 24rpx;
+    margin-top: 16rpx;
+  }
+
+  &__schedule-card {
     background-color: var(--card);
     border: 2rpx solid var(--border);
     border-radius: var(--radius);
+    padding: 24rpx 28rpx;
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
     box-shadow: var(--shadow-rest);
 
-    &:active {
-      background-color: var(--surface-soft);
+    &--clickable {
+      &:active {
+        background-color: var(--surface-soft);
+      }
     }
   }
 
-  &__quick-icon {
-    width: 64rpx;
-    height: 64rpx;
-    border-radius: 16rpx;
+  &__schedule-main {
+    display: flex;
+    flex-direction: column;
+    gap: 12rpx;
+  }
+
+  &__schedule-title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  &__schedule-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20rpx;
+  }
+
+  &__schedule-meta-item {
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    gap: 6rpx;
+  }
+
+  &__schedule-meta-text {
+    font-size: 24rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__schedule-hint {
+    font-size: 22rpx;
 
     &--mint {
-      background-color: var(--primary-soft);
+      color: var(--primary);
     }
-    &--sky {
-      background-color: var(--tint-sky);
-    }
-    &--cream {
-      background-color: var(--tint-cream);
+
+    &--muted {
+      color: var(--muted-soft);
     }
   }
 
-  &__quick-text {
-    flex: 1;
+  &__schedule-actions {
     display: flex;
-    flex-direction: column;
-    gap: 4rpx;
-    min-width: 0;
-  }
-
-  &__quick-title {
-    font-size: 28rpx;
-    font-weight: 600;
-    color: var(--foreground);
-    line-height: 1.3;
-  }
-
-  &__quick-desc {
-    font-size: 22rpx;
-    color: var(--muted-foreground);
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  /* ============ 训练资料列表 ============ */
-  &__material-card {
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    box-shadow: var(--shadow-rest);
-  }
-
-  &__material-item {
-    display: flex;
+    gap: 12rpx;
+    justify-content: flex-end;
     align-items: center;
-    gap: 20rpx;
-    padding: 24rpx 28rpx;
+  }
 
-    &--border {
-      border-bottom: 2rpx solid var(--border);
+  &__schedule-btn {
+    padding: 8rpx 20rpx;
+    border-radius: 12rpx;
+    border: 2rpx solid;
+
+    &--danger {
+      border-color: rgba(224, 49, 49, 0.35);
     }
 
     &:active {
-      background-color: var(--surface-soft);
+      background-color: rgba(224, 49, 49, 0.05);
     }
   }
 
-  &__material-icon {
-    width: 56rpx;
-    height: 56rpx;
-    border-radius: 12rpx;
-    background-color: var(--surface-soft);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+  &__schedule-btn-text {
+    font-size: 24rpx;
+
+    &--danger {
+      color: var(--destructive);
+    }
   }
 
-  &__material-text {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4rpx;
-    min-width: 0;
-  }
-
-  &__material-name {
-    font-size: 28rpx;
-    font-weight: 600;
-    color: var(--foreground);
-  }
-
-  &__material-desc {
-    font-size: 22rpx;
-    color: var(--muted-foreground);
-  }
-
-  /* ============ 底部 ============ */
-  &__footer {
-    padding: 16rpx 0 32rpx;
+  /* 状态 */
+  &__state {
+    padding: 64rpx 32rpx;
     text-align: center;
   }
 
-  &__footer-text {
-    font-size: 22rpx;
-    color: var(--muted-soft);
+  &__state-title {
+    font-size: 28rpx;
+    color: var(--foreground);
+  }
+
+  &__state-text {
+    font-size: 28rpx;
+    color: var(--muted-foreground);
   }
 }

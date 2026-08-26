@@ -21,6 +21,7 @@ export default defineAppConfig({
     'pages/vocab-test-testing/index',
     'pages/vocab-test-result/index',
     'pages/training-records/index',
+    'pages/review-word-list/index',
   ],
   window: {
     backgroundTextStyle: 'light',

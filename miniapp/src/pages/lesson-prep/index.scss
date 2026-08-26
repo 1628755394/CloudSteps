@@ -10,7 +10,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 32rpx;
+    margin-bottom: 24rpx;
   }
 
   &__hero-info {
@@ -57,6 +57,82 @@
     color: var(--primary);
   }
 
+  /* 学员选择器 */
+  &__student-bar {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    margin-bottom: 16rpx;
+  }
+
+  &__student-label {
+    font-size: 24rpx;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  &__student-picker {
+    flex: 1;
+    height: 64rpx;
+    border: 2rpx solid var(--border);
+    border-radius: 12rpx;
+    padding: 0 20rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--card);
+  }
+
+  &__student-value {
+    font-size: 26rpx;
+    color: var(--foreground);
+
+    &--placeholder {
+      color: var(--muted-soft);
+    }
+  }
+
+  &__student-dropdown {
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16rpx;
+    overflow: hidden;
+  }
+
+  &__student-empty {
+    padding: 32rpx;
+    text-align: center;
+    font-size: 26rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__student-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24rpx 28rpx;
+    border-bottom: 2rpx solid var(--border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &--active {
+      background-color: var(--primary-soft);
+    }
+
+    &:active {
+      background-color: var(--surface-soft);
+    }
+  }
+
+  &__student-option-text {
+    font-size: 28rpx;
+    color: var(--foreground);
+  }
+
+  /* 区块 */
   &__section {
     margin-bottom: 32rpx;
   }
@@ -70,154 +146,6 @@
     padding-left: 8rpx;
   }
 
-  /* 周课表 */
-  &__week-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20rpx;
-  }
-
-  &__week-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4rpx;
-  }
-
-  &__week-title {
-    font-size: 32rpx;
-    font-weight: 600;
-    color: var(--foreground);
-  }
-
-  &__week-range {
-    font-size: 22rpx;
-    color: var(--muted-foreground);
-  }
-
-  &__week-actions {
-    display: flex;
-    align-items: center;
-    gap: 12rpx;
-  }
-
-  &__week-btn {
-    width: 56rpx;
-    height: 56rpx;
-    border-radius: 50%;
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:active {
-      background-color: var(--primary-soft);
-    }
-  }
-
-  &__week-btn-text {
-    font-size: 24rpx;
-    color: var(--primary);
-    padding: 8rpx 12rpx;
-  }
-
-  &__schedule-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16rpx;
-  }
-
-  &__schedule-card {
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
-    border-radius: var(--radius);
-    padding: 24rpx 28rpx;
-    box-shadow: var(--shadow-rest);
-  }
-
-  &__schedule-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12rpx;
-    margin-bottom: 12rpx;
-  }
-
-  &__schedule-title {
-    font-size: 28rpx;
-    font-weight: 600;
-    color: var(--foreground);
-    flex: 1;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-
-  &__schedule-status {
-    padding: 4rpx 16rpx;
-    border-radius: 999rpx;
-    flex-shrink: 0;
-
-    &--scheduled {
-      background-color: rgba(85, 163, 255, 0.1);
-    }
-    &--in_progress {
-      background-color: rgba(78, 205, 196, 0.1);
-    }
-    &--completed {
-      background-color: rgba(120, 118, 113, 0.1);
-    }
-    &--cancelled {
-      background-color: rgba(224, 49, 49, 0.1);
-    }
-  }
-
-  &__schedule-status-text {
-    font-size: 22rpx;
-    color: var(--charcoal);
-  }
-
-  &__schedule-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20rpx;
-  }
-
-  &__schedule-meta-item {
-    display: flex;
-    align-items: center;
-    gap: 6rpx;
-  }
-
-  &__schedule-meta-text {
-    font-size: 24rpx;
-    color: var(--muted-foreground);
-  }
-
-  &__state {
-    padding: 64rpx 32rpx;
-    text-align: center;
-  }
-
-  &__state-title {
-    display: block;
-    font-size: 28rpx;
-    color: var(--foreground);
-    margin-bottom: 8rpx;
-  }
-
-  &__state-text {
-    font-size: 28rpx;
-    color: var(--muted-foreground);
-  }
-
-  &__state-desc {
-    display: block;
-    font-size: 24rpx;
-    color: var(--muted-soft);
-  }
-
   /* 快捷入口 */
   &__quick-grid {
     display: grid;
@@ -227,9 +155,8 @@
 
   &__quick-card {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8rpx;
+    align-items: center;
+    gap: 16rpx;
     padding: 24rpx;
     background-color: var(--card);
     border: 2rpx solid var(--border);
@@ -248,7 +175,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 4rpx;
+    flex-shrink: 0;
 
     &--mint {
       background-color: rgba(78, 205, 196, 0.1);
@@ -259,6 +186,13 @@
     &--cream {
       background-color: rgba(195, 125, 13, 0.1);
     }
+  }
+
+  &__quick-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    min-width: 0;
   }
 
   &__quick-title {
@@ -307,7 +241,7 @@
     flex-shrink: 0;
   }
 
-  &__material-info {
+  &__material-text {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -324,5 +258,15 @@
   &__material-desc {
     font-size: 22rpx;
     color: var(--muted-foreground);
+  }
+
+  &__footer {
+    padding: 32rpx 0 48rpx;
+    text-align: center;
+  }
+
+  &__footer-text {
+    font-size: 22rpx;
+    color: var(--muted-soft);
   }
 }

@@ -1,95 +1,167 @@
 /**
- * 备课页(tab) — 对齐 web/src/pages/Home.tsx。
- * 教练视角:显示陪练课表面板(简化版)。
- * 学生视角:查看本周课程安排,支持周切换。
+ * 备课页(tab) — 对齐 web/src/pages/LessonPrep.tsx。
+ * 常用功能 2x2 网格卡片 + 训练资料列表。
+ * 教练角色显示学员选择器。
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Clock, ArrowLeft, ArrowRight } from '@nutui/icons-react-taro'
+import { Right, Star, Clock, Plus, List } from '@nutui/icons-react-taro'
 import { useAuthStore } from '../../stores/authStore'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import {
-  getStudentCoachingWeek,
-  getTeacherCoachingWeek,
-  type CoachingWeekSchedule,
+  listAllTeacherCoachingQuotas,
+  type TeacherCoachingQuotaRow,
 } from '../../api/coaching'
-import { CloudButton } from '../../components/button'
+import {
+  getTrainingStudent,
+  setTrainingStudent,
+  studentLabelFromQuota,
+} from '../../utils/trainingStudent'
 import './index.scss'
 
-const pad2 = (n: number) => String(n).padStart(2, '0')
-const fmtYMD = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-
-function addDays(d: Date, n: number) {
-  const x = new Date(d)
-  x.setDate(x.getDate() + n)
-  return x
+interface QuickCard {
+  key: string
+  title: string
+  desc: string
+  tint: 'mint' | 'sky' | 'cream'
+  icon: React.ReactNode
+  onClick: () => void
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  scheduled: '待上课',
-  in_progress: '进行中',
-  completed: '已完成',
-  cancelled: '已取消',
+interface MaterialItem {
+  name: string
+  desc: string
+  path: string
 }
 
 export default function LessonPrep() {
   const user = useAuthStore((s) => s.user)
   const role = (user as { role?: string } | null)?.role || 'user'
-  const isStudent = role === 'student'
-  const isCoach = role === 'teacher' || role === 'user' || role === 'admin'
+  const isCoach = role === 'user' || role === 'admin' || role === 'teacher'
 
-  const [weekAnchor, setWeekAnchor] = useState(() => new Date())
-  const [schedules, setSchedules] = useState<CoachingWeekSchedule[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const weekRangeLabel = useMemo(() => {
-    const d = weekAnchor
-    const wd = d.getDay()
-    const fromMon = (wd + 6) % 7
-    const mon = new Date(d)
-    mon.setDate(d.getDate() - fromMon)
-    const sun = addDays(mon, 6)
-    return `${fmtYMD(mon).replace(/-/g, '.')} – ${fmtYMD(sun).replace(/-/g, '.')}`
-  }, [weekAnchor])
-
-  const loadWeek = useCallback(async () => {
-    const ref = fmtYMD(weekAnchor)
-    setLoading(true)
-    try {
-      const fetcher = isCoach ? getTeacherCoachingWeek : getStudentCoachingWeek
-      const res = await fetcher(ref)
-      setSchedules(Array.isArray(res.data?.schedules) ? res.data!.schedules : [])
-    } catch {
-      setSchedules([])
-    } finally {
-      setLoading(false)
-    }
-  }, [weekAnchor, isCoach])
+  const [students, setStudents] = useState<TeacherCoachingQuotaRow[]>([])
+  const [studentId, setStudentId] = useState<string>(() => {
+    const s = getTrainingStudent()
+    return s?.id ? String(s.id) : ''
+  })
+  const [studentPickerOpen, setStudentPickerOpen] = useState(false)
+  const [loadingStudents, setLoadingStudents] = useState(false)
 
   useEffect(() => {
-    void loadWeek()
-  }, [loadWeek])
+    if (!isCoach) return
+    let mounted = true
+    setLoadingStudents(true)
+    ;(async () => {
+      try {
+        const rows = await listAllTeacherCoachingQuotas()
+        if (!mounted) return
+        setStudents(rows)
+        const saved = getTrainingStudent()
+        let pick = saved?.id ? rows.find((r) => r.studentId === saved.id) : undefined
+        if (!pick && rows[0]) pick = rows[0]
+        if (pick) {
+          const name = studentLabelFromQuota(pick)
+          setStudentId(String(pick.studentId))
+          setTrainingStudent(pick.studentId, name)
+        }
+      } catch {
+        if (mounted) setStudents([])
+      } finally {
+        if (mounted) setLoadingStudents(false)
+      }
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [isCoach])
 
-  const activeSchedules = schedules.filter(
-    (s) => s.status === 'scheduled' || s.status === 'in_progress'
+  const studentOptions = useMemo(
+    () =>
+      students.map((r) => ({
+        label: studentLabelFromQuota(r),
+        value: String(r.studentId),
+      })),
+    [students],
   )
 
+  const currentStudentLabel = useMemo(() => {
+    const row = students.find((r) => String(r.studentId) === studentId)
+    return row ? studentLabelFromQuota(row) : ''
+  }, [students, studentId])
+
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好'
   const displayName = user?.displayName || user?.email?.split('@')[0] || '同学'
   const avatarUrl = resolveMediaUrl(user?.avatar)
   const avatarText = (displayName || '?').charAt(0).toUpperCase()
 
   const go = (url: string) => Taro.navigateTo({ url })
 
+  const quickCards: QuickCard[] = [
+    {
+      key: 'vocab-test',
+      title: '词汇测试',
+      desc: '进入测评',
+      tint: 'mint',
+      icon: <Star size={18} color="#4ECDC4" />,
+      onClick: () => go('/pages/vocab-test/index'),
+    },
+    {
+      key: 'material-selection',
+      title: '单词训练',
+      desc: '选择词库',
+      tint: 'sky',
+      icon: <List size={18} color="#55A3FF" />,
+      onClick: () => go('/pages/material-selection/index'),
+    },
+    ...(isCoach
+      ? [
+          {
+            key: 'my-students',
+            title: '学员管理',
+            desc: '学员与时长',
+            tint: 'sky' as const,
+            icon: <Plus size={18} color="#55A3FF" />,
+            onClick: () => go('/pages/my-students/index'),
+          },
+        ]
+      : []),
+    {
+      key: 'training-records',
+      title: '学习记录',
+      desc: '正课与复习',
+      tint: 'cream',
+      icon: <Clock size={18} color="#c37d0d" />,
+      onClick: () => go('/pages/training-records/index'),
+    },
+  ]
+
+  const materials: MaterialItem[] = [
+    { name: '解析语法', desc: '语法专项练习', path: '/pages/grammar-analysis/index' },
+    { name: '阅读理解', desc: '阅读训练', path: '/pages/reading-comprehension/index' },
+    { name: '完形填空', desc: '完形专项', path: '/pages/cloze-practice/index' },
+    { name: '情景口语', desc: 'AI 情景对话', path: '/pages/scenario-selection/index' },
+  ]
+
+  const onSelectStudent = (row: TeacherCoachingQuotaRow) => {
+    setStudentId(String(row.studentId))
+    setTrainingStudent(row.studentId, studentLabelFromQuota(row))
+    setStudentPickerOpen(false)
+  }
+
   return (
     <ScrollView className="lp" scrollY enableFlex>
-      {/* 顶部欢迎区 + 头像(入口到我的) */}
+      {/* 顶部欢迎区 + 头像入口 */}
       <View className="lp__hero">
         <View className="lp__hero-info">
-          <Text className="lp__greeting">备课中心</Text>
+          <Text className="lp__greeting">{greeting}，</Text>
           <Text className="lp__name">{displayName}</Text>
         </View>
-        <View className="lp__hero-avatar" onClick={() => go('/pages/profile/index')}>
+        <View
+          className="lp__hero-avatar"
+          onClick={() => go('/pages/profile/index')}
+        >
           {avatarUrl ? (
             <Image className="lp__avatar-img" src={avatarUrl} mode="aspectFill" />
           ) : (
@@ -98,136 +170,103 @@ export default function LessonPrep() {
         </View>
       </View>
 
-      {/* 周课表 */}
-      <View className="lp__section">
-        <View className="lp__week-header">
-          <View className="lp__week-info">
-            <Text className="lp__week-title">{isCoach ? '本周排课' : '我的课表'}</Text>
-            <Text className="lp__week-range">{weekRangeLabel}</Text>
-          </View>
-          <View className="lp__week-actions">
-            <View className="lp__week-btn" onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}>
-              <ArrowLeft size={16} color="#4ECDC4" />
-            </View>
-            <Text className="lp__week-btn-text" onClick={() => setWeekAnchor(new Date())}>
-              本周
+      {/* 学员选择器(教练角色才显示) */}
+      {isCoach && (
+        <View className="lp__student-bar">
+          <Text className="lp__student-label">学员</Text>
+          <View
+            className="lp__student-picker"
+            onClick={() => setStudentPickerOpen((v) => !v)}
+          >
+            <Text
+              className={`lp__student-value ${!currentStudentLabel ? 'lp__student-value--placeholder' : ''}`}
+            >
+              {loadingStudents
+                ? '加载中…'
+                : currentStudentLabel || '选择学员'}
             </Text>
-            <View className="lp__week-btn" onClick={() => setWeekAnchor(addDays(weekAnchor, 7))}>
-              <ArrowRight size={16} color="#4ECDC4" />
-            </View>
+            <Right size={14} color="#a4a097" />
           </View>
         </View>
+      )}
 
-        <View className="lp__schedule-list">
-          {loading ? (
-            <View className="lp__state">
-              <Text className="lp__state-text">加载中...</Text>
-            </View>
-          ) : activeSchedules.length === 0 ? (
-            <View className="lp__state">
-              <Text className="lp__state-title">暂无待上课程</Text>
-              <Text className="lp__state-desc">切换周次查看其他时间的排课</Text>
+      {/* 学员下拉面板 */}
+      {isCoach && studentPickerOpen && (
+        <View className="lp__student-dropdown">
+          {studentOptions.length === 0 ? (
+            <View className="lp__student-empty">
+              <Text>{loadingStudents ? '加载中…' : '暂无学员'}</Text>
             </View>
           ) : (
-            activeSchedules.map((s) => (
-              <View key={s.id} className="lp__schedule-card">
-                <View className="lp__schedule-top">
-                  <Text className="lp__schedule-title">{s.title || `排课 #${s.id}`}</Text>
-                  <View className={`lp__schedule-status lp__schedule-status--${s.status}`}>
-                    <Text className="lp__schedule-status-text">
-                      {STATUS_LABEL[s.status] || s.status}
-                    </Text>
-                  </View>
-                </View>
-                <View className="lp__schedule-meta">
-                  <View className="lp__schedule-meta-item">
-                    <Clock size={14} color="#787671" />
-                    <Text className="lp__schedule-meta-text">
-                      {s.scheduledDate?.slice?.(0, 10) || s.scheduledDate}
-                    </Text>
-                  </View>
-                  <View className="lp__schedule-meta-item">
-                    <Clock size={14} color="#787671" />
-                    <Text className="lp__schedule-meta-text">
-                      {s.startTime}–{s.endTime}
-                    </Text>
-                  </View>
-                </View>
+            studentOptions.map((opt) => (
+              <View
+                key={opt.value}
+                className={`lp__student-option ${opt.value === studentId ? 'lp__student-option--active' : ''}`}
+                onClick={() => {
+                  const row = students.find(
+                    (r) => String(r.studentId) === opt.value,
+                  )
+                  if (row) onSelectStudent(row)
+                }}
+              >
+                <Text className="lp__student-option-text">{opt.label}</Text>
+                {opt.value === studentId && (
+                  <Star size={14} color="#4ECDC4" />
+                )}
               </View>
             ))
           )}
         </View>
-      </View>
+      )}
 
-      {/* 快捷入口 */}
+      {/* 常用功能 2x2 网格 */}
       <View className="lp__section">
         <Text className="lp__section-title">常用</Text>
         <View className="lp__quick-grid">
-          <View className="lp__quick-card" onClick={() => go('/pages/vocab-test/index')}>
-            <View className="lp__quick-icon lp__quick-icon--mint">
-              <Clock size={18} color="#4ECDC4" />
-            </View>
-            <Text className="lp__quick-title">词汇测试</Text>
-            <Text className="lp__quick-desc">进入测评</Text>
-          </View>
-          <View className="lp__quick-card" onClick={() => go('/pages/material-selection/index')}>
-            <View className="lp__quick-icon lp__quick-icon--sky">
-              <Clock size={18} color="#55A3FF" />
-            </View>
-            <Text className="lp__quick-title">单词训练</Text>
-            <Text className="lp__quick-desc">选择词库</Text>
-          </View>
-          {isCoach && (
-            <View className="lp__quick-card" onClick={() => go('/pages/my-students/index')}>
-              <View className="lp__quick-icon lp__quick-icon--sky">
-                <Clock size={18} color="#55A3FF" />
-              </View>
-              <Text className="lp__quick-title">学员管理</Text>
-              <Text className="lp__quick-desc">学员与时长</Text>
-            </View>
-          )}
-          <View className="lp__quick-card" onClick={() => go('/pages/training-records/index')}>
-            <View className="lp__quick-icon lp__quick-icon--cream">
-              <Clock size={18} color="#c37d0d" />
-            </View>
-            <Text className="lp__quick-title">学习记录</Text>
-            <Text className="lp__quick-desc">正课与复习</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 训练资料 */}
-      <View className="lp__section">
-        <Text className="lp__section-title">训练资料</Text>
-        <View className="lp__material-card">
-          {[
-            { name: '解析语法', desc: '语法专项练习', path: '' },
-            { name: '阅读理解', desc: '阅读训练', path: '' },
-            { name: '完形填空', desc: '完形专项', path: '' },
-            { name: '情景口语', desc: 'AI 情景对话', path: '/pages/scenario-selection/index' },
-          ].map((item, idx) => (
+          {quickCards.map((card) => (
             <View
-              key={item.name}
-              className={`lp__material-item ${idx < 3 ? 'lp__material-item--border' : ''}`}
-              onClick={() => {
-                if (item.path) go(item.path)
-                else Taro.showToast({ title: '待开发', icon: 'none' })
-              }}
+              key={card.key}
+              className={`lp__quick-card lp__quick-card--${card.tint}`}
+              onClick={card.onClick}
             >
-              <View className="lp__material-icon">
-                <Clock size={15} color="#787671" />
+              <View className={`lp__quick-icon lp__quick-icon--${card.tint}`}>
+                {card.icon}
               </View>
-              <View className="lp__material-info">
-                <Text className="lp__material-name">{item.name}</Text>
-                <Text className="lp__material-desc">{item.desc}</Text>
+              <View className="lp__quick-text">
+                <Text className="lp__quick-title">{card.title}</Text>
+                <Text className="lp__quick-desc">{card.desc}</Text>
               </View>
-              <ArrowRight size={16} color="#a4a097" />
             </View>
           ))}
         </View>
       </View>
 
-      <View style={{ height: '48rpx' }} />
+      {/* 训练资料列表 */}
+      <View className="lp__section">
+        <Text className="lp__section-title">训练资料</Text>
+        <View className="lp__material-card">
+          {materials.map((item, idx) => (
+            <View
+              key={item.path}
+              className={`lp__material-item ${idx < materials.length - 1 ? 'lp__material-item--border' : ''}`}
+              onClick={() => go(item.path)}
+            >
+              <View className="lp__material-icon">
+                <List size={16} color="#787671" />
+              </View>
+              <View className="lp__material-text">
+                <Text className="lp__material-name">{item.name}</Text>
+                <Text className="lp__material-desc">{item.desc}</Text>
+              </View>
+              <Right size={16} color="#a4a097" />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View className="lp__footer">
+        <Text className="lp__footer-text">云阶 CloudSteps</Text>
+      </View>
     </ScrollView>
   )
 }
