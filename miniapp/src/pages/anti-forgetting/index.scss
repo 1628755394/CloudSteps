@@ -1,0 +1,237 @@
+/**
+ * 抗遗忘页样式 — Warm Mint 主题,对齐 web AntiForgetting.tsx。
+ */
+@import '../../styles/vars.scss';
+
+.anti {
+  min-height: 100vh;
+  background-color: var(--background);
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+/* ============ 日期选择卡片 ============ */
+.anti__date-card {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx 24rpx;
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 24rpx;
+  box-shadow: var(--shadow-rest);
+}
+
+.anti__date-arrow {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background-color: var(--primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &:active {
+    background-color: rgba(78, 205, 196, 0.2);
+  }
+}
+
+.anti__date-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+  padding: 8rpx 0;
+}
+
+.anti__date-label {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+.anti__date-value {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* ============ 状态/空态 ============ */
+.anti__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+}
+
+.anti__state-text {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+}
+
+.anti__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 120rpx 48rpx;
+}
+
+.anti__empty-icon {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background-color: var(--surface-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.anti__empty-text {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* ============ 分组列表 ============ */
+.anti__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.anti__group {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-rest);
+}
+
+/* 学生头部 */
+.anti__group-header {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 28rpx 28rpx;
+  border-bottom: 2rpx solid var(--border);
+}
+
+.anti__group-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 16rpx;
+  background-color: var(--primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.anti__group-avatar-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.anti__group-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.anti__group-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anti__group-count {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+/* 任务列表 */
+.anti__task-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.anti__task {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  padding: 24rpx 28rpx;
+  border-bottom: 2rpx solid var(--border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+.anti__task-line {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+
+  &--bottom {
+    justify-content: space-between;
+  }
+}
+
+.anti__task-btn-wrap {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.anti__task-time {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  flex-shrink: 0;
+  width: 120rpx;
+}
+
+.anti__task-time-text {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.anti__task-pack-name {
+  font-size: 26rpx;
+  color: var(--charcoal);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anti__task-meta {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+.anti__task-btn-inner {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.anti__task-btn-text {
+  font-size: 24rpx;
+  color: #fff;
+}

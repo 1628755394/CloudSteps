@@ -1,0 +1,67 @@
+/**
+ * 文档页共享样式 — About / Terms / Privacy 共用。
+ */
+.doc {
+  min-height: 100vh;
+  background-color: var(--background);
+  padding: 32rpx;
+  box-sizing: border-box;
+
+  &__card {
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    padding: 40rpx 32rpx;
+    box-shadow: var(--shadow-rest);
+  }
+
+  &__intro {
+    display: block;
+    font-size: 28rpx;
+    line-height: 1.65;
+    color: var(--charcoal);
+    margin-bottom: 24rpx;
+  }
+
+  &__section {
+    margin-top: 32rpx;
+  }
+
+  &__h2 {
+    display: block;
+    font-size: 30rpx;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 12rpx;
+  }
+
+  &__p {
+    display: block;
+    font-size: 26rpx;
+    line-height: 1.65;
+    color: var(--muted-foreground);
+  }
+
+  &__list {
+    margin-top: 12rpx;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+  }
+
+  &__list-item {
+    font-size: 26rpx;
+    line-height: 1.65;
+    color: var(--muted-foreground);
+  }
+
+  &__footer {
+    text-align: center;
+    padding: 32rpx 0;
+  }
+
+  &__footer-text {
+    font-size: 22rpx;
+    color: var(--muted-soft);
+  }
+}

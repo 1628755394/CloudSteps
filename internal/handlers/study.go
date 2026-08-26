@@ -97,9 +97,6 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	case step == "today":
 		stateWhere = "uws.user_id = ? AND uws.first_learned_at IS NOT NULL AND uws.first_learned_at >= ? AND uws.first_learned_at < ?"
 		stateArgs = []any{user.ID, startOfToday, endOfToday}
-	case step == "pending":
-		stateWhere = "uws.user_id = ? AND uws.screen_result = ? AND uws.learn_status = ?"
-		stateArgs = []any{user.ID, "unknown", "pending"}
 	case step == "mastered":
 		stateWhere = "uws.user_id = ? AND uws.learn_status = ?"
 		stateArgs = []any{user.ID, "mastered"}

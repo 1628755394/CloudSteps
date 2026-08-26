@@ -2,7 +2,6 @@ import { Shuffle, ArrowRight, BookOpen, ChevronLeft, ChevronRight, PanelTop } fr
 import { useNavigate } from "react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
-import { StudentWordMarkButton, useStudentWordMarks } from "../components/StudentWordMarkButton";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS, PRACTICE_CARD_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { CloudButton } from "../components/cloudsteps";
@@ -33,7 +32,6 @@ type PracticeWord = {
 export default function WordPractice() {
   const navigate = useNavigate();
   const [words, setWords] = useState<PracticeWord[]>([]);
-  const wordMarks = useStudentWordMarks(words.map((word) => word.id));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [manualReadMode, setManualReadMode] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
@@ -424,15 +422,6 @@ export default function WordPractice() {
                   </div>
                   {!manualReadMode && (
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <StudentWordMarkButton
-                        wordId={word.id}
-                        wordBookId={wordBookId}
-                        marked={wordMarks.isMarked(word.id)}
-                        enabled={wordMarks.enabled}
-                        busy={wordMarks.busyId === word.id}
-                        onToggle={wordMarks.toggle}
-                        className="size-9"
-                      />
                       <div onClick={(e) => e.stopPropagation()}>
                         <StudyNoteLauncher
                           storageKey={wordNoteKey(word.id)}

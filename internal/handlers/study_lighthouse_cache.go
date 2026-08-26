@@ -72,7 +72,6 @@ func computeStudyLighthouse(db *gorm.DB, userID uint, wordBookID int) gin.H {
 	}
 	type aggRow struct {
 		TodayNewLearned int64 `gorm:"column:today_new"`
-		PendingCount    int64 `gorm:"column:pending_cnt"`
 		MasteredCount   int64 `gorm:"column:mastered_cnt"`
 	}
 
@@ -98,10 +97,30 @@ func computeStudyLighthouse(db *gorm.DB, userID uint, wordBookID int) gin.H {
 	var agg aggRow
 	_ = scope(db.Model(&models.UserWordState{})).
 		Select(`SUM(CASE WHEN first_learned_at IS NOT NULL AND first_learned_at >= ? AND first_learned_at < ? THEN 1 ELSE 0 END) AS today_new,
-			SUM(CASE WHEN screen_result = ? AND learn_status = ? THEN 1 ELSE 0 END) AS pending_cnt,
 			SUM(CASE WHEN learn_status = ? THEN 1 ELSE 0 END) AS mastered_cnt`,
-			startOfToday, endOfToday, "unknown", "pending", "mastered").
+			startOfToday, endOfToday, "mastered").
 		Scan(&agg).Error
+
+	// 待学 = 词库中尚未 learned/mastered 的单词数（未入状态表的也算待学）
+	var pendingCount int64
+	if wordBookID > 0 {
+		totalWords, err := models.GetWordCountByBookID(db, uint(wordBookID))
+		if err == nil {
+			var done int64
+			_ = db.Model(&models.UserWordState{}).
+				Where("user_id = ? AND word_book_id = ? AND learn_status IN ?", userID, uint(wordBookID), []string{"learned", "mastered"}).
+				Count(&done).Error
+			pendingCount = totalWords - done
+			if pendingCount < 0 {
+				pendingCount = 0
+			}
+		}
+	} else {
+		// 无词库时退回：仅统计已产生 unknown+pending 状态的行（无法推断全库未学数）
+		_ = scope(db.Model(&models.UserWordState{})).
+			Where("screen_result = ? AND learn_status = ?", "unknown", "pending").
+			Count(&pendingCount).Error
+	}
 
 	days := make([]dayItem, 0, 7)
 	intervals := models.EbbinghausIntervals
@@ -115,29 +134,6 @@ func computeStudyLighthouse(db *gorm.DB, userID uint, wordBookID int) gin.H {
 			}
 		}
 		days = append(days, dayItem{ID: pad2(i + 1), Count: stageMap[i], Label: label})
-	}
-
-	// 待学计数：用「词库总词数 - 已进入学习流程的词数」，
-	// 让九宫格 01 待学与词库单词数量挂钩；只要词库有词就显示待学数，不能为 0。
-	pendingCount := agg.PendingCount
-	if wordBookID > 0 {
-		var totalWords int64
-		_ = db.Model(&models.Word{}).
-			Where("word_book_id = ? AND is_deleted = ?", uint(wordBookID), models.SoftDeleteStatusActive).
-			Count(&totalWords).Error
-
-		var learnedCount int64
-		_ = scope(db.Model(&models.UserWordState{})).
-			Where("learn_status IN ?", []string{"learning", "learned", "mastered"}).
-			Count(&learnedCount).Error
-
-		// 词库有词时始终用「总词数 - 已学词数」覆盖，未开始的词库显示满词数
-		if totalWords > 0 {
-			pendingCount = totalWords - learnedCount
-			if pendingCount < 0 {
-				pendingCount = 0
-			}
-		}
 	}
 
 	return gin.H{

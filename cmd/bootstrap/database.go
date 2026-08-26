@@ -65,10 +65,6 @@ func SetupDatabase(logWriter io.Writer, opts *Options) (*gorm.DB, error) {
 		logger.Error("ensure users.email column failed", zap.Error(err))
 		return nil, err
 	}
-	if err := db.AutoMigrate(&models.StudentWordMark{}); err != nil {
-		logger.Error("ensure student_word_marks failed", zap.Error(err))
-		return nil, err
-	}
 
 	// Notification templates (email + inbox) and default mail channel — always upsert so
 	// /notification-templates has baseline rows even without --init / --seed flags.
@@ -140,7 +136,6 @@ func RunMigrations(db *gorm.DB) error {
 		&models.CoachingAppointment{},
 		&models.CoachingSessionRecord{},
 		&models.CoachingAuditLog{},
-		&models.StudentWordMark{},
 		&models.ScenarioDialogueScenario{},
 		&models.ScenarioDialogueSession{},
 		&models.ScenarioDialogueTurn{},

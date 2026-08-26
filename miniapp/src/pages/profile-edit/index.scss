@@ -1,0 +1,360 @@
+/**
+ * 编辑资料页样式 — 卡片式分组 + 头像角标 + 进度条 + 底部固定栏。
+ */
+.edit {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+/* ============ 顶部导航栏 ============ */
+.edit__navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background-color: var(--card);
+  border-bottom: 2rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.edit__nav-btn {
+  width: 80rpx;
+  display: flex;
+  align-items: center;
+}
+
+.edit__nav-back {
+  font-size: 40rpx;
+  color: var(--charcoal);
+  font-weight: 300;
+}
+
+.edit__nav-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* ============ 滚动主体 ============ */
+.edit__body {
+  flex: 1;
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+/* ============ 头像卡片 ============ */
+.edit__avatar-card {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  padding: 48rpx 32rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 32rpx;
+  box-shadow: var(--shadow-rest);
+}
+
+.edit__avatar-wrap {
+  position: relative;
+  width: 160rpx;
+  height: 160rpx;
+}
+
+.edit__avatar {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 999rpx;
+  border: 4rpx solid var(--border);
+}
+
+.edit__avatar-placeholder {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, var(--primary) 0%, #55A3FF 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit__avatar-text {
+  font-size: 64rpx;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.edit__avatar-loading {
+  position: absolute;
+  inset: 0;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &-text {
+    color: #ffffff;
+    font-size: 22rpx;
+  }
+}
+
+/* 相机角标 */
+.edit__avatar-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 999rpx;
+  background-color: var(--primary);
+  border: 4rpx solid var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.15);
+}
+
+.edit__avatar-badge-icon {
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.edit__avatar-hint {
+  font-size: 24rpx;
+  color: var(--muted-foreground);
+  margin-top: 20rpx;
+}
+
+/* 资料完整度进度条 */
+.edit__progress {
+  width: 100%;
+  margin-top: 32rpx;
+
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12rpx;
+  }
+
+  &-label {
+    font-size: 26rpx;
+    color: var(--charcoal);
+    font-weight: 500;
+  }
+
+  &-value {
+    font-size: 26rpx;
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  &-bar {
+    width: 100%;
+    height: 12rpx;
+    border-radius: 999rpx;
+    background-color: var(--surface-soft);
+    overflow: hidden;
+  }
+
+  &-fill {
+    height: 100%;
+    border-radius: 999rpx;
+    background: linear-gradient(90deg, var(--primary) 0%, #55A3FF 100%);
+    transition: width 0.3s ease;
+  }
+}
+
+/* ============ 分组 section ============ */
+.edit__section {
+  margin-bottom: 32rpx;
+}
+
+.edit__section-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  margin-bottom: 16rpx;
+  padding-left: 8rpx;
+}
+
+.edit__form-card {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-rest);
+}
+
+/* ============ 表单字段 ============ */
+.edit__field {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  padding: 28rpx 32rpx;
+
+  &--readonly {
+    .edit__readonly-value {
+      font-size: 28rpx;
+      color: var(--muted-foreground);
+    }
+  }
+}
+
+.edit__label {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.edit__input {
+  width: 100%;
+  height: 80rpx;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  color: var(--charcoal);
+  font-size: 30rpx;
+  box-sizing: border-box;
+}
+
+.edit__placeholder {
+  color: var(--muted-soft);
+  font-size: 30rpx;
+}
+
+.edit__divider {
+  height: 2rpx;
+  background-color: var(--border);
+  margin: 0 32rpx;
+}
+
+/* 时区选择器 */
+.edit__picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 80rpx;
+
+  &-value {
+    font-size: 30rpx;
+    color: var(--charcoal);
+  }
+
+  &-arrow {
+    color: var(--muted-soft);
+    font-size: 32rpx;
+  }
+}
+
+/* ============ 错误提示 ============ */
+.edit__error {
+  background-color: rgba(224, 49, 49, 0.05);
+  border: 2rpx solid rgba(224, 49, 49, 0.2);
+  border-radius: var(--radius);
+  padding: 24rpx 32rpx;
+  color: var(--destructive);
+  font-size: 26rpx;
+  margin-bottom: 16rpx;
+}
+
+/* ============ 底部固定保存栏 ============ */
+.edit__footer {
+  flex-shrink: 0;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  background-color: var(--card);
+  border-top: 2rpx solid var(--border);
+}
+
+.edit__save-btn {
+  width: 100%;
+}
+
+/* ============ 时区选择弹层 ============ */
+.edit__mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.edit__sheet {
+  width: 100%;
+  background: var(--card);
+  border-radius: 32rpx 32rpx 0 0;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+
+  &-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28rpx 32rpx;
+    border-bottom: 2rpx solid var(--border);
+  }
+
+  &-cancel {
+    font-size: 28rpx;
+    color: var(--muted-foreground);
+    width: 80rpx;
+  }
+
+  &-title {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  &-list {
+    flex: 1;
+    max-height: 700rpx;
+  }
+
+  &-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 32rpx;
+    border-bottom: 2rpx solid var(--border);
+
+    &:active {
+      background-color: var(--surface-soft);
+    }
+
+    &--active {
+      background-color: var(--primary-soft);
+    }
+
+    &-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4rpx;
+    }
+
+    &-tz {
+      font-size: 28rpx;
+      color: var(--charcoal);
+      font-weight: 500;
+    }
+
+    &-label {
+      font-size: 22rpx;
+      color: var(--muted-foreground);
+    }
+
+    &-check {
+      color: var(--primary);
+      font-size: 36rpx;
+    }
+  }
+}

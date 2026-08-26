@@ -1,0 +1,51 @@
+/**
+ * SCSS 编译期变量 — 对齐 DESIGN.md Warm Mint 主题。
+ * 与 app.scss 里的 CSS 变量互补:.scss 文件里用 $ 变量,
+ * 内联样式/动态样式用 CSS 变量 var(--xxx)。
+ */
+
+/* 品牌色 */
+$primary: #4ECDC4;
+$primary-deep: #3DB8B0;
+$primary-soft: rgba(78, 205, 196, 0.12);
+$secondary-brand: #55A3FF;
+
+/* 表面 */
+$background: #f6f5f4;
+$card: #ffffff;
+$surface-soft: #fafaf9;
+
+/* 边框 */
+$border: #e5e3df;
+$input: #c8c4be;
+
+/* 文字 */
+$foreground: #1a1a1a;
+$charcoal: #37352f;
+$muted-foreground: #787671;
+$muted-soft: #a4a097;
+
+/* 语义色 */
+$success: #1aae39;
+$warning: #c37d0d;
+$destructive: #e03131;
+
+/* 色调卡片 */
+$tint-mint: #e8f8f5;
+$tint-sky: #e8f2fc;
+$tint-cream: #f8f5e8;
+
+/* 圆角 */
+$radius-sm: 8px;
+$radius: 12px;
+$radius-lg: 16px;
+
+/* 阴影 */
+$shadow-rest: 0 1px 2px rgba(0, 0, 0, 0.04);
+
+/* 间距(4px 基准) */
+$gap-xs: 8rpx;
+$gap-sm: 16rpx;
+$gap-md: 24rpx;
+$gap-lg: 32rpx;
+$gap-xl: 48rpx;

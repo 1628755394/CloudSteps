@@ -8,7 +8,6 @@ import {
   Loader2,
   Plus,
   Search,
-  Star,
   Trash2,
 } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
@@ -28,13 +27,10 @@ import {
   listAllTeacherCoachingQuotas,
   listStudentActivityRecordsAsTeacher,
   listStudentWordBooksAsTeacher,
-  listStudentWordMarksAsTeacher,
   removeStudentWordBookAsTeacher,
-  removeStudentWordMarkAsTeacher,
   setTeacherStudentPassword,
   type StudentActivityListItem,
   type StudentWordBookItem,
-  type StudentWordMarkItem,
   type TeacherCoachingQuotaRow,
   type VocabTestRecordDTO,
 } from "../api/coaching";
@@ -45,12 +41,10 @@ import {
 import { VocabTestResultView } from "../components/VocabTestResultView";
 import { showToast } from "../utils/toast";
 import { resolveMediaUrl } from "../utils/mediaUrl";
-import { setTrainingStudent } from "../utils/trainingStudent";
-import { formatTranslation } from "../utils/wordFormat";
 
 const DEFAULT_PASSWORD = "student123";
 
-type TabKey = "hours" | "wordbooks" | "vocab" | "marks";
+type TabKey = "hours" | "wordbooks" | "vocab";
 
 function studentLabel(row: TeacherCoachingQuotaRow) {
   const s = row.student;
@@ -85,9 +79,8 @@ export default function StudentDetail() {
   const initialTab: TabKey =
     tabFromQuery === "wordbooks" ||
     tabFromQuery === "vocab" ||
-    tabFromQuery === "hours" ||
-    tabFromQuery === "marks"
-      ? tabFromQuery
+    tabFromQuery === "hours"
+      ? (tabFromQuery as TabKey)
       : "hours";
   const [tab, setTab] = useState<TabKey>(initialTab);
 
@@ -112,11 +105,6 @@ export default function StudentDetail() {
   const [pwdOpen, setPwdOpen] = useState(false);
   const [pwdValue, setPwdValue] = useState(DEFAULT_PASSWORD);
   const [pwdSaving, setPwdSaving] = useState(false);
-
-  const [marks, setMarks] = useState<StudentWordMarkItem[]>([]);
-  const [loadingMarks, setLoadingMarks] = useState(false);
-  const [marksTotal, setMarksTotal] = useState(0);
-  const [removingMarkId, setRemovingMarkId] = useState<number | null>(null);
 
   useEffect(() => {
     const fromNav = (location.state as { studentName?: string } | null)?.studentName;
@@ -209,31 +197,6 @@ export default function StudentDetail() {
     }
   }, [studentId]);
 
-  const loadMarks = useCallback(async () => {
-    if (!Number.isFinite(studentId) || studentId <= 0) return;
-    setLoadingMarks(true);
-    try {
-      const res = await listStudentWordMarksAsTeacher(studentId, { page: 1, pageSize: 100 });
-      if (res.code !== 200) {
-        showToast.error(res.msg || "加载标记失败");
-        setMarks([]);
-        setMarksTotal(0);
-        return;
-      }
-      setMarks(Array.isArray(res.data?.list) ? res.data.list : []);
-      setMarksTotal(Number(res.data?.total) || 0);
-    } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "加载标记失败";
-      showToast.error(msg);
-      setMarks([]);
-      setMarksTotal(0);
-    } finally {
-      setLoadingMarks(false);
-    }
-  }, [studentId]);
 
   useEffect(() => {
     if (tab === "wordbooks") void loadWordBooks();
@@ -242,10 +205,6 @@ export default function StudentDetail() {
   useEffect(() => {
     if (tab === "vocab") void loadVocabTests();
   }, [tab, loadVocabTests]);
-
-  useEffect(() => {
-    if (tab === "marks") void loadMarks();
-  }, [tab, loadMarks]);
 
   const openAddBook = async () => {
     setAddOpen(true);
@@ -419,9 +378,6 @@ export default function StudentDetail() {
           </TabsTrigger>
           <TabsTrigger value="vocab" className="flex-1">
             词汇测试
-          </TabsTrigger>
-          <TabsTrigger value="marks" className="flex-1">
-            标记
           </TabsTrigger>
         </TabsList>
 
@@ -618,101 +574,6 @@ export default function StudentDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="marks" className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-2">
-          <CloudCard className="p-3 flex items-center justify-between gap-2">
-            <div className="text-sm text-muted-foreground">
-              共 <span className="font-semibold text-foreground">{marksTotal}</span> 个标记单词
-            </div>
-            <CloudButton
-              type="button"
-              variant="brand"
-              size="sm"
-              disabled={marks.length === 0}
-              onClick={() => {
-                const batch = marks.slice(0, 50).map((m) => ({
-                  id: m.wordId,
-                  word: m.word,
-                  phonetic: m.phonetic || "",
-                  translation: m.translation || "",
-                  audioUrl: m.audioUrl || "",
-                }));
-                sessionStorage.setItem("lb_mode", "review");
-                sessionStorage.setItem("lb_review_words", JSON.stringify(batch));
-                sessionStorage.setItem("lb_review_batch_idx", "0");
-                if (marks[0]?.wordBookId) {
-                  sessionStorage.setItem("lb_wordbook_id", String(marks[0].wordBookId));
-                }
-                setTrainingStudent(studentId, displayName);
-                navigate("/word-practice");
-              }}
-            >
-              <Star size={14} className="mr-1" />
-              去复习
-            </CloudButton>
-          </CloudCard>
-          {loadingMarks ? (
-            <CloudCard className="p-10">
-              <CloudSpin tip="加载标记…" />
-            </CloudCard>
-          ) : marks.length === 0 ? (
-            <CloudCard className="p-8">
-              <CloudEmpty description="暂无标记。上课时可在练习页点星星收藏单词。" />
-            </CloudCard>
-          ) : (
-            marks.map((m) => (
-              <CloudCard key={m.id} className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-base font-semibold text-foreground">{m.word}</div>
-                    {m.phonetic ? (
-                      <div className="text-xs text-muted-foreground font-mono mt-0.5">{m.phonetic}</div>
-                    ) : null}
-                    {m.translation ? (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {formatTranslation(m.translation)}
-                      </p>
-                    ) : null}
-                    <p className="text-[11px] text-muted-soft mt-1.5">
-                      {m.wordBookName ? `${m.wordBookName} · ` : ""}
-                      {m.createdAt || ""}
-                    </p>
-                  </div>
-                  <CloudButton
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 text-destructive"
-                    disabled={removingMarkId === m.wordId}
-                    aria-label="取消标记"
-                    onClick={async () => {
-                      setRemovingMarkId(m.wordId);
-                      try {
-                        const res = await removeStudentWordMarkAsTeacher(studentId, m.wordId);
-                        if (res.code !== 200) {
-                          showToast.error(res.msg || "取消失败");
-                          return;
-                        }
-                        setMarks((prev) => prev.filter((x) => x.wordId !== m.wordId));
-                        setMarksTotal((n) => Math.max(0, n - 1));
-                        showToast.info("已取消标记");
-                      } catch (e: unknown) {
-                        const msg =
-                          e && typeof e === "object" && "msg" in e
-                            ? String((e as { msg: string }).msg)
-                            : "取消失败";
-                        showToast.error(msg);
-                      } finally {
-                        setRemovingMarkId(null);
-                      }
-                    }}
-                  >
-                    <Trash2 size={16} />
-                  </CloudButton>
-                </div>
-              </CloudCard>
-            ))
-          )}
-        </TabsContent>
       </Tabs>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

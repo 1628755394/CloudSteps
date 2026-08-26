@@ -1,0 +1,272 @@
+@import '../../styles/vars.scss';
+
+.home {
+  min-height: 100vh;
+  background-color: var(--background);
+  padding: 32rpx;
+  box-sizing: border-box;
+
+  &__hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24rpx;
+  }
+
+  &__hero-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__greeting {
+    font-size: 26rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__name {
+    font-size: 44rpx;
+    font-weight: 600;
+    color: var(--foreground);
+    line-height: 1.2;
+  }
+
+  &__hero-avatar {
+    width: 88rpx;
+    height: 88rpx;
+    border-radius: 50%;
+    background-color: var(--primary-soft);
+    border: 2rpx solid var(--border);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__avatar-img {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__avatar-text {
+    font-size: 36rpx;
+    font-weight: 600;
+    color: var(--primary);
+  }
+
+  /* 学员选择器 */
+  &__student-bar {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    margin-bottom: 16rpx;
+  }
+
+  &__student-label {
+    font-size: 24rpx;
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  &__student-picker {
+    flex: 1;
+    height: 64rpx;
+    border: 2rpx solid var(--border);
+    border-radius: 12rpx;
+    padding: 0 20rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--card);
+  }
+
+  &__student-value {
+    font-size: 26rpx;
+    color: var(--foreground);
+
+    &--placeholder {
+      color: var(--muted-soft);
+    }
+  }
+
+  &__student-dropdown {
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16rpx;
+    overflow: hidden;
+  }
+
+  &__student-empty {
+    padding: 32rpx;
+    text-align: center;
+    font-size: 26rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__student-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24rpx 28rpx;
+    border-bottom: 2rpx solid var(--border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &--active {
+      background-color: var(--primary-soft);
+    }
+
+    &:active {
+      background-color: var(--surface-soft);
+    }
+  }
+
+  &__student-option-text {
+    font-size: 28rpx;
+    color: var(--foreground);
+  }
+
+  /* 区块 */
+  &__section {
+    margin-bottom: 32rpx;
+  }
+
+  &__section-title {
+    display: block;
+    font-size: 24rpx;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    margin-bottom: 16rpx;
+    padding-left: 8rpx;
+  }
+
+  /* 快捷入口 */
+  &__quick-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16rpx;
+  }
+
+  &__quick-card {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+    padding: 24rpx;
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-rest);
+
+    &:active {
+      opacity: 0.92;
+    }
+  }
+
+  &__quick-icon {
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &--mint {
+      background-color: rgba(78, 205, 196, 0.1);
+    }
+    &--sky {
+      background-color: rgba(85, 163, 255, 0.1);
+    }
+    &--cream {
+      background-color: rgba(195, 125, 13, 0.1);
+    }
+  }
+
+  &__quick-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    min-width: 0;
+  }
+
+  &__quick-title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  &__quick-desc {
+    font-size: 22rpx;
+    color: var(--muted-foreground);
+  }
+
+  /* 训练资料 */
+  &__material-card {
+    background-color: var(--card);
+    border: 2rpx solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-rest);
+  }
+
+  &__material-item {
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
+    padding: 24rpx 28rpx;
+
+    &--border {
+      border-bottom: 2rpx solid var(--border);
+    }
+
+    &:active {
+      background-color: var(--surface-soft);
+    }
+  }
+
+  &__material-icon {
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 12rpx;
+    background-color: var(--surface-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__material-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+    min-width: 0;
+  }
+
+  &__material-name {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  &__material-desc {
+    font-size: 22rpx;
+    color: var(--muted-foreground);
+  }
+
+  &__footer {
+    padding: 32rpx 0 48rpx;
+    text-align: center;
+  }
+
+  &__footer-text {
+    font-size: 22rpx;
+    color: var(--muted-soft);
+  }
+}

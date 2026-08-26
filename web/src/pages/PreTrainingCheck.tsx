@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import { getStudyWords, startStudySession } from "../api/study";
 import { AnnotationLayer } from "../components/AnnotationLayer";
-import { StudentWordMarkButton, useStudentWordMarks } from "../components/StudentWordMarkButton";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { CloudButton } from "../components/cloudsteps";
@@ -65,7 +64,6 @@ export default function PreTrainingCheck() {
   /** 拓展简易模式：默认开，只展示部分标签 */
   const [simpleDetail, setSimpleDetail] = useState(true);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
-  const wordMarks = useStudentWordMarks(words.map((word) => word.id));
 
   const handlePlayAudio = useCallback((word: WordItem) => {
     if (!word.audioUrl) return;
@@ -400,15 +398,6 @@ export default function PreTrainingCheck() {
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <StudentWordMarkButton
-            wordId={word.id}
-            wordBookId={wordBookId}
-            marked={wordMarks.isMarked(word.id)}
-            enabled={wordMarks.enabled}
-            busy={wordMarks.busyId === word.id}
-            onToggle={wordMarks.toggle}
-            className="size-9"
-          />
           <div onClick={(e) => e.stopPropagation()}>
             <StudyNoteLauncher
               storageKey={`study-note:word:${wordBookId}:${word.id}`}
@@ -606,6 +595,12 @@ export default function PreTrainingCheck() {
             )}
           </div>
           <div className="flex gap-2">
+            {shuffleMode && (
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
+                <Shuffle size={16} />
+                重新乱序
+              </CloudButton>
+            )}
             {shuffleMode ? (
               <CloudButton variant="outline" size="pill" onClick={handleSequential}>
                 <ArrowDownAZ size={16} />

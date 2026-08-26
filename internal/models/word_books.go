@@ -2,12 +2,12 @@ package models
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // WordLite 单词轻量结构（学习/列表场景只需少量字段，避免 SELECT * 40+ 列）
@@ -680,35 +680,75 @@ func GetWordCountByBookID(db *gorm.DB, wordBookID uint) (int64, error) {
 }
 
 // ListStudyWordsLite 学习列表轻量查询：用 NOT EXISTS 排除已学单词。
-// shuffle=true 时按 seed 稳定乱序（同 seed 翻页顺序一致；换 seed 即重新乱序）。
+// shuffle=true 时用 seed 做 Fisher–Yates 全量乱序后分页（同 seed 翻页稳定；换 seed 完全重排）。
 func ListStudyWordsLite(db *gorm.DB, wordBookID uint, userID uint, page, size int, shuffle bool, seed int64) ([]WordLite, int64, error) {
 	baseWhere := "word_book_id = ? AND is_deleted = ? AND NOT EXISTS (SELECT 1 FROM user_word_states WHERE user_id = ? AND word_id = words.id AND learn_status IN ('learned','mastered'))"
+	args := []any{wordBookID, SoftDeleteStatusActive, userID}
 
 	var total int64
-	if err := db.Model(&WordLite{}).Where(baseWhere, wordBookID, SoftDeleteStatusActive, userID).Count(&total).Error; err != nil {
+	if err := db.Model(&WordLite{}).Where(baseWhere, args...).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return []WordLite{}, 0, nil
+	}
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 {
+		size = 20
+	}
+
+	if !shuffle {
+		var words []WordLite
+		err := db.Model(&WordLite{}).Where(baseWhere, args...).
+			Order("sort_order ASC, id ASC").
+			Offset((page - 1) * size).Limit(size).
+			Find(&words).Error
+		return words, total, err
+	}
+
+	if seed == 0 {
+		seed = time.Now().UnixNano()
+	}
+
+	var ids []uint
+	if err := db.Model(&WordLite{}).Where(baseWhere, args...).
+		Order("id ASC").Pluck("id", &ids).Error; err != nil {
 		return nil, 0, err
 	}
 
-	orderExpr := "sort_order ASC, id ASC"
-	if shuffle {
-		if seed == 0 {
-			seed = time.Now().UnixNano()
-		}
-		// 用 MD5(id+seed) 做确定性乱序，避免 RAND() 翻页重复/漏词
-		orderExpr = fmt.Sprintf("MD5(CONCAT(id, '-', %d)) ASC, id ASC", seed)
+	r := rand.New(rand.NewSource(seed))
+	for i := len(ids) - 1; i > 0; i-- {
+		j := r.Intn(i + 1)
+		ids[i], ids[j] = ids[j], ids[i]
 	}
+
+	start := (page - 1) * size
+	if start >= len(ids) {
+		return []WordLite{}, total, nil
+	}
+	end := start + size
+	if end > len(ids) {
+		end = len(ids)
+	}
+	pageIDs := ids[start:end]
 
 	var words []WordLite
-	q := db.Model(&WordLite{}).Where(baseWhere, wordBookID, SoftDeleteStatusActive, userID)
-	if shuffle {
-		q = q.Order(clause.Expr{SQL: orderExpr})
-	} else {
-		q = q.Order(orderExpr)
-	}
-	if err := q.Offset((page - 1) * size).Limit(size).Find(&words).Error; err != nil {
+	if err := db.Model(&WordLite{}).Where("id IN ?", pageIDs).Find(&words).Error; err != nil {
 		return nil, 0, err
 	}
-	return words, total, nil
+	byID := make(map[uint]WordLite, len(words))
+	for _, w := range words {
+		byID[w.ID] = w
+	}
+	ordered := make([]WordLite, 0, len(pageIDs))
+	for _, id := range pageIDs {
+		if w, ok := byID[id]; ok {
+			ordered = append(ordered, w)
+		}
+	}
+	return ordered, total, nil
 }
 
 // GetWordIDsByBookID 获取词库全部单词 ID（用于选词库时的懒初始化，只 Pluck ID 不创建状态）

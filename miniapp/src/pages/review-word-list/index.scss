@@ -1,0 +1,268 @@
+/**
+ * 复习单词列表页样式 — 对齐 web ReviewWordList.tsx。
+ */
+@import '../../styles/vars.scss';
+
+.rwl {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f7f9fc;
+}
+
+/* ============ 导航栏 ============ */
+.rwl__navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background-color: var(--card);
+  border-bottom: 2rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.rwl__nav-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rwl__nav-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* ============ 主体 ============ */
+.rwl__body {
+  flex: 1;
+  padding: 24rpx 32rpx 0;
+  box-sizing: border-box;
+}
+
+/* 状态 */
+.rwl__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+}
+
+.rwl__state-text {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+}
+
+/* 单词计数描述 */
+.rwl__desc {
+  margin-bottom: 20rpx;
+}
+
+.rwl__desc-text {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+}
+
+/* ============ 统计栏 ============ */
+.rwl__stats {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.rwl__stat {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 20rpx 0;
+  border-radius: var(--radius);
+  border: 2rpx solid;
+
+  &--correct {
+    border-color: rgba(78, 205, 196, 0.3);
+    background-color: rgba(78, 205, 196, 0.06);
+  }
+
+  &--wrong {
+    border-color: rgba(224, 49, 49, 0.25);
+    background-color: rgba(224, 49, 49, 0.04);
+  }
+
+  &--pending {
+    border-color: var(--border);
+    background-color: var(--card);
+  }
+}
+
+.rwl__stat-value {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.rwl__stat-label {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+/* ============ 单词列表 ============ */
+.rwl__word-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.rwl__word-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 28rpx;
+  background-color: var(--card);
+  border: 2rpx solid transparent;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-rest);
+
+  &--correct {
+    border: 2rpx solid var(--primary);
+    background-color: rgba(78, 205, 196, 0.06);
+  }
+
+  &--wrong {
+    border: 2rpx solid #ff6b6b;
+    background-color: rgba(255, 107, 107, 0.05);
+  }
+}
+
+.rwl__word-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.rwl__word-index {
+  font-size: 22rpx;
+  color: #a0aec0;
+  width: 36rpx;
+  flex-shrink: 0;
+  margin-top: 6rpx;
+}
+
+.rwl__word-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.rwl__word-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--foreground);
+  word-break: break-all;
+}
+
+.rwl__word-translation {
+  font-size: 26rpx;
+  color: var(--charcoal);
+  line-height: 1.6;
+}
+
+.rwl__word-right {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+
+.rwl__icon-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--surface-soft);
+
+  &:active {
+    opacity: 0.7;
+  }
+
+  &--playing {
+    background-color: rgba(78, 205, 196, 0.12);
+  }
+
+  &--active-mint {
+    background-color: var(--primary);
+  }
+
+  &--active-red {
+    background-color: #ff6b6b;
+  }
+}
+
+/* ============ 底部固定操作栏 ============ */
+.rwl__footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--card);
+  border-top: 2rpx solid var(--border);
+  padding: 20rpx 32rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  z-index: 100;
+}
+
+.rwl__footer-top {
+  display: flex;
+  gap: 12rpx;
+}
+
+.rwl__footer-btn {
+  padding: 12rpx 24rpx;
+  border: 2rpx solid var(--border);
+  border-radius: 999rpx;
+  background-color: var(--card);
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+
+  &--disabled {
+    opacity: 0.4;
+  }
+}
+
+.rwl__footer-btn-text {
+  font-size: 24rpx;
+  color: var(--charcoal);
+}
+
+.rwl__footer-hint {
+  font-size: 22rpx;
+  text-align: center;
+
+  &--error {
+    color: var(--destructive);
+  }
+
+  &--warn {
+    color: #ff6b6b;
+  }
+
+  &--ok {
+    color: #a0aec0;
+  }
+}

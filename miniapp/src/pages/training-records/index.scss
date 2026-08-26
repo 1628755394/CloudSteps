@@ -1,0 +1,237 @@
+/**
+ * 训练记录样式 — Warm Mint 主题。
+ */
+.tr {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background);
+  box-sizing: border-box;
+}
+
+/* ============ 顶部导航 ============ */
+.tr__nav {
+  display: flex;
+  align-items: center;
+  height: 96rpx;
+  padding: 0 24rpx;
+  background-color: var(--card);
+  border-bottom: 2rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.tr__nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+.tr__nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.tr__nav-placeholder {
+  width: 64rpx;
+  flex-shrink: 0;
+}
+
+/* ============ Tab 切换 ============ */
+.tr__tabs {
+  display: flex;
+  gap: 16rpx;
+  padding: 24rpx 32rpx 8rpx;
+  flex-shrink: 0;
+}
+
+.tr__tab {
+  padding: 14rpx 32rpx;
+  border-radius: var(--radius-sm);
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+
+  &--active {
+    background-color: var(--primary);
+    border-color: var(--primary);
+  }
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.tr__tab--active .tr__tab-text {
+  color: #ffffff;
+}
+
+.tr__tab-text {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+/* ============ 列表 ============ */
+.tr__list {
+  flex: 1;
+  min-height: 0;
+  padding: 16rpx 32rpx 48rpx;
+}
+
+.tr__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+/* ============ 记录卡片 ============ */
+.tr__card {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  padding: 28rpx;
+  box-shadow: var(--shadow-rest);
+}
+
+.tr__card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.tr__card-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+  flex: 1;
+}
+
+.tr__card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tr__card-day {
+  padding: 6rpx 16rpx;
+  border-radius: var(--radius-sm);
+  background-color: rgba(26, 174, 57, 0.1);
+  flex-shrink: 0;
+}
+
+.tr__card-day-text {
+  font-size: 22rpx;
+  color: #1aae39;
+}
+
+/* ============ 元信息 ============ */
+.tr__card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16rpx 24rpx;
+}
+
+.tr__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.tr__meta-text {
+  font-size: 24rpx;
+  color: var(--muted-foreground);
+}
+
+.tr__meta-rate {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.tr__meta-rate-text {
+  font-size: 24rpx;
+  color: #1aae39;
+}
+
+/* ============ 状态徽章 ============ */
+.tr__card-status {
+  margin-top: 16rpx;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tr__status-badge {
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+
+  &--study {
+    background-color: var(--primary-soft);
+  }
+
+  &--review {
+    background-color: rgba(85, 163, 255, 0.12);
+  }
+}
+
+.tr__status-text {
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.tr__status-badge--study .tr__status-text {
+  color: var(--primary-deep);
+}
+
+.tr__status-badge--review .tr__status-text {
+  color: var(--secondary-brand);
+}
+
+/* ============ 状态占位 ============ */
+.tr__state {
+  padding: 80rpx 32rpx;
+  text-align: center;
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.tr__state--more {
+  margin-top: 20rpx;
+  padding: 32rpx;
+}
+
+.tr__state-text {
+  font-size: 28rpx;
+  color: var(--muted-foreground);
+}
+
+.tr__state-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.tr__state-desc {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+}

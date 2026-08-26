@@ -1,0 +1,288 @@
+/**
+ * 情景口语页样式 — Warm Mint 主题。
+ */
+@import '../../styles/vars.scss';
+
+.scenario {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+/* ============ 顶部导航栏 ============ */
+.scenario__navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  background-color: var(--card);
+  border-bottom: 2rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.scenario__nav-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scenario__nav-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* ============ 滚动主体 ============ */
+.scenario__body {
+  flex: 1;
+  padding: 24rpx 32rpx 0;
+  box-sizing: border-box;
+}
+
+/* ============ 流程提示 ============ */
+.scenario__flow {
+  display: block;
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+  margin-bottom: 20rpx;
+}
+
+/* ============ 语音提示 ============ */
+.scenario__voice-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  padding: 20rpx 24rpx;
+  background-color: var(--tint-cream);
+  border: 2rpx solid rgba(195, 125, 13, 0.2);
+  border-radius: var(--radius);
+  margin-bottom: 20rpx;
+}
+
+.scenario__voice-hint-icon {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: var(--radius-sm);
+  background-color: rgba(195, 125, 13, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2rpx;
+}
+
+.scenario__voice-hint-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.scenario__voice-hint-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--warning);
+}
+
+.scenario__voice-hint-desc {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+/* ============ 口语能力概览 ============ */
+.scenario__stats {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: var(--shadow-rest);
+}
+
+.scenario__stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.scenario__stats-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.scenario__stats-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.scenario__stats-grid {
+  display: flex;
+  gap: 16rpx;
+}
+
+.scenario__stat-card {
+  flex: 1;
+  border-radius: var(--radius);
+  padding: 24rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+
+  &--mint {
+    background-color: var(--tint-mint);
+  }
+
+  &--sky {
+    background-color: var(--tint-sky);
+  }
+
+  &--soft {
+    background-color: var(--surface-soft);
+  }
+}
+
+.scenario__stat-value {
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 1.2;
+
+  &--primary {
+    color: var(--primary);
+  }
+
+  &--blue {
+    color: var(--secondary-brand);
+  }
+
+  &--green {
+    color: var(--success);
+  }
+}
+
+.scenario__stat-label {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+}
+
+/* ============ 状态/空态 ============ */
+.scenario__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 0;
+}
+
+.scenario__state-text {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+}
+
+.scenario__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 0;
+}
+
+.scenario__empty-text {
+  font-size: 26rpx;
+  color: var(--muted-foreground);
+}
+
+/* ============ 场景列表 ============ */
+.scenario__list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.scenario__item {
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  padding: 24rpx;
+  box-shadow: var(--shadow-rest);
+
+  &:active {
+    border-color: var(--primary);
+    background-color: var(--surface-soft);
+  }
+}
+
+.scenario__item-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+}
+
+.scenario__item-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.scenario__item-icon-text {
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.scenario__item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.scenario__item-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.scenario__item-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.scenario__item-tag {
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  flex-shrink: 0;
+}
+
+.scenario__item-tag-text {
+  font-size: 20rpx;
+  font-weight: 500;
+}
+
+.scenario__item-desc {
+  font-size: 24rpx;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}

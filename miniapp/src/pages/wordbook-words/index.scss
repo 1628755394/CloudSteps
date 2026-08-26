@@ -1,0 +1,256 @@
+/**
+ * 词库单词列表样式 — Warm Mint 主题。
+ */
+.wbw {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--background);
+  box-sizing: border-box;
+
+  &--empty {
+    align-items: center;
+    justify-content: center;
+    padding: 64rpx;
+    gap: 24rpx;
+  }
+}
+
+.wbw__empty-text {
+  font-size: 28rpx;
+  color: var(--muted-foreground);
+}
+
+.wbw__back-link {
+  font-size: 28rpx;
+  color: var(--primary);
+}
+
+/* ============ 顶部导航 ============ */
+.wbw__nav {
+  display: flex;
+  align-items: center;
+  height: 96rpx;
+  padding: 0 24rpx;
+  background-color: var(--card);
+  border-bottom: 2rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.wbw__nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+
+  &:active {
+    background-color: var(--surface-soft);
+  }
+}
+
+.wbw__nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wbw__nav-placeholder {
+  width: 64rpx;
+  flex-shrink: 0;
+}
+
+/* ============ 搜索框 ============ */
+.wbw__search {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 24rpx 32rpx 0;
+  padding: 0 24rpx;
+  height: 80rpx;
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+
+.wbw__search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: var(--charcoal);
+  height: 80rpx;
+  line-height: 80rpx;
+}
+
+.wbw__search-ph {
+  color: var(--muted-soft);
+  font-size: 28rpx;
+}
+
+.wbw__search-clear {
+  font-size: 24rpx;
+  color: var(--primary);
+  padding: 8rpx 12rpx;
+}
+
+/* ============ 统计 ============ */
+.wbw__meta {
+  padding: 16rpx 32rpx 0;
+  flex-shrink: 0;
+}
+
+.wbw__meta-text {
+  font-size: 24rpx;
+  color: var(--muted-foreground);
+}
+
+/* ============ 错误 ============ */
+.wbw__error {
+  margin: 24rpx 32rpx 0;
+  padding: 24rpx;
+  background-color: var(--card);
+  border: 2rpx solid rgba(224, 49, 49, 0.3);
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+
+.wbw__error-text {
+  font-size: 26rpx;
+  color: var(--destructive);
+}
+
+/* ============ 列表 ============ */
+.wbw__list {
+  flex: 1;
+  min-height: 0;
+  padding: 24rpx 32rpx 48rpx;
+}
+
+.wbw__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.wbw__card {
+  display: flex;
+  align-items: flex-start;
+  gap: 24rpx;
+  padding: 28rpx;
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-rest);
+}
+
+.wbw__card-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.wbw__word-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.wbw__word {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+.wbw__pos {
+  font-size: 22rpx;
+  color: var(--muted-foreground);
+  background-color: var(--surface-soft);
+  padding: 4rpx 14rpx;
+  border-radius: var(--radius-sm);
+}
+
+.wbw__phonetic {
+  font-size: 26rpx;
+  color: var(--secondary-brand);
+  font-family: var(--font-mono);
+}
+
+.wbw__meaning {
+  font-size: 28rpx;
+  color: var(--charcoal);
+  line-height: 1.6;
+}
+
+.wbw__example {
+  font-size: 24rpx;
+  color: var(--muted-foreground);
+  font-style: italic;
+  border-left: 4rpx solid rgba(78, 205, 196, 0.4);
+  padding-left: 20rpx;
+  line-height: 1.6;
+}
+
+/* ============ 播放按钮 ============ */
+.wbw__play {
+  flex-shrink: 0;
+  padding: 16rpx 28rpx;
+  border-radius: 999rpx;
+  background-color: var(--primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    background-color: rgba(78, 205, 196, 0.2);
+  }
+
+  &--playing {
+    background-color: var(--primary);
+  }
+
+  &--disabled {
+    background-color: var(--border);
+  }
+}
+
+.wbw__play-text {
+  font-size: 24rpx;
+  color: var(--primary-deep);
+  white-space: nowrap;
+}
+
+.wbw__play--playing .wbw__play-text {
+  color: #ffffff;
+}
+
+.wbw__play--disabled .wbw__play-text {
+  color: var(--muted-soft);
+}
+
+/* ============ 状态占位 ============ */
+.wbw__state {
+  padding: 64rpx 32rpx;
+  text-align: center;
+  background-color: var(--card);
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius);
+}
+
+.wbw__state--more {
+  margin-top: 20rpx;
+  padding: 32rpx;
+}
+
+.wbw__state-text {
+  font-size: 28rpx;
+  color: var(--muted-foreground);
+}
