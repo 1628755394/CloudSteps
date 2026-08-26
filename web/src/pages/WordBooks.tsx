@@ -1,8 +1,11 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router";
 import { BookOpen, ChevronRight, ChevronLeft, Search } from "lucide-react";
-import { CloudCard, CloudEmpty, CloudSpin, CloudInput } from "../components/cloudsteps/arco";
+import { CloudCard, CloudEmpty, CloudSpin, CloudInput, CloudSelect } from "../components/cloudsteps/arco";
 import { listWordBooks, type WordBookItem, type WordBookGroup } from "../api/wordbooks";
+import { useAuthStore } from "../stores/authStore";
+import { listAllTeacherCoachingQuotas, type TeacherCoachingQuotaRow } from "../api/coaching";
+import { getTrainingStudent, setTrainingStudent, studentLabelFromQuota } from "../utils/trainingStudent";
 
 // 封面渐变色组（按 tag hash 分配）
 const COVER_GRADIENTS = [
@@ -61,6 +64,11 @@ const DEFAULT_GROUPS: WordBookGroup[] = [
 ];
 
 export default function WordBooks() {
+  const role = useAuthStore((s) => s.user?.role) || "user";
+  const isCoach = role === "user" || role === "admin" || role === "teacher";
+  const [students, setStudents] = useState<TeacherCoachingQuotaRow[]>([]);
+  const [studentId, setStudentId] = useState(() => String(getTrainingStudent()?.id || ""));
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [books, setBooks] = useState<WordBookItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -102,6 +110,37 @@ export default function WordBooks() {
     fetchBooks(page, keyword, group);
   }, [page, keyword, group, fetchBooks]);
 
+  useEffect(() => {
+    if (!isCoach) return;
+    let mounted = true;
+    setLoadingStudents(true);
+    listAllTeacherCoachingQuotas()
+      .then((rows) => {
+        if (!mounted) return;
+        setStudents(rows);
+        const saved = getTrainingStudent();
+        const selected = (saved?.id && rows.find((row) => row.studentId === saved.id)) || rows[0];
+        if (selected) {
+          setStudentId(String(selected.studentId));
+          setTrainingStudent(selected.studentId, studentLabelFromQuota(selected));
+        }
+      })
+      .catch(() => {
+        if (mounted) setStudents([]);
+      })
+      .finally(() => {
+        if (mounted) setLoadingStudents(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isCoach]);
+
+  const studentOptions = useMemo(
+    () => students.map((row) => ({ label: studentLabelFromQuota(row), value: String(row.studentId) })),
+    [students]
+  );
+
   const handleGroupChange = (g: string) => {
     setGroup(g);
     setPage(1);
@@ -126,6 +165,30 @@ export default function WordBooks() {
 
   return (
     <div className="space-y-4">
+      {isCoach && (
+        <div className="flex items-center justify-end gap-2">
+          <span className="text-xs text-muted-foreground">学员</span>
+          <CloudSelect
+            size="small"
+            className="w-32 sm:w-40"
+            placeholder={loadingStudents ? "加载中…" : "选择学员"}
+            sheetTitle="选择学员"
+            options={studentOptions}
+            value={studentId || undefined}
+            showSearch
+            allowClear={false}
+            disabled={loadingStudents || studentOptions.length === 0}
+            onChange={(value) => {
+              const id = String(value ?? "");
+              const row = students.find((item) => String(item.studentId) === id);
+              if (!row) return;
+              setStudentId(id);
+              setTrainingStudent(row.studentId, studentLabelFromQuota(row));
+            }}
+          />
+        </div>
+      )}
+
       {/* 搜索栏 */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-md">

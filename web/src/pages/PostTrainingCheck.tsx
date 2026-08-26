@@ -234,6 +234,11 @@ export default function PostTrainingCheck() {
     setCardIndex(0);
   };
 
+  const markFirstFive = (status: "correct" | "wrong") => {
+    setWords((prev) => prev.map((word, index) => (index < 5 ? { ...word, status } : word)));
+    setCardIndex(0);
+  };
+
   const appendMilestoneResults = (results: { wordId: number; remembered: boolean }[]) => {
     try {
       const raw = sessionStorage.getItem("lb_study_batch_results") || "[]";
@@ -582,6 +587,14 @@ export default function PostTrainingCheck() {
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
               乱序
+            </CloudButton>
+            <CloudButton variant="mintOutline" size="pill" onClick={() => markFirstFive("correct")}>
+              <Check size={16} />
+              5个正确
+            </CloudButton>
+            <CloudButton variant="destructive" size="pill" onClick={() => markFirstFive("wrong")}>
+              <X size={16} />
+              5个错误
             </CloudButton>
             <CloudButton
               variant={detailMode ? "brand" : "outline"}

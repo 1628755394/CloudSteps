@@ -308,9 +308,9 @@ export default function ReviewWordList() {
       />
 
       {/* Split container: word content + note panel on the same layer. */}
-      <div className={`px-4 pt-3 pb-4 w-full ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
+      <div className={`box-border min-h-[calc(100dvh-9.5rem)] px-4 pt-3 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
         {/* Word content pane */}
-        <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
             <p className="text-[#718096] text-sm">
               {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
@@ -347,7 +347,7 @@ export default function ReviewWordList() {
             />
           </div>
         ) : (
-          <div className="space-y-2.5 mt-3">
+          <div className={globalNoteOpen && isDesktop ? "min-h-0 flex-1 overflow-y-auto space-y-2.5 mt-3" : "space-y-2.5 mt-3"}>
             {words.map((item, index) => {
               return (
                 <div

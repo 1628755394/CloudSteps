@@ -407,19 +407,6 @@ export default function StudentDetail() {
             </span>
           </div>
         </div>
-        <CloudButton
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0 gap-1"
-          onClick={() =>
-            navigate(`/my-students/${studentId}/training`, {
-              state: { studentName: displayName },
-            })
-          }
-        >
-          活动
-        </CloudButton>
       </div>
 
       <Tabs value={tab} onValueChange={onTabChange} className="flex flex-col flex-1 min-h-0 gap-3">
@@ -499,18 +486,6 @@ export default function StudentDetail() {
                   >
                     <KeyRound size={14} />
                     重置密码
-                  </CloudButton>
-                  <CloudButton
-                    type="button"
-                    variant="brandOutline"
-                    size="sm"
-                    onClick={() =>
-                      navigate(`/my-students/${studentId}/training`, {
-                        state: { studentName: displayName },
-                      })
-                    }
-                  >
-                    查看全部活动
                   </CloudButton>
                 </div>
                 <div className="text-[11px] text-muted-foreground grid grid-cols-3 gap-2 pt-1">

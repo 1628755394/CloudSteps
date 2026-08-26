@@ -187,12 +187,9 @@ export default function WordPractice() {
   const sequence = useMemo(() => {
     const n = words.length;
     if (n <= 0) return [] as number[];
-    const seq: number[] = [0];
-    for (let i = 1; i < n; i++) {
-      seq.push(i);
-      for (let j = 0; j <= i; j++) seq.push(j);
-    }
-    return seq;
+    const forward = Array.from({ length: n }, (_, index) => index);
+    const backward = Array.from({ length: Math.max(0, n - 1) }, (_, index) => n - 2 - index);
+    return [...forward, ...backward];
   }, [words]);
 
   const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : 0;
@@ -323,11 +320,11 @@ export default function WordPractice() {
 
       {/* Split container: word content + note panel on the same layer (desktop). */}
       <div
-        className={`px-4 mt-6 w-full pb-28 ${globalNoteOpen && isDesktop ? "lg:flex lg:gap-2 lg:max-w-none lg:px-2 lg:mx-0" : "max-w-2xl lg:max-w-5xl mx-auto"}`}
+        className={`box-border min-h-[calc(100dvh-9.5rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2 lg:mx-0" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`}
         style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}
       >
         {/* Word content pane */}
-        <div className={`${globalNoteOpen && isDesktop ? "lg:flex-1 lg:min-w-0 lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {viewMode === "card" && cardWord ? (
@@ -400,16 +397,20 @@ export default function WordPractice() {
             )}
           </div>
         ) : (
-          <div className="space-y-3 mb-6">
+          <div
+            className={globalNoteOpen && isDesktop
+              ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,1fr))] overflow-y-auto"
+              : "space-y-3 mb-6"}
+          >
             {words.map((word, index) => (
-              <div
-                key={word.id}
-                className={`relative bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
-                  !manualReadMode && index === activeIndex
-                    ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
-                    : "border-transparent"
-                }`}
-              >
+              <div key={word.id} className={globalNoteOpen && isDesktop ? "min-h-0" : ""}>
+                <div
+                  className={`relative h-full bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
+                    !manualReadMode && index === activeIndex
+                      ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
+                      : "border-transparent"
+                  } ${globalNoteOpen && isDesktop ? "min-h-0 overflow-y-auto rounded-none border-x-0 border-t-0" : ""}`}
+                >
                 <SequenceNextMark
                   show={!manualReadMode && nextGuideIndex >= 0 && index === nextGuideIndex}
                 />
@@ -461,6 +462,7 @@ export default function WordPractice() {
                     onClose={() => setDetailWord(null)}
                   />
                 )}
+                </div>
               </div>
             ))}
           </div>
