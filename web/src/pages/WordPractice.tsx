@@ -32,10 +32,10 @@ type PracticeWord = {
 export default function WordPractice() {
   const navigate = useNavigate();
   const [words, setWords] = useState<PracticeWord[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [manualReadMode, setManualReadMode] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [frameIdx, setFrameIdx] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
@@ -174,9 +174,9 @@ export default function WordPractice() {
         heard: false,
       }));
       setWords(mapped);
-      setCurrentIndex(0);
       setCardIndex(0);
       setFrameIdx(0);
+      setSelectedIndex(null);
     } catch {
       // ignore
     }
@@ -185,20 +185,20 @@ export default function WordPractice() {
   const sequence = useMemo(() => {
     const n = words.length;
     if (n <= 0) return [] as number[];
-    const forward = Array.from({ length: n }, (_, index) => index);
-    const backward = Array.from({ length: Math.max(0, n - 1) }, (_, index) => n - 2 - index);
-    return [...forward, ...backward];
+    const result = [0];
+    for (let end = 1; end < n; end++) {
+      const start = end === 2 ? 0 : 1;
+      for (let index = start; index <= end; index++) result.push(index);
+      for (let index = end - 1; index >= 0; index--) result.push(index);
+    }
+    return result;
   }, [words]);
 
-  const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : 0;
-  /** 序列中「下一步」要去的词（与当前不同时才显示引导标记） */
-  const nextGuideIndex =
-    frameIdx + 1 < sequence.length ? sequence[frameIdx + 1] : -1;
+  const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : -1;
+  const nextGuideIndex = activeIndex;
 
   /** 点单词：第一次发音，第二次显示音标+释义；拓展仅在释义时增幅 */
   const handleWordTap = (word: PracticeWord) => {
-    const idx = words.findIndex((w) => w.id === word.id);
-    if (idx >= 0) setCurrentIndex(idx);
     const next = nextWordTapState({
       showTranslation: word.showTranslation,
       heard: word.heard,
@@ -229,6 +229,7 @@ export default function WordPractice() {
     if (idx !== activeIndex) return;
 
     if (sequence.length === 0) return;
+    setSelectedIndex(idx);
     setWords((prev) =>
       prev.map((w) => (w.id === id ? { ...w, count: (w.count + 1) % 4 } : w))
     );
@@ -329,7 +330,7 @@ export default function WordPractice() {
           <div className="flex w-full flex-col gap-3">
             <div
               className={`relative flex w-full flex-col overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition-colors ${
-                !manualReadMode && words.findIndex((w) => w.id === cardWord.id) === activeIndex
+                !manualReadMode && words.findIndex((w) => w.id === cardWord.id) === selectedIndex
                   ? "border-[#4ECDC4] bg-[#4ECDC4]/10"
                   : "border-[#E2E8F0]"
               }`}
@@ -397,17 +398,17 @@ export default function WordPractice() {
         ) : (
           <div
             className={globalNoteOpen && isDesktop
-              ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,1fr))] overflow-y-auto"
+              ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,1fr))] gap-2.5 overflow-y-auto"
               : "space-y-3 mb-6"}
           >
             {words.map((word, index) => (
               <div key={word.id} className={globalNoteOpen && isDesktop ? "min-h-0" : ""}>
                 <div
                   className={`relative h-full bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
-                    !manualReadMode && index === activeIndex
+                    !manualReadMode && index === selectedIndex
                       ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
                       : "border-transparent"
-                  } ${globalNoteOpen && isDesktop ? "min-h-0 overflow-y-auto rounded-none border-x-0 border-t-0" : ""}`}
+                  }`}
                 >
                 <SequenceNextMark
                   show={!manualReadMode && nextGuideIndex >= 0 && index === nextGuideIndex}

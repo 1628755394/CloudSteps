@@ -1,4 +1,4 @@
-import { Volume2, Check, X, Shuffle, BookOpen } from "lucide-react";
+import { Volume2, Check, X, Shuffle, BookOpen, PanelTop } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
@@ -18,6 +18,8 @@ import {
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
+import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
+import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 
 import { startReviewSession } from "../api/review";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
@@ -56,6 +58,7 @@ export default function ReviewCheck() {
   };
 
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
+  const note = useSplitScreenNote("lb_reviewcheck_note_width");
   const [sessionId, setSessionId] = useState<number>(0);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
@@ -234,7 +237,16 @@ export default function ReviewCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-4 pb-36 max-w-2xl lg:max-w-5xl mx-auto w-full">
+      <StudyNoteSplitLayout
+        open={note.open}
+        isDesktop={note.isDesktop}
+        side={note.side}
+        width={note.width}
+        storageKey={`study-note:global:${wordBookId}`}
+        onClose={() => note.setOpen(false)}
+        onSideChange={note.setSide}
+        onResize={note.startResize}
+      >
         {loading && (
           <p className="text-center text-[#718096] py-12">加载中…</p>
         )}
@@ -361,7 +373,7 @@ export default function ReviewCheck() {
             )}
           </>
         )}
-      </div>
+      </StudyNoteSplitLayout>
 
       {showList && (
         <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
@@ -369,10 +381,17 @@ export default function ReviewCheck() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-              <StudyNoteLauncher
-                storageKey={`study-note:global:${wordBookId}`}
-                label="随心记"
-              />
+              <CloudButton
+                type="button"
+                variant={note.open ? "brand" : "outline"}
+                size="pill"
+                onClick={() => note.setOpen((value) => !value)}
+                aria-label="打开随心记"
+                title="打开随心记"
+              >
+                <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
+                随心记
+              </CloudButton>
               <CloudButton
                 variant={detailMode ? "brand" : "outline"}
                 size="pill"

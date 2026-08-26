@@ -1,4 +1,4 @@
-import { Volume2, Check, X, BookOpen, Shuffle } from "lucide-react";
+import { Volume2, Check, X, BookOpen, Shuffle, PanelTop } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
@@ -18,6 +18,8 @@ import {
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
+import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
+import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import { completeStudySession } from "../api/study";
 import { completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
@@ -89,6 +91,7 @@ export default function PostTrainingCheck() {
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
+  const note = useSplitScreenNote("lb_posttraining_note_width");
 
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
@@ -455,7 +458,16 @@ export default function PostTrainingCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-4 pb-36 max-w-2xl lg:max-w-5xl mx-auto w-full">
+      <StudyNoteSplitLayout
+        open={note.open}
+        isDesktop={note.isDesktop}
+        side={note.side}
+        width={note.width}
+        storageKey={`study-note:global:${wordBookId}`}
+        onClose={() => note.setOpen(false)}
+        onSideChange={note.setSide}
+        onResize={note.startResize}
+      >
         {mode === "study" && phaseLabels.hint && (
           <p className="text-center text-sm text-[#718096] mb-4">{phaseLabels.hint}</p>
         )}
@@ -573,16 +585,23 @@ export default function PostTrainingCheck() {
             ))}
           </div>
         )}
-      </div>
+      </StudyNoteSplitLayout>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <StudyNoteLauncher
-              storageKey={`study-note:global:${wordBookId}`}
-              label="随心记"
-            />
+            <CloudButton
+              type="button"
+              variant={note.open ? "brand" : "outline"}
+              size="pill"
+              onClick={() => note.setOpen((value) => !value)}
+              aria-label="打开随心记"
+              title="打开随心记"
+            >
+              <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
+              随心记
+            </CloudButton>
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
