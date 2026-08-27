@@ -74,6 +74,7 @@ func SetupDatabase(logWriter io.Writer, opts *Options) (*gorm.DB, error) {
 		return nil, err
 	}
 	listeners.InitAuthMailListeners(db)
+	listeners.InitFeedbackListeners(db)
 
 	// 4) Non-production: demo users, content, etc.
 	if opts.SeedNonProd {
@@ -141,6 +142,8 @@ func RunMigrations(db *gorm.DB) error {
 		&models.ScenarioDialogueSession{},
 		&models.ScenarioDialogueTurn{},
 		&models.SysMetric{},
+		&models.FeedbackTicket{},
+		&models.FeedbackReply{},
 	}); err != nil {
 		return err
 	}

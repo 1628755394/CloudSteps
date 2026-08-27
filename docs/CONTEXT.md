@@ -18,7 +18,15 @@ _Avoid_: env-only mail config as the live source after first seed
 
 **Inbox**:
 In-app messages from inbox-type notification templates. Written by the inbox Sig listener via `Mailer.SendInbox`, not mirrored from email sends.
-_Avoid_: hardcoded inbox copy in listeners
+_Avoid_: hardcoded inbox copy in listeners; using an inbox message as the place a support conversation lives
+
+**Feedback ticket**:
+A support conversation opened by a signed-in user. The opening message belongs to the ticket; later messages are feedback replies. Status is `open` until an admin closes it.
+_Avoid_: a single reply column on the ticket; treating the inbox ping as the conversation
+
+**Feedback reply**:
+One message on a feedback ticket, from the user or an admin. An admin reply is stored on the ticket and then notified by Inbox (`feedback_reply`); the inbox copy is not the reply.
+_Avoid_: sending the reply only as inbox; replacing the ticket body with the latest reply
 
 **Object storage manager**:
 Admin browses buckets/objects on the `STORAGE_KIND` backend via ling-base `ObjectStorageManager` (`stores.DefaultManager()`). Empty bucket uses the env default (e.g. `QINIU_BUCKET`).

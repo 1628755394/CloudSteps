@@ -32,6 +32,7 @@ import { Route as AuthenticatedVocabRecordsIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedVocabQuestionsIndexRouteImport } from './routes/_authenticated/vocab-questions/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedUserWordsIndexRouteImport } from './routes/_authenticated/user-words/index'
+import { Route as AuthenticatedUserFeedbackIndexRouteImport } from './routes/_authenticated/user-feedback/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedStorageIndexRouteImport } from './routes/_authenticated/storage/index'
 import { Route as AuthenticatedStorageStatsIndexRouteImport } from './routes/_authenticated/storage-stats/index'
@@ -179,6 +180,12 @@ const AuthenticatedUserWordsIndexRoute =
   AuthenticatedUserWordsIndexRouteImport.update({
     id: '/user-words/',
     path: '/user-words/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedUserFeedbackIndexRoute =
+  AuthenticatedUserFeedbackIndexRouteImport.update({
+    id: '/user-feedback/',
+    path: '/user-feedback/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
@@ -408,6 +415,15 @@ export interface FileRoutesByFullPath {
   '/storage-stats/': typeof AuthenticatedStorageStatsIndexRoute
   '/storage/': typeof AuthenticatedStorageIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
+  '/user-feedback/': typeof AuthenticatedUserFeedbackIndexRoute
+  '/user-words/': typeof AuthenticatedUserWordsIndexRoute
+  '/users/': typeof AuthenticatedUsersIndexRoute
+  '/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
+  '/vocab-records/': typeof AuthenticatedVocabRecordsIndexRoute
+  '/wordbooks/': typeof AuthenticatedWordbooksIndexRoute
+  '/settings/login-history/': typeof AuthenticatedSettingsLoginHistoryIndexRoute
+  '/settings/operation-logs/': typeof AuthenticatedSettingsOperationLogsIndexRoute
+}
 export interface FileRoutesByTo {
   '/clerk': typeof ClerkAuthenticatedRouteRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -452,6 +468,15 @@ export interface FileRoutesByTo {
   '/storage-stats': typeof AuthenticatedStorageStatsIndexRoute
   '/storage': typeof AuthenticatedStorageIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
+  '/user-feedback': typeof AuthenticatedUserFeedbackIndexRoute
+  '/user-words': typeof AuthenticatedUserWordsIndexRoute
+  '/users': typeof AuthenticatedUsersIndexRoute
+  '/vocab-questions': typeof AuthenticatedVocabQuestionsIndexRoute
+  '/vocab-records': typeof AuthenticatedVocabRecordsIndexRoute
+  '/wordbooks': typeof AuthenticatedWordbooksIndexRoute
+  '/settings/login-history': typeof AuthenticatedSettingsLoginHistoryIndexRoute
+  '/settings/operation-logs': typeof AuthenticatedSettingsOperationLogsIndexRoute
+}
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
@@ -501,6 +526,15 @@ export interface FileRoutesById {
   '/_authenticated/storage-stats/': typeof AuthenticatedStorageStatsIndexRoute
   '/_authenticated/storage/': typeof AuthenticatedStorageIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
+  '/_authenticated/user-feedback/': typeof AuthenticatedUserFeedbackIndexRoute
+  '/_authenticated/user-words/': typeof AuthenticatedUserWordsIndexRoute
+  '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
+  '/_authenticated/vocab-records/': typeof AuthenticatedVocabRecordsIndexRoute
+  '/_authenticated/wordbooks/': typeof AuthenticatedWordbooksIndexRoute
+  '/_authenticated/settings/login-history/': typeof AuthenticatedSettingsLoginHistoryIndexRoute
+  '/_authenticated/settings/operation-logs/': typeof AuthenticatedSettingsOperationLogsIndexRoute
+}
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
@@ -548,6 +582,7 @@ export interface FileRouteTypes {
     | '/storage-stats/'
     | '/storage/'
     | '/tasks/'
+    | '/user-feedback/'
     | '/user-words/'
     | '/users/'
     | '/vocab-questions/'
@@ -600,6 +635,7 @@ export interface FileRouteTypes {
     | '/storage-stats'
     | '/storage'
     | '/tasks'
+    | '/user-feedback'
     | '/user-words'
     | '/users'
     | '/vocab-questions'
@@ -656,6 +692,7 @@ export interface FileRouteTypes {
     | '/_authenticated/storage-stats/'
     | '/_authenticated/storage/'
     | '/_authenticated/tasks/'
+    | '/_authenticated/user-feedback/'
     | '/_authenticated/user-words/'
     | '/_authenticated/users/'
     | '/_authenticated/vocab-questions/'
@@ -843,6 +880,13 @@ declare module '@tanstack/react-router' {
       path: '/user-words'
       fullPath: '/user-words/'
       preLoaderRoute: typeof AuthenticatedUserWordsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/user-feedback/': {
+      id: '/_authenticated/user-feedback/'
+      path: '/user-feedback'
+      fullPath: '/user-feedback/'
+      preLoaderRoute: typeof AuthenticatedUserFeedbackIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tasks/': {
@@ -1118,6 +1162,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStorageStatsIndexRoute: typeof AuthenticatedStorageStatsIndexRoute
   AuthenticatedStorageIndexRoute: typeof AuthenticatedStorageIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
+  AuthenticatedUserFeedbackIndexRoute: typeof AuthenticatedUserFeedbackIndexRoute
   AuthenticatedUserWordsIndexRoute: typeof AuthenticatedUserWordsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedVocabQuestionsIndexRoute: typeof AuthenticatedVocabQuestionsIndexRoute
@@ -1156,6 +1201,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStorageStatsIndexRoute: AuthenticatedStorageStatsIndexRoute,
   AuthenticatedStorageIndexRoute: AuthenticatedStorageIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
+  AuthenticatedUserFeedbackIndexRoute: AuthenticatedUserFeedbackIndexRoute,
   AuthenticatedUserWordsIndexRoute: AuthenticatedUserWordsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedVocabQuestionsIndexRoute: AuthenticatedVocabQuestionsIndexRoute,
