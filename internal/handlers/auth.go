@@ -265,11 +265,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	}
 
 	// 如果需要 Token，生成 AuthToken
-	val := h.configStore.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED)
-	expired, _ := time.ParseDuration(val)
-	if expired < 24*time.Hour {
-		expired = 24 * time.Hour
-	}
+	expired := h.authTokenTTL()
 	user.AuthToken = models.BuildAuthToken(user, expired, false)
 
 	// 返回登录结果
@@ -428,13 +424,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	}
 
 	// 生成认证Token
-	val := h.configStore.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
-	expired, err := time.ParseDuration(val)
-	if err != nil {
-		logger.Warn("Failed to parse auth token expired duration, using default 7 days", zap.Error(err))
-		// 7 days
-		expired = 7 * 24 * time.Hour
-	}
+	expired := h.authTokenTTL()
 	user.AuthToken = models.BuildAuthToken(user, expired, false)
 
 	// 8. 返回登录结果
@@ -498,13 +488,7 @@ func (h *Handlers) handleUserSignin(c *gin.Context) {
 	models.Login(c, user)
 
 	if form.Remember {
-		val := h.configStore.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED) // 7d
-		expired, err := time.ParseDuration(val)
-		if err != nil {
-			// 7 days
-			expired = 7 * 24 * time.Hour
-		}
-		user.AuthToken = models.BuildAuthToken(user, expired, false)
+		user.AuthToken = models.BuildAuthToken(user, h.authTokenTTL(), false)
 	}
 	c.JSON(http.StatusOK, user)
 }
@@ -1871,6 +1855,26 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+// authTokenTTL reads AUTH_TOKEN_EXPIRED (Go duration: 168h, not 7d).
+// Empty / invalid values fall back to 7 days without noisy warnings.
+func (h *Handlers) authTokenTTL() time.Duration {
+	const fallback = 7 * 24 * time.Hour
+	if h.configStore == nil {
+		return fallback
+	}
+	val := strings.TrimSpace(h.configStore.GetValue(constants.KEY_AUTH_TOKEN_EXPIRED))
+	if val == "" {
+		return fallback
+	}
+	d, err := time.ParseDuration(val)
+	if err != nil || d <= 0 {
+		logger.Warn("invalid AUTH_TOKEN_EXPIRED, using default 7 days",
+			zap.String("value", val), zap.Error(err))
+		return fallback
+	}
+	return d
 }
 
 // serializeUser 序列化用户信息（不含密码）
