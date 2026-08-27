@@ -14,6 +14,7 @@ import {
   HardDrive,
   BarChart3,
   MessageSquare,
+  SpellCheck,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -42,6 +43,11 @@ export const sidebarData: SidebarData = {
           title: '词库管理',
           url: '/wordbooks',
           icon: Library,
+        },
+        {
+          title: '用户单词',
+          url: '/user-words',
+          icon: SpellCheck,
         },
         {
           title: '词汇测评题库',

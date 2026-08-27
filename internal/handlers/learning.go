@@ -166,6 +166,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 			return
 		}
 	}
+	models.OverlayWordLites(db, user.ID, words)
 
 	// preserve queue order
 	sorted := make([]models.WordLite, 0, len(words))

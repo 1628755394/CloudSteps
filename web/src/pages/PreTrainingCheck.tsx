@@ -21,6 +21,7 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
+import { WordEditTrigger, applyUserWordView } from "../components/WordEditControls";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
@@ -402,6 +403,9 @@ export default function PreTrainingCheck() {
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div onClick={(e) => e.stopPropagation()}>
+            <WordEditTrigger wordId={word.id} />
+          </div>
+          <div onClick={(e) => e.stopPropagation()}>
             <StudyNoteLauncher
               storageKey={`study-note:word:${wordBookId}:${word.id}`}
               title={`笔记 · ${word.word}`}
@@ -476,15 +480,7 @@ export default function PreTrainingCheck() {
             annotationOpen={annotationOpen}
             onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
             wordCount={selectedCount}
-            extraBefore={
-              <span
-                className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
-                  shuffleMode ? "bg-[#4ECDC4]/15 text-[#4ECDC4]" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {shuffleMode ? "乱序" : "正序"}
-              </span>
-            }
+            onWordPatched={(view) => setWords((prev) => applyUserWordView(prev, view))}
           />
         }
       />

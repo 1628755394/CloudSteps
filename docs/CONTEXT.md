@@ -28,3 +28,11 @@ _Avoid_: talking to a second store instance that ignores `STORAGE_KIND`
 Pronunciation slots 0–1 (the English TTS) are shared by spelling across word books; unused object-store keys are deleted. Gloss slots stay per row.
 _Avoid_: merging word *rows* across books
 
+**Word**:
+The shared canonical vocabulary row in a word book. Learners see these fields unless they have a User word for that row.
+_Avoid_: letting a learner edit this row in place
+
+**User word**:
+A per-user overlay of a Word. Display prefers it when present; it does not mutate the Word. An admin may adopt it onto the Word after review.
+_Avoid_: UserWordState (that is learning progress); treating one user's overlay as the shared Word without adopting it
+

@@ -86,6 +86,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 			response.Fail(c, "查询失败", err)
 			return
 		}
+		models.OverlayWordLites(db, user.ID, words)
 
 		response.SuccessMsg(c, "success", gin.H{"words": words, "total": total})
 		return
@@ -139,6 +140,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 		response.Fail(c, "查询失败", err)
 		return
 	}
+	models.OverlayWordLites(db, user.ID, words)
 
 	response.SuccessMsg(c, "success", gin.H{
 		"words": words,
@@ -189,6 +191,7 @@ func (h *Handlers) handleStudyWords(c *gin.Context) {
 		response.Fail(c, "查询失败", err)
 		return
 	}
+	models.OverlayWordLites(db, user.ID, words)
 
 	response.SuccessMsg(c, "success", gin.H{
 		"total":    total,
@@ -355,6 +358,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 
 	var words []models.WordLite
 	_ = db.Where("id IN ?", selectedIDs).Find(&words).Error
+	models.OverlayWordLites(db, user.ID, words)
 
 	response.SuccessMsg(c, "success", gin.H{
 		"sessionId": session.ID,
@@ -504,6 +508,7 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	if len(wordIDs) > 0 {
 		_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 	}
+	models.OverlayWordLites(db, session.UserID, words)
 
 	response.SuccessMsg(c, "success", gin.H{
 		"session": session,
@@ -823,6 +828,30 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 	if err != nil {
 		response.Fail(c, "导出查询失败", err)
 		return
+	}
+	if len(rows) > 0 {
+		lites := make([]models.WordLite, len(rows))
+		for i, row := range rows {
+			lites[i] = models.WordLite{
+				ID:           row.ID,
+				Word:         row.Word,
+				Phonetic:     row.Phonetic,
+				PhoneticUK:   row.PhoneticUK,
+				PhoneticUS:   row.PhoneticUS,
+				Translation:  row.Translation,
+				PartOfSpeech: row.PartOfSpeech,
+				AudioURL:     row.AudioURL,
+			}
+		}
+		models.OverlayWordLites(db, targetUserID, lites)
+		for i, lite := range lites {
+			rows[i].Word = lite.Word
+			rows[i].Phonetic = lite.Phonetic
+			rows[i].PhoneticUK = lite.PhoneticUK
+			rows[i].PhoneticUS = lite.PhoneticUS
+			rows[i].Translation = lite.Translation
+			rows[i].PartOfSpeech = lite.PartOfSpeech
+		}
 	}
 
 	response.SuccessMsg(c, "success", gin.H{

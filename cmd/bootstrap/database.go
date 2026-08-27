@@ -111,6 +111,7 @@ func RunMigrations(db *gorm.DB) error {
 		&models.User{},
 		&models.UserWordBook{},
 		&models.UserWordState{},
+		&models.UserWord{},
 		&models.ReviewQueue{},
 		&models.StudySession{},
 		&models.SessionWord{},

@@ -23,6 +23,7 @@ type WordLite struct {
 	Definition    string `json:"definition"`
 	AudioURL      string `json:"audioUrl"`
 	SortOrder     int    `json:"sortOrder"`
+	Overridden    bool   `json:"overridden,omitempty" gorm:"-"`
 }
 
 // TableName 让 GORM 知道映射到 words 表
@@ -108,6 +109,7 @@ type Word struct {
 	Homophones       string `json:"homophones" gorm:"type:text;comment:同音词 JSON 数组"`
 	UsageNotes       string `json:"usageNotes" gorm:"type:text;comment:用法辨析、易错点"`
 	GrammarPatterns  string `json:"grammarPatterns" gorm:"type:text;comment:常用结构/句型 JSON 数组"`
+	Overridden       bool   `json:"overridden,omitempty" gorm:"-"`
 }
 
 func (Word) TableName() string { return constants.TABLE_WORDS }

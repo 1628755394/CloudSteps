@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { playFirstWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { getReviewReturnPath } from "../utils/reviewPractice";
+import { WordEditTrigger, applyUserWordView } from "../components/WordEditControls";
 
 type ListenWord = {
   id: number;
@@ -166,6 +167,9 @@ export default function ListenIdentify() {
         }`}
       >
         <div className={`flex items-center gap-3 ${opts?.centered ? "flex-col text-center" : ""}`}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <WordEditTrigger wordId={w.id} />
+          </div>
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
               w.state === "revealed"
@@ -222,6 +226,19 @@ export default function ListenIdentify() {
             onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
             pauseContinueLabel="继续练习"
             wordCount={words.length}
+            onWordPatched={(view) =>
+              setWords((prev) =>
+                applyUserWordView(prev, view).map((w) =>
+                  w.id === view.wordId
+                    ? {
+                        ...w,
+                        translationShort:
+                          formatTranslationShort(view.effective.translation) || w.translationShort,
+                      }
+                    : w
+                )
+              )
+            }
           />
         }
       />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clock } from "lucide-react";
+import { Clock, Pause } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +45,7 @@ function playBeep(freq = 880, ms = 0.25) {
   }
 }
 
-async function settleAndStop() {
+export async function settleAndStop() {
   const billing = useClassTimerStore.getState().billing;
   useClassTimerStore.getState().stop();
   await finishPracticeBilling(billing);
@@ -249,10 +249,13 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
   );
 }
 
-/** 顶栏倒计时胶囊：点击打开设置（挂载时抑制全局浮动条） */
+/** 顶栏倒计时胶囊：未开定时点开设置；计时中点击暂停并打开菜单 */
 export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
   const endsAt = useClassTimerStore((s) => s.endsAt);
+  const pausedRemainingMs = useClassTimerStore((s) => s.pausedRemainingMs);
   const [left, setLeft] = useState(() => useClassTimerStore.getState().remainingMs());
+  const paused = pausedRemainingMs != null;
+  const active = Boolean(endsAt) || paused;
 
   useEffect(() => {
     document.documentElement.dataset[INLINE_FLAG] = "1";
@@ -262,7 +265,7 @@ export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
   }, []);
 
   useEffect(() => {
-    if (!endsAt) {
+    if (!active) {
       setLeft(0);
       return;
     }
@@ -270,9 +273,9 @@ export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
     tick();
     const id = window.setInterval(tick, 500);
     return () => window.clearInterval(id);
-  }, [endsAt]);
+  }, [active, pausedRemainingMs]);
 
-  if (!endsAt) {
+  if (!active) {
     return (
       <CloudButton
         type="button"
@@ -291,9 +294,12 @@ export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="tabular-nums text-xs font-semibold px-2 py-1 rounded-full text-white shadow-sm bg-[#E53E3E]"
-      aria-label="上课剩余时间"
+      className={`inline-flex items-center gap-1 tabular-nums text-xs font-semibold px-2 py-1 rounded-full text-white shadow-sm ${
+        paused ? "bg-amber-500" : "bg-[#E53E3E]"
+      }`}
+      aria-label={paused ? "计时已暂停" : "暂停上课定时"}
     >
+      {paused ? <Pause size={12} strokeWidth={2.5} /> : null}
       {formatCountdown(left)}
     </button>
   );
@@ -331,6 +337,8 @@ export function ClassSessionTimer() {
       const state = useClassTimerStore.getState();
       const ms = state.remainingMs();
       setLeft(ms);
+
+      if (state.pausedRemainingMs != null) return;
 
       if (ms > 0 && state.takeIntervalRemind()) {
         setIntervalOpen(true);

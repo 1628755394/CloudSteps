@@ -31,6 +31,7 @@ import { Route as AuthenticatedWordbooksIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedVocabRecordsIndexRouteImport } from './routes/_authenticated/vocab-records/index'
 import { Route as AuthenticatedVocabQuestionsIndexRouteImport } from './routes/_authenticated/vocab-questions/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
+import { Route as AuthenticatedUserWordsIndexRouteImport } from './routes/_authenticated/user-words/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedStorageIndexRouteImport } from './routes/_authenticated/storage/index'
 import { Route as AuthenticatedStorageStatsIndexRouteImport } from './routes/_authenticated/storage-stats/index'
@@ -174,6 +175,12 @@ const AuthenticatedUsersIndexRoute = AuthenticatedUsersIndexRouteImport.update({
   path: '/users/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedUserWordsIndexRoute =
+  AuthenticatedUserWordsIndexRouteImport.update({
+    id: '/user-words/',
+    path: '/user-words/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
   id: '/tasks/',
   path: '/tasks/',
@@ -401,13 +408,6 @@ export interface FileRoutesByFullPath {
   '/storage-stats/': typeof AuthenticatedStorageStatsIndexRoute
   '/storage/': typeof AuthenticatedStorageIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
-  '/users/': typeof AuthenticatedUsersIndexRoute
-  '/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
-  '/vocab-records/': typeof AuthenticatedVocabRecordsIndexRoute
-  '/wordbooks/': typeof AuthenticatedWordbooksIndexRoute
-  '/settings/login-history/': typeof AuthenticatedSettingsLoginHistoryIndexRoute
-  '/settings/operation-logs/': typeof AuthenticatedSettingsOperationLogsIndexRoute
-}
 export interface FileRoutesByTo {
   '/clerk': typeof ClerkAuthenticatedRouteRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -452,13 +452,6 @@ export interface FileRoutesByTo {
   '/storage-stats': typeof AuthenticatedStorageStatsIndexRoute
   '/storage': typeof AuthenticatedStorageIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
-  '/users': typeof AuthenticatedUsersIndexRoute
-  '/vocab-questions': typeof AuthenticatedVocabQuestionsIndexRoute
-  '/vocab-records': typeof AuthenticatedVocabRecordsIndexRoute
-  '/wordbooks': typeof AuthenticatedWordbooksIndexRoute
-  '/settings/login-history': typeof AuthenticatedSettingsLoginHistoryIndexRoute
-  '/settings/operation-logs': typeof AuthenticatedSettingsOperationLogsIndexRoute
-}
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
@@ -508,13 +501,6 @@ export interface FileRoutesById {
   '/_authenticated/storage-stats/': typeof AuthenticatedStorageStatsIndexRoute
   '/_authenticated/storage/': typeof AuthenticatedStorageIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
-  '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
-  '/_authenticated/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
-  '/_authenticated/vocab-records/': typeof AuthenticatedVocabRecordsIndexRoute
-  '/_authenticated/wordbooks/': typeof AuthenticatedWordbooksIndexRoute
-  '/_authenticated/settings/login-history/': typeof AuthenticatedSettingsLoginHistoryIndexRoute
-  '/_authenticated/settings/operation-logs/': typeof AuthenticatedSettingsOperationLogsIndexRoute
-}
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
@@ -562,6 +548,7 @@ export interface FileRouteTypes {
     | '/storage-stats/'
     | '/storage/'
     | '/tasks/'
+    | '/user-words/'
     | '/users/'
     | '/vocab-questions/'
     | '/vocab-records/'
@@ -613,6 +600,7 @@ export interface FileRouteTypes {
     | '/storage-stats'
     | '/storage'
     | '/tasks'
+    | '/user-words'
     | '/users'
     | '/vocab-questions'
     | '/vocab-records'
@@ -668,6 +656,7 @@ export interface FileRouteTypes {
     | '/_authenticated/storage-stats/'
     | '/_authenticated/storage/'
     | '/_authenticated/tasks/'
+    | '/_authenticated/user-words/'
     | '/_authenticated/users/'
     | '/_authenticated/vocab-questions/'
     | '/_authenticated/vocab-records/'
@@ -847,6 +836,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users/'
       preLoaderRoute: typeof AuthenticatedUsersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/user-words/': {
+      id: '/_authenticated/user-words/'
+      path: '/user-words'
+      fullPath: '/user-words/'
+      preLoaderRoute: typeof AuthenticatedUserWordsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tasks/': {
@@ -1122,6 +1118,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStorageStatsIndexRoute: typeof AuthenticatedStorageStatsIndexRoute
   AuthenticatedStorageIndexRoute: typeof AuthenticatedStorageIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
+  AuthenticatedUserWordsIndexRoute: typeof AuthenticatedUserWordsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedVocabQuestionsIndexRoute: typeof AuthenticatedVocabQuestionsIndexRoute
   AuthenticatedVocabRecordsIndexRoute: typeof AuthenticatedVocabRecordsIndexRoute
@@ -1159,6 +1156,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStorageStatsIndexRoute: AuthenticatedStorageStatsIndexRoute,
   AuthenticatedStorageIndexRoute: AuthenticatedStorageIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
+  AuthenticatedUserWordsIndexRoute: AuthenticatedUserWordsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedVocabQuestionsIndexRoute: AuthenticatedVocabQuestionsIndexRoute,
   AuthenticatedVocabRecordsIndexRoute: AuthenticatedVocabRecordsIndexRoute,

@@ -12,6 +12,8 @@ export type ClassTimerState = {
   endedNotified: boolean;
   /** 关联的陪练课次（无排课练习时临时创建） */
   billing: PracticeBillingLink | null;
+  /** 暂停时冻结的剩余毫秒；非 null 表示计时已暂停 */
+  pausedRemainingMs: number | null;
   start: (opts: {
     durationMin?: number;
     endsAt?: number;
@@ -20,6 +22,10 @@ export type ClassTimerState = {
     billing?: PracticeBillingLink | null;
   }) => void;
   stop: () => void;
+  pause: () => void;
+  resume: () => void;
+  isPaused: () => boolean;
+  isActive: () => boolean;
   markEndedNotified: () => void;
   takeIntervalRemind: () => boolean;
   remainingMs: () => number;
@@ -45,6 +51,7 @@ export const useClassTimerStore = create<ClassTimerState>()(
       lastIntervalRemindAt: null,
       endedNotified: false,
       billing: null,
+      pausedRemainingMs: null,
 
       start: ({ durationMin, endsAt: absEnds, wordCount = 0, remindEveryMin = 0, billing = null }) => {
         const now = Date.now();
@@ -66,6 +73,7 @@ export const useClassTimerStore = create<ClassTimerState>()(
           lastIntervalRemindAt: now,
           endedNotified: false,
           billing: billing ?? null,
+          pausedRemainingMs: null,
         });
       },
 
@@ -77,14 +85,50 @@ export const useClassTimerStore = create<ClassTimerState>()(
           wordCount: 0,
           lastIntervalRemindAt: null,
           billing: null,
+          pausedRemainingMs: null,
         });
+      },
+
+      pause: () => {
+        const state = get();
+        if (state.pausedRemainingMs != null) return;
+        if (!state.endsAt) return;
+        set({ pausedRemainingMs: state.remainingMs() });
+      },
+
+      resume: () => {
+        const { pausedRemainingMs, endsAt, remindEveryMin, lastIntervalRemindAt } = get();
+        if (pausedRemainingMs == null) return;
+        const now = Date.now();
+        const newEnds = now + pausedRemainingMs;
+        let last = lastIntervalRemindAt;
+        if (
+          last != null &&
+          endsAt != null &&
+          remindEveryMin > 0 &&
+          last >= endsAt - remindEveryMin * 60_000
+        ) {
+          last = newEnds - remindEveryMin * 60_000;
+        }
+        set({
+          endsAt: newEnds,
+          pausedRemainingMs: null,
+          lastIntervalRemindAt: last,
+        });
+      },
+
+      isPaused: () => get().pausedRemainingMs != null,
+
+      isActive: () => {
+        const { endsAt, pausedRemainingMs } = get();
+        return endsAt != null || pausedRemainingMs != null;
       },
 
       markEndedNotified: () => set({ endedNotified: true }),
 
       takeIntervalRemind: () => {
-        const { endsAt, startedAt, remindEveryMin, lastIntervalRemindAt } = get();
-        if (!endsAt || !startedAt || remindEveryMin <= 0) return false;
+        const { endsAt, startedAt, remindEveryMin, lastIntervalRemindAt, pausedRemainingMs } = get();
+        if (!endsAt || !startedAt || remindEveryMin <= 0 || pausedRemainingMs != null) return false;
         const now = Date.now();
         if (now >= endsAt) return false;
         // 仅在「最后 N 分钟」提醒一次（进入该窗口后触发一次）
@@ -100,7 +144,8 @@ export const useClassTimerStore = create<ClassTimerState>()(
       },
 
       remainingMs: () => {
-        const { endsAt } = get();
+        const { endsAt, pausedRemainingMs } = get();
+        if (pausedRemainingMs != null) return Math.max(0, pausedRemainingMs);
         if (!endsAt) return 0;
         return Math.max(0, endsAt - Date.now());
       },

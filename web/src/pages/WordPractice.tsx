@@ -18,6 +18,8 @@ import { getReviewReturnPath } from "../utils/reviewPractice";
 import { buildWordPracticeSequence } from "../utils/wordPracticeSequence";
 import { getPracticeTapState } from "../utils/wordPracticeTap";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
+import type { UserWordView } from "../api/wordbooks";
+import { WordEditTrigger } from "../components/WordEditControls";
 
 type PracticeWord = {
   id: number;
@@ -79,6 +81,51 @@ export default function WordPractice() {
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
   const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
+
+  const applyPatchedWord = (view: UserWordView) => {
+    const e = view.effective;
+    setWords((prev) =>
+      prev.map((w) =>
+        w.id !== view.wordId
+          ? w
+          : {
+              ...w,
+              word: e.word || w.word,
+              phonetic:
+                pickPhoneticDisplay({
+                  phonetic: e.phonetic,
+                  phoneticUk: e.phoneticUk,
+                  phoneticUs: e.phoneticUs,
+                }) || w.phonetic,
+              translation: formatTranslation(e.translation) || w.translation,
+              translationShort: formatTranslationShort(e.translation) || w.translationShort,
+            }
+      )
+    );
+    const wordsKey = mode === "review" ? "lb_review_words" : "lb_study_words";
+    try {
+      const raw = sessionStorage.getItem(wordsKey) || "[]";
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      const next = arr.map((item: Record<string, unknown>) =>
+        Number(item.id) === view.wordId
+          ? {
+              ...item,
+              word: e.word || item.word,
+              phonetic: e.phonetic ?? item.phonetic,
+              phoneticUk: e.phoneticUk ?? item.phoneticUk,
+              phoneticUs: e.phoneticUs ?? item.phoneticUs,
+              translation: e.translation ?? item.translation,
+              partOfSpeech: e.partOfSpeech ?? item.partOfSpeech,
+              definition: e.definition ?? item.definition,
+            }
+          : item
+      );
+      sessionStorage.setItem(wordsKey, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -253,6 +300,7 @@ export default function WordPractice() {
             onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
             pauseContinueLabel="继续练习"
             wordCount={words.length}
+            onWordPatched={applyPatchedWord}
           />
         }
       />
@@ -317,6 +365,7 @@ export default function WordPractice() {
               </div>
               {!manualReadMode && (
                 <div className="flex items-center justify-center gap-3 border-t border-[#E2E8F0] px-4 py-4">
+                  <WordEditTrigger wordId={cardWord.id} />
                   {parseAudioUrls(cardWord.audioUrl).length > 0 && (
                     <CloudButton
                       variant={playingId === cardWord.id ? "mint" : "mintOutline"}
@@ -337,6 +386,7 @@ export default function WordPractice() {
                   wordText={cardWord.word}
                   variant="inline"
                   onClose={() => setDetailWord(null)}
+                  onWordPatched={applyPatchedWord}
                 />
               </div>
             )}
@@ -369,6 +419,7 @@ export default function WordPractice() {
                   </div>
                   {!manualReadMode && (
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      <WordEditTrigger wordId={word.id} />
                       <div onClick={(e) => e.stopPropagation()}>
                         <StudyNoteLauncher
                           storageKey={wordNoteKey(word.id)}
@@ -396,6 +447,7 @@ export default function WordPractice() {
                     wordText={word.word}
                     variant="inline"
                     onClose={() => setDetailWord(null)}
+                    onWordPatched={applyPatchedWord}
                   />
                 )}
                 </div>
