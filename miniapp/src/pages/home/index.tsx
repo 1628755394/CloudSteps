@@ -284,7 +284,7 @@ export default function LessonPrep() {
       </View>
 
       <View className="home__footer">
-        <Text className="home__footer-text">云阶 CloudSteps</Text>
+        <Text className="home__footer-text">解忧 CloudSteps</Text>
       </View>
     </ScrollView>
 

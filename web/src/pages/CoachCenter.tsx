@@ -4,22 +4,32 @@ import {
   ChevronRight,
   CalendarCheck,
   Pencil,
+  MessageCircle,
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { CloudButton, CloudImageWithFallback } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
 import { useAuthStore } from "../stores/authStore";
-import { resolveMediaUrl } from "../utils/mediaUrl";
+import { teacherAvatarSrc } from "../utils/avatar";
 
 const features = [
   { id: 2, icon: ClipboardList, label: "词汇测试记录", tint: "sky" as const, path: "/test-records" },
+  {
+    id: 4,
+    icon: MessageCircle,
+    label: "反馈给我们",
+    description: "提交问题或建议，我们会在工单里回复你",
+    tint: "mint" as const,
+    path: "/feedback",
+  },
   { id: 3, icon: Settings2, label: "设置", tint: "cream" as const, path: "/settings" },
 ];
 
 const tintClass = {
   sky: "bg-tint-sky text-secondary-brand",
   cream: "bg-tint-cream text-warning",
+  mint: "bg-primary-soft text-primary",
 };
 
 export default function CoachCenter() {
@@ -47,17 +57,11 @@ export default function CoachCenter() {
       <CloudCard className="px-3.5 py-3 sm:px-4 sm:py-3.5 shrink-0">
         <div className="flex items-center gap-3.5">
           <div className="size-14 sm:size-16 rounded-full bg-primary-soft border border-border overflow-hidden flex items-center justify-center shrink-0">
-            {user?.avatar ? (
-              <CloudImageWithFallback
-                src={resolveMediaUrl(user.avatar) || user.avatar}
-                alt={name}
-                className="size-full object-cover rounded-full"
-              />
-            ) : (
-              <span className="text-base font-semibold text-primary">
-                {(name || "?").slice(0, 1).toUpperCase()}
-              </span>
-            )}
+            <CloudImageWithFallback
+              src={teacherAvatarSrc(user?.avatar)}
+              alt={name}
+              className="size-full object-cover rounded-full"
+            />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -69,9 +73,6 @@ export default function CoachCenter() {
                 {greetingText}
               </span>
             </div>
-            <p className="text-[11px] text-muted-soft truncate leading-snug mt-0.5">
-              正式陪练 · ID {user?.id ?? "-"}
-            </p>
           </div>
 
           <CloudButton
@@ -134,8 +135,15 @@ export default function CoachCenter() {
                   >
                     <Icon size={18} />
                   </div>
-                  <span className="flex-1 text-sm sm:text-base font-medium text-foreground">
-                    {feature.label}
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm sm:text-base font-medium text-foreground">
+                      {feature.label}
+                    </span>
+                    {"description" in feature && feature.description ? (
+                      <span className="block text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                        {feature.description}
+                      </span>
+                    ) : null}
                   </span>
                   <ChevronRight
                     size={16}

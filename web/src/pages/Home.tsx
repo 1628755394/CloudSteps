@@ -20,7 +20,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 h-full overflow-hidden">
+    <div className="flex h-full flex-col min-h-0 overflow-hidden">
       <CoachingSchedulePanel nowTs={nowTs} mode={mode} />
     </div>
   );

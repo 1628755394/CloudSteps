@@ -10,7 +10,7 @@ export default function Terms() {
     <ScrollView className="doc" scrollY enableFlex>
       <View className="doc__card">
         <Text className="doc__intro">
-          欢迎使用云阶（CloudSteps）。本协议由你与云阶平台运营方（以下称"我们"）共同缔结，具有合同效力。
+          欢迎使用解忧（CloudSteps）。本协议由你与解忧平台运营方（以下称"我们"）共同缔结，具有合同效力。
           你在注册、登录或使用本产品服务之前，请认真阅读并充分理解本协议。
           如你不同意本协议任何条款，请立即停止使用。
         </Text>

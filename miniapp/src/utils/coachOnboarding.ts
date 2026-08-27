@@ -23,7 +23,7 @@ export type CoachOnboardingStep = {
 export const COACH_ONBOARDING_STEPS: CoachOnboardingStep[] = [
   {
     id: 'welcome',
-    title: '欢迎来到云阶',
+    title: '欢迎来到解忧',
     body: '注册后你已是陪练老师。先添加学员，再开始测评与单词训练。',
     icon: 'welcome',
   },
@@ -59,21 +59,32 @@ export const COACH_ONBOARDING_STEPS: CoachOnboardingStep[] = [
 
 const DONE_VALUE = 'done'
 
+function normalizeUserId(userId: number | string | null | undefined): string | null {
+  if (userId == null || userId === '') return null
+  const id = String(userId).trim()
+  if (!id || id === '0' || id === 'NaN') return null
+  return id
+}
+
 export function coachOnboardingStorageKey(userId: number | string): string {
-  return `cs_coach_onboarding_v1:${userId}`
+  return `cs_coach_onboarding_v1:${normalizeUserId(userId) ?? userId}`
 }
 
 export function isCoachOnboardingDone(userId: number | string): boolean {
+  const id = normalizeUserId(userId)
+  if (!id) return false
   try {
-    return Taro.getStorageSync(coachOnboardingStorageKey(userId)) === DONE_VALUE
+    return Taro.getStorageSync(coachOnboardingStorageKey(id)) === DONE_VALUE
   } catch {
     return false
   }
 }
 
 export function markCoachOnboardingDone(userId: number | string): void {
+  const id = normalizeUserId(userId)
+  if (!id) return
   try {
-    Taro.setStorageSync(coachOnboardingStorageKey(userId), DONE_VALUE)
+    Taro.setStorageSync(coachOnboardingStorageKey(id), DONE_VALUE)
   } catch {
     // ignore
   }

@@ -125,9 +125,6 @@ export default function Coach() {
             <Text className="coach__user-name">{name || '-'}</Text>
             <Text className="coach__user-greeting">{greetingText}</Text>
           </View>
-          <Text className="coach__user-sub">
-            正式陪练 · ID {user?.id ?? '-'}
-          </Text>
         </View>
         <View
           className="coach__edit-btn"
@@ -182,7 +179,7 @@ export default function Coach() {
       </View>
 
       <View className="coach__footer">
-        <Text className="coach__footer-text">云阶 CloudSteps</Text>
+        <Text className="coach__footer-text">解忧 CloudSteps</Text>
       </View>
     </ScrollView>
   )

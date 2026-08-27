@@ -181,6 +181,12 @@ export function CoachOnboarding({ open, userId, onDone }: Props) {
     if (open) setStep(0);
   }, [open]);
 
+  // 一旦展示过就写入浏览器缓存，避免下次进入重复弹出
+  useEffect(() => {
+    if (!open || !userId) return;
+    markCoachOnboardingDone(userId);
+  }, [open, userId]);
+
   if (!open || !current) return null;
 
   const finish = (goAddStudent: boolean) => {

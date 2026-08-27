@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { mediaSrc } from '@/features/wordbooks/word-audio'
+import { DEFAULT_TEACHER_AVATAR, teacherAvatarSrc } from '@/lib/avatar'
 import { profileFields, looksLikeEmail, type ProfileInfo } from './profile-display'
 
 type AuthInfo = ProfileInfo & {
@@ -75,7 +75,6 @@ export function ProfileForm() {
   }
 
   const name = displayName || user.displayName || user.username || user.email
-  const fallback = name.slice(0, 2).toUpperCase()
   const readOnly = profileFields({
     ...info,
     id: info?.id ?? user.id,
@@ -141,7 +140,7 @@ export function ProfileForm() {
     }
   }
 
-  const avatarSrc = mediaSrc(avatarUrl || user.avatar || '')
+  const avatarSrc = teacherAvatarSrc(avatarUrl || user.avatar)
 
   return (
     <div className='space-y-8'>
@@ -154,8 +153,8 @@ export function ProfileForm() {
         >
           <Avatar className='h-20 w-20 rounded-lg'>
             <AvatarImage src={avatarSrc} alt={name} />
-            <AvatarFallback className='rounded-lg text-lg'>
-              {fallback}
+            <AvatarFallback className='rounded-lg p-0 overflow-hidden'>
+              <img src={DEFAULT_TEACHER_AVATAR} alt='' className='size-full object-cover' />
             </AvatarFallback>
           </Avatar>
           <span className='absolute inset-0 flex items-center justify-center rounded-lg bg-black/45 opacity-0 transition group-hover:opacity-100'>

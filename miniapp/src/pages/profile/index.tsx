@@ -268,7 +268,7 @@ export default function Profile() {
       </View>
 
       <View className="profile__footer">
-        <Text className="profile__footer-text">云阶 CloudSteps v1.0.0</Text>
+        <Text className="profile__footer-text">解忧 CloudSteps v1.0.0</Text>
       </View>
     </ScrollView>
   )

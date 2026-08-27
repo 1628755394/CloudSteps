@@ -45,7 +45,7 @@ export function Header({
             type="button"
             onClick={() => navigate("/")}
             className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 min-w-0"
-            aria-label="云阶首页"
+            aria-label="解忧首页"
           >
             <img
               src={`${import.meta.env.BASE_URL}logo.png`}
@@ -54,7 +54,7 @@ export function Header({
               loading="eager"
             />
             <span className="text-sm font-semibold tracking-tight text-foreground truncate">
-              云阶
+              解忧
             </span>
           </button>
         </div>

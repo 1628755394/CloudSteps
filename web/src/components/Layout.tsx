@@ -216,11 +216,9 @@ export function Layout() {
   // 侧栏布局：移动端用抽屉；底栏布局不需要汉堡；顶栏布局不需要汉堡
   const showMobileDrawer = layout === "sidebar";
   const showHeaderMenu = layout === "sidebar";
-  /** 备课课表页：沉浸式一屏，不显示统一顶栏 */
   const isLessonPrep =
     location.pathname === "/lesson-prep" ||
     location.pathname.startsWith("/lesson-prep/");
-  const hideChromeHeader = isLessonPrep;
 
   const mainPadBottom =
     showBottomNav
@@ -230,98 +228,107 @@ export function Layout() {
       : "pb-4";
 
   const mainMarginLeft = showSidebar ? "lg:ml-60" : "";
-  const sidebarTopClass = hideChromeHeader ? "top-0" : "top-11";
+
+  const headerTopOffset =
+    layout === "top"
+      ? "top-[calc(3rem+env(safe-area-inset-top,0px))] lg:top-12"
+      : "top-[calc(2.75rem+env(safe-area-inset-top,0px))] lg:top-11";
+
+  const lessonPrepBottom = showBottomNav
+    ? layout === "sidebar"
+      ? "bottom-20 lg:bottom-0"
+      : "bottom-20"
+    : "bottom-0";
+
+  const lessonPrepMainClass = `fixed z-0 inset-x-0 ${headerTopOffset} ${lessonPrepBottom} flex flex-col overflow-hidden ${
+    showSidebar ? "lg:left-60" : ""
+  }`;
+
+  const lessonPrepInnerClass =
+    "h-full flex flex-col max-w-[1200px] w-full mx-auto min-h-0 px-2 py-1 sm:px-3 lg:px-4 overflow-hidden";
 
   return (
     <div
-      className={`bg-background text-foreground transition-colors duration-300 ${
-        hideChromeHeader ? "h-dvh overflow-hidden" : "min-h-screen"
+      className={`bg-background text-foreground transition-colors duration-300 flex flex-col ${
+        isLessonPrep ? "min-h-dvh" : "min-h-screen"
       }`}
     >
-      {!hideChromeHeader ? (
-        <Header
-          mobileMenuOpen={mobileMenuOpen}
-          onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
-          showMenuButton={showHeaderMenu}
-        />
-      ) : null}
+      <Header
+        mobileMenuOpen={mobileMenuOpen}
+        onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
+        showMenuButton={showHeaderMenu}
+      />
 
-      <div
-        className={`flex flex-col ${
-          hideChromeHeader ? "h-full min-h-0" : "min-h-dvh"
-        } ${
-          hideChromeHeader
-            ? "pt-[env(safe-area-inset-top,0px)]"
-            : layout === "top"
+      {/* 左侧边栏：仅侧栏布局 + 桌面 */}
+      {showSidebar && (
+        <aside className="hidden lg:block fixed left-0 top-11 bottom-0 w-60 bg-sidebar border-r border-sidebar-border overflow-y-auto">
+          <SidebarPanel
+            className="p-5"
+            items={filteredNavItems}
+            pathname={location.pathname}
+            greetingText={greetingText}
+            userName={userName}
+          />
+        </aside>
+      )}
+
+      {/* 移动端抽屉：仅侧栏布局 */}
+      {showMobileDrawer && mobileMenuMounted && (
+        <div className="lg:hidden fixed inset-0 z-[60]">
+          <div
+            className={
+              "absolute inset-0 bg-black/20 transition-opacity duration-300 ease-out " +
+              (mobileMenuRenderOpen ? "opacity-100" : "opacity-0")
+            }
+            onClick={closeMobileMenu}
+          />
+          <aside
+            className={
+              "absolute left-0 top-0 bottom-0 w-64 bg-card border-r border-border overflow-y-auto transform-gpu transition-transform duration-300 ease-out " +
+              (mobileMenuRenderOpen ? "translate-x-0" : "-translate-x-full")
+            }
+          >
+            <SidebarPanel
+              className="p-6"
+              items={filteredNavItems}
+              pathname={location.pathname}
+              greetingText={greetingText}
+              userName={userName}
+              onNavigate={closeMobileMenu}
+            />
+          </aside>
+        </div>
+      )}
+
+      {isLessonPrep ? (
+        <main className={lessonPrepMainClass}>
+          <div className={lessonPrepInnerClass}>
+            <AnimatedOutlet />
+          </div>
+        </main>
+      ) : (
+        <div
+          className={`flex flex-1 flex-col min-h-0 ${
+            layout === "top"
               ? "pt-[calc(3rem+env(safe-area-inset-top,0px))] lg:pt-12"
               : "pt-[calc(2.75rem+env(safe-area-inset-top,0px))] lg:pt-11"
-        }`}
-      >
-        {showTopNav && !hideChromeHeader && (
-          <TopNavBar items={filteredNavItems} pathname={location.pathname} />
-        )}
-
-        <div className="flex flex-1 min-h-0">
-          {/* 左侧边栏：仅侧栏布局 + 桌面 */}
-          {showSidebar && (
-            <aside
-              className={`hidden lg:block fixed left-0 ${sidebarTopClass} bottom-0 w-60 bg-sidebar border-r border-sidebar-border overflow-y-auto`}
-            >
-              <SidebarPanel
-                className="p-5"
-                items={filteredNavItems}
-                pathname={location.pathname}
-                greetingText={greetingText}
-                userName={userName}
-              />
-            </aside>
+          }`}
+        >
+          {showTopNav && (
+            <TopNavBar items={filteredNavItems} pathname={location.pathname} />
           )}
 
-          {/* 移动端抽屉：仅侧栏布局 */}
-          {showMobileDrawer && mobileMenuMounted && (
-            <div className="lg:hidden fixed inset-0 z-[60]">
-              <div
-                className={
-                  "absolute inset-0 bg-black/20 transition-opacity duration-300 ease-out " +
-                  (mobileMenuRenderOpen ? "opacity-100" : "opacity-0")
-                }
-                onClick={closeMobileMenu}
-              />
-              <aside
-                className={
-                  "absolute left-0 top-0 bottom-0 w-64 bg-card border-r border-border overflow-y-auto transform-gpu transition-transform duration-300 ease-out " +
-                  (mobileMenuRenderOpen ? "translate-x-0" : "-translate-x-full")
-                }
-              >
-                <SidebarPanel
-                  className="p-6"
-                  items={filteredNavItems}
-                  pathname={location.pathname}
-                  greetingText={greetingText}
-                  userName={userName}
-                  onNavigate={closeMobileMenu}
-                />
-              </aside>
-            </div>
-          )}
-
-          <main
-            className={`flex-1 ${mainMarginLeft} ${mainPadBottom} flex flex-col ${
-              hideChromeHeader
-                ? "min-h-0 h-[calc(100dvh-env(safe-area-inset-top,0px))] overflow-hidden"
-                : "min-h-[calc(100dvh-2.75rem-env(safe-area-inset-top,0px))] overflow-x-hidden"
-            }`}
-          >
-            <div
-              className={`flex-1 flex flex-col max-w-[1200px] w-full mx-auto min-h-0 ${
-                isLessonPrep ? "px-0 py-0 sm:px-3 sm:py-2 lg:px-4" : "px-4 py-3 lg:py-4"
-              }`}
+          <div className="flex flex-1 min-h-0">
+            <main
+              className={`flex-1 ${mainMarginLeft} ${mainPadBottom} flex flex-col min-h-0 overflow-x-hidden min-h-[calc(100dvh-2.75rem-env(safe-area-inset-top,0px))]`}
             >
-              <AnimatedOutlet />
-            </div>
-          </main>
+              <div className="flex-1 flex flex-col max-w-[1200px] w-full mx-auto min-h-0 px-4 py-3 lg:py-4">
+                <AnimatedOutlet />
+              </div>
+            </main>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 底栏：侧栏布局仅移动端；底栏布局全端显示 */}
       {showBottomNav && (

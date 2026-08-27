@@ -12,9 +12,9 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { DatePicker, Modal } from "@arco-design/web-react";
 import {
@@ -30,6 +30,8 @@ import {
 } from "../api/coaching";
 import { minutesUntilCoachingEnd, parseCoachingSlotEnd } from "../utils/coachingSchedule";
 import {
+  isTimetableCellTipDone,
+  markTimetableCellTipDone,
   measureCoachTarget,
   type CoachTargetRect,
 } from "../utils/coachOnboarding";
@@ -77,7 +79,6 @@ function studentLabel(s?: { displayName?: string; username?: string }, fallbackI
 
 const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"] as const;
 const DAY_HEADER_H = 48;
-const TIMELINE_MIN_H = 280;
 const EVENT_MIN_H = 52;
 
 const STATUS_LABEL: Record<string, string> = {
@@ -148,17 +149,20 @@ function eventLayoutOnAxis(
   endTime: string,
   axisStart: number,
   axisEnd: number,
-  axisHeight: number,
-): { top: number; height: number } {
+): { top: string; height: string; showDetail: boolean } {
   const span = Math.max(1, axisEnd - axisStart);
   let s = parseHmToMinutes(startTime);
   let e = parseEndMinutes(endTime);
   if (e <= s) e = s + 30;
   s = Math.max(axisStart, Math.min(s, axisEnd - 5));
   e = Math.max(s + 15, Math.min(e, axisEnd));
-  const top = ((s - axisStart) / span) * axisHeight;
-  const height = Math.max(EVENT_MIN_H, ((e - s) / span) * axisHeight);
-  return { top, height };
+  const topPct = ((s - axisStart) / span) * 100;
+  const heightPct = ((e - s) / span) * 100;
+  return {
+    top: `${topPct}%`,
+    height: `${Math.max(heightPct, 8)}%`,
+    showDetail: heightPct >= 14,
+  };
 }
 
 function buildAxisMarks(axisStart: number, axisEnd: number): number[] {
@@ -174,11 +178,15 @@ function buildAxisMarks(axisStart: number, axisEnd: number): number[] {
 /** 课表内课程块（窄列友好） */
 function TimetableBlock({
   schedule,
+  top,
   height,
+  showDetail,
   onClick,
 }: {
   schedule: CoachingWeekSchedule;
-  height: number;
+  top: string;
+  height: string;
+  showDetail: boolean;
   onClick: () => void;
 }) {
   const soft = STATUS_SOFT[schedule.status] || STATUS_SOFT.scheduled;
@@ -193,15 +201,15 @@ function TimetableBlock({
         e.stopPropagation();
         onClick();
       }}
-      className={`absolute left-1 right-1 top-0 z-[1] overflow-hidden rounded-xl ${soft.bg} text-left px-1.5 py-1 shadow-sm active:scale-[0.98] touch-manipulation`}
-      style={{ height }}
+      className={`absolute left-1 right-1 z-[1] overflow-hidden rounded-xl ${soft.bg} text-left px-1.5 py-1 shadow-sm active:scale-[0.98] touch-manipulation`}
+      style={{ top, height, minHeight: EVENT_MIN_H }}
     >
       <span className={`absolute left-0 top-0 bottom-0 w-[3px] ${soft.bar}`} aria-hidden />
       <div className="pl-1.5 min-w-0 h-full flex flex-col justify-center">
         <div className={`text-[10px] font-semibold tabular-nums leading-tight ${soft.text}`}>
-          {start}{height > 40 ? `–${end}` : ""}
+          {start}{showDetail ? `–${end}` : ""}
         </div>
-        {height > 48 ? (
+        {showDetail ? (
           <div className="text-[11px] font-medium text-foreground leading-tight truncate mt-0.5">
             {title}
           </div>
@@ -230,23 +238,16 @@ type Props = {
   mode?: "coach" | "student";
 };
 
-const CELL_TIP_PREFIX = "cs_timetable_cell_tip_v1:";
+const MODAL_OVERLAY_CLASS =
+  "fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4 pb-20 sm:pb-4";
 
-function isCellTipDone(userId: number | string): boolean {
-  try {
-    return localStorage.getItem(`${CELL_TIP_PREFIX}${userId}`) === "done";
-  } catch {
-    return false;
-  }
-}
+const MODAL_SHEET_CLASS =
+  "w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-border bg-card shadow-xl flex flex-col max-h-[min(calc(100dvh-6rem),720px)] sm:max-h-[90dvh]";
 
-function markCellTipDone(userId: number | string): void {
-  try {
-    localStorage.setItem(`${CELL_TIP_PREFIX}${userId}`, "done");
-  } catch {
-    // ignore
-  }
-}
+const MODAL_BODY_CLASS = "flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 space-y-4";
+
+const MODAL_FOOTER_CLASS =
+  "shrink-0 p-5 pt-3 border-t border-border bg-card pb-[max(1.25rem,env(safe-area-inset-bottom))]";
 
 export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   const navigate = useNavigate();
@@ -282,19 +283,6 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   );
   const todayYMD = fmtYMD(new Date());
   const weekShortLabel = `${fmtMD(weekMon)}–${fmtMD(addDays(weekMon, 6))}`;
-
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const [gridBodyH, setGridBodyH] = useState(0);
-
-  useLayoutEffect(() => {
-    const el = bodyRef.current;
-    if (!el) return;
-    const measure = () => setGridBodyH(el.clientHeight);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   const byDay = useMemo(() => {
     const map: Record<string, CoachingWeekSchedule[]> = {};
@@ -339,9 +327,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     [axisRange],
   );
 
-  const availableH = Math.max(0, gridBodyH - DAY_HEADER_H);
-  const timelineH = Math.max(availableH, TIMELINE_MIN_H);
-  const emptyDayH = Math.max(availableH, 200);
+  const axisSpan = axisRange ? Math.max(1, axisRange.endMin - axisRange.startMin) : 1;
   /** H5：列加宽，默认只露出工作日，周六日需右滑 */
   const dayColPx = isMobile ? 96 : 60;
   const timeGutterPx = 40;
@@ -394,9 +380,15 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
 
   useEffect(() => {
     if (!isCoach || !userId || loadingSchedules) return;
-    if (isCellTipDone(userId)) return;
+    if (isTimetableCellTipDone(userId)) return;
     setShowCellTip(true);
   }, [isCoach, userId, loadingSchedules]);
+
+  // 一旦展示过就写入浏览器缓存，避免下次进入重复弹出
+  useEffect(() => {
+    if (!showCellTip || !userId) return;
+    markTimetableCellTipDone(userId);
+  }, [showCellTip, userId]);
 
   useEffect(() => {
     if (!showCellTip || loadingSchedules) {
@@ -433,7 +425,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   }, [showCellTip, remountTipHole]);
 
   const dismissCellTip = () => {
-    if (userId) markCellTipDone(userId);
+    if (userId) markTimetableCellTipDone(userId);
     setShowCellTip(false);
     setTipHole(null);
   };
@@ -610,7 +602,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   );
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 h-full overflow-hidden bg-card sm:rounded-xl sm:border sm:border-border">
+    <div className="flex h-full flex-col min-h-0 overflow-hidden bg-card sm:rounded-xl sm:border sm:border-border">
       {/* 紧凑顶栏：标题 + 周切换同一行 */}
       <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 border-b border-border">
         <h2 className="text-[15px] font-semibold text-foreground shrink-0 leading-none">
@@ -671,24 +663,23 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       </div>
 
       {/* 周课表：点天排课；有课后按真实时间渲染 */}
-      <div ref={bodyRef} className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         {loadingSchedules ? (
           <div className="h-full flex items-center justify-center">
             <CloudSpin tip="加载课表…" />
           </div>
         ) : (
-          <div className="h-full overflow-auto overscroll-contain">
+          <div className="h-full min-h-0 overflow-x-auto overflow-y-hidden overscroll-x-contain">
             {!axisRange ? (
               <div
-                className="grid h-full"
+                className="grid h-full min-h-0"
                 style={{
                   width: isMobile ? emptyGridMinW : "100%",
                   minWidth: emptyGridMinW,
                   gridTemplateColumns: isMobile
                     ? `repeat(7, ${dayColPx}px)`
                     : `repeat(7, minmax(${dayColPx}px, 1fr))`,
-                  gridTemplateRows: `${DAY_HEADER_H}px 1fr`,
-                  minHeight: DAY_HEADER_H + emptyDayH,
+                  gridTemplateRows: `${DAY_HEADER_H}px minmax(0, 1fr)`,
                 }}
               >
                 {weekDays.map((d, i) => {
@@ -741,12 +732,11 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                         dismissCellTip();
                         openScheduleForDay(d);
                       }}
-                      className={`flex flex-col items-center justify-center gap-1.5 touch-manipulation ${
+                      className={`flex flex-col items-center justify-center gap-1.5 touch-manipulation min-h-0 h-full ${
                         isToday ? "bg-primary/[0.04]" : ""
                       } ${isCoach ? "active:bg-primary/[0.08]" : ""} ${
                         i < 6 ? "border-r border-border/30" : ""
                       }`}
-                      style={{ minHeight: emptyDayH }}
                     >
                       {isCoach ? (
                         <>
@@ -764,14 +754,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
               </div>
             ) : (
               <div
-                className="grid"
+                className="grid h-full min-h-0"
                 style={{
                   width: isMobile ? weekGridMinW : "100%",
                   minWidth: weekGridMinW,
                   gridTemplateColumns: isMobile
                     ? `${timeGutterPx}px repeat(7, ${dayColPx}px)`
                     : `${timeGutterPx}px repeat(7, minmax(${dayColPx}px, 1fr))`,
-                  gridTemplateRows: `${DAY_HEADER_H}px ${timelineH}px`,
+                  gridTemplateRows: `${DAY_HEADER_H}px minmax(0, 1fr)`,
                 }}
               >
                 <div className="sticky top-0 left-0 z-30 bg-surface-soft border-b border-r border-border/70" />
@@ -816,22 +806,18 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                   );
                 })}
 
-                <div
-                  className="sticky left-0 z-10 bg-card border-r border-border/70 relative"
-                  style={{ height: timelineH }}
-                >
-                  {axisMarks.map((m) => {
-                    const top =
-                      ((m - axisRange.startMin) / (axisRange.endMin - axisRange.startMin)) *
-                      timelineH;
-                    return (
-                      <div key={m} className="absolute left-0 right-0 px-0.5" style={{ top }}>
-                        <span className="text-[9px] text-muted-foreground tabular-nums leading-none relative -top-1.5">
-                          {fmtMinutes(m).slice(0, 5)}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="sticky left-0 z-10 min-h-0 h-full bg-card border-r border-border/70 relative row-start-2">
+                  {axisMarks.map((m) => (
+                    <div
+                      key={m}
+                      className="absolute left-0 right-0 px-0.5 -translate-y-1/2"
+                      style={{ top: `${((m - axisRange.startMin) / axisSpan) * 100}%` }}
+                    >
+                      <span className="text-[9px] text-muted-foreground tabular-nums leading-none">
+                        {fmtMinutes(m).slice(0, 5)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
 
                 {weekDays.map((d, dIdx) => {
@@ -841,21 +827,15 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                   return (
                     <div
                       key={ymd}
-                      className={`relative ${isToday ? "bg-primary/[0.04]" : ""} ${
+                      className={`relative min-h-0 h-full row-start-2 ${isToday ? "bg-primary/[0.04]" : ""} ${
                         dIdx < 6 ? "border-r border-border/30" : ""
                       }`}
-                      style={{ height: timelineH }}
                     >
                       {axisMarks.map((m) => (
                         <div
                           key={m}
                           className="absolute left-0 right-0 border-t border-border/20 pointer-events-none"
-                          style={{
-                            top:
-                              ((m - axisRange.startMin) /
-                                (axisRange.endMin - axisRange.startMin)) *
-                              timelineH,
-                          }}
+                          style={{ top: `${((m - axisRange.startMin) / axisSpan) * 100}%` }}
                         />
                       ))}
 
@@ -872,21 +852,21 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                       ) : null}
 
                       {dayItems.map((s) => {
-                        const { top, height } = eventLayoutOnAxis(
+                        const { top, height, showDetail } = eventLayoutOnAxis(
                           s.startTime,
                           s.endTime,
                           axisRange.startMin,
                           axisRange.endMin,
-                          timelineH,
                         );
                         return (
-                          <div key={s.id} className="absolute left-0 right-0" style={{ top }}>
-                            <TimetableBlock
-                              schedule={s}
-                              height={height}
-                              onClick={() => setSelected(s)}
-                            />
-                          </div>
+                          <TimetableBlock
+                            key={s.id}
+                            schedule={s}
+                            top={top}
+                            height={height}
+                            showDetail={showDetail}
+                            onClick={() => setSelected(s)}
+                          />
                         );
                       })}
                     </div>
@@ -898,197 +878,207 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         )}
       </div>
 
-      {/* 新建排课 */}
-      {isCoach && showScheduleForm && (
-        <div
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
-          onClick={() => setShowScheduleForm(false)}
-        >
+      {/* 新建排课：挂到 body，避免被课表区 overflow 裁切 */}
+      {isCoach &&
+        showScheduleForm &&
+        createPortal(
           <div
-            className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-border bg-card shadow-xl p-5 space-y-4 max-h-[90dvh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+            className={MODAL_OVERLAY_CLASS}
+            onClick={() => setShowScheduleForm(false)}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-base font-semibold text-foreground">新建排课</h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {aDate} · 请选择具体上课时间
-                </p>
-              </div>
-              <button
-                type="button"
-                className="shrink-0 p-2 rounded-lg text-muted-foreground hover:bg-muted touch-manipulation"
-                onClick={() => setShowScheduleForm(false)}
-                aria-label="关闭"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <CloudSelect
-                label="学员"
-                value={aStudent || undefined}
-                onChange={(v) => setAStudent(v ?? "")}
-                options={studentOptions}
-                placeholder={studentOptions.length ? "选择学员" : "请先添加学员"}
-                disabled={!studentOptions.length}
-                allowClear={false}
-                showSearch
-              />
-              <CloudDatePicker
-                label="日期"
-                value={aDate || undefined}
-                onChange={(dateString) => setADate(dateString || "")}
-              />
-              <CloudTimePicker
-                label="开始时间"
-                format="HH:mm"
-                value={aStart || undefined}
-                onChange={(timeString) => setAStart(timeString || "")}
-              />
-              <CloudTimePicker
-                label="结束时间"
-                format="HH:mm"
-                value={aEnd || undefined}
-                onChange={(timeString) => setAEnd(timeString || "")}
-              />
-              <div className="sm:col-span-2">
-                <CloudInput
-                  label="标题（可选）"
-                  value={aTitle}
-                  onChange={setATitle}
-                  placeholder="如：四级词汇陪练"
-                />
-              </div>
-            </div>
-            <CloudButton
-              variant="brand"
-              className="w-full min-h-11"
-              loading={creatingAppt}
-              onClick={() => void onCreateAppt()}
+            <div
+              className={MODAL_SHEET_CLASS}
+              onClick={(e) => e.stopPropagation()}
             >
-              确认排课
-            </CloudButton>
-          </div>
-        </div>
-      )}
-
-      {selected && (
-        <div
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
-          onClick={() => setSelected(null)}
-        >
-          <div
-            className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-border bg-card shadow-xl p-5 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="text-base font-semibold text-foreground truncate">
-                  {lessonDisplay(selected).title || `排课 #${selected.id}`}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {selected.scheduledDate?.slice?.(0, 10) || selected.scheduledDate} ·{" "}
-                  {selected.startTime}–{selected.endTime}
-                </p>
+              <div className={MODAL_BODY_CLASS}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">新建排课</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {aDate} · 请选择具体上课时间
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 p-2 rounded-lg text-muted-foreground hover:bg-muted touch-manipulation"
+                    onClick={() => setShowScheduleForm(false)}
+                    aria-label="关闭"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <CloudSelect
+                    label="学员"
+                    value={aStudent || undefined}
+                    onChange={(v) => setAStudent(v ?? "")}
+                    options={studentOptions}
+                    placeholder={studentOptions.length ? "选择学员" : "请先添加学员"}
+                    disabled={!studentOptions.length}
+                    allowClear={false}
+                    showSearch
+                  />
+                  <CloudDatePicker
+                    label="日期"
+                    value={aDate || undefined}
+                    onChange={(dateString) => setADate(dateString || "")}
+                  />
+                  <CloudTimePicker
+                    label="开始时间"
+                    format="HH:mm"
+                    value={aStart || undefined}
+                    onChange={(timeString) => setAStart(timeString || "")}
+                  />
+                  <CloudTimePicker
+                    label="结束时间"
+                    format="HH:mm"
+                    value={aEnd || undefined}
+                    onChange={(timeString) => setAEnd(timeString || "")}
+                  />
+                  <div className="sm:col-span-2">
+                    <CloudInput
+                      label="标题（可选）"
+                      value={aTitle}
+                      onChange={setATitle}
+                      placeholder="如：四级词汇陪练"
+                    />
+                  </div>
+                </div>
               </div>
-              <button
-                type="button"
-                className="shrink-0 p-2 rounded-lg text-muted-foreground hover:bg-muted touch-manipulation"
-                onClick={() => setSelected(null)}
-                aria-label="关闭"
-              >
-                <X size={18} />
-              </button>
+              <div className={MODAL_FOOTER_CLASS}>
+                <CloudButton
+                  variant="brand"
+                  className="w-full min-h-11 touch-manipulation"
+                  loading={creatingAppt}
+                  onClick={() => void onCreateAppt()}
+                >
+                  确认排课
+                </CloudButton>
+              </div>
             </div>
+          </div>,
+          document.body,
+        )}
 
-            {selected.students && selected.students.length > 0 ? (
-              <div className="text-sm text-muted-foreground">
-                学员：{selected.students.join("、")}
+      {selected &&
+        createPortal(
+          <div className={MODAL_OVERLAY_CLASS} onClick={() => setSelected(null)}>
+            <div
+              className={`${MODAL_SHEET_CLASS} max-h-[min(calc(100dvh-6rem),640px)]`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={MODAL_BODY_CLASS}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-foreground truncate">
+                      {lessonDisplay(selected).title || `排课 #${selected.id}`}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selected.scheduledDate?.slice?.(0, 10) || selected.scheduledDate} ·{" "}
+                      {selected.startTime}–{selected.endTime}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 p-2 rounded-lg text-muted-foreground hover:bg-muted touch-manipulation"
+                    onClick={() => setSelected(null)}
+                    aria-label="关闭"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {selected.students && selected.students.length > 0 ? (
+                  <div className="text-sm text-muted-foreground">
+                    学员：{selected.students.join("、")}
+                  </div>
+                ) : null}
+
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock size={14} className="text-muted-foreground" />
+                  <span
+                    className={`font-medium ${(STATUS_SOFT[selected.status] || STATUS_SOFT.scheduled).text}`}
+                  >
+                    {STATUS_LABEL[selected.status] || selected.status}
+                  </span>
+                  {selected.status === "in_progress" && selectedMinsLeft != null ? (
+                    <span className="text-xs text-muted-foreground">
+                      · 距结束约 {Math.max(0, selectedMinsLeft)} 分钟
+                    </span>
+                  ) : null}
+                  {selectedPast ? (
+                    <span className="text-xs text-muted-foreground">· 计划时段已过</span>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
 
-            <div className="flex items-center gap-2 text-sm">
-              <Clock size={14} className="text-muted-foreground" />
-              <span
-                className={`font-medium ${(STATUS_SOFT[selected.status] || STATUS_SOFT.scheduled).text}`}
-              >
-                {STATUS_LABEL[selected.status] || selected.status}
-              </span>
-              {selected.status === "in_progress" && selectedMinsLeft != null ? (
-                <span className="text-xs text-muted-foreground">
-                  · 距结束约 {Math.max(0, selectedMinsLeft)} 分钟
-                </span>
-              ) : null}
-              {selectedPast ? (
-                <span className="text-xs text-muted-foreground">· 计划时段已过</span>
-              ) : null}
+              <div className={`${MODAL_FOOTER_CLASS} space-y-0`}>
+                {isCoach ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selected.status === "scheduled" ? (
+                      <>
+                        <CloudButton
+                          variant="outline"
+                          size="sm"
+                          className="border-destructive/35 text-destructive hover:bg-destructive/5 min-h-10 touch-manipulation"
+                          onClick={() => void onDeleteAppt(selected.id)}
+                        >
+                          <Trash2 size={14} />
+                          删除
+                        </CloudButton>
+                        <CloudButton
+                          variant="brand"
+                          size="sm"
+                          className="flex-1 min-h-10 touch-manipulation"
+                          loading={selectedPending === "start"}
+                          disabled={selectedPending !== null}
+                          onClick={() => void onStart(selected.id)}
+                        >
+                          开始上课
+                        </CloudButton>
+                      </>
+                    ) : null}
+                    {selected.status === "in_progress" ? (
+                      <>
+                        <CloudButton
+                          variant="brandOutline"
+                          size="sm"
+                          className="flex-1 min-h-10 touch-manipulation"
+                          onClick={() => {
+                            setSelected(null);
+                            navigate("/material-selection");
+                          }}
+                        >
+                          进入训练
+                        </CloudButton>
+                        <CloudButton
+                          variant="destructive"
+                          size="sm"
+                          className="min-h-10 touch-manipulation"
+                          loading={selectedPending === "end"}
+                          disabled={selectedPending !== null}
+                          onClick={() => void onEnd(selected.id)}
+                        >
+                          下课
+                        </CloudButton>
+                      </>
+                    ) : null}
+                  </div>
+                ) : (
+                  <CloudButton
+                    variant="outline"
+                    size="sm"
+                    className="w-full min-h-10 touch-manipulation"
+                    onClick={() => setSelected(null)}
+                  >
+                    关闭
+                  </CloudButton>
+                )}
+              </div>
             </div>
-
-            {isCoach ? (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {selected.status === "scheduled" ? (
-                  <>
-                    <CloudButton
-                      variant="outline"
-                      size="sm"
-                      className="border-destructive/35 text-destructive hover:bg-destructive/5 min-h-10"
-                      onClick={() => void onDeleteAppt(selected.id)}
-                    >
-                      <Trash2 size={14} />
-                      删除
-                    </CloudButton>
-                    <CloudButton
-                      variant="brand"
-                      size="sm"
-                      className="flex-1 min-h-10"
-                      loading={selectedPending === "start"}
-                      disabled={selectedPending !== null}
-                      onClick={() => void onStart(selected.id)}
-                    >
-                      开始上课
-                    </CloudButton>
-                  </>
-                ) : null}
-                {selected.status === "in_progress" ? (
-                  <>
-                    <CloudButton
-                      variant="brandOutline"
-                      size="sm"
-                      className="flex-1 min-h-10"
-                      onClick={() => {
-                        setSelected(null);
-                        navigate("/material-selection");
-                      }}
-                    >
-                      进入训练
-                    </CloudButton>
-                    <CloudButton
-                      variant="destructive"
-                      size="sm"
-                      className="min-h-10"
-                      loading={selectedPending === "end"}
-                      disabled={selectedPending !== null}
-                      onClick={() => void onEnd(selected.id)}
-                    >
-                      下课
-                    </CloudButton>
-                  </>
-                ) : null}
-              </div>
-            ) : (
-              <CloudButton
-                variant="outline"
-                size="sm"
-                className="w-full min-h-10"
-                onClick={() => setSelected(null)}
-              >
-                关闭
-              </CloudButton>
-            )}
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {showCellTip && tipHole && (
         <div className="fixed inset-0 z-[65]">

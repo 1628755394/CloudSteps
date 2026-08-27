@@ -1,8 +1,8 @@
-# 云阶 CloudSteps
+# 解忧 CloudSteps
 
 > 陪练与词汇训练平台 — coaching、单词训练、情景口语一站式服务。
 
-云阶 CloudSteps 是 LingByte 旗下的英语陪练与词汇训练产品，覆盖**单词识记 / 复习 / 快闪 / 抗遗忘**完整训练闭环，并集成**情景口语实时对话**、**多引擎 TTS 合成**、**对象存储**与**后台管理**能力。后端 Go + Gin，前端 React + Vite，基础能力复用 [ling-base](https://github.com/LingByte/ling-base) 多 module 工具库。
+解忧 CloudSteps 是 LingByte 旗下的英语陪练与词汇训练产品，覆盖**单词识记 / 复习 / 快闪 / 抗遗忘**完整训练闭环，并集成**情景口语实时对话**、**多引擎 TTS 合成**、**对象存储**与**后台管理**能力。后端 Go + Gin，前端 React + Vite，基础能力复用 [ling-base](https://github.com/LingByte/ling-base) 多 module 工具库。
 
 - 后端仓库：[LingByte/CloudSteps](https://github.com/LingByte/CloudSteps)
 - 基础库：[LingByte/ling-base](https://github.com/LingByte/ling-base)
