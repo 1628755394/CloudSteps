@@ -726,7 +726,7 @@ func coachingToWeekDTO(list []models.CoachingAppointment) []coachingWeekSchedule
 	for _, a := range list {
 		title := a.Title
 		if title == "" && a.Student != nil {
-			title = displayNameOrEmail(a.Student) + " · 陪练"
+			title = displayNameOrEmail(a.Student)
 		}
 		students := []string{}
 		if a.Student != nil {

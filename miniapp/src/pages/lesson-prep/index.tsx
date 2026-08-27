@@ -302,7 +302,7 @@ export default function LessonPrep() {
         <View className="lp__header-top">
           <View className="lp__header-info">
             <View className="lp__title-row">
-              <Text className="lp__title">{isCoach ? '陪练排课' : '我的课表'}</Text>
+              <Text className="lp__title">{isCoach ? '学生课表' : '我的课表'}</Text>
               <View className="lp__count-badge">
                 <Text className="lp__count-text">待上 {activeCount}</Text>
               </View>
@@ -379,7 +379,9 @@ export default function LessonPrep() {
                       onClick={() => setSelectedSchedule(s)}
                     >
                       <View className="lp__lesson-card" style={{ borderLeftColor: statusColor }}>
-                        <Text className="lp__lesson-title" numberOfLines={2}>{s.title || '课程'}</Text>
+                        <Text className="lp__lesson-title" numberOfLines={2}>
+                          {(s.title || '').replace(/\s*[·•]\s*陪练\s*$/u, '').trim() || s.students?.[0] || '课程'}
+                        </Text>
                         {s.students && s.students.length > 0 && (
                           <Text className="lp__lesson-student" numberOfLines={1}>{s.students[0]}</Text>
                         )}
@@ -475,7 +477,11 @@ export default function LessonPrep() {
         <View className="lp__modal-mask" onClick={() => setSelectedSchedule(null)}>
           <View className="lp__modal-sheet" onClick={(e) => e.stopPropagation()}>
             <View className="lp__modal-header">
-              <Text className="lp__modal-title">{selectedSchedule.title || '课程详情'}</Text>
+              <Text className="lp__modal-title">
+                {(selectedSchedule.title || '').replace(/\s*[·•]\s*陪练\s*$/u, '').trim() ||
+                  selectedSchedule.students?.[0] ||
+                  '课程详情'}
+              </Text>
               <Text className="lp__modal-close" onClick={() => setSelectedSchedule(null)}>关闭</Text>
             </View>
             <View className="lp__detail-info">

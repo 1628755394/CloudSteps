@@ -132,13 +132,15 @@ function fmtMinutes(mins: number): string {
 
 function lessonDisplay(s: CoachingWeekSchedule): { title: string; subtitle?: string } {
   const student = s.students?.[0]?.trim() || "";
-  const title = s.title?.trim() || "";
+  let title = s.title?.trim() || "";
+  // 兼容旧默认标题「姓名 · 陪练」
+  title = title.replace(/\s*[·•]\s*陪练\s*$/u, "").trim();
   if (title && student && title !== student) {
     return { title, subtitle: student };
   }
   if (student) return { title: student };
   if (title) return { title };
-  return { title: "陪练课程" };
+  return { title: "课程" };
 }
 
 function eventLayoutOnAxis(
@@ -983,7 +985,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="text-base font-semibold text-foreground truncate">
-                  {selected.title || `排课 #${selected.id}`}
+                  {lessonDisplay(selected).title || `排课 #${selected.id}`}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   {selected.scheduledDate?.slice?.(0, 10) || selected.scheduledDate} ·{" "}
