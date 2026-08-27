@@ -25,7 +25,6 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
