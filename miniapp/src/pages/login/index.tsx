@@ -13,7 +13,7 @@
  *  - timezone 用 Intl.DateTimeFormat(小程序环境支持)
  */
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, Input, Image } from '@tarojs/components'
+import { View, Text, Input, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { CloudButton } from '../../components/button'
 import CaptchaWidget from '../../components/captcha'
@@ -258,8 +258,9 @@ export default function Login() {
   const subtitle = screen === 'login' ? '登录以继续陪练与单词训练' : '创建账号开始学习'
 
   return (
-    <View className="login">
-      <View className="login__container">
+    <ScrollView scrollY className="login-scroll">
+      <View className="login">
+        <View className="login__container">
         {/* Header */}
         <View className="login__header">
           <Image className="login__logo" src="/assets/logo.png" mode="aspectFit" />
@@ -379,5 +380,6 @@ export default function Login() {
         </View>
       </View>
     </View>
+    </ScrollView>
   )
 }

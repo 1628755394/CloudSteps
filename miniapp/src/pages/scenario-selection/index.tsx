@@ -17,6 +17,7 @@ import {
   type Scenario,
   type SpeakingStats,
 } from '../../api/scenarioDialogue'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 const difficultyLabel: Record<string, string> = {
@@ -26,9 +27,9 @@ const difficultyLabel: Record<string, string> = {
 }
 
 const difficultyColor: Record<string, { bg: string; text: string }> = {
-  easy: { bg: 'rgba(26, 174, 57, 0.1)', text: '#1aae39' },
-  medium: { bg: 'rgba(85, 163, 255, 0.1)', text: '#55A3FF' },
-  hard: { bg: 'rgba(255, 107, 107, 0.1)', text: '#FF6B6B' },
+  easy: { bg: color.successSoft10, text: color.success },
+  medium: { bg: 'rgba(85, 163, 255, 0.1)', text: color.secondaryBrand },
+  hard: { bg: color.wrongSoft10, text: color.wrong },
 }
 
 function scenarioInitial(s: Scenario) {
@@ -68,7 +69,7 @@ export default function ScenarioSelection() {
       {/* 顶部导航栏 */}
       <View className="scenario__navbar">
         <View className="scenario__nav-btn" onClick={() => Taro.navigateBack()}>
-          <ArrowLeft size={22} color="#37352f" />
+          <ArrowLeft size={22} color={color.charcoal} />
         </View>
         <Text className="scenario__nav-title">情景口语</Text>
         <View className="scenario__nav-btn" />
@@ -81,7 +82,7 @@ export default function ScenarioSelection() {
         {/* 语音提示 */}
         <View className="scenario__voice-hint">
           <View className="scenario__voice-hint-icon">
-            <Notice size={16} color="#c37d0d" />
+            <Notice size={16} color={color.warning} />
           </View>
           <View className="scenario__voice-hint-content">
             <Text className="scenario__voice-hint-title">语音功能待开发</Text>
@@ -96,7 +97,7 @@ export default function ScenarioSelection() {
           <View className="scenario__stats">
             <View className="scenario__stats-header">
               <View className="scenario__stats-header-left">
-                <Star size={16} color="#4ECDC4" />
+                <Star size={16} color={color.primary} />
                 <Text className="scenario__stats-title">口语能力概览</Text>
               </View>
             </View>

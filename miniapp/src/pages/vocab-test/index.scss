@@ -4,45 +4,40 @@
 .vt {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  background-color: var(--background);
-  box-sizing: border-box;
+  min-height: 100%;
+  background-color: #f6f5f4;
 }
 
 /* ============ 顶部导航 ============ */
 .vt__nav {
   display: flex;
   align-items: center;
-  height: 96rpx;
-  padding: 0 24rpx;
-  background-color: var(--card);
-  border-bottom: 2rpx solid var(--border);
+  height: 96px;
+  padding: 0px 24px;
+  background-color: #ffffff;
+  border-bottom: 2px solid #e5e3df;
   flex-shrink: 0;
 }
 
 .vt__nav-back {
-  width: 64rpx;
-  height: 64rpx;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999rpx;
-
-  &:active {
-    background-color: var(--surface-soft);
-  }
+  border-radius: 999px;
 }
 
 .vt__nav-title {
   flex: 1;
   text-align: center;
-  font-size: 32rpx;
+  font-size: 32px;
   font-weight: 600;
-  color: var(--charcoal);
+  color: #37352f;
 }
 
 .vt__nav-placeholder {
-  width: 64rpx;
+  width: 64px;
   flex-shrink: 0;
 }
 
@@ -53,27 +48,27 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48rpx 48rpx 96rpx;
-  gap: 40rpx;
+  padding-top: 48px; padding-left: 48px; padding-right: 48px; padding-bottom: 96px;
+  gap: 40px;
 }
 
 .vt__text-block {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16rpx;
+  gap: 16px;
 }
 
 .vt__title {
-  font-size: 40rpx;
+  font-size: 40px;
   font-weight: 600;
-  color: var(--charcoal);
+  color: #37352f;
   text-align: center;
 }
 
 .vt__subtitle {
-  font-size: 26rpx;
-  color: var(--muted-foreground);
+  font-size: 26px;
+  color: #787671;
   text-align: center;
   line-height: 1.6;
 }
@@ -84,10 +79,9 @@
 }
 
 .vt__icon-circle {
-  width: 192rpx;
-  height: 192rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(135deg, rgba(78, 205, 196, 0.12) 0%, rgba(85, 163, 255, 0.12) 100%);
+  width: 192px;
+  height: 192px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -95,11 +89,10 @@
 
 .vt__start-btn {
   width: 100%;
-  max-width: 560rpx;
 }
 
 .vt__tip {
-  font-size: 24rpx;
-  color: var(--muted-soft);
+  font-size: 24px;
+  color: #a4a097;
   text-align: center;
 }

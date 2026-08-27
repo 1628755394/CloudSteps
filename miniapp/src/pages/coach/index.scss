@@ -1,30 +1,28 @@
 @import '../../styles/vars.scss';
 
 .coach {
-  min-height: 100vh;
-  background-color: var(--background);
-  padding: 32rpx;
-  box-sizing: border-box;
+  min-height: 100%;
+  background-color: #f6f5f4;
+  padding: 32px;
 
   /* ============ 用户信息卡片 ============ */
   &__user-card {
     display: flex;
     align-items: center;
-    gap: 24rpx;
-    padding: 28rpx 32rpx;
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-rest);
-    margin-bottom: 24rpx;
+    gap: 24px;
+    padding: 28px 32px;
+    background-color: #ffffff;
+    border: 2px solid #e5e3df;
+    border-radius: 12px;
+    margin-bottom: 24px;
   }
 
   &__avatar {
-    width: 112rpx;
-    height: 112rpx;
-    border-radius: 50%;
-    background-color: var(--primary-soft);
-    border: 2rpx solid var(--border);
+    width: 112px;
+    height: 112px;
+    border-radius: 9999px;
+    background-color: rgba(78, 205, 196, 0.12);
+    border: 2px solid #e5e3df;
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -38,85 +36,70 @@
   }
 
   &__avatar-text {
-    font-size: 40rpx;
+    font-size: 40px;
     font-weight: 600;
-    color: var(--primary);
+    color: #4ECDC4;
   }
 
   &__user-info {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 6rpx;
-    min-width: 0;
+    gap: 6px;
   }
 
   &__user-name-row {
     display: flex;
-    align-items: baseline;
-    gap: 12rpx;
-    min-width: 0;
+    align-items: center;
+    gap: 12px;
   }
 
   &__user-name {
-    font-size: 30rpx;
+    font-size: 30px;
     font-weight: 600;
-    color: var(--foreground);
+    color: #1a1a1a;
     overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
   }
 
   &__user-greeting {
-    font-size: 22rpx;
-    color: var(--muted-foreground);
+    font-size: 22px;
+    color: #787671;
     flex-shrink: 0;
   }
 
   &__user-sub {
-    font-size: 22rpx;
-    color: var(--muted-soft);
+    font-size: 22px;
+    color: #a4a097;
     overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
   }
 
   &__edit-btn {
-    width: 64rpx;
-    height: 64rpx;
-    border-radius: 50%;
+    width: 64px;
+    height: 64px;
+    border-radius: 9999px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-
-    &:active {
-      background-color: var(--surface-soft);
-    }
   }
 
   /* ============ 已上课程大卡片 ============ */
   &__completed-card {
     display: flex;
     align-items: center;
-    gap: 24rpx;
-    padding: 32rpx;
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-rest);
-    margin-bottom: 24rpx;
-
-    &:active {
-      background-color: var(--surface-soft);
-    }
+    gap: 24px;
+    padding: 32px;
+    background-color: #ffffff;
+    border: 2px solid #e5e3df;
+    border-radius: 12px;
+    margin-bottom: 24px;
   }
 
   &__completed-icon {
-    width: 88rpx;
-    height: 88rpx;
-    border-radius: 20rpx;
-    background-color: var(--primary-soft);
+    width: 88px;
+    height: 88px;
+    border-radius: 20px;
+    background-color: rgba(78, 205, 196, 0.12);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -127,83 +110,77 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8rpx;
-    min-width: 0;
+    gap: 8px;
   }
 
   &__completed-title-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12rpx;
+    gap: 12px;
   }
 
   &__completed-title {
-    font-size: 32rpx;
+    font-size: 32px;
     font-weight: 600;
-    color: var(--foreground);
+    color: #1a1a1a;
   }
 
   &__completed-desc {
-    font-size: 24rpx;
-    color: var(--muted-foreground);
+    font-size: 24px;
+    color: #787671;
     line-height: 1.5;
   }
 
   /* ============ 功能中心 ============ */
   &__section {
-    margin-bottom: 24rpx;
+    margin-bottom: 24px;
   }
 
   &__section-title {
-    display: block;
-    font-size: 28rpx;
+    display: flex;
+    font-size: 28px;
     font-weight: 600;
-    color: var(--foreground);
-    margin-bottom: 16rpx;
-    padding-left: 8rpx;
+    color: #1a1a1a;
+    margin-bottom: 16px;
+    padding-left: 8px;
   }
 
   &__feature-card {
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
-    border-radius: var(--radius);
+    background-color: #ffffff;
+    border: 2px solid #e5e3df;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: var(--shadow-rest);
   }
 
   &__feature-item {
     display: flex;
     align-items: center;
-    gap: 20rpx;
-    padding: 28rpx 32rpx;
+    gap: 20px;
+    padding: 28px 32px;
 
     &--border {
-      border-bottom: 2rpx solid var(--border);
-    }
-
-    &:active {
-      background-color: var(--surface-soft);
+      border-bottom: 2px solid #e5e3df;
     }
   }
 
   &__feature-icon {
-    width: 72rpx;
-    height: 72rpx;
-    border-radius: 16rpx;
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 
     &--mint {
-      background-color: var(--primary-soft);
+      background-color: rgba(78, 205, 196, 0.12);
     }
     &--sky {
-      background-color: var(--tint-sky);
+      background-color: #e8f2fc;
     }
     &--cream {
-      background-color: var(--tint-cream);
+      background-color: #f8f5e8;
     }
   }
 
@@ -211,29 +188,28 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4rpx;
-    min-width: 0;
+    gap: 4px;
   }
 
   &__feature-label {
-    font-size: 28rpx;
+    font-size: 28px;
     font-weight: 500;
-    color: var(--foreground);
+    color: #1a1a1a;
   }
 
   &__feature-desc {
-    font-size: 22rpx;
-    color: var(--muted-foreground);
+    font-size: 22px;
+    color: #787671;
   }
 
   /* ============ 底部 ============ */
   &__footer {
-    padding: 16rpx 0 8rpx;
+    padding-top: 16px; padding-left: 0px; padding-right: 0px; padding-bottom: 8px;
     text-align: center;
   }
 
   &__footer-text {
-    font-size: 22rpx;
-    color: var(--muted-soft);
+    font-size: 22px;
+    color: #a4a097;
   }
 }

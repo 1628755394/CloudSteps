@@ -17,6 +17,7 @@ import {
   markNotificationRead,
   type ApiNotification,
 } from '../../api/notifications'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 const PAGE_SIZE = 20
@@ -132,14 +133,14 @@ export default function Notifications() {
       {/* 顶部导航栏 */}
       <View className="notif__navbar">
         <View className="notif__nav-btn" onClick={() => Taro.navigateBack()}>
-          <ArrowLeft size={22} color="#37352f" />
+          <ArrowLeft size={22} color={color.charcoal} />
         </View>
         <Text className="notif__nav-title">通知</Text>
         <View
           className={`notif__nav-action ${totalUnread === 0 ? 'notif__nav-action--disabled' : ''}`}
           onClick={markAllRead}
         >
-          <Check size={16} color="#4ECDC4" />
+          <Check size={16} color={color.primary} />
           <Text className="notif__nav-action-text">全部已读</Text>
         </View>
       </View>
@@ -147,7 +148,7 @@ export default function Notifications() {
       {/* 未读摘要 */}
       <View className="notif__summary">
         <View className="notif__summary-icon">
-          <Notice size={18} color="#4ECDC4" />
+          <Notice size={18} color={color.primary} />
         </View>
         <Text className="notif__summary-text">
           {totalUnread > 0 ? `你有 ${totalUnread} 条未读通知` : '暂无未读通知'}
@@ -172,7 +173,7 @@ export default function Notifications() {
         ) : items.length === 0 ? (
           <View className="notif__empty">
             <View className="notif__empty-icon">
-              <Notice size={40} color="#a4a097" />
+              <Notice size={40} color={color.mutedSoft} />
             </View>
             <Text className="notif__empty-text">暂无通知</Text>
           </View>

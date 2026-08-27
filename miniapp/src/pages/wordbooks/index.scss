@@ -1,44 +1,43 @@
 @import '../../styles/vars.scss';
 
 .wordbooks {
-  min-height: 100vh;
-  background-color: var(--background);
-  padding: 24rpx 32rpx 32rpx;
-  box-sizing: border-box;
+  min-height: 100%;
+  background-color: #f6f5f4;
+  padding-top: 24px; padding-left: 32px; padding-right: 32px; padding-bottom: 32px;
 
   /* ============ 搜索栏 ============ */
   &__search {
     display: flex;
     align-items: center;
-    gap: 16rpx;
-    margin-bottom: 24rpx;
+    gap: 16px;
+    margin-bottom: 24px;
   }
 
   &__search-box {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 12rpx;
-    height: 80rpx;
-    padding: 0 24rpx;
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
-    border-radius: var(--radius);
+    gap: 12px;
+    height: 80px;
+    padding: 0px 24px;
+    background-color: #ffffff;
+    border: 2px solid #e5e3df;
+    border-radius: 12px;
   }
 
   &__search-input {
     flex: 1;
-    font-size: 28rpx;
-    color: var(--charcoal);
+    font-size: 28px;
+    color: #37352f;
   }
 
   &__search-placeholder {
-    color: var(--muted-soft);
+    color: #a4a097;
   }
 
   &__search-clear {
-    width: 36rpx;
-    height: 36rpx;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -46,115 +45,104 @@
   }
 
   &__search-clear-btn {
-    font-size: 24rpx;
-    color: var(--muted-foreground);
+    font-size: 24px;
+    color: #787671;
     flex-shrink: 0;
-    padding: 8rpx 4rpx;
+    padding: 8px 4px;
   }
 
   /* ============ 错误提示 ============ */
   &__error {
     background-color: rgba(224, 49, 49, 0.05);
-    border: 2rpx solid rgba(224, 49, 49, 0.2);
-    border-radius: var(--radius);
-    padding: 24rpx;
-    color: var(--destructive);
-    font-size: 26rpx;
-    margin-bottom: 24rpx;
+    border: 2px solid rgba(224, 49, 49, 0.2);
+    border-radius: 12px;
+    padding: 24px;
+    color: #e03131;
+    font-size: 26px;
+    margin-bottom: 24px;
   }
 
   /* ============ 分组标签横向滚动 ============ */
   &__groups {
-    white-space: nowrap;
-    margin-bottom: 24rpx;
+    margin-bottom: 24px;
     width: 100%;
   }
 
   &__group-tag {
     display: inline-flex;
     align-items: center;
-    height: 60rpx;
-    padding: 0 28rpx;
-    margin-right: 16rpx;
-    border-radius: 999rpx;
-    border: 2rpx solid var(--border);
-    background-color: var(--card);
-    font-size: 24rpx;
-    color: var(--muted-foreground);
-
-    &:active {
-      opacity: 0.8;
-    }
+    height: 60px;
+    padding: 0px 28px;
+    margin-right: 16px;
+    border-radius: 999px;
+    border: 2px solid #e5e3df;
+    background-color: #ffffff;
+    font-size: 24px;
+    color: #787671;
 
     &--active {
-      background-color: var(--primary);
-      border-color: var(--primary);
+      background-color: #4ECDC4;
+      border-color: #4ECDC4;
       color: #ffffff;
     }
   }
 
   /* ============ 状态提示 ============ */
   &__status {
-    padding: 80rpx 32rpx;
+    padding: 80px 32px;
     text-align: center;
-    font-size: 28rpx;
-    color: var(--muted-foreground);
+    font-size: 28px;
+    color: #787671;
   }
 
   /* ============ 词库卡片 2 列网格 ============ */
   &__grid {
-    display: grid;
+    display: flex;
     grid-template-columns: 1fr 1fr;
-    gap: 20rpx;
+    gap: 20px;
   }
 
   &__card {
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
-    border-radius: var(--radius);
+    background-color: #ffffff;
+    border: 2px solid #e5e3df;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: var(--shadow-rest);
-
-    &:active {
-      opacity: 0.92;
-    }
   }
 
   /* 封面区域 */
   &__cover {
-    height: 180rpx;
+    height: 180px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
-    padding: 16rpx;
+    padding: 16px;
   }
 
   &__cover-t1 {
-    font-size: 22rpx;
+    font-size: 22px;
     color: rgba(255, 255, 255, 0.9);
     font-weight: 500;
-    letter-spacing: 1rpx;
   }
 
   &__cover-t2 {
-    font-size: 30rpx;
+    font-size: 30px;
     color: #ffffff;
     font-weight: 700;
-    margin-top: 6rpx;
+    margin-top: 6px;
   }
 
   &__cover-tag {
     position: absolute;
-    bottom: 8rpx;
-    right: 12rpx;
-    font-size: 18rpx;
+    bottom: 8px;
+    right: 12px;
+    font-size: 18px;
     color: rgba(255, 255, 255, 0.6);
   }
 
   &__cover-name {
-    font-size: 26rpx;
+    font-size: 26px;
     color: #ffffff;
     font-weight: 700;
     text-align: center;
@@ -167,60 +155,60 @@
 
   &__cover-level {
     position: absolute;
-    top: 12rpx;
-    left: 12rpx;
-    padding: 2rpx 14rpx;
-    border-radius: 8rpx;
+    top: 12px;
+    left: 12px;
+    padding: 2px 14px;
+    border-radius: 8px;
     background-color: rgba(255, 255, 255, 0.92);
 
     Text {
-      font-size: 20rpx;
+      font-size: 20px;
       font-weight: 500;
-      color: var(--charcoal);
+      color: #37352f;
     }
   }
 
   /* 信息区域 */
   &__info {
-    padding: 20rpx 24rpx 24rpx;
+    padding-top: 20px; padding-left: 24px; padding-right: 24px; padding-bottom: 24px;
   }
 
   &__name {
-    font-size: 26rpx;
+    font-size: 26px;
     font-weight: 600;
-    color: var(--foreground);
+    color: #1a1a1a;
     line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    min-height: 72rpx;
+    min-height: 72px;
   }
 
   &__meta {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 12rpx;
+    margin-top: 12px;
   }
 
   &__count {
-    font-size: 22rpx;
-    color: var(--muted-foreground);
+    font-size: 22px;
+    color: #787671;
   }
 
   /* ============ 加载更多 ============ */
   &__loadmore {
-    padding: 32rpx;
+    padding: 32px;
     text-align: center;
-    font-size: 24rpx;
-    color: var(--muted-soft);
+    font-size: 24px;
+    color: #a4a097;
   }
 
   &__footer {
-    padding: 16rpx 0 8rpx;
+    padding-top: 16px; padding-left: 0px; padding-right: 0px; padding-bottom: 8px;
     text-align: center;
-    font-size: 22rpx;
-    color: var(--muted-soft);
+    font-size: 22px;
+    color: #a4a097;
   }
 }

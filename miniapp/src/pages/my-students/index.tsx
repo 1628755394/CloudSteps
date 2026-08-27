@@ -19,6 +19,7 @@ import {
   type TeacherCoachingQuotaRow,
 } from '../../api/coaching'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 const DEFAULT_PASSWORD = 'student123'
@@ -168,7 +169,7 @@ export default function MyStudents() {
       {/* 顶部导航栏 */}
       <View className="students__navbar">
         <View className="students__nav-btn" onClick={() => Taro.navigateBack()}>
-          <ArrowLeft size={22} color="#37352f" />
+          <ArrowLeft size={22} color={color.charcoal} />
         </View>
         <Text className="students__nav-title">我的学生</Text>
         <View className="students__nav-actions">
@@ -176,10 +177,10 @@ export default function MyStudents() {
             className="students__nav-icon"
             onClick={() => void fetchPage({ append: false, q: debouncedQ })}
           >
-            <Refresh size={18} color="#787671" />
+            <Refresh size={18} color={color.mutedForeground} />
           </View>
           <View className="students__nav-create" onClick={handleCreate}>
-            <Plus size={16} color="#4ECDC4" />
+            <Plus size={16} color={color.primary} />
             <Text className="students__nav-create-text">新建</Text>
           </View>
         </View>
@@ -188,7 +189,7 @@ export default function MyStudents() {
       {/* 搜索框 */}
       <View className="students__search">
         <View className="students__search-box">
-          <Search size={18} color="#a4a097" />
+          <Search size={18} color={color.mutedSoft} />
           <Input
             className="students__search-input"
             value={keyword}
@@ -245,10 +246,10 @@ export default function MyStudents() {
                         <View
                           className={`students__mins ${low ? 'students__mins--low' : ''}`}
                         >
-                          <Clock size={12} color={low ? '#e03131' : '#4ECDC4'} />
+                          <Clock size={12} color={low ? color.destructive : color.primary} />
                           <Text
                             className="students__mins-text"
-                            style={{ color: low ? '#e03131' : '#4ECDC4' }}
+                            style={{ color: low ? color.destructive : color.primary }}
                           >
                             {minsLabel(r.remainingMinutes || 0)}
                           </Text>
@@ -278,7 +279,7 @@ export default function MyStudents() {
                       className="students__action-btn"
                       onClick={() => openPwdModal(r)}
                     >
-                      <Setting size={14} color="#4ECDC4" />
+                      <Setting size={14} color={color.primary} />
                       <Text className="students__action-text">密码</Text>
                     </View>
                   </View>

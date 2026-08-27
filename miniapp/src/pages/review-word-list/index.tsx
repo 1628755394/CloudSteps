@@ -19,6 +19,7 @@ import {
 } from '@/api/review'
 import { resolveMediaUrl } from '@/utils/mediaUrl'
 import { CloudButton } from '@/components/button'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 interface ReviewWordItem {
@@ -203,7 +204,7 @@ export default function ReviewWordList() {
       {/* 顶部导航 */}
       <View className="rwl__navbar">
         <View className="rwl__nav-btn" onClick={handleBack}>
-          <ArrowLeft size={22} color="#37352f" />
+          <ArrowLeft size={22} color={color.charcoal} />
         </View>
         <Text className="rwl__nav-title">{viewOnly ? '查看' : '开始复习'}</Text>
         <View className="rwl__nav-btn" />
@@ -275,7 +276,7 @@ export default function ReviewWordList() {
                         className={`rwl__icon-btn ${playingId === item.id ? 'rwl__icon-btn--playing' : ''}`}
                         onClick={(e) => { e.stopPropagation(); playAudio(item) }}
                       >
-                        <VolumeMax size={18} color={playingId === item.id ? '#4ECDC4' : '#55A3FF'} />
+                        <VolumeMax size={18} color={playingId === item.id ? color.primary : color.secondaryBrand} />
                       </View>
                     )}
                     {!viewOnly && (
@@ -284,13 +285,13 @@ export default function ReviewWordList() {
                           className={`rwl__icon-btn rwl__icon-btn--check ${item.status === 'correct' ? 'rwl__icon-btn--active-mint' : ''}`}
                           onClick={(e) => { e.stopPropagation(); handleStatusClick(item.id, 'correct') }}
                         >
-                          <Check size={18} color={item.status === 'correct' ? '#fff' : '#4ECDC4'} />
+                          <Check size={18} color={item.status === 'correct' ? color.white : color.primary} />
                         </View>
                         <View
                           className={`rwl__icon-btn rwl__icon-btn--cross ${item.status === 'wrong' ? 'rwl__icon-btn--active-red' : ''}`}
                           onClick={(e) => { e.stopPropagation(); handleStatusClick(item.id, 'wrong') }}
                         >
-                          <Close size={18} color={item.status === 'wrong' ? '#fff' : '#e03131'} />
+                          <Close size={18} color={item.status === 'wrong' ? color.white : color.destructive} />
                         </View>
                       </>
                     )}

@@ -9,6 +9,7 @@ import Taro from '@tarojs/taro'
 import { Right, Star, Clock, Plus, List } from '@nutui/icons-react-taro'
 import { useAuthStore } from '../../stores/authStore'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { color } from '../../styles/tokens'
 import {
   listAllTeacherCoachingQuotas,
   type TeacherCoachingQuotaRow,
@@ -104,7 +105,7 @@ export default function LessonPrep() {
       title: '词汇测试',
       desc: '进入测评',
       tint: 'mint',
-      icon: <Star size={18} color="#4ECDC4" />,
+      icon: <Star size={18} color={color.primary} />,
       onClick: () => go('/pages/vocab-test/index'),
     },
     {
@@ -112,7 +113,7 @@ export default function LessonPrep() {
       title: '单词训练',
       desc: '选择词库',
       tint: 'sky',
-      icon: <List size={18} color="#55A3FF" />,
+      icon: <List size={18} color={color.secondaryBrand} />,
       onClick: () => go('/pages/material-selection/index'),
     },
     ...(isCoach
@@ -122,7 +123,7 @@ export default function LessonPrep() {
             title: '学员管理',
             desc: '学员与时长',
             tint: 'sky' as const,
-            icon: <Plus size={18} color="#55A3FF" />,
+            icon: <Plus size={18} color={color.secondaryBrand} />,
             onClick: () => go('/pages/my-students/index'),
           },
         ]
@@ -132,7 +133,7 @@ export default function LessonPrep() {
       title: '学习记录',
       desc: '正课与复习',
       tint: 'cream',
-      icon: <Clock size={18} color="#c37d0d" />,
+      icon: <Clock size={18} color={color.warning} />,
       onClick: () => go('/pages/training-records/index'),
     },
   ]
@@ -185,7 +186,7 @@ export default function LessonPrep() {
                 ? '加载中…'
                 : currentStudentLabel || '选择学员'}
             </Text>
-            <Right size={14} color="#a4a097" />
+            <Right size={14} color={color.mutedSoft} />
           </View>
         </View>
       )}
@@ -211,7 +212,7 @@ export default function LessonPrep() {
               >
                 <Text className="home__student-option-text">{opt.label}</Text>
                 {opt.value === studentId && (
-                  <Star size={14} color="#4ECDC4" />
+                  <Star size={14} color={color.primary} />
                 )}
               </View>
             ))
@@ -252,13 +253,13 @@ export default function LessonPrep() {
               onClick={() => go(item.path)}
             >
               <View className="home__material-icon">
-                <List size={16} color="#787671" />
+                <List size={16} color={color.mutedForeground} />
               </View>
               <View className="home__material-text">
                 <Text className="home__material-name">{item.name}</Text>
                 <Text className="home__material-desc">{item.desc}</Text>
               </View>
-              <Right size={16} color="#a4a097" />
+              <Right size={16} color={color.mutedSoft} />
             </View>
           ))}
         </View>

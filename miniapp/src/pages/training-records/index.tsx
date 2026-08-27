@@ -12,6 +12,7 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, List, Refresh, Check, Clock } from '@nutui/icons-react-taro'
 import { listStudySessions, type StudySessionListItem } from '../../api/study'
 import { useAuthStore } from '../../stores/authStore'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 type Tab = 'study' | 'review'
@@ -158,7 +159,7 @@ export default function TrainingRecords() {
       {/* 顶部导航 */}
       <View className="tr__nav">
         <View className="tr__nav-back" onClick={handleBack}>
-          <ArrowLeft size={20} color="#37352f" />
+          <ArrowLeft size={20} color={color.charcoal} />
         </View>
         <Text className="tr__nav-title">训练记录</Text>
         <View className="tr__nav-placeholder" />
@@ -210,9 +211,9 @@ export default function TrainingRecords() {
                   <View className="tr__card-header">
                     <View className="tr__card-title-wrap">
                       {tab === 'study' ? (
-                        <List size={18} color="#4ECDC4" />
+                        <List size={18} color={color.primary} />
                       ) : (
-                        <Refresh size={18} color="#55A3FF" />
+                        <Refresh size={18} color={color.secondaryBrand} />
                       )}
                       <Text className="tr__card-title">
                         {item.wordBookName || `词书 #${item.wordBookId || '—'}`}
@@ -225,7 +226,7 @@ export default function TrainingRecords() {
 
                   <View className="tr__card-meta">
                     <View className="tr__meta-item">
-                      <Clock size={14} color="#a4a097" />
+                      <Clock size={14} color={color.mutedSoft} />
                       <Text className="tr__meta-text">{fmtTime(item.latestAt || item.startedAt)}</Text>
                     </View>
                     {(item.sessionCount || 0) > 1 ? (
@@ -235,7 +236,7 @@ export default function TrainingRecords() {
                     <Text className="tr__meta-text">正确 {item.correctCount} 个</Text>
                     {item.wordCount > 0 ? (
                       <View className="tr__meta-rate">
-                        <Check size={14} color="#1aae39" />
+                        <Check size={14} color={color.success} />
                         <Text className="tr__meta-rate-text">正确率 {correctRate}%</Text>
                       </View>
                     ) : null}
