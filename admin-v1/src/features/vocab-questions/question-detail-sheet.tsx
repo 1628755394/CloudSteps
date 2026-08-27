@@ -38,12 +38,14 @@ type VocabQuestionDetailSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   question: VocabQuestion | null
+  onEdit?: (question: VocabQuestion) => void
 }
 
 export function VocabQuestionDetailSheet({
   open,
   onOpenChange,
   question,
+  onEdit,
 }: VocabQuestionDetailSheetProps) {
   const options = parseQuestionOptions(question?.options)
   const audio = question?.audioUrl ? mediaSrc(question.audioUrl) : ''
@@ -113,6 +115,15 @@ export function VocabQuestionDetailSheet({
           </div>
         ) : null}
         <SheetFooter>
+          {question && onEdit ? (
+            <Button
+              onClick={() => {
+                onEdit(question)
+              }}
+            >
+              编辑
+            </Button>
+          ) : null}
           <Button variant='outline' onClick={() => onOpenChange(false)}>
             关闭
           </Button>

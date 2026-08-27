@@ -568,6 +568,10 @@ func (h *Handlers) handleUpdateQuestion(c *gin.Context) {
 		response.Fail(c, "更新失败", err)
 		return
 	}
+	if err := db.First(&q, id).Error; err != nil {
+		response.Fail(c, "更新成功但回读失败", err)
+		return
+	}
 	invalidateVocabPoolCache()
 	response.SuccessMsg(c, "success", q)
 }
@@ -1033,6 +1037,9 @@ func validateQuestionPayload(q *models.VocabTestQuestion) error {
 
 func validateQuestionUpdate(updates map[string]any) error {
 	// 仅校验与题目质量相关的字段，不做强制白名单（保持现有接口兼容）
+	if v, ok := updates["word"]; ok {
+		updates["word"] = strings.TrimSpace(fmt.Sprint(v))
+	}
 	if v, ok := updates["audioUrl"]; ok {
 		updates["audio_url"] = strings.TrimSpace(fmt.Sprint(v))
 		delete(updates, "audioUrl")
