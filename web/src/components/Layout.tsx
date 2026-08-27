@@ -45,6 +45,7 @@ function BottomNav({
             <Link
               key={item.path}
               to={item.path}
+              data-coach={item.path === "/lesson-prep" ? "schedule" : undefined}
               className="relative flex flex-1 flex-col items-center gap-0.5 px-2 py-2"
             >
               {isActive ? (
@@ -95,6 +96,7 @@ function TopNavBar({
               <Link
                 key={item.path}
                 to={item.path}
+                data-coach={item.path === "/lesson-prep" ? "schedule" : undefined}
                 className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors ${
                   isActive
                     ? "text-primary font-medium bg-primary-soft"
@@ -214,6 +216,11 @@ export function Layout() {
   // 侧栏布局：移动端用抽屉；底栏布局不需要汉堡；顶栏布局不需要汉堡
   const showMobileDrawer = layout === "sidebar";
   const showHeaderMenu = layout === "sidebar";
+  /** 备课课表页：沉浸式一屏，不显示统一顶栏 */
+  const isLessonPrep =
+    location.pathname === "/lesson-prep" ||
+    location.pathname.startsWith("/lesson-prep/");
+  const hideChromeHeader = isLessonPrep;
 
   const mainPadBottom =
     showBottomNav
@@ -223,30 +230,43 @@ export function Layout() {
       : "pb-4";
 
   const mainMarginLeft = showSidebar ? "lg:ml-60" : "";
+  const sidebarTopClass = hideChromeHeader ? "top-0" : "top-11";
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <Header
-        mobileMenuOpen={mobileMenuOpen}
-        onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
-        showMenuButton={showHeaderMenu}
-      />
+    <div
+      className={`bg-background text-foreground transition-colors duration-300 ${
+        hideChromeHeader ? "h-dvh overflow-hidden" : "min-h-screen"
+      }`}
+    >
+      {!hideChromeHeader ? (
+        <Header
+          mobileMenuOpen={mobileMenuOpen}
+          onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
+          showMenuButton={showHeaderMenu}
+        />
+      ) : null}
 
       <div
-        className={`flex min-h-dvh flex-col ${
-          layout === "top"
-            ? "pt-[calc(3rem+env(safe-area-inset-top,0px))] lg:pt-12"
-            : "pt-[calc(2.75rem+env(safe-area-inset-top,0px))] lg:pt-11"
+        className={`flex flex-col ${
+          hideChromeHeader ? "h-full min-h-0" : "min-h-dvh"
+        } ${
+          hideChromeHeader
+            ? "pt-[env(safe-area-inset-top,0px)]"
+            : layout === "top"
+              ? "pt-[calc(3rem+env(safe-area-inset-top,0px))] lg:pt-12"
+              : "pt-[calc(2.75rem+env(safe-area-inset-top,0px))] lg:pt-11"
         }`}
       >
-        {showTopNav && (
+        {showTopNav && !hideChromeHeader && (
           <TopNavBar items={filteredNavItems} pathname={location.pathname} />
         )}
 
         <div className="flex flex-1 min-h-0">
           {/* 左侧边栏：仅侧栏布局 + 桌面 */}
           {showSidebar && (
-            <aside className="hidden lg:block fixed left-0 top-11 bottom-0 w-60 bg-sidebar border-r border-sidebar-border overflow-y-auto">
+            <aside
+              className={`hidden lg:block fixed left-0 ${sidebarTopClass} bottom-0 w-60 bg-sidebar border-r border-sidebar-border overflow-y-auto`}
+            >
               <SidebarPanel
                 className="p-5"
                 items={filteredNavItems}
@@ -286,9 +306,17 @@ export function Layout() {
           )}
 
           <main
-            className={`flex-1 ${mainMarginLeft} ${mainPadBottom} overflow-x-hidden flex flex-col min-h-[calc(100dvh-2.75rem-env(safe-area-inset-top,0px))]`}
+            className={`flex-1 ${mainMarginLeft} ${mainPadBottom} flex flex-col ${
+              hideChromeHeader
+                ? "min-h-0 h-[calc(100dvh-env(safe-area-inset-top,0px))] overflow-hidden"
+                : "min-h-[calc(100dvh-2.75rem-env(safe-area-inset-top,0px))] overflow-x-hidden"
+            }`}
           >
-            <div className="flex-1 flex flex-col max-w-[1200px] w-full mx-auto px-4 py-3 lg:py-4 min-h-0">
+            <div
+              className={`flex-1 flex flex-col max-w-[1200px] w-full mx-auto min-h-0 ${
+                isLessonPrep ? "px-0 py-0 sm:px-3 sm:py-2 lg:px-4" : "px-4 py-3 lg:py-4"
+              }`}
+            >
               <AnimatedOutlet />
             </div>
           </main>

@@ -196,6 +196,9 @@ export type MobileDateWheelProps = {
   className?: string;
   label?: string;
   allowClear?: boolean;
+  /** 覆盖按钮上展示的文案（仍按 value 回填滚轮） */
+  displayValue?: string;
+  sheetTitle?: string;
 };
 
 /** H5 滚轮日期选择（年/月/日） */
@@ -206,6 +209,8 @@ export function MobileDateWheel({
   placeholder = "请选择日期",
   className,
   label,
+  displayValue,
+  sheetTitle = "选择日期",
 }: MobileDateWheelProps) {
   const yearNow = new Date().getFullYear();
   const years = useMemo(
@@ -238,7 +243,7 @@ export function MobileDateWheel({
     setD(p[2] || pad2(now.getDate()));
   }, [open, value]);
 
-  const display = value || "";
+  const display = displayValue || value || "";
 
   return (
     <div className="w-full">
@@ -252,7 +257,9 @@ export function MobileDateWheel({
         className={`w-full h-10 px-3 rounded-xl bg-card border border-input text-sm text-left outline-none transition-colors hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25 disabled:opacity-50 ${className ?? ""}`}
       >
         {display ? (
-          <span className="text-charcoal tabular-nums">{display.replace(/-/g, "/")}</span>
+          <span className="text-charcoal tabular-nums">
+            {displayValue ? display : display.replace(/-/g, "/")}
+          </span>
         ) : (
           <span className="text-muted-soft">{placeholder}</span>
         )}
@@ -260,7 +267,7 @@ export function MobileDateWheel({
 
       <PickerSheet
         open={open}
-        title="选择日期"
+        title={sheetTitle}
         onCancel={() => setOpen(false)}
         onConfirm={() => {
           onChange?.(`${y}-${mo}-${d}`);
