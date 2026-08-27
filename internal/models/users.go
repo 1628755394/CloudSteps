@@ -444,9 +444,13 @@ func CreateUser(db *gorm.DB, username, password string) (*User, error) {
 		Password: HashPassword(password),
 		Role:     RoleTeacher, // Explicitly set default role
 	}
-
-	result := db.Create(&user)
-	return &user, result.Error
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+		return GrantSignupCoachingQuota(tx, user.ID)
+	})
+	return &user, err
 }
 func UpdateUserFields(db *gorm.DB, user *User, vals map[string]any) error {
 	return db.Model(user).Updates(vals).Error

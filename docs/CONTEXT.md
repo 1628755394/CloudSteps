@@ -44,3 +44,7 @@ _Avoid_: letting a learner edit this row in place
 A per-user overlay of a Word. Display prefers it when present; it does not mutate the Word. An admin may adopt it onto the Word after review.
 _Avoid_: UserWordState (that is learning progress); treating one user's overlay as the shared Word without adopting it
 
+**Signup coaching quota**:
+Public registration grants 1000 minutes of self-pair coaching remaining (`teacher_id = student_id`) so the new account can start class. Teacher-created students still use the hours the teacher sets.
+_Avoid_: treating this gift as a teacher monthly cap; double-granting on every login
+

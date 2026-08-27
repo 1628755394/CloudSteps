@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // ErrInvalidCoachingTime 时间格式或区间不合法
@@ -21,6 +23,7 @@ const (
 
 const (
 	CoachingSessionStatusCompleted = "completed"
+	SignupCoachingQuotaMinutes     = 1000
 )
 
 // StudentTeacherCoachingQuota 学员在某老师名下的陪练剩余时长（分钟）
@@ -36,6 +39,30 @@ type StudentTeacherCoachingQuota struct {
 }
 
 func (StudentTeacherCoachingQuota) TableName() string { return "student_teacher_coaching_quotas" }
+
+// GrantSignupCoachingQuota gives a new account 1000 minutes of self-pair
+// coaching remaining so they can start class without a prior recharge.
+func GrantSignupCoachingQuota(db *gorm.DB, userID uint) error {
+	if db == nil || userID == 0 {
+		return nil
+	}
+	var n int64
+	if err := db.Model(&StudentTeacherCoachingQuota{}).
+		Where("teacher_id = ? AND student_id = ? AND is_deleted = ?", userID, userID, SoftDeleteStatusActive).
+		Count(&n).Error; err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+	q := StudentTeacherCoachingQuota{
+		TeacherID:             userID,
+		StudentID:             userID,
+		RemainingMinutes:      SignupCoachingQuotaMinutes,
+		TotalAllocatedMinutes: SignupCoachingQuotaMinutes,
+	}
+	return db.Create(&q).Error
+}
 
 // TeacherCoachingUsagePeriod 老师按周期的已上分钟数（计费计量）
 type TeacherCoachingUsagePeriod struct {
