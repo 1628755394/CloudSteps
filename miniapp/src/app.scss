@@ -41,6 +41,13 @@ page {
   --tint-sky: #e8f2fc;
   --tint-cream: #f8f5e8;
 
+  /* 透明叠加（用于按压态/图标底色） */
+  --primary-soft-10: rgba(78, 205, 196, 0.10);
+  --sky-soft-10: rgba(85, 163, 255, 0.10);
+  --cream-soft-10: rgba(195, 125, 13, 0.10);
+  --destructive-soft-5: rgba(224, 49, 49, 0.05);
+  --destructive-soft-20: rgba(224, 49, 49, 0.20);
+
   /* 圆角 */
   --radius-sm: 8px;
   --radius: 12px;
