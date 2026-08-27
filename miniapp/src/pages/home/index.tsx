@@ -19,6 +19,8 @@ import {
   setTrainingStudent,
   studentLabelFromQuota,
 } from '../../utils/trainingStudent'
+import { shouldShowCoachOnboarding } from '../../utils/coachOnboarding'
+import { CoachOnboarding } from '../../components/coach-onboarding/CoachOnboarding'
 import './index.scss'
 
 interface QuickCard {
@@ -38,8 +40,10 @@ interface MaterialItem {
 
 export default function LessonPrep() {
   const user = useAuthStore((s) => s.user)
+  const hasHydrated = useAuthStore((s) => s.hasHydrated)
   const role = (user as { role?: string } | null)?.role || 'user'
   const isCoach = role === 'user' || role === 'admin' || role === 'teacher'
+  const userId = user?.id ? Number(user.id) : 0
 
   const [students, setStudents] = useState<TeacherCoachingQuotaRow[]>([])
   const [studentId, setStudentId] = useState<string>(() => {
@@ -48,6 +52,12 @@ export default function LessonPrep() {
   })
   const [studentPickerOpen, setStudentPickerOpen] = useState(false)
   const [loadingStudents, setLoadingStudents] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (!hasHydrated || !userId) return
+    setShowOnboarding(shouldShowCoachOnboarding(role, userId))
+  }, [hasHydrated, userId, role])
 
   useEffect(() => {
     if (!isCoach) return
@@ -152,6 +162,7 @@ export default function LessonPrep() {
   }
 
   return (
+    <View className="home-wrap">
     <ScrollView className="home" scrollY enableFlex>
       {/* 顶部欢迎区 + 头像入口 */}
       <View className="home__hero">
@@ -173,7 +184,7 @@ export default function LessonPrep() {
 
       {/* 学员选择器(教练角色才显示) */}
       {isCoach && (
-        <View className="home__student-bar">
+        <View className="home__student-bar" data-coach="picker">
           <Text className="home__student-label">学员</Text>
           <View
             className="home__student-picker"
@@ -228,6 +239,13 @@ export default function LessonPrep() {
             <View
               key={card.key}
               className={`home__quick-card home__quick-card--${card.tint}`}
+              data-coach={
+                card.key === 'my-students'
+                  ? 'students'
+                  : card.key === 'material-selection'
+                    ? 'training'
+                    : undefined
+              }
               onClick={card.onClick}
             >
               <View className={`home__quick-icon home__quick-icon--${card.tint}`}>
@@ -269,5 +287,14 @@ export default function LessonPrep() {
         <Text className="home__footer-text">云阶 CloudSteps</Text>
       </View>
     </ScrollView>
+
+      {userId > 0 ? (
+        <CoachOnboarding
+          open={showOnboarding}
+          userId={userId}
+          onDone={() => setShowOnboarding(false)}
+        />
+      ) : null}
+    </View>
   )
 }

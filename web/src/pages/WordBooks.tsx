@@ -2,11 +2,20 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router";
 import { BookOpen, ChevronRight, ChevronLeft, ClipboardList, FileText, Search, Users } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
+import { CoachOnboarding } from "../components/CoachOnboarding";
 import { CloudCard, CloudEmpty, CloudSpin, CloudInput, CloudSelect } from "../components/cloudsteps/arco";
 import { listWordBooks, type WordBookItem, type WordBookGroup } from "../api/wordbooks";
 import { useAuthStore } from "../stores/authStore";
 import { listAllTeacherCoachingQuotas, type TeacherCoachingQuotaRow } from "../api/coaching";
-import { getTrainingStudent, setTrainingStudent, studentLabelFromQuota } from "../utils/trainingStudent";
+import {
+  clearTrainingStudent,
+  getTrainingStudent,
+  setTrainingStudent,
+  studentLabelFromQuota,
+} from "../utils/trainingStudent";
+import { shouldShowCoachOnboarding } from "../utils/coachOnboarding";
+import { showToast } from "../utils/toast";
+
 import { kickoffVocabTestPrefetch } from "../utils/vocabTestCache";
 import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
 
@@ -68,8 +77,11 @@ const DEFAULT_GROUPS: WordBookGroup[] = [
 
 export default function WordBooks() {
   const navigate = useNavigate();
-  const role = useAuthStore((s) => s.user?.role) || "user";
+  const user = useAuthStore((s) => s.user);
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const role = user?.role || "user";
   const isCoach = role === "user" || role === "admin" || role === "teacher";
+  const userId = user?.id ? Number(user.id) : 0;
   const [students, setStudents] = useState<TeacherCoachingQuotaRow[]>([]);
   const [studentId, setStudentId] = useState(() => String(getTrainingStudent()?.id || ""));
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -82,6 +94,12 @@ export default function WordBooks() {
   const [groups, setGroups] = useState<WordBookGroup[]>(DEFAULT_GROUPS);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!hasHydrated || !userId) return;
+    setShowOnboarding(shouldShowCoachOnboarding(role, userId));
+  }, [hasHydrated, userId, role]);
 
   const fetchBooks = useCallback(async (p: number, kw: string, g: string) => {
     setLoading(true);
@@ -122,6 +140,11 @@ export default function WordBooks() {
       .then((rows) => {
         if (!mounted) return;
         setStudents(rows);
+        if (!rows.length) {
+          clearTrainingStudent();
+          setStudentId("");
+          return;
+        }
         const saved = getTrainingStudent();
         const selected = (saved?.id && rows.find((row) => row.studentId === saved.id)) || rows[0];
         if (selected) {
@@ -193,7 +216,13 @@ export default function WordBooks() {
           <CloudButton
             type="button"
             variant="card"
+            data-coach="training"
             onClick={() => {
+              if (isCoach && !loadingStudents && students.length === 0) {
+                showToast.info("请先添加学员后再开始单词训练");
+                navigate("/my-students/new");
+                return;
+              }
               kickoffWordBooksPrefetch();
               navigate("/word-training");
             }}
@@ -212,6 +241,7 @@ export default function WordBooks() {
             <CloudButton
               type="button"
               variant="card"
+              data-coach="students"
               onClick={() => navigate("/my-students")}
               className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
             >
@@ -243,28 +273,45 @@ export default function WordBooks() {
       </section>
 
       {isCoach && (
-        <div className="flex items-center justify-end gap-2">
-          <span className="text-xs text-muted-foreground">学员</span>
-          <CloudSelect
-            size="small"
-            className="w-32 sm:w-40"
-            placeholder={loadingStudents ? "加载中…" : "选择学员"}
-            sheetTitle="选择学员"
-            options={studentOptions}
-            value={studentId || undefined}
-            showSearch
-            allowClear={false}
-            disabled={loadingStudents || studentOptions.length === 0}
-            onChange={(value) => {
-              const id = String(value ?? "");
-              const row = students.find((item) => String(item.studentId) === id);
-              if (!row) return;
-              setStudentId(id);
-              setTrainingStudent(row.studentId, studentLabelFromQuota(row));
-            }}
-          />
+        <div className="flex flex-col items-end gap-1.5" data-coach="picker">
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-xs text-muted-foreground">学员</span>
+            <CloudSelect
+              size="small"
+              className="w-32 sm:w-40"
+              placeholder={
+                loadingStudents ? "加载中…" : studentOptions.length ? "选择学员" : "暂无学员"
+              }
+              sheetTitle="选择学员"
+              options={studentOptions}
+              value={studentId || undefined}
+              showSearch
+              allowClear={false}
+              disabled={loadingStudents || studentOptions.length === 0}
+              onChange={(value) => {
+                const id = String(value ?? "");
+                const row = students.find((item) => String(item.studentId) === id);
+                if (!row) return;
+                setStudentId(id);
+                setTrainingStudent(row.studentId, studentLabelFromQuota(row));
+              }}
+            />
+          </div>
+          {!loadingStudents && studentOptions.length === 0 && (
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={() => {
+                showToast.info("请先添加学员后再开始单词训练");
+                navigate("/my-students/new");
+              }}
+            >
+              还没有学员？去添加
+            </button>
+          )}
         </div>
       )}
+
 
       {/* 搜索栏 */}
       <div className="flex items-center gap-2">
@@ -407,6 +454,14 @@ export default function WordBooks() {
           )}
         </>
       )}
+
+      {userId > 0 ? (
+        <CoachOnboarding
+          open={showOnboarding}
+          userId={userId}
+          onDone={() => setShowOnboarding(false)}
+        />
+      ) : null}
     </div>
   );
 }
