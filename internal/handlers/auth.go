@@ -542,7 +542,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	}
 
 	db := c.MustGet(constants.DbField).(*gorm.DB)
-	if models.IsExistsByUsername(db, form.Username) {
+	if models.IsExistsByUsername(db, form.Username) || models.IsExistsByEmail(db, form.Username) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "username already exists")
 		}
@@ -568,6 +568,10 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 		logger.Warn("create user failed", zap.Any("email", form.Username), zap.Error(err))
 		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
+	}
+
+	if err := models.SetEmail(db, user, form.Username); err != nil {
+		logger.Warn("bind email on password register failed", zap.Uint("userId", user.ID), zap.Error(err))
 	}
 
 	// 记录成功注册
@@ -665,7 +669,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	}
 
 	db := c.MustGet(constants.DbField).(*gorm.DB)
-	if models.IsExistsByUsername(db, form.Username) {
+	if models.IsExistsByUsername(db, form.Username) || models.IsExistsByEmail(db, form.Username) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "username already exists")
 		}

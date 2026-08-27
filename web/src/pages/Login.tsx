@@ -5,7 +5,6 @@ import CaptchaWidget from "../components/CaptchaWidget";
 import {
   loginWithEmailCode,
   loginWithPassword,
-  registerUser,
   registerUserByEmail,
   sendEmailCode,
   type CaptchaFields,
@@ -54,7 +53,8 @@ export default function Login() {
   const captchaKeyRef = useRef(0);
 
   const isSubmitting = isLoading || submitting;
-  const useEmail = method === "email";
+  const registering = screen === "register";
+  const useEmail = registering || method === "email";
 
   const nextPath = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -146,7 +146,7 @@ export default function Login() {
       setErrorText("请输入密码");
       return;
     }
-    if (screen === "register") {
+    if (registering) {
       if (!password) {
         setErrorText("请设置密码");
         return;
@@ -171,44 +171,26 @@ export default function Login() {
     setSubmitting(true);
     try {
       if (screen === "register") {
-        if (useEmail) {
-          const reg = await registerUserByEmail({
-            email: identity,
-            username: identity,
-            displayName: identity.split("@")[0],
-            password,
-            code: code.trim(),
-            timezone,
-            source: "web",
-            ...captcha,
-          });
-          if (reg.code !== 200) {
-            setErrorText(reg.msg || "注册失败");
-            refreshCaptcha();
-            return;
-          }
-        } else {
-          const reg = await registerUser({
-            username: identity,
-            password,
-            displayName: identity,
-            timezone,
-            source: "web",
-            ...captcha,
-          });
-          if (reg.code !== 200) {
-            setErrorText(reg.msg || "注册失败");
-            refreshCaptcha();
-            return;
-          }
+        const reg = await registerUserByEmail({
+          email: identity,
+          username: identity,
+          userName: identity,
+          displayName: identity.split("@")[0],
+          password,
+          code: code.trim(),
+          timezone,
+          source: "web",
+          ...captcha,
+        });
+        if (reg.code !== 200) {
+          setErrorText(reg.msg || "注册失败");
+          refreshCaptcha();
+          return;
         }
         setScreen("login");
         setPassword("");
-        setPassword2("");
         setCode("");
         refreshCaptcha();
-        setErrorText(null);
-        // 密码注册后端会自动登录 session，但 web 用 token；引导用户登录一次更稳妥
         setErrorText("注册成功，请登录");
         return;
       }
@@ -249,9 +231,6 @@ export default function Login() {
   };
 
   const title = screen === "login" ? "登录" : "注册";
-  const subtitle =
-    screen === "login" ? "登录以继续陪练与单词训练" : "";
-
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background">
       <div className="w-full max-w-md rounded-xl p-8 bg-card border border-border">
@@ -261,10 +240,10 @@ export default function Login() {
             alt="CloudSteps"
             className="w-12 h-12 rounded-xl object-contain mb-5"
           />
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">云阶</h1>
-          <p className="text-muted-foreground text-sm mt-2 leading-relaxed">{subtitle}</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">解忧</h1>
         </div>
 
+        {screen === "login" ? (
         <div className="flex gap-2 mb-5">
           {(
             [
@@ -286,6 +265,9 @@ export default function Login() {
             </button>
           ))}
         </div>
+        ) : (
+          <p className="text-sm text-muted-foreground mb-5">请用邮箱收取验证码完成注册，并设置密码以便之后登录。</p>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -324,7 +306,7 @@ export default function Login() {
             </div>
           ) : null}
 
-          {(!useEmail || screen === "register") && (
+          {(registering || !useEmail) && (
             <div>
               <label className="text-sm text-charcoal font-medium mb-1.5 block">
                 {screen === "register" ? "设置密码" : "密码"}

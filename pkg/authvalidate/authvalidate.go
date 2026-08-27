@@ -33,7 +33,18 @@ func Message(err error) string {
 
 func friendlyField(fe lbvalidate.FieldError) string {
 	switch fe.Field {
-	case "Username", "Email":
+	case "Email":
+		switch fe.Rule {
+		case "required":
+			return "请输入邮箱"
+		case "email":
+			return "邮箱格式不正确"
+		case "min":
+			return "账号至少 2 个字符"
+		case "max":
+			return "账号过长"
+		}
+	case "Username":
 		switch fe.Rule {
 		case "required":
 			return "请输入账号"
@@ -185,30 +196,15 @@ func PrepareEmailCodeLogin(form *models.UserOperatorForm) error {
 	return nil
 }
 
-// PreparePasswordRegister normalizes and validates username/password registration.
+var ErrPasswordRegisterDisabled = errors.New("请使用邮箱验证码注册")
+
+// PreparePasswordRegister rejects public password signup. Learners register
+// with an email verification code via PrepareEmailRegister.
 func PreparePasswordRegister(form *models.RegisterUserForm) error {
 	if form == nil {
 		return errors.New("invalid request")
 	}
-	if err := validateAccount(form.Username); err != nil {
-		return err
-	}
-	if strings.Contains(form.Username, "@") {
-		form.Username = normalizeEmail(form.Username)
-	} else {
-		form.Username = normalizeText(form.Username)
-	}
-	if err := validatePassword(form.Password); err != nil {
-		return err
-	}
-	form.Password = normalizeText(form.Password)
-	form.DisplayName = normalizeText(form.DisplayName)
-	if form.DisplayName == "" {
-		form.DisplayName = form.Username
-	} else if err := check(lbvalidate.ValidateWithTag(form.DisplayName, "max=50")); err != nil {
-		return err
-	}
-	return nil
+	return ErrPasswordRegisterDisabled
 }
 
 // PrepareEmailRegister normalizes and validates email-code registration.
