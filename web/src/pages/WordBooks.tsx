@@ -137,7 +137,7 @@ export default function WordBooks() {
     if (!isCoach) return;
     let mounted = true;
     setLoadingStudents(true);
-    listAllTeacherCoachingQuotas()
+    listAllTeacherCoachingQuotas({ includeSelf: true })
       .then((rows) => {
         if (!mounted) return;
         setStudents(rows);

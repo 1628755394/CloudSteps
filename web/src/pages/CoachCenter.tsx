@@ -5,13 +5,18 @@ import {
   CalendarCheck,
   Pencil,
   MessageCircle,
+  Clock,
+  Mars,
+  Venus,
 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { CloudButton, CloudImageWithFallback } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
+import { getTeacherTeachingPool } from "../api/coaching";
 import { useAuthStore } from "../stores/authStore";
 import { teacherAvatarSrc } from "../utils/avatar";
+import { formatTeachingMinutes } from "../utils/formatMinutes";
 
 const features = [
   { id: 2, icon: ClipboardList, label: "词汇测试记录", tint: "sky" as const, path: "/test-records" },
@@ -32,6 +37,30 @@ const tintClass = {
   mint: "bg-primary-soft text-primary",
 };
 
+function GenderMark({ gender }: { gender?: string }) {
+  const g = (gender || "female").trim().toLowerCase();
+  if (g === "male" || g === "m" || g === "男") {
+    return (
+      <span
+        className="inline-flex items-center justify-center size-5 rounded-full bg-sky-100 text-sky-600 shrink-0"
+        title="男"
+        aria-label="男"
+      >
+        <Mars size={12} strokeWidth={2.25} />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center justify-center size-5 rounded-full bg-pink-100 text-pink-600 shrink-0"
+      title="女"
+      aria-label="女"
+    >
+      <Venus size={12} strokeWidth={2.25} />
+    </span>
+  );
+}
+
 export default function CoachCenter() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -39,17 +68,33 @@ export default function CoachCenter() {
   const role = (user as { role?: string } | null)?.role || "user";
   const isCoach = role === "teacher" || role === "user";
 
+  const [poolMinutes, setPoolMinutes] = useState<number | null>(null);
+  const [poolLoading, setPoolLoading] = useState(false);
+
   useEffect(() => {
     void refreshUserInfo();
   }, [refreshUserInfo]);
 
+  useEffect(() => {
+    if (!isCoach) return;
+    let mounted = true;
+    setPoolLoading(true);
+    void getTeacherTeachingPool()
+      .then((res) => {
+        if (!mounted) return;
+        if (res.code === 200 && res.data) {
+          setPoolMinutes(res.data.remainingMinutes ?? 0);
+        }
+      })
+      .finally(() => {
+        if (mounted) setPoolLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isCoach]);
+
   const name = user?.displayName || user?.email || "";
-  const greetingText = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  }, []);
   const featureList = features;
 
   return (
@@ -66,13 +111,22 @@ export default function CoachCenter() {
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 min-w-0">
-              <h1 className="text-[13px] sm:text-sm font-medium text-foreground truncate leading-snug">
+              <h1 className="text-[15px] sm:text-base font-semibold text-foreground truncate leading-snug">
                 {name || "-"}
               </h1>
-              <span className="text-[11px] text-muted-foreground shrink-0 leading-none">
-                {greetingText}
-              </span>
+              <GenderMark gender={user?.gender} />
             </div>
+            {isCoach ? (
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                <Clock size={13} className="shrink-0 text-primary" />
+                <span>
+                  授课额度：
+                  {poolLoading
+                    ? "加载中…"
+                    : formatTeachingMinutes(poolMinutes ?? 0)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           <CloudButton

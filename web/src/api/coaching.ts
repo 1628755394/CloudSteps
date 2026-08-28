@@ -1,6 +1,15 @@
 import { get, post, del, put, ApiResponse } from '../utils/request'
 import type { ReviewCurvePreset } from './auth'
 
+export type TeacherTeachingPoolSummary = {
+  remainingMinutes: number
+  totalAllocatedMinutes: number
+}
+
+export const getTeacherTeachingPool = async (): Promise<ApiResponse<TeacherTeachingPoolSummary>> => {
+  return get<TeacherTeachingPoolSummary>('/teacher/coaching/teacher-pool')
+}
+
 export type CoachingWeekSchedule = {
   id: number
   title: string
@@ -67,6 +76,8 @@ export const getTeacherCoachingQuotas = async (params?: {
   cursor?: string
   limit?: number
   q?: string
+  /** 含注册自练额度（teacher=student）；学员管理默认不含 */
+  includeSelf?: boolean
 }): Promise<
   ApiResponse<{
     list: TeacherCoachingQuotaRow[]
@@ -79,8 +90,13 @@ export const getTeacherCoachingQuotas = async (params?: {
 }
 
 /** 兼容：取名下学员列表（下拉选择等场景一次拉满） */
-export const listAllTeacherCoachingQuotas = async (): Promise<TeacherCoachingQuotaRow[]> => {
-  const res = await getTeacherCoachingQuotas({ limit: 100 })
+export const listAllTeacherCoachingQuotas = async (opts?: {
+  includeSelf?: boolean
+}): Promise<TeacherCoachingQuotaRow[]> => {
+  const res = await getTeacherCoachingQuotas({
+    limit: 100,
+    includeSelf: opts?.includeSelf,
+  })
   if (res.code !== 200) return []
   const data = res.data as unknown
   if (Array.isArray(data)) return data as TeacherCoachingQuotaRow[]
@@ -322,6 +338,13 @@ export const setTeacherStudentPassword = async (
   return post(`/teacher/coaching/students/${studentId}/password`, {
     password: password ?? '',
   })
+}
+
+/** 老师从名下移除学员（解除陪练关系，不删除学员账号） */
+export const removeTeacherStudent = async (
+  studentId: number
+): Promise<ApiResponse<{ studentId: number }>> => {
+  return del(`/teacher/coaching/students/${studentId}`)
 }
 
 /** 老师为学员设置抗遗忘次数（艾宾浩斯曲线） */
