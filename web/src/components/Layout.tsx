@@ -136,7 +136,7 @@ function SidebarPanel({
   return (
     <div className={className}>
       <div className="mb-6">
-        <div className="inline-flex items-center gap-2 px-2.5 py-0.5 bg-primary-soft rounded-lg mb-2">
+        <div className="inline-flex items-center gap-2 px-2.5 py-0.5 bg-primary-soft rounded-lg mb-2 ml-[50px]">
           <span className="text-xs text-primary font-semibold">正式陪练</span>
         </div>
         <div className="flex items-center gap-2.5">
