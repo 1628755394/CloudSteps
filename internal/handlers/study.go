@@ -418,7 +418,7 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 			Updates(map[string]any{"remembered": &f, "answered_at": &now}).Error
 	}
 
-	// remembered -> learned + enqueue stage=0 due=次日本地 0 点
+	// remembered -> learned + enqueue stage=0 due=开课日（第1天）本地 0 点
 	if len(rememberedIDs) > 0 {
 		loc := models.UserReviewLocation(user)
 		firstDue := models.FirstReviewDueAt(loc)

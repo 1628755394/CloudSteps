@@ -273,16 +273,14 @@ func (h *Handlers) handleReviewCurve(c *gin.Context) {
 	_ = db.Model(&models.UserWordState{}).Where("user_id = ? AND learn_status = ?", user.ID, "mastered").Count(&mastered).Error
 
 	stages := make([]gin.H, 0)
-	intervals := models.ReviewIntervalsForUser(user)
-	for i, days := range intervals {
-		label := ""
-		switch i {
-		case 0:
-			label = "次日"
-		default:
-			label = strconv.Itoa(days) + "天"
-		}
-		stages = append(stages, gin.H{"index": i, "days": days, "label": label, "count": countMap[i]})
+	schedule := models.ReviewScheduleDaysForUser(user)
+	for i, dayNum := range schedule {
+		stages = append(stages, gin.H{
+			"index": i,
+			"days":  dayNum,
+			"label": models.ReviewDayLabel(dayNum),
+			"count": countMap[i],
+		})
 	}
 
 	response.SuccessMsg(c, "success", gin.H{
@@ -290,7 +288,8 @@ func (h *Handlers) handleReviewCurve(c *gin.Context) {
 		"mastered":          mastered,
 		"reviewCurvePreset": models.NormalizeReviewCurvePreset(user.ReviewCurvePreset),
 		"presetLabel":       models.ReviewCurvePresetLabel(user.ReviewCurvePreset),
-		"intervals":         intervals,
+		"intervals":         schedule,
+		"scheduleDays":      schedule,
 	})
 }
 
@@ -483,16 +482,29 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 			itemByWord[it.WordID] = it
 		}
 
+		var states []models.UserWordState
+		if err := tx.Where("user_id = ? AND word_id IN ?", user.ID, wordIDs).Find(&states).Error; err != nil {
+			return err
+		}
+		stateByWord := make(map[uint]models.UserWordState, len(states))
+		for _, s := range states {
+			stateByWord[s.WordID] = s
+		}
+
+		loc := models.UserReviewLocation(user)
+		schedule := models.ReviewScheduleDaysForUser(user)
+
 		for _, wid := range wordIDs {
 			it, ok := itemByWord[wid]
 			if !ok {
 				continue
 			}
+			st := stateByWord[wid]
+			anchor := models.ReviewAnchorFromState(&st, now)
 			remembered := resMap[wid]
 			if remembered {
 				newStage := it.Stage + 1
-				intervals := models.ReviewIntervalsForUser(user)
-				if newStage >= len(intervals) {
+				if newStage >= len(schedule) {
 					if err := tx.Where("id = ?", it.ID).Delete(&models.ReviewQueue{}).Error; err != nil {
 						return err
 					}
@@ -504,7 +516,7 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 					continue
 				}
 
-				due, newStage := models.ReviewDueAfterSuccess(now, it.Stage, user.ReviewCurvePreset)
+				due, newStage := models.ReviewDueAfterSuccess(now, it.Stage, user.ReviewCurvePreset, anchor, loc)
 				if err := tx.Model(&models.ReviewQueue{}).Where("id = ?", it.ID).
 					Updates(map[string]any{"due_at": due, "stage": newStage, "status": "pending"}).Error; err != nil {
 					return err
@@ -515,8 +527,7 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 					return err
 				}
 			} else {
-				// ×：九宫格退一格；最快明天再到期，当天不再出现
-				due, newStage := models.ReviewDueAfterFail(now, it.Stage, user.ReviewCurvePreset)
+				due, newStage := models.ReviewDueAfterFail(now, it.Stage, user.ReviewCurvePreset, anchor, loc)
 				if err := tx.Model(&models.ReviewQueue{}).Where("id = ?", it.ID).
 					Updates(map[string]any{"due_at": due, "stage": newStage, "status": "pending"}).Error; err != nil {
 					return err
