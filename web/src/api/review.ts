@@ -28,7 +28,7 @@ export interface CompleteReviewResult {
 
 export const getReviewToday = async (
   wordBookId: number,
-  opts?: { date?: string; timeZone?: string; limit?: number }
+  opts?: { date?: string; timeZone?: string; limit?: number; studySessionId?: number }
 ): Promise<ApiResponse<ReviewTodayResponse>> => {
   const tz = opts?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
   return get<ReviewTodayResponse>('/review/today', {
@@ -37,11 +37,20 @@ export const getReviewToday = async (
       ...(opts?.date ? { date: opts.date } : {}),
       timeZone: tz,
       ...(opts?.limit ? { limit: opts.limit } : {}),
+      ...(opts?.studySessionId ? { studySessionId: opts.studySessionId } : {}),
     },
   })
 }
 
-export type ReviewBookStatRow = { wordBookId: number; cnt: number; name: string; level: string }
+export type ReviewBookStatRow = {
+  wordBookId: number
+  cnt: number
+  name: string
+  level: string
+  sessionId?: number
+  practiceStartedAt?: string
+  practiceEndedAt?: string | null
+}
 
 export const listReviewBooks = async (): Promise<ApiResponse<ReviewBookStatRow[]>> => {
   return get<ReviewBookStatRow[]>('/review/books')

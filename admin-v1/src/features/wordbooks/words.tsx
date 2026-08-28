@@ -151,7 +151,7 @@ export function WordBookWordsPage({ bookId }: { bookId: string }) {
                   {w.phonetic || '—'}
                 </TableCell>
                 <TableCell className='max-w-md truncate'>
-                  {w.translation}
+                  {w.translationShort || w.translation || '—'}
                 </TableCell>
                 <TableCell>{w.audioUrl ? '有' : '无'}</TableCell>
                 <TableCell>

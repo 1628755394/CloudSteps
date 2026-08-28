@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router";
 import { BookOpen, ChevronRight, ChevronLeft, ClipboardList, FileText, Search, Users } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CoachOnboarding } from "../components/CoachOnboarding";
-import { CloudCard, CloudEmpty, CloudSpin, CloudInput, CloudSelect } from "../components/cloudsteps/arco";
+import { CloudCard, CloudEmpty, CloudSpin, CloudInput } from "../components/cloudsteps/arco";
+import { MobileSelectSheet } from "../components/cloudsteps/MobileWheelPicker";
 import { listWordBooks, type WordBookItem, type WordBookGroup } from "../api/wordbooks";
 import { useAuthStore } from "../stores/authStore";
 import { listAllTeacherCoachingQuotas, type TeacherCoachingQuotaRow } from "../api/coaching";
@@ -193,12 +194,49 @@ export default function WordBooks() {
   return (
     <div className="space-y-4">
       <section className="space-y-2.5">
-        <h2 className="text-xs font-medium text-muted-foreground">常用</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xs font-medium text-muted-foreground shrink-0">常用</h2>
+          {isCoach ? (
+            <div
+              className="flex items-center gap-2 shrink-0"
+              data-coach="picker"
+            >
+              <span className="text-xs text-muted-foreground">学员</span>
+              <MobileSelectSheet
+                title="选择学员"
+                className="w-44 shrink-0"
+                style={{ minWidth: 176 }}
+                placeholder={
+                  loadingStudents ? "加载中…" : studentOptions.length ? "选择学员" : "暂无学员"
+                }
+                options={studentOptions}
+                value={studentId || undefined}
+                showSearch={studentOptions.length > 4}
+                disabled={loadingStudents || studentOptions.length === 0}
+                onChange={(value) => {
+                  const row = students.find((item) => String(item.studentId) === value);
+                  if (!row) return;
+                  setStudentId(String(row.studentId));
+                  setTrainingStudent(row.studentId, studentLabelFromQuota(row));
+                }}
+              />
+            </div>
+          ) : null}
+        </div>
         <div className="grid grid-cols-2 gap-2.5">
           <CloudButton
             type="button"
             variant="card"
             onClick={() => {
+              if (isCoach && !loadingStudents && students.length === 0) {
+                showToast.info("请先添加学员后再开始词汇测试");
+                navigate("/my-students/new");
+                return;
+              }
+              if (isCoach && !studentId) {
+                showToast.info("请先选择学员后再开始词汇测试");
+                return;
+              }
               kickoffVocabTestPrefetch();
               navigate("/vocabulary-test");
             }}
@@ -271,47 +309,6 @@ export default function WordBooks() {
           </CloudButton>
         </div>
       </section>
-
-      {isCoach && (
-        <div className="flex flex-col items-end gap-1.5" data-coach="picker">
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-xs text-muted-foreground">学员</span>
-            <CloudSelect
-              size="small"
-              className="w-32 sm:w-40"
-              placeholder={
-                loadingStudents ? "加载中…" : studentOptions.length ? "选择学员" : "暂无学员"
-              }
-              sheetTitle="选择学员"
-              options={studentOptions}
-              value={studentId || undefined}
-              showSearch
-              allowClear={false}
-              disabled={loadingStudents || studentOptions.length === 0}
-              onChange={(value) => {
-                const id = String(value ?? "");
-                const row = students.find((item) => String(item.studentId) === id);
-                if (!row) return;
-                setStudentId(id);
-                setTrainingStudent(row.studentId, studentLabelFromQuota(row));
-              }}
-            />
-          </div>
-          {!loadingStudents && studentOptions.length === 0 && (
-            <button
-              type="button"
-              className="text-xs text-primary hover:underline"
-              onClick={() => {
-                showToast.info("请先添加学员后再开始单词训练");
-                navigate("/my-students/new");
-              }}
-            >
-              还没有学员？去添加
-            </button>
-          )}
-        </div>
-      )}
-
 
       {/* 搜索栏 */}
       <div className="flex items-center gap-2">

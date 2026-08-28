@@ -3,6 +3,7 @@ import {
   formatLocation,
   genderLabel,
   roleLabel,
+  sourceLabel,
   userDisplayName,
   userInitials,
 } from './user-display'
@@ -48,6 +49,16 @@ describe('roleLabel', () => {
     expect(roleLabel('teacher')).toBe('教师')
     expect(roleLabel('student')).toBe('学员')
     expect(roleLabel(undefined)).toBe('用户')
+  })
+})
+
+describe('sourceLabel', () => {
+  it('maps known registration sources', () => {
+    expect(sourceLabel('web')).toBe('网页注册')
+    expect(sourceLabel('WEB')).toBe('网页注册')
+    expect(sourceLabel('miniapp')).toBe('小程序')
+    expect(sourceLabel('teacher_create')).toBe('教师创建')
+    expect(sourceLabel('')).toBe('—')
   })
 })
 

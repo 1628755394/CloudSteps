@@ -1,10 +1,12 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { CloudButton } from "../components/cloudsteps";
 import { useNavigate } from "react-router";
-import { ChevronLeft, X, Volume2 } from "lucide-react";
+import { X, Volume2 } from "lucide-react";
+import { TopBar } from "../components/TopBar";
 
 import { submitVocabTest } from "../api/vocab";
 import { playFirstWordAudio } from "../utils/audioPlayer";
+import { getTrainingStudent } from "../utils/trainingStudent";
 import {
   clearVocabTestQuestionsCache,
   ensureVocabTestQuestions,
@@ -104,7 +106,11 @@ export default function VocabularyTestTesting() {
     if (!payloadAnswers.length) {
       throw new Error("答案不能为空");
     }
-    const res = await submitVocabTest({ answers: payloadAnswers });
+    const studentId = getTrainingStudent()?.id;
+    const res = await submitVocabTest({
+      answers: payloadAnswers,
+      ...(studentId ? { studentId } : {}),
+    });
     if (res.code !== 200) throw new Error(res.msg || "提交失败");
     clearVocabTestQuestionsCache();
     sessionStorage.setItem("vocabulary_test_result", JSON.stringify(res.data));
@@ -170,16 +176,14 @@ export default function VocabularyTestTesting() {
 
   const busy = loading || submitting;
 
+  const handleBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate("/vocabulary-test");
+  };
+
   return (
-    <div className="h-dvh w-full min-w-0 flex flex-col bg-[#F7F9FC] overflow-hidden">
-      <header className="shrink-0 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-11 w-full max-w-6xl mx-auto px-3">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })} className="mr-2">
-            <ChevronLeft size={20} className="text-[#2D3748]" />
-          </CloudButton>
-          <span className="text-sm font-medium text-[#718096]">词汇量测试</span>
-        </div>
-      </header>
+    <div className="h-dvh w-full min-w-0 flex flex-col bg-gray-50 overflow-hidden">
+      <TopBar title="词汇量测试" onBack={handleBack} />
 
       <main className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto overflow-x-hidden flex flex-col px-4 py-3 max-w-6xl mx-auto">
         <div className="shrink-0 flex items-center gap-2 mb-3 max-w-5xl mx-auto w-full min-w-0">
@@ -194,7 +198,7 @@ export default function VocabularyTestTesting() {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })}>
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={handleBack} aria-label="退出测试">
             <X size={20} className="text-[#718096]" />
           </CloudButton>
         </div>

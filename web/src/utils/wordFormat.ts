@@ -14,6 +14,23 @@ export function formatTranslation(raw?: string | null): string {
 }
 
 /**
+ * 展示用：优先读 translationShort 字段，无则回退算法（兼容旧数据）。
+ */
+export function displayTranslationShort(w: {
+  translationShort?: string | null;
+  translation?: string | null;
+}): string {
+  const short = (w.translationShort || "").trim();
+  if (short) return short;
+  return formatTranslationShort(w.translation);
+}
+
+/** 完整释义展示 */
+export function displayTranslationFull(raw?: string | null): string {
+  return formatTranslation(raw);
+}
+
+/**
  * 简译：每个词性只取第一个释义，去掉英文释义只保留中文。
  * 例：["adj. incorrect 不正确的；有误的", "n. mistake 错误；过失"]
  * → "adj. 不正确的；n. 错误"
@@ -42,18 +59,15 @@ export function formatTranslationShort(raw?: string | null): string {
       if (posMatch) {
         const pos = posMatch[1].replace(/\.$/, "");
         const rest = posMatch[2];
-        // 取中文片段（去掉英文释义），保留词性
         const zh = rest
           .replace(/[a-zA-Z][a-zA-Z\s\-']*/g, " ")
           .replace(/[；;，,]/g, "；")
           .replace(/\s+/g, " ")
           .replace(/^；|；$/g, "")
           .trim();
-        // 简译：只取第一个释义（按；/，/, 分割）
         const firstZh = (zh || rest).split(/[；;，,]/)[0]?.trim() || (zh || rest).trim();
         return `${pos}. ${firstZh}`;
       }
-      // 无词性：只取第一个释义
       const first = item.split(/[；;，,]/)[0]?.trim() || item;
       return first;
     })

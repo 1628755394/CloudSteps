@@ -79,6 +79,13 @@ export default function ReviewWordList() {
     return sessionStorage.getItem("lb_review_date") || "";
   }, []);
 
+  const studySessionId = useMemo(() => {
+    const url = new URL(window.location.href);
+    const qp = Number(url.searchParams.get("studySessionId") || 0);
+    if (qp > 0) return qp;
+    return Number(sessionStorage.getItem("lb_review_study_session_id") || 0);
+  }, []);
+
   const viewOnly = useMemo(() => {
     const url = new URL(window.location.href);
     return url.searchParams.get("view") === "1";
@@ -107,6 +114,7 @@ export default function ReviewWordList() {
         const res = await getReviewToday(wordBookId, {
           date: reviewDate || undefined,
           limit: 200,
+          studySessionId: studySessionId > 0 ? studySessionId : undefined,
         });
         const ws = Array.isArray(res.data?.words)
           ? (res.data.words as Array<{
@@ -135,7 +143,7 @@ export default function ReviewWordList() {
     return () => {
       mounted = false;
     };
-  }, [wordBookId, reviewDate]);
+  }, [wordBookId, reviewDate, studySessionId]);
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);

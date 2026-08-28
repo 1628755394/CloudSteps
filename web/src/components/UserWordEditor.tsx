@@ -15,7 +15,7 @@ import {
   type UserWordFields,
   type UserWordView,
 } from "../api/wordbooks";
-import { formatTranslation } from "../utils/wordFormat";
+import { displayTranslationFull } from "../utils/wordFormat";
 
 type Props = {
   wordId: number | null;
@@ -31,6 +31,7 @@ type FormState = {
   phoneticUk: string;
   partOfSpeech: string;
   translation: string;
+  translationShort: string;
   notes: string;
 };
 
@@ -41,6 +42,7 @@ const emptyForm: FormState = {
   phoneticUk: "",
   partOfSpeech: "",
   translation: "",
+  translationShort: "",
   notes: "",
 };
 
@@ -51,7 +53,8 @@ function fieldsToForm(fields: UserWordFields, notes = ""): FormState {
     phoneticUs: fields.phoneticUs ?? "",
     phoneticUk: fields.phoneticUk ?? "",
     partOfSpeech: fields.partOfSpeech ?? "",
-    translation: formatTranslation(fields.translation) || (fields.translation ?? ""),
+    translation: displayTranslationFull(fields.translation) || (fields.translation ?? ""),
+    translationShort: fields.translationShort ?? "",
     notes,
   };
 }
@@ -104,13 +107,15 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
     if (!wordId || !view) return;
     const payload: UserWordFields = {};
     const canon = view.canonical;
-    const canonTrans = formatTranslation(canon.translation) || canon.translation || "";
+    const canonTrans = displayTranslationFull(canon.translation) || canon.translation || "";
+    const canonShort = (canon.translationShort || "").trim();
     if (form.word !== (canon.word || "")) payload.word = form.word;
     if (form.phonetic !== (canon.phonetic || "")) payload.phonetic = form.phonetic;
     if (form.phoneticUs !== (canon.phoneticUs || "")) payload.phoneticUs = form.phoneticUs;
     if (form.phoneticUk !== (canon.phoneticUk || "")) payload.phoneticUk = form.phoneticUk;
     if (form.partOfSpeech !== (canon.partOfSpeech || "")) payload.partOfSpeech = form.partOfSpeech;
     if (form.translation !== canonTrans) payload.translation = form.translation;
+    if (form.translationShort !== canonShort) payload.translationShort = form.translationShort;
     if (form.notes) payload.notes = form.notes;
     const hasDisplay = Boolean(
       payload.word ||
@@ -118,7 +123,8 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
         payload.phoneticUs ||
         payload.phoneticUk ||
         payload.partOfSpeech ||
-        payload.translation
+        payload.translation ||
+        payload.translationShort
     );
     if (!hasDisplay) {
       setError("请至少修改一项单词内容");
@@ -198,7 +204,13 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
               onChange={(v) => setField("partOfSpeech", v)}
             />
             <Field
-              label="中文释义"
+              label="简译"
+              value={form.translationShort}
+              onChange={(v) => setField("translationShort", v)}
+              textarea
+            />
+            <Field
+              label="完整释义"
               value={form.translation}
               onChange={(v) => setField("translation", v)}
               textarea

@@ -10,9 +10,10 @@ import { useNavigate } from "react-router";
 import { useState, useEffect, useMemo, useRef } from "react";
 import confetti from "canvas-confetti";
 import { playFirstWordAudio, playSecondWordAudio } from "../utils/audioPlayer";
-import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
+import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
-import { WordEditTrigger, applyUserWordView } from "../components/WordEditControls";
+import { applyUserWordView } from "../components/WordEditControls";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import {
   clearStudyRetryFlash,
   getStudyRetryWords,
@@ -44,14 +45,16 @@ function newUid(id: number): string {
 
 function mapToFlashWord(w: Record<string, unknown>): FlashWord {
   const id = Number(w.id);
-  const rawTranslation = w.translation as string;
   return {
     uid: newUid(id),
     id,
     word: String(w.word || ""),
     phonetic: pickPhoneticDisplay(w as { phonetic?: string; phoneticUk?: string; phoneticUs?: string }),
-    translation: formatTranslation(rawTranslation),
-    translationShort: formatTranslationShort(rawTranslation),
+    translation: displayTranslationFull(w.translation as string),
+    translationShort: displayTranslationShort({
+      translation: w.translation as string,
+      translationShort: w.translationShort as string,
+    }),
     audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
     scissorCount: 0,
     showTranslation: false,
@@ -72,6 +75,8 @@ export default function FlashReview() {
   const [fullMeaning, setFullMeaning] = useState(false);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
+  const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
+  const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
 
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
@@ -310,8 +315,9 @@ export default function FlashReview() {
                   w.id === view.wordId
                     ? {
                         ...w,
+                        translation: displayTranslationFull(view.effective.translation) || w.translation,
                         translationShort:
-                          formatTranslationShort(view.effective.translation) || w.translationShort,
+                          (view.effective.translationShort || "").trim() || w.translationShort,
                       }
                     : w
                 )
@@ -384,8 +390,15 @@ export default function FlashReview() {
                   <ChevronRight size={24} />
                 </CloudButton>
               </div>
-              <div className="flex items-center justify-center gap-4 border-t border-border/60 px-4 py-4">
-                <WordEditTrigger wordId={visibleWords[cardIndex].id} />
+              <div className="flex items-center justify-center gap-3 border-t border-border/60 px-4 py-4">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StudyNoteLauncher
+                    storageKey={wordNoteKey(visibleWords[cardIndex].id)}
+                    title={`笔记 · ${visibleWords[cardIndex].word}`}
+                    label="笔记"
+                    className="h-9 px-2"
+                  />
+                </div>
                 <CloudButton
                   type="button"
                   variant="ghost"
@@ -456,9 +469,14 @@ export default function FlashReview() {
                       {renderMeaning(word)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div onClick={(e) => e.stopPropagation()}>
-                      <WordEditTrigger wordId={word.id} />
+                      <StudyNoteLauncher
+                        storageKey={wordNoteKey(word.id)}
+                        title={`笔记 · ${word.word}`}
+                        label="笔记"
+                        className="h-9 px-2"
+                      />
                     </div>
                     <CloudButton
                       type="button"

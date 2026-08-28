@@ -1,15 +1,23 @@
 import { CloudButton } from "../components/cloudsteps";
 import { useNavigate } from "react-router";
-import { ChevronLeft, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   clearVocabTestResultCache,
   loadCachedVocabQuestions,
   prefetchVocabTestQuestions,
 } from "../utils/vocabTestCache";
+import { useAuthStore } from "../stores/authStore";
+import { getTrainingStudent } from "../utils/trainingStudent";
+import { showToast } from "../utils/toast";
+import { FlowPageShell } from "../components/PageTransition";
+import { TopBar } from "../components/TopBar";
 
 export default function VocabularyTest() {
   const navigate = useNavigate();
+  const role = useAuthStore((s) => s.user)?.role || "user";
+  const isCoach = role === "user" || role === "admin" || role === "teacher";
+  const boundStudent = isCoach ? getTrainingStudent() : null;
   const [preparing, setPreparing] = useState(() => !loadCachedVocabQuestions()?.length);
 
   useEffect(() => {
@@ -18,23 +26,33 @@ export default function VocabularyTest() {
       .finally(() => setPreparing(false));
   }, []);
 
-  return (
-    <div className="relative h-dvh w-full min-w-0 overflow-hidden bg-[#F7F9FC]">
-      <header className="absolute top-0 left-0 right-0 z-10 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-11 w-full max-w-6xl mx-auto px-3">
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => navigate("/material-selection", { replace: true })} className="mr-2">
-            <ChevronLeft size={20} className="text-[#2D3748]" />
-          </CloudButton>
-          <h2 className="text-sm font-medium text-[#718096]">词汇量测试</h2>
-        </div>
-      </header>
+  const handleBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate("/");
+  };
 
-      <div className="h-full w-full min-w-0 flex items-center justify-center px-4 sm:px-6 pt-11 pb-6">
+  const handleStart = () => {
+    if (isCoach && !boundStudent?.id) {
+      showToast.info("请先在首页选择学员后再开始词汇测试");
+      navigate("/", { replace: true });
+      return;
+    }
+    clearVocabTestResultCache();
+    navigate("/vocabulary-test/testing");
+  };
+
+  return (
+    <FlowPageShell className="min-h-dvh bg-gray-50">
+      <TopBar title="词汇量测试" onBack={handleBack} />
+
+      <div className="flex min-h-[calc(100dvh-2.75rem)] w-full min-w-0 items-center justify-center px-4 sm:px-6 py-6">
         <div className="w-full max-w-md min-w-0 flex flex-col items-center text-center">
           <div className="mb-4">
             <h2 className="text-base font-semibold text-[#2D3748] mb-1.5">测一测你的词汇量</h2>
             <p className="text-[#718096] text-xs leading-relaxed">
-              花几分钟测试一下，定位你的词汇量水平
+              {boundStudent?.name
+                ? `本次测评将记入「${boundStudent.name}」的词汇测试记录`
+                : "花几分钟测试一下，定位你的词汇量水平"}
             </p>
           </div>
 
@@ -50,10 +68,7 @@ export default function VocabularyTest() {
             className="w-full shadow-lg"
             loading={preparing}
             loadingText="准备题目…"
-            onClick={() => {
-              clearVocabTestResultCache();
-              navigate("/vocabulary-test/testing");
-            }}
+            onClick={handleStart}
           >
             开始测试
           </CloudButton>
@@ -63,6 +78,6 @@ export default function VocabularyTest() {
           </p>
         </div>
       </div>
-    </div>
+    </FlowPageShell>
   );
 }

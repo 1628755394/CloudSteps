@@ -12,6 +12,7 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, Close } from '@nutui/icons-react-taro'
 import { CloudButton } from '../../components/button'
 import { getVocabNext, submitVocabTest } from '../../api/vocab'
+import { getTrainingStudent } from '../../utils/trainingStudent'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { color } from '../../styles/tokens'
 import './index.scss'
@@ -201,7 +202,11 @@ export default function VocabTestTesting() {
 
   const submitAndGoResult = useCallback(async (payloadAnswers: AnswerRecord[]) => {
     if (!payloadAnswers.length) throw new Error('答案不能为空')
-    const res = await submitVocabTest({ answers: payloadAnswers })
+    const studentId = getTrainingStudent()?.id
+    const res = await submitVocabTest({
+      answers: payloadAnswers,
+      ...(studentId ? { studentId } : {}),
+    })
     if (res.code !== 200) throw new Error(res.msg || '提交失败')
     // 缓存结果供结果页使用
     try {

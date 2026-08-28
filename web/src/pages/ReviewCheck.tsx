@@ -19,7 +19,7 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
-import { WordEditTrigger, applyUserWordView } from "../components/WordEditControls";
+import { applyUserWordView } from "../components/WordEditControls";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 
 import { startReviewSession } from "../api/review";
@@ -319,9 +319,6 @@ export default function ReviewCheck() {
                         <span className={PRACTICE_WORD_CLASS}>{word.word}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <WordEditTrigger wordId={word.id} />
-                        </div>
                         <div onClick={(e) => e.stopPropagation()}>
                           <StudyNoteLauncher
                             storageKey={`study-note:word:${wordBookId}:${word.id}`}

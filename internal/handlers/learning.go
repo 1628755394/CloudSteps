@@ -73,6 +73,8 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 	}
 
 	now := time.Now().UTC()
+	loc := models.UserReviewLocation(user)
+	firstDue := models.FirstReviewDueAt(loc)
 
 	// Ensure user selected this wordbook (idempotent)
 	uwb := models.UserWordBook{UserID: user.ID, WordBookID: body.WordBookID}
@@ -90,13 +92,13 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 			LearnStatus:    "learned",
 			ReviewStage:    0,
 			FirstLearnedAt: &now,
-			NextReviewAt:   &now,
+			NextReviewAt:   &firstDue,
 		})
 		queueItems = append(queueItems, models.ReviewQueue{
 			UserID:     user.ID,
 			WordID:     wid,
 			WordBookID: body.WordBookID,
-			DueAt:      now,
+			DueAt:      firstDue,
 			Stage:      0,
 			Status:     "pending",
 		})
@@ -221,6 +223,7 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 	}
 
 	now := time.Now().UTC()
+	loc := models.UserReviewLocation(user)
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var items []models.ReviewQueue
@@ -232,17 +235,28 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 			itemByWord[it.WordID] = it
 		}
 
+		var states []models.UserWordState
+		if err := tx.Where("user_id = ? AND word_id IN ?", user.ID, wordIDs).Find(&states).Error; err != nil {
+			return err
+		}
+		stateByWord := make(map[uint]models.UserWordState, len(states))
+		for _, s := range states {
+			stateByWord[s.WordID] = s
+		}
+
+		schedule := models.ReviewScheduleDaysForUser(user)
+
 		for _, wid := range wordIDs {
 			it, ok := itemByWord[wid]
 			if !ok {
-				// no queue item, ignore
 				continue
 			}
+			st := stateByWord[wid]
+			anchor := models.ReviewAnchorFromState(&st, now)
 			remembered := resMap[wid]
 			if remembered {
 				newStage := it.Stage + 1
-				if newStage >= len(models.EbbinghausIntervals) {
-					// mastered: remove queue
+				if newStage >= len(schedule) {
 					if err := tx.Where("id = ?", it.ID).Delete(&models.ReviewQueue{}).Error; err != nil {
 						return err
 					}
@@ -254,7 +268,7 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 					continue
 				}
 
-				due := now.AddDate(0, 0, models.EbbinghausIntervals[newStage])
+				due, newStage := models.ReviewDueAfterSuccess(now, it.Stage, user.ReviewCurvePreset, anchor, loc)
 				if err := tx.Model(&models.ReviewQueue{}).Where("id = ?", it.ID).
 					Updates(map[string]any{"due_at": due, "stage": newStage, "status": "pending"}).Error; err != nil {
 					return err
@@ -265,16 +279,7 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 					return err
 				}
 			} else {
-				// ×：九宫格退一格；最快明天再到期，当天不再出现
-				newStage := it.Stage - 1
-				if newStage < 0 {
-					newStage = 0
-				}
-				dueDays := 1
-				if newStage < len(models.EbbinghausIntervals) && models.EbbinghausIntervals[newStage] > 1 {
-					dueDays = models.EbbinghausIntervals[newStage]
-				}
-				due := now.AddDate(0, 0, dueDays)
+				due, newStage := models.ReviewDueAfterFail(now, it.Stage, user.ReviewCurvePreset, anchor, loc)
 				if err := tx.Model(&models.ReviewQueue{}).Where("id = ?", it.ID).
 					Updates(map[string]any{"due_at": due, "stage": newStage, "status": "pending"}).Error; err != nil {
 					return err

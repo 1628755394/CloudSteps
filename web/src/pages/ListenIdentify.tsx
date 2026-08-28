@@ -1,17 +1,23 @@
 import { CloudButton } from "../components/cloudsteps";
 import { AnnotationLayer } from "../components/AnnotationLayer";
-import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
+import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS, PRACTICE_CARD_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { TopBar } from "../components/TopBar";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
+import {
+  WordViewModeToggle,
+  markWordCardClass,
+  markWordCardStyle,
+  type WordViewMode,
+} from "../components/WordMarkView";
 import { ArrowRight, Volume2, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { playFirstWordAudio } from "../utils/audioPlayer";
-import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
+import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { getReviewReturnPath } from "../utils/reviewPractice";
-import { WordEditTrigger, applyUserWordView } from "../components/WordEditControls";
+import { applyUserWordView } from "../components/WordEditControls";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
 
 type ListenWord = {
   id: number;
@@ -33,6 +39,8 @@ export default function ListenIdentify() {
   const [detailMode, setDetailMode] = useState(false);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
+  const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
+  const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
 
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
@@ -83,8 +91,8 @@ export default function ListenIdentify() {
         id: Number(w.id),
         word: String(w.word || ""),
         phonetic: pickPhoneticDisplay(w),
-        translation: formatTranslation(w.translation),
-        translationShort: formatTranslationShort(w.translation),
+        translation: displayTranslationFull(w.translation),
+        translationShort: displayTranslationShort(w),
         audioUrl: w.audioUrl ? String(w.audioUrl) : "",
         state: "idle",
       }));
@@ -131,17 +139,19 @@ export default function ListenIdentify() {
   const meaningText = (w: ListenWord) =>
     fullMeaning ? w.translation || w.translationShort : w.translationShort || w.translation;
 
-  const renderRevealed = (w: ListenWord) => (
+  const renderRevealed = (w: ListenWord, opts?: { card?: boolean }) => (
     <>
-      <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{w.word}</div>
+      <div className={`${opts?.card ? PRACTICE_CARD_WORD_CLASS : PRACTICE_WORD_CLASS} ${opts?.card ? "" : "mb-1"}`}>
+        {w.word}
+      </div>
       {w.phonetic ? (
-        <div className="text-sm text-[#718096] font-mono mb-0.5">{w.phonetic}</div>
+        <div className={`text-sm text-[#718096] font-mono ${opts?.card ? "mt-4" : "mb-0.5"}`}>{w.phonetic}</div>
       ) : null}
-      <div className={PRACTICE_TRANS_CLASS}>{meaningText(w)}</div>
+      <div className={`${PRACTICE_TRANS_CLASS} ${opts?.card ? "mt-3" : ""}`}>{meaningText(w)}</div>
       {(w.translation || w.translationShort) && (
         <button
           type="button"
-          className="text-xs text-[#4ECDC4] hover:underline mt-1"
+          className={`text-xs text-[#4ECDC4] hover:underline ${opts?.card ? "mt-3" : "mt-1"}`}
           onClick={(e) => {
             e.stopPropagation();
             setFullMeaning((v) => !v);
@@ -153,50 +163,51 @@ export default function ListenIdentify() {
     </>
   );
 
-  const renderWordCard = (w: ListenWord, opts?: { centered?: boolean }) => {
+  const tapped = (w: ListenWord) => w.state !== "idle" || playingId === w.id;
+
+  const renderWordCard = (w: ListenWord) => {
     const showAnswer = w.state === "revealed";
     return (
       <div
         onClick={() => handleCardClick(w)}
-        className={`bg-white rounded-xl p-4 shadow-sm transition-all cursor-pointer select-none ${
-          opts?.centered ? "w-full" : ""
-        } ${
-          w.state === "idle"
-            ? "border-2 border-transparent"
-            : "border-2 border-[#4ECDC4] bg-[#4ECDC4]/5"
-        }`}
+        className={`rounded-xl p-4 shadow-sm transition-all cursor-pointer select-none ${markWordCardClass(
+          null,
+          tapped(w)
+        )}`}
+        style={markWordCardStyle(null, tapped(w))}
       >
-        <div className={`flex items-center gap-3 ${opts?.centered ? "flex-col text-center" : ""}`}>
-          <div onClick={(e) => e.stopPropagation()}>
-            <WordEditTrigger wordId={w.id} />
-          </div>
+        <div className="flex items-center gap-3">
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-              w.state === "revealed"
-                ? "bg-[#4ECDC4]/15"
-                : w.state === "played"
-                ? "bg-[#4ECDC4]/15"
-                : "bg-gray-100"
+              w.state === "idle" ? "bg-gray-100" : "bg-[#4ECDC4]/15"
             }`}
           >
             <Volume2
               size={20}
               className={
-                w.state === "revealed"
-                  ? "text-[#4ECDC4]"
-                  : w.state === "played"
-                  ? "text-[#4ECDC4]"
-                  : "text-[#718096]"
+                playingId === w.id
+                  ? "text-[#4ECDC4] animate-pulse"
+                  : w.state === "idle"
+                    ? "text-[#718096]"
+                    : "text-[#4ECDC4]"
               }
             />
           </div>
-          <div className={opts?.centered ? "w-full" : ""}>
+          <div className="flex-1 min-w-0">
             {!showAnswer && (
               <div className="text-sm text-[#718096]">
                 {w.state === "idle" ? "点击播放" : "再点显示答案"}
               </div>
             )}
             {showAnswer && renderRevealed(w)}
+          </div>
+          <div onClick={(e) => e.stopPropagation()}>
+            <StudyNoteLauncher
+              storageKey={wordNoteKey(w.id)}
+              title={`笔记 · ${w.word}`}
+              label="笔记"
+              className="h-9 px-2"
+            />
           </div>
         </div>
         {detailMode && showAnswer && (
@@ -232,8 +243,9 @@ export default function ListenIdentify() {
                   w.id === view.wordId
                     ? {
                         ...w,
+                        translation: displayTranslationFull(view.effective.translation) || w.translation,
                         translationShort:
-                          formatTranslationShort(view.effective.translation) || w.translationShort,
+                          (view.effective.translationShort || "").trim() || w.translationShort,
                       }
                     : w
                 )
@@ -253,38 +265,105 @@ export default function ListenIdentify() {
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {viewMode === "card" && cardWord ? (
-          <div className="flex flex-col items-center gap-5 py-2">
-            <div className="flex items-center gap-3 w-full">
-              <CloudButton
-                type="button"
-                variant="ghost"
-                size="iconRound"
-                disabled={cardIndex <= 0}
-                onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
-                className="shrink-0 bg-muted disabled:opacity-40"
-              >
-                <ChevronLeft size={22} />
-              </CloudButton>
-              <div
-                className="flex-1"
-                style={{ minHeight: "max(8rem, calc(var(--practice-word-size) * 6))" }}
-              >
-                {renderWordCard(cardWord, { centered: true })}
+          <div className="flex w-full flex-col gap-3">
+            <div
+              className={`relative flex w-full flex-col overflow-hidden rounded-2xl shadow-sm transition-colors ${markWordCardClass(
+                null,
+                tapped(cardWord)
+              )}`}
+              style={{
+                ...markWordCardStyle(null, tapped(cardWord)),
+                minHeight: "min(62vh, calc(100dvh - 13.5rem))",
+              }}
+            >
+              <p className="pointer-events-none absolute left-0 right-0 top-4 z-10 text-center text-xs text-[#718096]">
+                {cardIndex + 1} / {words.length}
+              </p>
+              <div className="relative flex min-h-0 flex-1 items-center justify-center px-2">
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  disabled={cardIndex <= 0}
+                  onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
+                  className="absolute left-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
+                  aria-label="上一个"
+                >
+                  <ChevronLeft size={24} />
+                </CloudButton>
+                <button
+                  type="button"
+                  className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center"
+                  onClick={() => handleCardClick(cardWord)}
+                >
+                  {cardWord.state === "revealed" ? (
+                    renderRevealed(cardWord, { card: true })
+                  ) : (
+                    <>
+                      <Volume2
+                        size={48}
+                        className={
+                          playingId === cardWord.id
+                            ? "text-[#4ECDC4] animate-pulse"
+                            : cardWord.state === "played"
+                              ? "text-[#4ECDC4]"
+                              : "text-[#A0AEC0]"
+                        }
+                      />
+                      <p className="mt-4 text-sm text-[#718096]">
+                        {cardWord.state === "idle" ? "点击播放" : "再点显示答案"}
+                      </p>
+                    </>
+                  )}
+                </button>
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  disabled={cardIndex >= words.length - 1}
+                  onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
+                  className="absolute right-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
+                  aria-label="下一个"
+                >
+                  <ChevronRight size={24} />
+                </CloudButton>
               </div>
-              <CloudButton
-                type="button"
-                variant="ghost"
-                size="iconRound"
-                disabled={cardIndex >= words.length - 1}
-                onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
-                className="shrink-0 bg-muted disabled:opacity-40"
-              >
-                <ChevronRight size={22} />
-              </CloudButton>
+              <div className="flex items-center justify-center gap-3 border-t border-border/60 px-4 py-4">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StudyNoteLauncher
+                    storageKey={wordNoteKey(cardWord.id)}
+                    title={`笔记 · ${cardWord.word}`}
+                    label="笔记"
+                    className="h-9 px-2"
+                  />
+                </div>
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  className="size-12"
+                  onClick={() => handlePlayFirstAudio(cardWord)}
+                  aria-label="播放发音"
+                >
+                  <Volume2
+                    size={22}
+                    className={
+                      playingId === cardWord.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"
+                    }
+                  />
+                </CloudButton>
+              </div>
             </div>
-            <p className="text-xs text-[#718096]">
-              {cardIndex + 1} / {words.length}
-            </p>
+            {detailMode && cardWord.state === "revealed" && (
+              <div className="w-full">
+                <WordDetailPanel
+                  wordId={cardWord.id}
+                  wordText={cardWord.word}
+                  variant="inline"
+                  onClose={() => {}}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3 mb-6">

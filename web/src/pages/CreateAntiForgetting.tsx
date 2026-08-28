@@ -1,30 +1,42 @@
 import { CloudButton } from "../components/cloudsteps";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
-import { useState } from "react";
-import { CloudCard, CloudDatePicker, CloudTimePicker } from "../components/cloudsteps/arco";
-
-function todayYMD() {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+import { useEffect, useState } from "react";
+import { type ReviewCurvePreset, updateUserPreferences } from "../api/auth";
+import { useAuthStore } from "../stores/authStore";
+import { showToast } from "../utils/toast";
+import {
+  REVIEW_TIMES_OPTIONS,
+  normalizeReviewCurvePreset,
+} from "../utils/reviewCurve";
 
 export default function CreateAntiForgetting() {
   const navigate = useNavigate();
-  const [selectedDate, setSelectedDate] = useState(todayYMD);
-  const [selectedTime, setSelectedTime] = useState("09:00");
+  const user = useAuthStore((s) => s.user);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const [preset, setPreset] = useState<ReviewCurvePreset>("times5");
+  const [saving, setSaving] = useState(false);
 
-  const handleConfirm = () => {
-    navigate("/");
-  };
+  useEffect(() => {
+    setPreset(normalizeReviewCurvePreset(user?.reviewCurvePreset));
+  }, [user?.reviewCurvePreset]);
 
-  const setRelativeDate = (days: number, time = "09:00") => {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    setSelectedDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
-    setSelectedTime(time);
+  const handleConfirm = async () => {
+    setSaving(true);
+    try {
+      const res = await updateUserPreferences({ reviewCurvePreset: preset });
+      if (res.code !== 200) {
+        showToast.error(res.msg || "保存失败");
+        return;
+      }
+      updateProfile({ reviewCurvePreset: preset });
+      showToast.success("抗遗忘次数已保存，今天学的词当天（第 1 天）即进入复习计划");
+      navigate("/anti-forgetting");
+    } catch {
+      showToast.error("保存失败");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -41,54 +53,45 @@ export default function CreateAntiForgetting() {
             <ArrowLeft size={22} className="text-charcoal" />
           </CloudButton>
           <h1 className="flex-1 text-center text-base font-semibold text-foreground -ml-8">
-            创建抗遗忘
+            抗遗忘设置
           </h1>
         </div>
       </div>
 
-      <div className="px-4 mt-5 space-y-4 max-w-lg mx-auto">
+      <div className="px-4 mt-5 space-y-4 max-w-lg mx-auto pb-8">
         <div className="rounded-xl bg-primary-soft px-4 py-3">
           <p className="text-sm text-charcoal leading-relaxed">
-            根据艾宾浩斯遗忘曲线，科学设置复习时间可以帮助您更好地记忆单词。
-            系统将在您设定的时间提醒您复习今天学习的单词。
+            今天学完的词会排在<strong className="font-semibold">开课当天（第 1 天）</strong>的复习任务里。
+            按所选次数与艾宾浩斯「第 N 天」表头，在抗遗忘日历各日期自动出现；列表会显示对应识记时段。
           </p>
         </div>
 
-        <CloudCard className="p-5 space-y-4">
-          <CloudDatePicker
-            label="复习日期"
-            value={selectedDate}
-            allowClear={false}
-            onChange={(v) => v && setSelectedDate(v)}
-          />
-          <CloudTimePicker
-            label="复习时间"
-            value={selectedTime}
-            allowClear={false}
-            onChange={(v) => v && setSelectedTime(v)}
-          />
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-foreground">抗遗忘次数</p>
+          {REVIEW_TIMES_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setPreset(opt.value)}
+              className={`w-full text-left rounded-xl border p-4 transition-colors ${
+                preset === opt.value
+                  ? "border-primary bg-primary-soft/60"
+                  : "border-border bg-card hover:border-primary/40"
+              }`}
+            >
+              <div className="text-sm font-semibold text-foreground">{opt.label}</div>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
 
-          <div>
-            <label className="text-sm text-charcoal font-medium mb-1.5 block">快捷选择</label>
-            <div className="grid grid-cols-2 gap-2.5">
-              <CloudButton variant="outline" onClick={() => setRelativeDate(1)}>
-                明天 09:00
-              </CloudButton>
-              <CloudButton variant="outline" onClick={() => setRelativeDate(3)}>
-                3天后 09:00
-              </CloudButton>
-              <CloudButton variant="outline" onClick={() => setRelativeDate(7)}>
-                1周后 09:00
-              </CloudButton>
-              <CloudButton variant="outline" onClick={() => setRelativeDate(14)}>
-                2周后 09:00
-              </CloudButton>
-            </div>
-          </div>
-        </CloudCard>
-
-        <CloudButton variant="brand" className="w-full h-11" onClick={handleConfirm}>
-          确定
+        <CloudButton
+          variant="brand"
+          className="w-full h-11"
+          loading={saving}
+          onClick={() => void handleConfirm()}
+        >
+          保存并查看复习计划
         </CloudButton>
       </div>
     </div>

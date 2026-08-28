@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Volume2, Pencil } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import { getWordDetail, type WordDetail, type UserWordView } from "../api/wordbooks";
-import { formatTranslation, formatTranslationShort, withPartOfSpeech } from "../utils/wordFormat";
+import { displayTranslationFull, displayTranslationShort, withPartOfSpeech } from "../utils/wordFormat";
 import { playWordAudio } from "../utils/audioPlayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
 import { UserWordEditor } from "./UserWordEditor";
@@ -162,10 +162,10 @@ export function WordDetailPanel({
   const word = detail?.word || wordText || "";
   const phonetic = detail?.phoneticUk || detail?.phoneticUs || detail?.phonetic || "";
   const shortMeaning = detail
-    ? withPartOfSpeech(detail.partOfSpeech, formatTranslationShort(detail.translation))
+    ? withPartOfSpeech(detail.partOfSpeech, displayTranslationShort(detail))
     : "";
   const fullMeaning = detail
-    ? withPartOfSpeech(detail.partOfSpeech, formatTranslation(detail.translation))
+    ? withPartOfSpeech(detail.partOfSpeech, displayTranslationFull(detail.translation))
     : "";
   const showFullInline = active === "translation";
 
@@ -173,7 +173,7 @@ export function WordDetailPanel({
     <>
       {loading ? (
         <div className="flex justify-center py-6">
-          <Loader2 className="w-6 h-6 animate-spin text-[#4ECDC4]" />
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       ) : error ? (
         <p className="px-3 pb-4 text-center text-sm text-muted-foreground">加载失败，请稍后重试</p>
@@ -191,8 +191,8 @@ export function WordDetailPanel({
                     onClick={() => setActive(t.key === active ? null : t.key)}
                     className={`px-2.5 py-1 rounded-lg text-xs transition-colors ${
                       active === t.key
-                        ? "bg-[#4ECDC4] text-white font-medium"
-                        : "bg-[#F1F5F9] text-[#2D3748] hover:bg-[#E2E8F0]"
+                        ? "bg-primary text-primary-foreground font-medium"
+                        : "bg-muted text-foreground hover:bg-muted/80"
                     }`}
                   >
                     {t.label}
@@ -208,7 +208,7 @@ export function WordDetailPanel({
                 e.stopPropagation();
                 setEditorOpen(true);
               }}
-              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-[#718096] hover:bg-[#F1F5F9] hover:text-[#2C7A7B]"
+              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <Pencil size={12} />
               纠错
@@ -216,12 +216,12 @@ export function WordDetailPanel({
           </div>
 
           {active && active !== "translation" && (
-            <div className="pt-2 border-t border-[#F1F5F9] max-h-[36vh] overflow-y-auto">
+            <div className="pt-2 border-t border-border max-h-[36vh] overflow-y-auto">
               <ExtContent active={active} detail={detail} parsed={parsed} />
             </div>
           )}
           {active === "translation" && (
-            <div className="pt-2 border-t border-[#F1F5F9] max-h-[36vh] overflow-y-auto">
+            <div className="pt-2 border-t border-border max-h-[36vh] overflow-y-auto">
               <p className={`${PRACTICE_TRANS_CLASS} leading-relaxed`}>{fullMeaning}</p>
             </div>
           )}
@@ -260,7 +260,7 @@ export function WordDetailPanel({
     // inline 只出拓展标签，音标/释义由父级卡片展示，避免拓展开关后重复叠两层
     return (
       <div
-        className="w-full pt-2 mt-2 border-t border-[#F1F5F9]"
+        className="w-full pt-2 mt-2 border-t border-border"
         onClick={(event) => event.stopPropagation()}
       >
         {tagsBlock}
@@ -271,7 +271,7 @@ export function WordDetailPanel({
 
   return (
     <div
-      className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm overflow-hidden"
+      className="bg-card rounded-xl border border-border shadow-sm overflow-hidden"
       onClick={(event) => event.stopPropagation()}
     >
       <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2">
@@ -286,12 +286,12 @@ export function WordDetailPanel({
                 onClick={() => playWordAudio(detail.audioUrl!, 200)}
                 aria-label="播放发音"
               >
-                <Volume2 size={18} className="text-[#4ECDC4]" />
+                <Volume2 size={18} className="text-primary" />
               </CloudButton>
             )}
           </div>
           {phonetic && (
-            <p className="text-sm text-[#718096] mt-1 font-mono">
+            <p className="text-sm text-muted-foreground mt-1 font-mono">
               [{phonetic.replace(/^\[|\]$/g, "")}]
             </p>
           )}
@@ -322,9 +322,9 @@ function ExtContent({
       return (
         <div className="space-y-3">
           {(parsed.examples || []).slice(0, 8).map((ex, i) => (
-            <div key={i} className="pl-3 border-l-2 border-[#4ECDC4]/35">
+            <div key={i} className="pl-3 border-l-2 border-primary/35">
               <p className="text-sm leading-relaxed">{stripTags(ex.en)}</p>
-              <p className="text-xs text-[#718096] mt-1">{ex.cn}</p>
+              <p className="text-xs text-muted-foreground mt-1">{ex.cn}</p>
             </div>
           ))}
         </div>
@@ -336,8 +336,8 @@ function ExtContent({
         <div className="space-y-2">
           {(parsed.phrases || []).map((p, i) => (
             <div key={i} className="text-sm">
-              <span className="font-medium text-[#1e3a5f]">{p.phrase}</span>
-              <span className="text-[#718096] ml-2">{(p.meanings || []).join("；")}</span>
+              <span className="font-medium text-foreground">{p.phrase}</span>
+              <span className="text-muted-foreground ml-2">{(p.meanings || []).join("；")}</span>
             </div>
           ))}
         </div>
@@ -348,7 +348,7 @@ function ExtContent({
           {(parsed.morphology?.forms || []).map((f, i) => (
             <span
               key={i}
-              className="px-2 py-1 rounded-md bg-[#4ECDC4]/10 text-[#0d9488] text-xs font-medium"
+              className="px-2 py-1 rounded-md bg-primary-soft text-primary text-xs font-medium"
             >
               {f}
             </span>
@@ -368,8 +368,8 @@ function ExtContent({
         <div className="space-y-2">
           {(parsed.derivations || []).map((d, i) => (
             <div key={i} className="text-sm">
-              <span className="font-medium text-[#1e3a5f]">{d.word}</span>
-              <span className="text-[#718096] ml-2">
+              <span className="font-medium text-foreground">{d.word}</span>
+              <span className="text-muted-foreground ml-2">
                 {(d.meanings || []).map((m) => `${m.pos} ${m.meaning}`).join("；")}
               </span>
             </div>
@@ -382,7 +382,7 @@ function ExtContent({
           {(parsed.synonyms || []).map((s, i) => (
             <span key={i} className="px-2 py-1 rounded-md bg-muted text-xs">
               <span className="font-medium">{s.word}</span>
-              {s.trans && <span className="text-[#718096] ml-1">{s.trans}</span>}
+              {s.trans && <span className="text-muted-foreground ml-1">{s.trans}</span>}
             </span>
           ))}
         </div>
@@ -393,14 +393,14 @@ function ExtContent({
           {(parsed.antonyms || []).map((s, i) => (
             <span key={i} className="px-2 py-1 rounded-md bg-muted text-xs">
               <span className="font-medium">{s.word}</span>
-              {s.trans && <span className="text-[#718096] ml-1">{s.trans}</span>}
+              {s.trans && <span className="text-muted-foreground ml-1">{s.trans}</span>}
             </span>
           ))}
         </div>
       );
     case "etymology":
       return (
-        <p className="text-sm leading-relaxed text-[#718096] whitespace-pre-wrap">{detail.etymology}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{detail.etymology}</p>
       );
     case "collins":
       return (
@@ -416,15 +416,15 @@ function ExtContent({
         </div>
       );
     case "definition":
-      return <p className="text-sm leading-relaxed text-[#718096]">{detail.definition}</p>;
+      return <p className="text-sm leading-relaxed text-muted-foreground">{detail.definition}</p>;
     case "family":
       return (
         <div className="space-y-1.5">
           {(parsed.wordFamily || []).map((w, i) => (
             <div key={i} className="text-sm">
-              <span className="text-xs text-[#A0AEC0] mr-1">{w.pos}</span>
-              <span className="font-medium text-[#1e3a5f]">{w.word}</span>
-              <span className="text-[#718096] ml-2">{w.meaning}</span>
+              <span className="text-xs text-muted-soft mr-1">{w.pos}</span>
+              <span className="font-medium text-foreground">{w.word}</span>
+              <span className="text-muted-foreground ml-2">{w.meaning}</span>
             </div>
           ))}
         </div>

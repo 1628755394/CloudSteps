@@ -47,6 +47,7 @@ export default function ReviewWordList() {
   const router = useRouter()
   const wordBookId = Number(router.params.wordBookId || 0)
   const reviewDate = String(router.params.date || '')
+  const studySessionId = Number(router.params.studySessionId || 0)
   const viewOnly = router.params.view === '1'
 
   const [words, setWords] = useState<ReviewWordItem[]>([])
@@ -63,6 +64,7 @@ export default function ReviewWordList() {
         const res = await getReviewToday(wordBookId, {
           date: reviewDate || undefined,
           limit: 200,
+          studySessionId: studySessionId > 0 ? studySessionId : undefined,
         })
         const ws = Array.isArray(res.data?.words)
           ? (res.data.words as Array<{
@@ -93,7 +95,7 @@ export default function ReviewWordList() {
     return () => {
       mounted = false
     }
-  }, [wordBookId, reviewDate])
+  }, [wordBookId, reviewDate, studySessionId])
 
   const markedWords = useMemo(() => words.filter((w) => w.status !== null), [words])
   const markedCount = markedWords.length

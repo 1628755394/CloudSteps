@@ -303,6 +303,8 @@ export type MobileSelectSheetProps = {
   className?: string;
   style?: CSSProperties;
   size?: "small" | "default";
+  /** 自定义触发器；不传则用默认下拉按钮 */
+  trigger?: ReactNode;
 };
 
 /** H5 底部弹层单选（取消/确认），支持搜索 */
@@ -318,6 +320,7 @@ export function MobileSelectSheet({
   className,
   style,
   size = "default",
+  trigger,
 }: MobileSelectSheetProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value || "");
@@ -347,6 +350,16 @@ export function MobileSelectSheet({
       {label && (
         <label className="text-sm text-charcoal font-medium mb-1.5 block">{label}</label>
       )}
+      {trigger ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className="rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 disabled:opacity-50"
+        >
+          {trigger}
+        </button>
+      ) : (
       <button
         type="button"
         disabled={disabled}
@@ -360,6 +373,7 @@ export function MobileSelectSheet({
         </span>
         <span className="text-muted-soft shrink-0 text-xs">▼</span>
       </button>
+      )}
 
       <PickerSheet
         open={open}

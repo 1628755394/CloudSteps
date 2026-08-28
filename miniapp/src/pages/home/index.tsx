@@ -116,7 +116,18 @@ export default function LessonPrep() {
       desc: '进入测评',
       tint: 'mint',
       icon: <Star size={18} color={color.primary} />,
-      onClick: () => go('/pages/vocab-test/index'),
+      onClick: () => {
+        if (isCoach && students.length === 0) {
+          Taro.showToast({ title: '请先添加学员', icon: 'none' })
+          go('/pages/my-students/index')
+          return
+        }
+        if (isCoach && !studentId) {
+          Taro.showToast({ title: '请先选择学员', icon: 'none' })
+          return
+        }
+        go('/pages/vocab-test/index')
+      },
     },
     {
       key: 'material-selection',

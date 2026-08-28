@@ -39,7 +39,8 @@ type UserWord struct {
 	Phonetic        string `json:"phonetic" gorm:"size:128"`
 	PhoneticUS      string `json:"phoneticUs" gorm:"size:128"`
 	PhoneticUK      string `json:"phoneticUk" gorm:"size:128"`
-	Translation     string `json:"translation" gorm:"type:text"`
+	Translation      string `json:"translation" gorm:"type:text"`
+	TranslationShort string `json:"translationShort" gorm:"type:text"`
 	PartOfSpeech    string `json:"partOfSpeech" gorm:"size:50"`
 	Definition      string `json:"definition" gorm:"type:text"`
 	ExampleSentence string `json:"exampleSentence" gorm:"type:text"`
@@ -55,7 +56,8 @@ type UserWordFields struct {
 	Phonetic        string `json:"phonetic"`
 	PhoneticUS      string `json:"phoneticUs"`
 	PhoneticUK      string `json:"phoneticUk"`
-	Translation     string `json:"translation"`
+	Translation      string `json:"translation"`
+	TranslationShort string `json:"translationShort"`
 	PartOfSpeech    string `json:"partOfSpeech"`
 	Definition      string `json:"definition"`
 	ExampleSentence string `json:"exampleSentence"`
@@ -68,7 +70,8 @@ func NormalizeUserWordFields(in UserWordFields) (UserWordFields, error) {
 		Phonetic:        strings.TrimSpace(in.Phonetic),
 		PhoneticUS:      strings.TrimSpace(in.PhoneticUS),
 		PhoneticUK:      strings.TrimSpace(in.PhoneticUK),
-		Translation:     strings.TrimSpace(in.Translation),
+		Translation:      strings.TrimSpace(in.Translation),
+		TranslationShort: strings.TrimSpace(in.TranslationShort),
 		PartOfSpeech:    strings.TrimSpace(in.PartOfSpeech),
 		Definition:      strings.TrimSpace(in.Definition),
 		ExampleSentence: strings.TrimSpace(in.ExampleSentence),
@@ -92,6 +95,9 @@ func NormalizeUserWordFields(in UserWordFields) (UserWordFields, error) {
 	if err := checkRuneLen(out.Translation, UserWordTextMaxRunes); err != nil {
 		return UserWordFields{}, err
 	}
+	if err := checkRuneLen(out.TranslationShort, UserWordTextMaxRunes); err != nil {
+		return UserWordFields{}, err
+	}
 	if err := checkRuneLen(out.Definition, UserWordTextMaxRunes); err != nil {
 		return UserWordFields{}, err
 	}
@@ -109,7 +115,7 @@ func NormalizeUserWordFields(in UserWordFields) (UserWordFields, error) {
 
 func (f UserWordFields) hasDisplay() bool {
 	return f.Word != "" || f.Phonetic != "" || f.PhoneticUS != "" || f.PhoneticUK != "" ||
-		f.Translation != "" || f.PartOfSpeech != "" || f.Definition != "" || f.ExampleSentence != ""
+		f.Translation != "" || f.TranslationShort != "" || f.PartOfSpeech != "" || f.Definition != "" || f.ExampleSentence != ""
 }
 
 func checkRuneLen(s string, max int) error {
@@ -125,6 +131,7 @@ func (u *UserWord) applyFields(f UserWordFields) {
 	u.PhoneticUS = f.PhoneticUS
 	u.PhoneticUK = f.PhoneticUK
 	u.Translation = f.Translation
+	u.TranslationShort = f.TranslationShort
 	u.PartOfSpeech = f.PartOfSpeech
 	u.Definition = f.Definition
 	u.ExampleSentence = f.ExampleSentence
@@ -149,6 +156,9 @@ func (u *UserWord) ApplyToWord(w *Word) {
 	}
 	if u.Translation != "" {
 		w.Translation = u.Translation
+	}
+	if u.TranslationShort != "" {
+		w.TranslationShort = u.TranslationShort
 	}
 	if u.PartOfSpeech != "" {
 		w.PartOfSpeech = u.PartOfSpeech
@@ -181,6 +191,9 @@ func (u *UserWord) ApplyToLite(w *WordLite) {
 	if u.Translation != "" {
 		w.Translation = u.Translation
 	}
+	if u.TranslationShort != "" {
+		w.TranslationShort = u.TranslationShort
+	}
 	if u.PartOfSpeech != "" {
 		w.PartOfSpeech = u.PartOfSpeech
 	}
@@ -209,6 +222,9 @@ func (u *UserWord) CanonicalUpdates() map[string]any {
 	}
 	if u.Translation != "" {
 		m["translation"] = u.Translation
+	}
+	if u.TranslationShort != "" {
+		m["translation_short"] = u.TranslationShort
 	}
 	if u.PartOfSpeech != "" {
 		m["part_of_speech"] = u.PartOfSpeech

@@ -21,6 +21,8 @@ const studentActivityMergeCap = 3000
 // coachingTeacherQuotaItem 老师端学员额度 + 活动摘要
 type coachingTeacherQuotaItem struct {
 	models.StudentTeacherCoachingQuota
+	ReviewTimes          int        `json:"reviewTimes"`
+	ReviewCurvePreset    string     `json:"reviewCurvePreset,omitempty"`
 	VocabTestCount       int64      `json:"vocabTestCount"`
 	CoachingSessionCount int64      `json:"coachingSessionCount"`
 	StudySessionCount    int64      `json:"studySessionCount"`
@@ -87,9 +89,9 @@ func coachingEnrichTeacherQuotaList(db *gorm.DB, teacherID uint, list []models.S
 	}
 	var cnts []cntRow
 	if err := db.Model(&models.VocabTestRecord{}).
-		Select("user_id, count(*) as n").
-		Where("user_id IN ?", studentIDs).
-		Group("user_id").
+		Select("CASE WHEN student_id > 0 THEN student_id ELSE user_id END as user_id, count(*) as n").
+		Scopes(vocabTestsOwnedByStudents(studentIDs)).
+		Group("CASE WHEN student_id > 0 THEN student_id ELSE user_id END").
 		Find(&cnts).Error; err != nil {
 		return nil, err
 	}
@@ -137,8 +139,10 @@ func coachingEnrichTeacherQuotaList(db *gorm.DB, teacherID uint, list []models.S
 	}
 	var maxRows []maxIDRow
 	if err := db.Raw(`
-		SELECT MAX(id) AS mid FROM vocab_test_records WHERE user_id IN ? GROUP BY user_id
-	`, studentIDs).Scan(&maxRows).Error; err != nil {
+		SELECT MAX(id) AS mid FROM vocab_test_records
+		WHERE student_id IN ? OR (student_id = 0 AND user_id IN ?)
+		GROUP BY CASE WHEN student_id > 0 THEN student_id ELSE user_id END
+	`, studentIDs, studentIDs).Scan(&maxRows).Error; err != nil {
 		return nil, err
 	}
 	maxIDs := make([]uint, 0, len(maxRows))
@@ -154,7 +158,7 @@ func coachingEnrichTeacherQuotaList(db *gorm.DB, teacherID uint, list []models.S
 			return nil, err
 		}
 		for _, rec := range recs {
-			latestByUser[rec.UserID] = rec
+			latestByUser[rec.VocabTestOwnerID()] = rec
 		}
 	}
 
@@ -164,6 +168,17 @@ func coachingEnrichTeacherQuotaList(db *gorm.DB, teacherID uint, list []models.S
 			VocabTestCount:              countMap[q.StudentID],
 			CoachingSessionCount:        coachMap[q.StudentID],
 			StudySessionCount:           studyMap[q.StudentID],
+		}
+		if q.Student != nil {
+			preset := string(models.NormalizeReviewCurvePreset(q.Student.ReviewCurvePreset))
+			item.ReviewCurvePreset = preset
+			item.ReviewTimes = models.ReviewTimesCount(preset)
+			if q.Student.ReviewCurvePreset != preset {
+				q.Student.ReviewCurvePreset = preset
+			}
+		} else {
+			item.ReviewCurvePreset = string(models.ReviewCurveTimes5)
+			item.ReviewTimes = 5
 		}
 		if rec, ok := latestByUser[q.StudentID]; ok {
 			item.LatestVocabLevel = rec.EstimatedLevel
@@ -192,7 +207,7 @@ func coachingBuildStudentActivityFeed(db *gorm.DB, teacherID, studentID uint) ([
 	}
 
 	var vocab []models.VocabTestRecord
-	if err := db.Where("user_id = ?", studentID).
+	if err := db.Scopes(vocabTestOwnedByStudent(studentID)).
 		Order("created_at DESC").
 		Limit(studentActivityMergeCap).
 		Find(&vocab).Error; err != nil {
@@ -443,7 +458,9 @@ func (h *Handlers) coachingTeacherStudentVocabRecordDetail(c *gin.Context) {
 		return
 	}
 	var record models.VocabTestRecord
-	if err := db.Where("id = ? AND user_id = ?", rid, sid).First(&record).Error; err != nil {
+	if err := db.Scopes(vocabTestOwnedByStudent(sid)).
+		Where("id = ?", rid).
+		First(&record).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "记录不存在"})
 		return
 	}

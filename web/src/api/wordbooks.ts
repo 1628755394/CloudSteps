@@ -58,6 +58,7 @@ export interface WordBookWord {
   phoneticUs?: string
   phoneticUk?: string
   translation?: string
+  translationShort?: string
   definition?: string
   partOfSpeech?: string
   exampleSentence?: string
@@ -84,6 +85,7 @@ export interface WordDetail {
   phoneticUk?: string
   phoneticUs?: string
   translation?: string
+  translationShort?: string
   partOfSpeech?: string
   definition?: string
   audioUrl?: string
@@ -116,6 +118,7 @@ export interface UserWordFields {
   phoneticUs?: string
   phoneticUk?: string
   translation?: string
+  translationShort?: string
   partOfSpeech?: string
   definition?: string
   exampleSentence?: string

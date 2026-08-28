@@ -21,6 +21,7 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 	adminG.Use(models.AuthRequired, h.requireAdmin)
 	{
 		adminG.GET("/appointments", h.coachingAdminListAppointments)
+		adminG.GET("/appointments/:id", h.coachingAdminGetAppointment)
 		adminG.POST("/appointments", h.coachingAdminCreateAppointment)
 		adminG.PUT("/appointments/:id", h.coachingAdminUpdateAppointment)
 		adminG.DELETE("/appointments/:id", h.coachingAdminDeleteAppointment)
@@ -40,6 +41,7 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 		t.POST("/quotas", h.coachingTeacherUpsertQuota)
 		t.POST("/students", h.coachingTeacherCreateStudent)
 		t.POST("/students/:studentId/password", h.coachingTeacherSetStudentPassword)
+		t.PUT("/students/:studentId/review-curve", h.coachingTeacherSetStudentReviewCurve)
 		t.GET("/students/search", h.coachingTeacherSearchStudents)
 		t.POST("/appointments", h.coachingTeacherCreateAppointment)
 		t.PUT("/appointments/:id", h.coachingTeacherUpdateAppointment)
@@ -204,25 +206,72 @@ func (h *Handlers) coachingAdminListAppointments(c *gin.Context) {
 		return
 	}
 
-	var list []models.CoachingAppointment
-	tx := db.Where("is_deleted = 0 AND scheduled_date >= ? AND scheduled_date <= ?", coachingDateOnly(tFrom), coachingDateOnly(tTo)).
-		Preload("Teacher").Preload("Student").Preload("Session").
-		Order("scheduled_date, start_time")
+	page := 1
+	pageSize := 20
+	if p := c.Query("page"); p != "" {
+		if v, _ := strconv.Atoi(p); v > 0 {
+			page = v
+		}
+	}
+	if ps := c.Query("pageSize"); ps != "" {
+		if v, _ := strconv.Atoi(ps); v > 0 && v <= 100 {
+			pageSize = v
+		}
+	}
+
+	base := db.Model(&models.CoachingAppointment{}).
+		Where("is_deleted = 0 AND scheduled_date >= ? AND scheduled_date <= ?", coachingDateOnly(tFrom), coachingDateOnly(tTo))
 	if tid := c.Query("teacherId"); tid != "" {
 		if v, _ := strconv.Atoi(tid); v > 0 {
-			tx = tx.Where("teacher_id = ?", v)
+			base = base.Where("teacher_id = ?", v)
 		}
 	}
 	if sid := c.Query("studentId"); sid != "" {
 		if v, _ := strconv.Atoi(sid); v > 0 {
-			tx = tx.Where("student_id = ?", v)
+			base = base.Where("student_id = ?", v)
 		}
 	}
-	if err := tx.Find(&list).Error; err != nil {
+	if st := strings.TrimSpace(c.Query("status")); st != "" && st != "all" {
+		base = base.Where("status = ?", st)
+	}
+
+	var total int64
+	if err := base.Count(&total).Error; err != nil {
 		response.Fail(c, "查询失败", err.Error())
 		return
 	}
-	response.SuccessMsg(c, "ok", list)
+	var list []models.CoachingAppointment
+	if err := base.
+		Preload("Teacher").Preload("Student").Preload("Session").
+		Order("scheduled_date DESC, start_time DESC").
+		Offset((page - 1) * pageSize).Limit(pageSize).
+		Find(&list).Error; err != nil {
+		response.Fail(c, "查询失败", err.Error())
+		return
+	}
+	response.SuccessMsg(c, "ok", gin.H{
+		"list":     list,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+	})
+}
+
+func (h *Handlers) coachingAdminGetAppointment(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	id, _ := strconv.Atoi(c.Param("id"))
+	if id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无效 id"})
+		return
+	}
+	var ap models.CoachingAppointment
+	if err := db.Where("id = ? AND is_deleted = 0", id).
+		Preload("Teacher").Preload("Student").Preload("Session").
+		First(&ap).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "排课不存在"})
+		return
+	}
+	response.SuccessMsg(c, "ok", ap)
 }
 
 type coachingAdminApptBody struct {
@@ -969,6 +1018,58 @@ func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
 		"studentId": user.ID,
 		"username":  user.Username,
 		"password":  pwd,
+	})
+}
+
+type coachingTeacherSetStudentReviewCurveBody struct {
+	ReviewCurvePreset string `json:"reviewCurvePreset" binding:"required"`
+}
+
+func (h *Handlers) coachingTeacherSetStudentReviewCurve(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	tid := coachingCoachingTeacherID(c)
+	if tid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		return
+	}
+	sid, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
+	if err != nil || sid == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		return
+	}
+	var body coachingTeacherSetStudentReviewCurveBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数无效"})
+		return
+	}
+	preset := string(models.NormalizeReviewCurvePreset(body.ReviewCurvePreset))
+
+	if err := coachingTeacherHasStudentPair(db, tid, uint(sid)); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		return
+	}
+
+	var user models.User
+	if err := db.First(&user, sid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "学员不存在"})
+		return
+	}
+	if err := models.UpdateUser(db, &user, map[string]any{"review_curve_preset": preset}); err != nil {
+		response.Fail(c, "保存失败", err.Error())
+		return
+	}
+	user.ReviewCurvePreset = preset
+	coachingWriteCoachingAudit(db, c, "student_review_curve_set", "student", user.ID, 0, "老师设置抗遗忘次数", map[string]any{
+		"teacherId":         tid,
+		"studentId":         user.ID,
+		"reviewCurvePreset": preset,
+		"reviewTimes":       models.ReviewTimesCount(preset),
+	})
+	response.SuccessMsg(c, "ok", gin.H{
+		"studentId":         user.ID,
+		"reviewCurvePreset": preset,
+		"reviewTimes":       models.ReviewTimesCount(preset),
+		"presetLabel":       models.ReviewCurvePresetLabel(preset),
 	})
 }
 

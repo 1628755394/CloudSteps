@@ -76,7 +76,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 
 		offset := (page - 1) * pageSize
 		dataSQL := `SELECT w.id, w.word_book_id, w.word, w.phonetic, w.phonetic_uk, w.phonetic_us,
-			w.translation, w.part_of_speech, w.definition, w.audio_url, w.sort_order ` +
+			w.translation, w.translation_short, w.part_of_speech, w.definition, w.audio_url, w.sort_order ` +
 			joinClause + " WHERE " + whereClause +
 			" ORDER BY w.sort_order ASC, w.id ASC LIMIT ? OFFSET ?"
 		dataArgs := append(append(queryArgs, pageSize), offset)
@@ -127,7 +127,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	// JOIN words 表分页查轻量字段（避免 Pluck 全量 ID + 二次查询）
 	offset := (page - 1) * pageSize
 	dataSQL := `SELECT w.id, w.word_book_id, w.word, w.phonetic, w.phonetic_uk, w.phonetic_us,
-		w.translation, w.part_of_speech, w.definition, w.audio_url, w.sort_order
+		w.translation, w.translation_short, w.part_of_speech, w.definition, w.audio_url, w.sort_order
 		FROM user_word_states uws
 		JOIN words w ON w.id = uws.word_id AND w.is_deleted = 0
 		WHERE ` + stateWhere + `
@@ -418,28 +418,31 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 			Updates(map[string]any{"remembered": &f, "answered_at": &now}).Error
 	}
 
-	// remembered -> learned + enqueue stage=0 due=now
+	// remembered -> learned + enqueue stage=0 due=开课日（第1天）本地 0 点
 	if len(rememberedIDs) > 0 {
+		loc := models.UserReviewLocation(user)
+		firstDue := models.FirstReviewDueAt(loc)
 		queueItems := make([]models.ReviewQueue, 0, len(rememberedIDs))
 		for _, wid := range rememberedIDs {
 			queueItems = append(queueItems, models.ReviewQueue{
-				UserID:     user.ID,
-				WordID:     wid,
-				WordBookID: session.WordBookID,
-				DueAt:      now,
-				Stage:      0,
-				Status:     "pending",
+				UserID:          user.ID,
+				WordID:          wid,
+				WordBookID:      session.WordBookID,
+				SourceSessionID: session.ID,
+				DueAt:           firstDue,
+				Stage:           0,
+				Status:          "pending",
 			})
 		}
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "word_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "due_at", "stage", "status"}),
+			DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "source_session_id", "due_at", "stage", "status"}),
 		}).Create(&queueItems).Error; err != nil {
 			response.Fail(c, "写入复习队列失败", err)
 			return
 		}
 
-		due := now
+		due := firstDue
 		if err := db.Model(&models.UserWordState{}).
 			Where("user_id = ? AND word_id IN ?", user.ID, rememberedIDs).
 			Updates(map[string]any{"learn_status": "learned", "first_learned_at": &now, "review_stage": 0, "next_review_at": &due}).Error; err != nil {

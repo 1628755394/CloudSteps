@@ -29,6 +29,7 @@ import {
   formatLocation,
   genderLabel,
   roleLabel,
+  sourceLabel,
   userDisplayName,
   type CloudUser,
 } from './user-display'
@@ -127,7 +128,7 @@ export function UserDetailSheet({
               <DetailField label='性别' value={genderLabel(user.gender)} />
               <DetailField label='语言' value={user.locale} />
               <DetailField label='地区' value={formatLocation(user)} />
-              <DetailField label='来源' value={user.source} />
+              <DetailField label='来源' value={sourceLabel(user.source)} />
               <DetailField
                 label='上次登录'
                 value={formatDateTime(user.lastLogin)}
