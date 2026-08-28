@@ -1,0 +1,5 @@
+fix(web): SequenceNextMark 随单词卡片一起纵向展开
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
