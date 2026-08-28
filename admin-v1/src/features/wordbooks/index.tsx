@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { Loader2, Plus, Trash2, Wand2, X } from 'lucide-react'
+import { Loader2, Plus, Sparkles, Trash2, Wand2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { del, get, post, put } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +36,7 @@ import {
   type WordbooksSearch,
 } from './search'
 import { useWordBookAudioJobs } from './use-wordbook-audio-jobs'
+import { WordbookCoverDialog } from './wordbook-cover-dialog'
 
 const route = getRouteApi('/_authenticated/wordbooks/')
 
@@ -73,6 +74,7 @@ export function WordBooksPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<WordBook | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [coverBook, setCoverBook] = useState<WordBook | null>(null)
   const {
     jobs,
     pageBatching,
@@ -364,6 +366,31 @@ export function WordBooksPage() {
                 )}
               </CardHeader>
               <CardContent className='space-y-3'>
+                <div className='relative'>
+                  {b.coverUrl ? (
+                    <img
+                      src={b.coverUrl}
+                      alt={`${b.name} 封面`}
+                      className='h-28 w-full rounded-md border object-cover bg-muted'
+                    />
+                  ) : (
+                    <div
+                      className='flex h-28 w-full items-center justify-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground'
+                    >
+                      暂无封面
+                    </div>
+                  )}
+                  <Button
+                    type='button'
+                    size='sm'
+                    variant='secondary'
+                    className='absolute bottom-2 right-2 shadow-sm'
+                    onClick={() => setCoverBook(b)}
+                  >
+                    <Sparkles className='size-4' />
+                    AI 封面
+                  </Button>
+                </div>
                 <div className='flex items-center justify-between text-sm text-muted-foreground'>
                   <span>{b.level || '—'}</span>
                   <span>{b.wordCount ?? 0} 词</span>
@@ -383,6 +410,14 @@ export function WordBooksPage() {
                     onBatch={() => void toggleBatchAudio(b)}
                     onPurge={() => void startPurgeAudio(b)}
                   />
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={() => setCoverBook(b)}
+                  >
+                    <Sparkles className='size-4' />
+                    生成封面
+                  </Button>
                   <Button
                     size='sm'
                     variant='ghost'
@@ -512,6 +547,22 @@ export function WordBooksPage() {
         }
         confirmText='删除'
         handleConfirm={handleDeleteConfirm}
+      />
+
+      <WordbookCoverDialog
+        book={coverBook}
+        open={!!coverBook}
+        onOpenChange={(v) => {
+          if (!v) setCoverBook(null)
+        }}
+        onSaved={(coverUrl) => {
+          if (!coverBook) return
+          setList((prev) =>
+            prev.map((item) =>
+              item.id === coverBook.id ? { ...item, coverUrl } : item
+            )
+          )
+        }}
       />
     </AdminPage>
   )
