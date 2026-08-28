@@ -10,11 +10,16 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, Star } from '@nutui/icons-react-taro'
 import { CloudButton } from '../../components/button'
 import { getVocabStart } from '../../api/vocab'
+import { getTrainingStudent } from '../../utils/trainingStudent'
+import { useAuthStore } from '../../stores/authStore'
 import { color } from '../../styles/tokens'
 import './index.scss'
 
 export default function VocabTest() {
   const [preparing, setPreparing] = useState(false)
+  const role = useAuthStore((s) => s.user)?.role || 'user'
+  const isCoach = role === 'user' || role === 'admin' || role === 'teacher'
+  const boundStudent = isCoach ? getTrainingStudent() : null
 
   const handleBack = () => {
     Taro.navigateBack({ delta: 1 }).catch(() => {
@@ -24,6 +29,13 @@ export default function VocabTest() {
 
   const handleStart = async () => {
     if (preparing) return
+    if (isCoach && !boundStudent?.id) {
+      Taro.showToast({ title: '请先在首页选择学员', icon: 'none' })
+      Taro.navigateBack({ delta: 1 }).catch(() => {
+        Taro.reLaunch({ url: '/pages/home/index' })
+      })
+      return
+    }
     setPreparing(true)
     try {
       const res = await getVocabStart()
@@ -55,7 +67,11 @@ export default function VocabTest() {
       <View className="vt__center">
         <View className="vt__text-block">
           <Text className="vt__title">测一测你的词汇量</Text>
-          <Text className="vt__subtitle">花几分钟测试一下，定位你的词汇量水平</Text>
+          <Text className="vt__subtitle">
+            {boundStudent?.name
+              ? `本次测评将记入「${boundStudent.name}」的词汇测试记录`
+              : '花几分钟测试一下，定位你的词汇量水平'}
+          </Text>
         </View>
 
         <View className="vt__icon-wrap">

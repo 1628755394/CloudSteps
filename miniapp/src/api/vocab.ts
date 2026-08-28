@@ -13,6 +13,7 @@ export interface VocabNextRequest {
 
 export interface VocabSubmitRequest {
   answers: Array<{ questionId: number; answer: string }>
+  studentId?: number
 }
 
 export function getVocabStart(): Promise<ApiResponse<any>> {

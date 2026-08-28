@@ -94,6 +94,7 @@ export type StudentActivityStats = {
 export type VocabTestRecordDTO = {
   id: number
   userId: number
+  studentId?: number
   estimatedLevel: string
   estimatedVocab: number
   answers?: string

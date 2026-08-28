@@ -52,16 +52,50 @@ function trainingTime(cnt: number): string {
   return `${Math.min(60, Math.max(10, Math.ceil(cnt / 20) * 10))}分钟`
 }
 
-const TIMES = ['08:00', '10:00', '14:00', '16:00', '18:00']
+function formatPracticeTimeRange(
+  startedAt?: string | null,
+  endedAt?: string | null,
+  timeZone = 'Asia/Shanghai'
+): string {
+  if (!startedAt) return ''
+  const start = new Date(startedAt)
+  if (Number.isNaN(start.getTime())) return ''
+  const dateFmt = new Intl.DateTimeFormat('zh-CN', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const parts = dateFmt.formatToParts(start)
+  const y = parts.find((p) => p.type === 'year')?.value ?? ''
+  const m = parts.find((p) => p.type === 'month')?.value ?? ''
+  const day = parts.find((p) => p.type === 'day')?.value ?? ''
+  const dateLabel = `${y}/${m}/${day}`
+  const timeFmt = new Intl.DateTimeFormat('zh-CN', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  const startClock = timeFmt.format(start)
+  if (endedAt) {
+    const end = new Date(endedAt)
+    if (!Number.isNaN(end.getTime()) && end.getTime() > start.getTime()) {
+      return `${dateLabel}  ${startClock}-${timeFmt.format(end)}`
+    }
+  }
+  return `${dateLabel}  ${startClock}`
+}
 
 interface ReviewTask {
-  id: number
-  time: string
+  id: string
+  practiceTimeLabel: string
   student: string
   vocabularyPack: string
   trainingTime: string
   status: 'pending' | 'completed'
   wordBookId: number
+  sessionId: number
   count: number
 }
 
@@ -101,14 +135,16 @@ export default function AntiForgetting() {
 
   const reviewTasks = useMemo<ReviewTask[]>(() => {
     const student = user?.displayName || user?.email?.split('@')[0] || '当前用户'
-    return bookStats.map((b, idx) => ({
-      id: idx + 1,
-      time: TIMES[idx % TIMES.length],
+    const tz = 'Asia/Shanghai'
+    return bookStats.map((b) => ({
+      id: `${b.wordBookId}-${b.sessionId ?? 0}`,
+      practiceTimeLabel: formatPracticeTimeRange(b.practiceStartedAt, b.practiceEndedAt, tz),
       student,
       vocabularyPack: b.name,
       trainingTime: trainingTime(b.cnt),
       status: 'pending',
       wordBookId: b.wordBookId,
+      sessionId: b.sessionId ?? 0,
       count: b.cnt,
     }))
   }, [bookStats, user])
@@ -124,7 +160,8 @@ export default function AntiForgetting() {
 
   const handleOpenTask = (task: ReviewTask) => {
     if (task.count <= 0) return
-    const params = `?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}${isToday ? '' : '&view=1'}`
+    const sessionQ = task.sessionId > 0 ? `&studySessionId=${encodeURIComponent(String(task.sessionId))}` : ''
+    const params = `?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}${sessionQ}${isToday ? '' : '&view=1'}`
     Taro.navigateTo({
       url: `/pages/review-word-list/index${params}`,
     })
@@ -191,10 +228,12 @@ export default function AntiForgetting() {
                   <View key={task.id} className="anti__task">
                     {/* 第一行:时间 + 词包名 */}
                     <View className="anti__task-line">
-                      <View className="anti__task-time">
-                        <Clock size={14} color={color.primary} />
-                        <Text className="anti__task-time-text">{task.time}</Text>
-                      </View>
+                      {task.practiceTimeLabel ? (
+                        <View className="anti__task-time">
+                          <Clock size={14} color={color.primary} />
+                          <Text className="anti__task-time-text">{task.practiceTimeLabel}</Text>
+                        </View>
+                      ) : null}
                       <Text className="anti__task-pack-name" numberOfLines={1}>{task.vocabularyPack}</Text>
                     </View>
                     {/* 第二行:词数/训练时长(左) + 按钮(右) */}
