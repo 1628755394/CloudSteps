@@ -111,7 +111,7 @@ type UpdateUserRequest struct {
 
 type User struct {
 	BaseModel
-	Username           string     `json:"username" gorm:"size:128;uniqueIndex"`
+	Username           string     `json:"username" gorm:"size:128;index"`
 	Password           string     `json:"-" gorm:"size:128"`
 	Email              string     `json:"email,omitempty" gorm:"size:128;index:idx_users_email"` // 绑定邮箱（一个邮箱只能绑定一个用户，唯一性由 IsExistsByEmail 在应用层保证）
 	Phone              string     `json:"phone,omitempty" gorm:"size:64;index"`
@@ -148,6 +148,13 @@ func (u *User) TableName() string {
 // Login Handle-User-Login
 func Login(c *gin.Context, user *User) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
+	firstLoginToday := true
+	if user.LastLogin != nil {
+		now := time.Now()
+		last := *user.LastLogin
+		firstLoginToday = last.Year() != now.Year() || last.Month() != now.Month() || last.Day() != now.Day()
+	}
+
 	err := SetLastLogin(db, user, c.ClientIP())
 	if err != nil {
 		logger.Error("user.login", zap.Error(err))
@@ -174,7 +181,7 @@ func Login(c *gin.Context, user *User) {
 	session := sessions.Default(c)
 	session.Set(constants.UserField, user.ID)
 	session.Save()
-	common.Sig().Emit(constants.SigUserLogin, user, c, db)
+	common.Sig().Emit(constants.SigUserLogin, user, c, db, firstLoginToday)
 }
 
 func Logout(c *gin.Context, user *User) {
@@ -210,6 +217,10 @@ func AuthRequired(c *gin.Context) {
 	token = strings.TrimPrefix(token, constants.AUTHORIZATION_PREFIX)
 	user, err := DecodeHashToken(db, token, false)
 	if err != nil {
+		CloudStepsGo.AbortWithJSONError(c, http.StatusUnauthorized, err)
+		return
+	}
+	if err := CheckUserAllowLogin(db, user); err != nil {
 		CloudStepsGo.AbortWithJSONError(c, http.StatusUnauthorized, err)
 		return
 	}
@@ -343,11 +354,27 @@ func GetUserByUID(db *gorm.DB, userID uint) (*User, error) {
 
 func GetUserByUsername(db *gorm.DB, username string) (user *User, err error) {
 	var val User
-	result := db.Table(constants.USER_TABLE_NAME).Where("username", username).Take(&val)
+	result := db.Table(constants.USER_TABLE_NAME).
+		Where("username = ? AND is_deleted = ?", username, SoftDeleteStatusActive).
+		Take(&val)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	return &val, nil
+}
+
+// GetUserByUsernameAny returns a user by username regardless of soft-delete status (admin/detail).
+func GetUserByUsernameAny(db *gorm.DB, username string) (user *User, err error) {
+	var val User
+	result := db.Table(constants.USER_TABLE_NAME).Where("username = ?", username).Take(&val)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &val, nil
+}
+
+func UserIsActive(user *User) bool {
+	return user != nil && user.IsDeleted == SoftDeleteStatusActive
 }
 
 // GetUserByLoginAccount resolves password-login identity: username first,
@@ -368,8 +395,11 @@ func GetUserByLoginAccount(db *gorm.DB, account string) (user *User, err error) 
 }
 
 func IsExistsByUsername(db *gorm.DB, username string) bool {
-	_, err := GetUserByUsername(db, username)
-	return err == nil
+	var n int64
+	db.Table(constants.USER_TABLE_NAME).
+		Where("username = ? AND is_deleted = ?", username, SoftDeleteStatusActive).
+		Count(&n)
+	return n > 0
 }
 
 // GetUserByEmail 通过绑定邮箱查找用户（仅匹配非空 email 字段）。
@@ -433,6 +463,7 @@ func CreateUserByUsername(db *gorm.DB, username, display, password string) (*Use
 		LastName:    lastName,
 		Username:    username,
 		Password:    HashPassword(password),
+		Gender:      "female",
 		Role:        RoleTeacher, // Explicitly set default role
 	}
 	result := db.Create(&user)
@@ -440,16 +471,21 @@ func CreateUserByUsername(db *gorm.DB, username, display, password string) (*Use
 }
 
 func CreateUser(db *gorm.DB, username, password string) (*User, error) {
+	if IsExistsByUsername(db, username) {
+		return nil, errors.New("username already exists")
+	}
+
 	user := User{
 		Username: username,
 		Password: HashPassword(password),
+		Gender:   "female",
 		Role:     RoleTeacher, // Explicitly set default role
 	}
 	err := db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&user).Error; err != nil {
 			return err
 		}
-		return GrantSignupCoachingQuota(tx, user.ID)
+		return GrantSignupTeacherTeachingPool(tx, user.ID)
 	})
 	return &user, err
 }
@@ -517,9 +553,66 @@ func DecodeHashToken(db *gorm.DB, hash string, useLastLogin bool) (user *User, e
 }
 
 func CheckUserAllowLogin(db *gorm.DB, user *User) error {
-	// 用户登录检查：只需要检查用户是否存在（通过 BaseModel 的 DeletedAt）
-	// 权限通过 role 字段判断
+	if !UserIsActive(user) {
+		return errors.New("账号已注销，无法登录")
+	}
 	return nil
+}
+
+// SoftDeleteUser marks a user and their coaching quota rows as deleted.
+func SoftDeleteUser(db *gorm.DB, userID uint, operator string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		return softDeleteUserInTx(tx, userID, operator)
+	})
+}
+
+func softDeleteUserInTx(tx *gorm.DB, userID uint, operator string) error {
+	res := tx.Model(&User{}).
+		Where("id = ? AND is_deleted = ?", userID, SoftDeleteStatusActive).
+		Updates(map[string]any{
+			"is_deleted": SoftDeleteStatusDeleted,
+			"update_by":  operator,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	if err := clearCoachingBalancesInTx(tx, userID, operator); err != nil {
+		return err
+	}
+	quotaUpdates := map[string]any{
+		"is_deleted": SoftDeleteStatusDeleted,
+		"update_by":  operator,
+	}
+	if err := tx.Model(&StudentTeacherCoachingQuota{}).
+		Where("(teacher_id = ? OR student_id = ?) AND is_deleted = ?", userID, userID, SoftDeleteStatusActive).
+		Updates(quotaUpdates).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// SoftDeleteTeacherWithStudents soft-deletes a teacher and all students linked via coaching quotas.
+func SoftDeleteTeacherWithStudents(db *gorm.DB, teacherID uint, operator string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		var studentIDs []uint
+		if err := tx.Model(&StudentTeacherCoachingQuota{}).
+			Where("teacher_id = ? AND student_id != ? AND is_deleted = ?", teacherID, teacherID, SoftDeleteStatusActive).
+			Pluck("student_id", &studentIDs).Error; err != nil {
+			return err
+		}
+		for _, studentID := range studentIDs {
+			if err := softDeleteUserInTx(tx, studentID, operator); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					continue
+				}
+				return err
+			}
+		}
+		return softDeleteUserInTx(tx, teacherID, operator)
+	})
 }
 
 // ValidateUserRole validates that the user has a valid role
@@ -668,6 +761,7 @@ func CalculateProfileComplete(user *User) int {
 		strings.TrimSpace(user.Avatar) != "",
 		strings.TrimSpace(user.Phone) != "",
 		strings.TrimSpace(user.Email) != "",
+		strings.TrimSpace(user.Gender) != "",
 		strings.TrimSpace(user.City) != "",
 		strings.TrimSpace(user.Region) != "",
 		strings.TrimSpace(user.Locale) != "",

@@ -100,6 +100,9 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 
 		// user activity logs
 		auth.GET("/activity", models.AuthRequired, h.handleGetUserActivity)
+
+		// self-service account deactivation
+		auth.POST("/deactivate", models.AuthRequired, h.handleUserDeactivateAccount)
 	}
 }
 
@@ -135,6 +138,35 @@ func (h *Handlers) handleUserLogout(c *gin.Context) {
 		return
 	}
 	response.SuccessMsg(c, "Logout Success", nil)
+}
+
+// handleUserDeactivateAccount POST /auth/deactivate — 用户自助注销账号。
+func (h *Handlers) handleUserDeactivateAccount(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	user := models.CurrentUser(c)
+	if user == nil {
+		response.Fail(c, "未登录", errors.New("unauthorized"))
+		return
+	}
+	if user.IsAdmin() {
+		response.Fail(c, "管理员账号请在后台操作", errors.New("admin cannot self-deactivate"))
+		return
+	}
+
+	operator := user.Username
+	var errDelete error
+	if user.Role == models.RoleTeacher || user.IsTeacher() {
+		errDelete = models.SoftDeleteTeacherWithStudents(db, user.ID, operator)
+	} else {
+		errDelete = models.SoftDeleteUser(db, user.ID, operator)
+	}
+	if errDelete != nil {
+		response.Fail(c, "注销失败", errDelete)
+		return
+	}
+
+	models.Logout(c, user)
+	response.SuccessMsg(c, "账号已注销", nil)
 }
 
 // handleUserInfo handle user info
@@ -179,13 +211,13 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	// 1. 图形验证码验证
 	if captcha.GlobalManager != nil {
 		if form.CaptchaID == "" || form.CaptchaType == "" {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("captcha is required"))
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
 			return
 		}
 
 		err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
 		if err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid captcha code"))
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
 			return
 		}
 	}
@@ -514,7 +546,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "captcha required")
 			}
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("captcha is required"))
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
 			return
 		}
 
@@ -523,7 +555,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid captcha")
 			}
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid captcha code"))
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
 			return
 		}
 	}
@@ -641,7 +673,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "captcha required")
 			}
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("captcha is required"))
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
 			return
 		}
 
@@ -650,7 +682,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid captcha")
 			}
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid captcha code"))
+			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
 			return
 		}
 	}
@@ -1697,9 +1729,7 @@ func (h *Handlers) handleAdminCreateUser(c *gin.Context) {
 		return
 	}
 
-	var count int64
-	db.Model(&models.User{}).Where("username = ?", req.Username).Count(&count)
-	if count > 0 {
+	if models.IsExistsByUsername(db, req.Username) {
 		response.Fail(c, "用户名已存在", errors.New("username already exists"))
 		return
 	}
@@ -1840,16 +1870,18 @@ func (h *Handlers) handleAdminDeleteUser(c *gin.Context) {
 		return
 	}
 
-	// 软删除：设置 is_deleted = 1（BaseModel 使用 IsDeleted 而非 GORM DeletedAt）
 	operator := ""
 	if currentUser != nil {
 		operator = currentUser.Username
 	}
-	if err := db.Model(&user).Updates(map[string]any{
-		"is_deleted": models.SoftDeleteStatusDeleted,
-		"update_by":  operator,
-	}).Error; err != nil {
-		response.Fail(c, "注销失败", err)
+	var errDelete error
+	if user.Role == models.RoleTeacher {
+		errDelete = models.SoftDeleteTeacherWithStudents(db, user.ID, operator)
+	} else {
+		errDelete = models.SoftDeleteUser(db, user.ID, operator)
+	}
+	if errDelete != nil {
+		response.Fail(c, "注销失败", errDelete)
 		return
 	}
 	response.SuccessMsg(c, "注销成功", nil)
