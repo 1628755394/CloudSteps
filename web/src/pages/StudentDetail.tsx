@@ -460,7 +460,7 @@ export default function StudentDetail() {
                 <div>
                   <div className="text-sm font-semibold text-foreground">抗遗忘次数</div>
                   <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                    按艾宾浩斯曲线排期：学完次日首次复习，之后按间隔出现在抗遗忘日历；列表会显示对应识记时段。
+                    按艾宾浩斯曲线排期（开课日=第 1 天）：学完当天即第 1 次复习，后续落在「第 N 天」表头日期；列表显示识记时段。
                     当前：{reviewCurveLabel(reviewPreset)}
                   </p>
                 </div>

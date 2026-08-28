@@ -1,5 +1,17 @@
 import type { ReviewCurvePreset } from '../api/auth'
 
+/** 与打印 PDF 一致：开课日 = 第 1 天 */
+export const REVIEW_SCHEDULE_DAYS: Record<ReviewCurvePreset, number[]> = {
+  times3: [1, 2, 4],
+  times5: [1, 2, 4, 7, 11],
+  times7: [1, 2, 4, 7, 11, 15, 20],
+  times10: [1, 2, 3, 5, 7, 9, 12, 14, 17, 21],
+}
+
+function formatScheduleDesc(days: number[]): string {
+  return days.map((d) => `第${d}天`).join(' → ')
+}
+
 export const REVIEW_TIMES_OPTIONS: Array<{
   value: ReviewCurvePreset
   label: string
@@ -8,22 +20,22 @@ export const REVIEW_TIMES_OPTIONS: Array<{
   {
     value: 'times3',
     label: '3 次',
-    desc: '次日 → 2 天 → 4 天（艾宾浩斯精简）',
+    desc: formatScheduleDesc(REVIEW_SCHEDULE_DAYS.times3),
   },
   {
     value: 'times5',
     label: '5 次',
-    desc: '次日 → 2、4、7、15 天',
+    desc: formatScheduleDesc(REVIEW_SCHEDULE_DAYS.times5),
   },
   {
     value: 'times7',
     label: '7 次',
-    desc: '次日 → 2、4、7、15、30、45 天',
+    desc: formatScheduleDesc(REVIEW_SCHEDULE_DAYS.times7),
   },
   {
     value: 'times10',
     label: '10 次',
-    desc: '完整艾宾浩斯长周期巩固',
+    desc: formatScheduleDesc(REVIEW_SCHEDULE_DAYS.times10),
   },
 ]
 
@@ -53,16 +65,10 @@ export function reviewCurveLabel(p?: string | null): string {
 }
 
 export function reviewTimesCount(p?: string | null): number {
-  switch (normalizeReviewCurvePreset(p)) {
-    case 'times3':
-      return 3
-    case 'times5':
-      return 5
-    case 'times7':
-      return 7
-    case 'times10':
-      return 10
-    default:
-      return 5
-  }
+  const preset = normalizeReviewCurvePreset(p)
+  return REVIEW_SCHEDULE_DAYS[preset]?.length ?? 5
+}
+
+export function reviewDayLabel(dayNum: number): string {
+  return `第${dayNum}天`
 }

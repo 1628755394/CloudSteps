@@ -30,7 +30,7 @@ export default function CreateAntiForgetting() {
         return;
       }
       updateProfile({ reviewCurvePreset: preset });
-      showToast.success("抗遗忘次数已保存，今天学的词将在明天出现");
+      showToast.success("抗遗忘次数已保存，今天学的词当天（第 1 天）即进入复习计划");
       navigate("/anti-forgetting");
     } catch {
       showToast.error("保存失败");
@@ -61,8 +61,8 @@ export default function CreateAntiForgetting() {
       <div className="px-4 mt-5 space-y-4 max-w-lg mx-auto pb-8">
         <div className="rounded-xl bg-primary-soft px-4 py-3">
           <p className="text-sm text-charcoal leading-relaxed">
-            今天学完的词会排在<strong className="font-semibold">明天</strong>的复习任务里（不是今天）。
-            按所选次数与艾宾浩斯间隔，在抗遗忘日历各日期自动出现；列表会显示对应识记时段。
+            今天学完的词会排在<strong className="font-semibold">开课当天（第 1 天）</strong>的复习任务里。
+            按所选次数与艾宾浩斯「第 N 天」表头，在抗遗忘日历各日期自动出现；列表会显示对应识记时段。
           </p>
         </div>
 
