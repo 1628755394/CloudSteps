@@ -1,9 +1,12 @@
 package models
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
-// EbbinghausReviewDays 艾宾浩斯复习间隔（天）；首项对应学完次日，后续为距上次复习的天数。
-var EbbinghausReviewDays = []int{1, 2, 4, 7, 15, 30, 45, 60, 90, 120}
+// 抗遗忘排期：开课当日 = 第 1 天（与打印 PDF 工具一致，非 Day0 模型）。
+// 数组每一项为「第 N 天」的 N，即相对开课日 0 点起的日历日序号。
 
 type ReviewCurvePreset string
 
@@ -14,23 +17,11 @@ const (
 	ReviewCurveTimes10 ReviewCurvePreset = "times10"
 )
 
-func intervalsForReviewTimes(n int) []int {
-	if n < 1 {
-		n = 5
-	}
-	if n > len(EbbinghausReviewDays) {
-		n = len(EbbinghausReviewDays)
-	}
-	out := make([]int, n)
-	copy(out, EbbinghausReviewDays[:n])
-	return out
-}
-
-var reviewCurvePresets = map[ReviewCurvePreset][]int{
-	ReviewCurveTimes3:  intervalsForReviewTimes(3),
-	ReviewCurveTimes5:  intervalsForReviewTimes(5),
-	ReviewCurveTimes7:  intervalsForReviewTimes(7),
-	ReviewCurveTimes10: intervalsForReviewTimes(10),
+var reviewScheduleByPreset = map[ReviewCurvePreset][]int{
+	ReviewCurveTimes3:  {1, 2, 4},
+	ReviewCurveTimes5:  {1, 2, 4, 7, 11},
+	ReviewCurveTimes7:  {1, 2, 4, 7, 11, 15, 20},
+	ReviewCurveTimes10: {1, 2, 3, 5, 7, 9, 12, 14, 17, 21},
 }
 
 func NormalizeReviewCurvePreset(p string) ReviewCurvePreset {
@@ -48,34 +39,36 @@ func NormalizeReviewCurvePreset(p string) ReviewCurvePreset {
 	}
 }
 
-func ReviewIntervalsForPreset(p string) []int {
+func ReviewScheduleDaysForPreset(p string) []int {
 	preset := NormalizeReviewCurvePreset(p)
-	if v, ok := reviewCurvePresets[preset]; ok {
-		return v
+	if v, ok := reviewScheduleByPreset[preset]; ok {
+		out := make([]int, len(v))
+		copy(out, v)
+		return out
 	}
-	return reviewCurvePresets[ReviewCurveTimes5]
+	out := make([]int, len(reviewScheduleByPreset[ReviewCurveTimes5]))
+	copy(out, reviewScheduleByPreset[ReviewCurveTimes5])
+	return out
+}
+
+// ReviewIntervalsForPreset 兼容旧名，值为「第 N 天」序号而非间隔天数。
+func ReviewIntervalsForPreset(p string) []int {
+	return ReviewScheduleDaysForPreset(p)
 }
 
 func ReviewIntervalsForUser(user *User) []int {
 	if user == nil {
-		return reviewCurvePresets[ReviewCurveTimes5]
+		return ReviewScheduleDaysForPreset(string(ReviewCurveTimes5))
 	}
-	return ReviewIntervalsForPreset(user.ReviewCurvePreset)
+	return ReviewScheduleDaysForPreset(user.ReviewCurvePreset)
+}
+
+func ReviewScheduleDaysForUser(user *User) []int {
+	return ReviewIntervalsForUser(user)
 }
 
 func ReviewTimesCount(p string) int {
-	switch NormalizeReviewCurvePreset(p) {
-	case ReviewCurveTimes3:
-		return 3
-	case ReviewCurveTimes5:
-		return 5
-	case ReviewCurveTimes7:
-		return 7
-	case ReviewCurveTimes10:
-		return 10
-	default:
-		return 5
-	}
+	return len(ReviewScheduleDaysForPreset(p))
 }
 
 func ReviewCurvePresetLabel(p string) string {
@@ -93,46 +86,69 @@ func ReviewCurvePresetLabel(p string) string {
 	}
 }
 
-// FirstReviewDueAt 学完后的首次复习：用户时区次日 0 点（UTC 存储）。
-func FirstReviewDueAt(loc *time.Location) time.Time {
+// ReviewDayLabel 表格表头：第 X 天
+func ReviewDayLabel(dayNum int) string {
+	if dayNum < 1 {
+		dayNum = 1
+	}
+	return "第" + strconv.Itoa(dayNum) + "天"
+}
+
+// LearnDayStart 开课日 0 点（用户时区）
+func LearnDayStart(t time.Time, loc *time.Location) time.Time {
 	if loc == nil {
 		loc = time.FixedZone("CST", 8*3600)
 	}
-	now := time.Now().In(loc)
-	tomorrow := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc).AddDate(0, 0, 1)
-	return tomorrow.UTC()
+	lt := t.In(loc)
+	return time.Date(lt.Year(), lt.Month(), lt.Day(), 0, 0, 0, 0, loc)
+}
+
+// FirstReviewDueAt 学完后的首次复习：开课当日（第 1 天）本地 0 点。
+func FirstReviewDueAt(loc *time.Location) time.Time {
+	return LearnDayStart(time.Now(), loc).UTC()
 }
 
 func UserReviewLocation(user *User) *time.Location {
-	// 后续可接用户时区字段；当前默认东八区
 	return time.FixedZone("CST", 8*3600)
 }
 
-func ReviewDueAfterSuccess(now time.Time, currentStage int, preset string) (time.Time, int) {
-	intervals := ReviewIntervalsForPreset(preset)
-	newStage := currentStage + 1
-	if newStage >= len(intervals) {
-		return now, newStage
+func ReviewAnchorFromState(state *UserWordState, fallback time.Time) time.Time {
+	if state != nil && state.FirstLearnedAt != nil && !state.FirstLearnedAt.IsZero() {
+		return *state.FirstLearnedAt
 	}
-	days := intervals[newStage]
-	if days < 1 {
-		days = 1
-	}
-	return now.AddDate(0, 0, days), newStage
+	return fallback
 }
 
-func ReviewDueAfterFail(now time.Time, currentStage int, preset string) (time.Time, int) {
-	intervals := ReviewIntervalsForPreset(preset)
+// ReviewDueAtForStage 按开课日锚点与 stage 计算 due_at（stage 0 = 第 1 次复习）。
+func ReviewDueAtForStage(anchor time.Time, stage int, preset string, loc *time.Location) time.Time {
+	schedule := ReviewScheduleDaysForPreset(preset)
+	if stage < 0 {
+		stage = 0
+	}
+	if stage >= len(schedule) {
+		stage = len(schedule) - 1
+	}
+	dayNum := schedule[stage]
+	if dayNum < 1 {
+		dayNum = 1
+	}
+	start := LearnDayStart(anchor, loc)
+	return start.AddDate(0, 0, dayNum-1).UTC()
+}
+
+func ReviewDueAfterSuccess(now time.Time, currentStage int, preset string, anchor time.Time, loc *time.Location) (time.Time, int) {
+	schedule := ReviewScheduleDaysForPreset(preset)
+	newStage := currentStage + 1
+	if newStage >= len(schedule) {
+		return now, newStage
+	}
+	return ReviewDueAtForStage(anchor, newStage, preset, loc), newStage
+}
+
+func ReviewDueAfterFail(now time.Time, currentStage int, preset string, anchor time.Time, loc *time.Location) (time.Time, int) {
 	newStage := currentStage - 1
 	if newStage < 0 {
 		newStage = 0
 	}
-	dueDays := 1
-	if newStage < len(intervals) && intervals[newStage] > 1 {
-		dueDays = intervals[newStage]
-	}
-	if dueDays < 1 {
-		dueDays = 1
-	}
-	return now.AddDate(0, 0, dueDays), newStage
+	return ReviewDueAtForStage(anchor, newStage, preset, loc), newStage
 }
