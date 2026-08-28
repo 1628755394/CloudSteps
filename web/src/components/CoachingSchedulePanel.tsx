@@ -12,6 +12,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
@@ -78,8 +79,10 @@ function studentLabel(s?: { displayName?: string; username?: string }, fallbackI
 }
 
 const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"] as const;
-const DAY_HEADER_H = 48;
-const EVENT_MIN_H = 52;
+const DAY_HEADER_H = 52;
+const EVENT_MIN_H = 32;
+/** 时间轴相对可视区再拉高约 1/3，课块更易读 */
+const AXIS_HEIGHT_SCALE = 4 / 3;
 
 const STATUS_LABEL: Record<string, string> = {
   scheduled: "待上课",
@@ -110,6 +113,20 @@ const STATUS_SOFT: Record<string, { bg: string; text: string; bar: string }> = {
     bar: "bg-red-500",
   },
 };
+
+const PAST_SOFT = {
+  bg: "bg-muted",
+  text: "text-muted-foreground",
+  bar: "bg-muted-foreground/40",
+};
+
+/** 计划时段已结束（不含进行中） */
+function isSchedulePast(schedule: CoachingWeekSchedule, nowTs: number): boolean {
+  if (schedule.status === "in_progress") return false;
+  const end = parseCoachingSlotEnd(schedule.scheduledDate, schedule.endTime);
+  if (!end) return false;
+  return end.getTime() <= nowTs;
+}
 
 function parseHmToMinutes(t: string): number {
   const raw = (t || "").trim().slice(0, 5);
@@ -144,27 +161,6 @@ function lessonDisplay(s: CoachingWeekSchedule): { title: string; subtitle?: str
   return { title: "课程" };
 }
 
-function eventLayoutOnAxis(
-  startTime: string,
-  endTime: string,
-  axisStart: number,
-  axisEnd: number,
-): { top: string; height: string; showDetail: boolean } {
-  const span = Math.max(1, axisEnd - axisStart);
-  let s = parseHmToMinutes(startTime);
-  let e = parseEndMinutes(endTime);
-  if (e <= s) e = s + 30;
-  s = Math.max(axisStart, Math.min(s, axisEnd - 5));
-  e = Math.max(s + 15, Math.min(e, axisEnd));
-  const topPct = ((s - axisStart) / span) * 100;
-  const heightPct = ((e - s) / span) * 100;
-  return {
-    top: `${topPct}%`,
-    height: `${Math.max(heightPct, 8)}%`,
-    showDetail: heightPct >= 14,
-  };
-}
-
 function buildAxisMarks(axisStart: number, axisEnd: number): number[] {
   const span = axisEnd - axisStart;
   const step = span <= 180 ? 30 : span <= 480 ? 60 : 120;
@@ -175,24 +171,97 @@ function buildAxisMarks(axisStart: number, axisEnd: number): number[] {
   return marks;
 }
 
-/** 课表内课程块（窄列友好） */
+function layoutDayEvents(
+  items: CoachingWeekSchedule[],
+  axisStart: number,
+  axisEnd: number,
+  axisHeightPx: number,
+): Array<{
+  schedule: CoachingWeekSchedule;
+  topPx: number;
+  heightPx: number;
+  showDetail: boolean;
+  col: number;
+  colCount: number;
+}> {
+  const span = Math.max(1, axisEnd - axisStart);
+  const raw = items.map((schedule) => {
+    let s = parseHmToMinutes(schedule.startTime);
+    let e = parseEndMinutes(schedule.endTime);
+    if (e <= s) e = s + 30;
+    s = Math.max(axisStart, Math.min(s, axisEnd - 5));
+    e = Math.max(s + 15, Math.min(e, axisEnd));
+    return { schedule, start: s, end: e };
+  });
+
+  const sorted = [...raw].sort((a, b) => a.start - b.start || b.end - a.end);
+  const cols = new Array(sorted.length).fill(0);
+  for (let i = 0; i < sorted.length; i++) {
+    const used = new Set<number>();
+    for (let j = 0; j < i; j++) {
+      if (sorted[j].end > sorted[i].start && sorted[j].start < sorted[i].end) {
+        used.add(cols[j]);
+      }
+    }
+    let c = 0;
+    while (used.has(c)) c++;
+    cols[i] = c;
+  }
+
+  const colCounts = new Array(sorted.length).fill(1);
+  for (let i = 0; i < sorted.length; i++) {
+    let max = cols[i];
+    for (let j = 0; j < sorted.length; j++) {
+      if (sorted[j].end > sorted[i].start && sorted[j].start < sorted[i].end) {
+        max = Math.max(max, cols[j]);
+      }
+    }
+    colCounts[i] = max + 1;
+  }
+
+  return sorted.map((ev, i) => {
+    const topPx = ((ev.start - axisStart) / span) * axisHeightPx;
+    const heightPx = Math.max(EVENT_MIN_H, ((ev.end - ev.start) / span) * axisHeightPx);
+    return {
+      schedule: ev.schedule,
+      topPx,
+      heightPx,
+      showDetail: heightPx >= 40,
+      col: cols[i],
+      colCount: colCounts[i],
+    };
+  });
+}
+
+/** 课表内课程块（窄列友好，支持并排） */
 function TimetableBlock({
   schedule,
-  top,
-  height,
+  topPx,
+  heightPx,
   showDetail,
+  col,
+  colCount,
+  nowTs,
   onClick,
 }: {
   schedule: CoachingWeekSchedule;
-  top: string;
-  height: string;
+  topPx: number;
+  heightPx: number;
   showDetail: boolean;
+  col: number;
+  colCount: number;
+  nowTs: number;
   onClick: () => void;
 }) {
-  const soft = STATUS_SOFT[schedule.status] || STATUS_SOFT.scheduled;
+  const past = isSchedulePast(schedule, nowTs);
+  const soft = past
+    ? PAST_SOFT
+    : STATUS_SOFT[schedule.status] || STATUS_SOFT.scheduled;
   const { title } = lessonDisplay(schedule);
   const start = schedule.startTime?.slice(0, 5) || "";
   const end = schedule.endTime?.slice(0, 5) || "";
+  const widthPct = 100 / colCount;
+  const leftPct = col * widthPct;
 
   return (
     <button
@@ -201,8 +270,15 @@ function TimetableBlock({
         e.stopPropagation();
         onClick();
       }}
-      className={`absolute left-1 right-1 z-[1] overflow-hidden rounded-xl ${soft.bg} text-left px-1.5 py-1 shadow-sm active:scale-[0.98] touch-manipulation`}
-      style={{ top, height, minHeight: EVENT_MIN_H }}
+      className={`absolute z-[1] overflow-hidden rounded-lg ${soft.bg} text-left px-1 py-1 shadow-sm active:scale-[0.98] touch-manipulation ${
+        past ? "opacity-90" : ""
+      }`}
+      style={{
+        top: topPx,
+        height: heightPx,
+        left: `calc(${leftPct}% + 2px)`,
+        width: `calc(${widthPct}% - 4px)`,
+      }}
     >
       <span className={`absolute left-0 top-0 bottom-0 w-[3px] ${soft.bar}`} aria-hidden />
       <div className="pl-1.5 min-w-0 h-full flex flex-col justify-center">
@@ -210,7 +286,11 @@ function TimetableBlock({
           {start}{showDetail ? `–${end}` : ""}
         </div>
         {showDetail ? (
-          <div className="text-[11px] font-medium text-foreground leading-tight truncate mt-0.5">
+          <div
+            className={`text-[11px] font-medium leading-snug line-clamp-2 mt-0.5 ${
+              past ? "text-muted-foreground" : "text-foreground"
+            }`}
+          >
             {title}
           </div>
         ) : null}
@@ -275,6 +355,8 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   const [aEnd, setAEnd] = useState("10:00");
   const [aTitle, setATitle] = useState("");
   const [creatingAppt, setCreatingAppt] = useState(false);
+  const timetableHostRef = useRef<HTMLDivElement>(null);
+  const [axisHeightPx, setAxisHeightPx] = useState(280);
 
   const weekMon = useMemo(() => weekMonday(weekAnchor), [weekAnchor]);
   const weekDays = useMemo(
@@ -311,7 +393,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       maxM = Math.max(maxM, b);
     }
     if (!Number.isFinite(minM) || !Number.isFinite(maxM)) return null;
-    const pad = 45;
+    const pad = 20;
     minM = Math.max(0, minM - pad);
     maxM = Math.min(24 * 60, maxM + pad);
     if (maxM - minM < 120) {
@@ -328,8 +410,8 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   );
 
   const axisSpan = axisRange ? Math.max(1, axisRange.endMin - axisRange.startMin) : 1;
-  /** H5：列加宽，默认只露出工作日，周六日需右滑 */
-  const dayColPx = isMobile ? 96 : 60;
+  /** H5：列宽适中，周六日可右滑 */
+  const dayColPx = isMobile ? 88 : 64;
   const timeGutterPx = 40;
   const weekGridMinW = timeGutterPx + dayColPx * 7;
   const emptyGridMinW = dayColPx * 7;
@@ -377,6 +459,25 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     void loadWeek();
     void loadQuotas();
   }, [loadWeek, loadQuotas]);
+
+  useLayoutEffect(() => {
+    const el = timetableHostRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = el.clientHeight;
+      if (h > DAY_HEADER_H + 120) {
+        setAxisHeightPx(Math.round((h - DAY_HEADER_H) * AXIS_HEIGHT_SCALE));
+      }
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [loadingSchedules, axisRange, isMobile]);
 
   useEffect(() => {
     if (!isCoach || !userId || loadingSchedules) return;
@@ -662,14 +763,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         </CloudButton>
       </div>
 
-      {/* 周课表：点天排课；有课后按真实时间渲染 */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      {/* 周课表：高度贴合可视区，仅横向滑动 */}
+      <div ref={timetableHostRef} className="flex-1 min-h-0 overflow-hidden">
         {loadingSchedules ? (
           <div className="h-full flex items-center justify-center">
             <CloudSpin tip="加载课表…" />
           </div>
         ) : (
-          <div className="h-full min-h-0 overflow-x-auto overflow-y-hidden overscroll-x-contain">
+          <div className="h-full min-h-0 overflow-x-auto overflow-y-auto overscroll-contain">
             {!axisRange ? (
               <div
                 className="grid h-full min-h-0"
@@ -754,14 +855,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
               </div>
             ) : (
               <div
-                className="grid h-full min-h-0"
+                className="grid"
                 style={{
                   width: isMobile ? weekGridMinW : "100%",
                   minWidth: weekGridMinW,
                   gridTemplateColumns: isMobile
                     ? `${timeGutterPx}px repeat(7, ${dayColPx}px)`
                     : `${timeGutterPx}px repeat(7, minmax(${dayColPx}px, 1fr))`,
-                  gridTemplateRows: `${DAY_HEADER_H}px minmax(0, 1fr)`,
+                  gridTemplateRows: `${DAY_HEADER_H}px ${axisHeightPx}px`,
                 }}
               >
                 <div className="sticky top-0 left-0 z-30 bg-surface-soft border-b border-r border-border/70" />
@@ -806,14 +907,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                   );
                 })}
 
-                <div className="sticky left-0 z-10 min-h-0 h-full bg-card border-r border-border/70 relative row-start-2">
+                <div className="sticky left-0 z-10 bg-card border-r border-border/70 relative row-start-2" style={{ height: axisHeightPx }}>
                   {axisMarks.map((m) => (
                     <div
                       key={m}
-                      className="absolute left-0 right-0 px-0.5 -translate-y-1/2"
-                      style={{ top: `${((m - axisRange.startMin) / axisSpan) * 100}%` }}
+                      className="absolute left-0 right-0 px-1 -translate-y-1/2"
+                      style={{ top: ((m - axisRange.startMin) / axisSpan) * axisHeightPx }}
                     >
-                      <span className="text-[9px] text-muted-foreground tabular-nums leading-none">
+                      <span className="text-[10px] text-muted-foreground tabular-nums leading-none">
                         {fmtMinutes(m).slice(0, 5)}
                       </span>
                     </div>
@@ -823,19 +924,49 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                 {weekDays.map((d, dIdx) => {
                   const ymd = fmtYMD(d);
                   const isToday = ymd === todayYMD;
+                  const isPastDay = ymd < todayYMD;
                   const dayItems = byDay[ymd] || [];
+                  const laidOut = layoutDayEvents(
+                    dayItems,
+                    axisRange.startMin,
+                    axisRange.endMin,
+                    axisHeightPx,
+                  );
+                  const nowLocalM = new Date(nowTs).getHours() * 60 + new Date(nowTs).getMinutes();
+                  const todayPastHeightPx =
+                    isToday && nowLocalM > axisRange.startMin
+                      ? Math.min(
+                          axisHeightPx,
+                          ((Math.min(nowLocalM, axisRange.endMin) - axisRange.startMin) / axisSpan) *
+                            axisHeightPx,
+                        )
+                      : 0;
                   return (
                     <div
                       key={ymd}
-                      className={`relative min-h-0 h-full row-start-2 ${isToday ? "bg-primary/[0.04]" : ""} ${
+                      className={`relative row-start-2 ${isToday ? "bg-primary/[0.04]" : ""} ${
                         dIdx < 6 ? "border-r border-border/30" : ""
                       }`}
+                      style={{ height: axisHeightPx }}
                     >
+                      {isPastDay ? (
+                        <div
+                          className="absolute inset-0 z-0 bg-muted/45 pointer-events-none"
+                          aria-hidden
+                        />
+                      ) : null}
+                      {todayPastHeightPx > 0 ? (
+                        <div
+                          className="absolute left-0 right-0 top-0 z-0 bg-muted/40 pointer-events-none"
+                          style={{ height: todayPastHeightPx }}
+                          aria-hidden
+                        />
+                      ) : null}
                       {axisMarks.map((m) => (
                         <div
                           key={m}
                           className="absolute left-0 right-0 border-t border-border/20 pointer-events-none"
-                          style={{ top: `${((m - axisRange.startMin) / axisSpan) * 100}%` }}
+                          style={{ top: ((m - axisRange.startMin) / axisSpan) * axisHeightPx }}
                         />
                       ))}
 
@@ -851,24 +982,19 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                         />
                       ) : null}
 
-                      {dayItems.map((s) => {
-                        const { top, height, showDetail } = eventLayoutOnAxis(
-                          s.startTime,
-                          s.endTime,
-                          axisRange.startMin,
-                          axisRange.endMin,
-                        );
-                        return (
-                          <TimetableBlock
-                            key={s.id}
-                            schedule={s}
-                            top={top}
-                            height={height}
-                            showDetail={showDetail}
-                            onClick={() => setSelected(s)}
-                          />
-                        );
-                      })}
+                      {laidOut.map((ev) => (
+                        <TimetableBlock
+                          key={ev.schedule.id}
+                          schedule={ev.schedule}
+                          topPx={ev.topPx}
+                          heightPx={ev.heightPx}
+                          showDetail={ev.showDetail}
+                          col={ev.col}
+                          colCount={ev.colCount}
+                          nowTs={nowTs}
+                          onClick={() => setSelected(ev.schedule)}
+                        />
+                      ))}
                     </div>
                   );
                 })}

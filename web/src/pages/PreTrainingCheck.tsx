@@ -21,7 +21,7 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
-import { WordEditTrigger, applyUserWordView } from "../components/WordEditControls";
+import { applyUserWordView } from "../components/WordEditControls";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
@@ -402,9 +402,6 @@ export default function PreTrainingCheck() {
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div onClick={(e) => e.stopPropagation()}>
-            <WordEditTrigger wordId={word.id} />
-          </div>
           <div onClick={(e) => e.stopPropagation()}>
             <StudyNoteLauncher
               storageKey={`study-note:word:${wordBookId}:${word.id}`}

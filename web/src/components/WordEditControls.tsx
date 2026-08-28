@@ -1,7 +1,7 @@
 import { Pencil } from "lucide-react";
 import { UserWordEditor } from "./UserWordEditor";
 import { useWordEditStore } from "../stores/wordEditStore";
-import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
+import { formatTranslation, displayTranslationFull, pickPhoneticDisplay } from "../utils/wordFormat";
 import type { UserWordView } from "../api/wordbooks";
 
 export function WordEditTrigger({ wordId }: { wordId: number }) {
@@ -37,10 +37,15 @@ export function WordEditHost({ onSaved }: { onSaved?: (view: UserWordView) => vo
   );
 }
 
-export function applyUserWordView<T extends { id: number; word: string; phonetic?: string; translation?: string }>(
-  items: T[],
-  view: UserWordView
-): T[] {
+export function applyUserWordView<
+  T extends {
+    id: number;
+    word: string;
+    phonetic?: string;
+    translation?: string;
+    translationShort?: string;
+  },
+>(items: T[], view: UserWordView): T[] {
   return items.map((item) => {
     if (item.id !== view.wordId) return item;
     const e = view.effective;
@@ -53,7 +58,8 @@ export function applyUserWordView<T extends { id: number; word: string; phonetic
           phoneticUk: e.phoneticUk,
           phoneticUs: e.phoneticUs,
         }) || item.phonetic,
-      translation: formatTranslation(e.translation) || item.translation,
+      translation: displayTranslationFull(e.translation) || item.translation,
+      translationShort: (e.translationShort || "").trim() || item.translationShort,
     };
   });
 }

@@ -19,7 +19,7 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
-import { WordEditTrigger, applyUserWordView } from "../components/WordEditControls";
+import { applyUserWordView } from "../components/WordEditControls";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import { completeStudySession } from "../api/study";
 import { completeReviewSession } from "../api/review";
@@ -238,9 +238,15 @@ export default function PostTrainingCheck() {
     setCardIndex(0);
   };
 
-  const markFirstFive = (status: "correct" | "wrong") => {
-    setWords((prev) => prev.map((word, index) => (index < 5 ? { ...word, status } : word)));
-    setCardIndex(0);
+  const markNextFive = (status: "correct" | "wrong") => {
+    setWords((prev) => {
+      let remaining = 5;
+      return prev.map((word) => {
+        if (remaining <= 0 || word.status !== null) return word;
+        remaining -= 1;
+        return { ...word, status };
+      });
+    });
   };
 
   const appendMilestoneResults = (results: { wordId: number; remembered: boolean }[]) => {
@@ -285,7 +291,6 @@ export default function PostTrainingCheck() {
 
   const wrongWords = useMemo(() => words.filter((w) => w.status === "wrong"), [words]);
   const allMarked = useMemo(() => words.length > 0 && words.every((w) => w.status !== null), [words]);
-  const unmarkedCount = useMemo(() => words.filter((w) => w.status === null).length, [words]);
 
   const submitLabel = useMemo(() => {
     if (mode === "review") return "完成复习";
@@ -470,9 +475,7 @@ export default function PostTrainingCheck() {
         onSideChange={note.setSide}
         onResize={note.startResize}
       >
-        {mode === "study" && phaseLabels.hint && (
-          <p className="text-center text-sm text-[#718096] mb-4">{phaseLabels.hint}</p>
-        )}
+        <div className="pb-28 md:pb-20">
         <WordMarkStatsBar
           correctCount={correctCount}
           wrongCount={wrongCount}
@@ -522,9 +525,6 @@ export default function PostTrainingCheck() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <WordEditTrigger wordId={word.id} />
-                  </div>
                   <div onClick={(e) => e.stopPropagation()}>
                     <StudyNoteLauncher
                       storageKey={`study-note:word:${wordBookId}:${word.id}`}
@@ -590,85 +590,78 @@ export default function PostTrainingCheck() {
             ))}
           </div>
         )}
+        </div>
       </StudyNoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <CloudButton
-              type="button"
-              variant={note.open ? "brand" : "outline"}
-              size="pill"
-              onClick={() => note.setOpen((value) => !value)}
-              aria-label="打开随心记"
-              title="打开随心记"
-            >
-              <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
-              随心记
-            </CloudButton>
-            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-              <Shuffle size={16} />
-              乱序
-            </CloudButton>
-            <CloudButton variant="mintOutline" size="pill" onClick={() => markFirstFive("correct")}>
-              <Check size={16} />
-              5个正确
-            </CloudButton>
-            <CloudButton variant="destructive" size="pill" onClick={() => markFirstFive("wrong")}>
-              <X size={16} />
-              5个错误
-            </CloudButton>
-            <CloudButton
-              variant={detailMode ? "brand" : "outline"}
-              size="pill"
-              onClick={() => {
-                setDetailMode((v) => {
-                  if (v) setDetailWord(null);
-                  return !v;
-                });
-              }}
-            >
-              <BookOpen size={16} />
-              拓展
-            </CloudButton>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <CloudButton
+                type="button"
+                variant={note.open ? "brand" : "outline"}
+                size="pill"
+                onClick={() => note.setOpen((value) => !value)}
+                aria-label="打开随心记"
+                title="打开随心记"
+              >
+                <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
+                随心记
+              </CloudButton>
+              <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
+                <Shuffle size={16} />
+                乱序
+              </CloudButton>
+              <CloudButton
+                variant={detailMode ? "brand" : "outline"}
+                size="pill"
+                onClick={() => {
+                  setDetailMode((v) => {
+                    if (v) setDetailWord(null);
+                    return !v;
+                  });
+                }}
+              >
+                <BookOpen size={16} />
+                拓展
+              </CloudButton>
+            </div>
+            <div className="flex items-center gap-2 w-full md:w-auto min-w-0 shrink-0">
+              <CloudButton
+                variant="mintOutline"
+                size="pill"
+                className="shrink-0 max-sm:px-3"
+                onClick={() => markNextFive("correct")}
+              >
+                <Check size={16} />
+                <span className="hidden sm:inline">5个正确</span>
+                <span className="sm:hidden">5✓</span>
+              </CloudButton>
+              <CloudButton
+                variant="destructive"
+                size="pill"
+                className="shrink-0 max-sm:px-3"
+                onClick={() => markNextFive("wrong")}
+              >
+                <X size={16} />
+                <span className="hidden sm:inline">5个错误</span>
+                <span className="sm:hidden">5✗</span>
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant="brand"
+                size="pill"
+                className="flex-1 min-w-0 truncate md:flex-none"
+                onClick={handleSubmit}
+                disabled={!allMarked || submitting}
+                loading={submitting}
+                loadingText="提交中…"
+              >
+                {submitLabel}
+              </CloudButton>
+            </div>
           </div>
-          <div className="text-sm text-[#718096] text-right">
-            正确 <span className="text-[#4ECDC4] font-semibold">{correctCount}</span> · 错误{" "}
-            <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
-            {mode === "study" && isRecheckMode && (
-              <span className="block text-xs text-[#A0AEC0] mt-1">错词复检 · 仅显示刚重练的单词</span>
-            )}
-            {mode === "study" && !isRecheckMode && checkPhase === "milestone" && (
-              <span className="block text-xs text-[#A0AEC0] mt-1">
-                组内复习 · 打 × 将回到快闪剪刀重练
-              </span>
-            )}
-            {mode === "study" && checkPhase === "final" && wrongWords.length > 0 && (
-              <span className="block text-xs text-[#A0AEC0] mt-1">
-                训后检测 · 错词需快闪重练后再提交
-              </span>
-            )}
-          </div>
-        </div>
-        <CloudButton
-          type="button"
-          variant="brand"
-          size="pill"
-          className="w-full"
-          onClick={handleSubmit}
-          disabled={!allMarked || submitting}
-          loading={submitting}
-          loadingText="提交中…"
-        >
-          {submitLabel}
-        </CloudButton>
-        {!allMarked && words.length > 0 && (
-          <p className="text-center text-sm text-[#FF6B6B] mt-2 font-medium">
-            还有 {unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交
-          </p>
-        )}
         </div>
       </div>
     </FlowPageShell>

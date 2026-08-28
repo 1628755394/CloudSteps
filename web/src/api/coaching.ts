@@ -1,4 +1,5 @@
-import { get, post, del, ApiResponse } from '../utils/request'
+import { get, post, del, put, ApiResponse } from '../utils/request'
+import type { ReviewCurvePreset } from './auth'
 
 export type CoachingWeekSchedule = {
   id: number
@@ -36,6 +37,7 @@ export type TeacherCoachingQuotaRow = {
   totalAllocatedMinutes?: number
   version?: number
   reviewTimes?: number
+  reviewCurvePreset?: ReviewCurvePreset | string
   accent?: string
   preferredWordBookId?: number
   /** 词汇测评次数 */
@@ -56,6 +58,7 @@ export type TeacherCoachingQuotaRow = {
     role?: string
     city?: string
     region?: string
+    reviewCurvePreset?: string
   }
 }
 
@@ -121,6 +124,7 @@ export const listStudentActivityRecordsAsTeacher = async (
 export type VocabTestRecordDTO = {
   id: number
   userId: number
+  studentId?: number
   estimatedLevel: string
   estimatedVocab: number
   answers?: string
@@ -317,6 +321,23 @@ export const setTeacherStudentPassword = async (
 ): Promise<ApiResponse<{ studentId: number; username?: string; password: string }>> => {
   return post(`/teacher/coaching/students/${studentId}/password`, {
     password: password ?? '',
+  })
+}
+
+/** 老师为学员设置抗遗忘次数（艾宾浩斯曲线） */
+export const setTeacherStudentReviewCurve = async (
+  studentId: number,
+  reviewCurvePreset: ReviewCurvePreset
+): Promise<
+  ApiResponse<{
+    studentId: number
+    reviewCurvePreset: string
+    reviewTimes: number
+    presetLabel?: string
+  }>
+> => {
+  return put(`/teacher/coaching/students/${studentId}/review-curve`, {
+    reviewCurvePreset,
   })
 }
 

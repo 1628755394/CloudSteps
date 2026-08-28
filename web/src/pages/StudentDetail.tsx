@@ -23,24 +23,28 @@ import {
 } from "../components/ui/dialog";
 import {
   addStudentWordBookAsTeacher,
-  getStudentVocabRecordAsTeacher,
   listAllTeacherCoachingQuotas,
   listStudentActivityRecordsAsTeacher,
   listStudentWordBooksAsTeacher,
   removeStudentWordBookAsTeacher,
   setTeacherStudentPassword,
+  setTeacherStudentReviewCurve,
   type StudentActivityListItem,
   type StudentWordBookItem,
   type TeacherCoachingQuotaRow,
-  type VocabTestRecordDTO,
 } from "../api/coaching";
 import {
   loadWordBooksStaleWhileRevalidate,
   type CachedWordBook,
 } from "../utils/wordBooksCache";
-import { VocabTestResultView } from "../components/VocabTestResultView";
 import { showToast } from "../utils/toast";
 import { resolveMediaUrl } from "../utils/mediaUrl";
+import type { ReviewCurvePreset } from "../api/auth";
+import {
+  REVIEW_TIMES_OPTIONS,
+  normalizeReviewCurvePreset,
+  reviewCurveLabel,
+} from "../utils/reviewCurve";
 
 const DEFAULT_PASSWORD = "student123";
 
@@ -98,13 +102,12 @@ export default function StudentDetail() {
 
   const [vocabItems, setVocabItems] = useState<StudentActivityListItem[]>([]);
   const [loadingVocab, setLoadingVocab] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailVocab, setDetailVocab] = useState<VocabTestRecordDTO | null>(null);
 
   const [pwdOpen, setPwdOpen] = useState(false);
   const [pwdValue, setPwdValue] = useState(DEFAULT_PASSWORD);
   const [pwdSaving, setPwdSaving] = useState(false);
+  const [reviewPreset, setReviewPreset] = useState<ReviewCurvePreset>("times5");
+  const [reviewSaving, setReviewSaving] = useState(false);
 
   useEffect(() => {
     const fromNav = (location.state as { studentName?: string } | null)?.studentName;
@@ -137,6 +140,49 @@ export default function StudentDetail() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- title only for initial fallback
   }, [studentId]);
+
+  useEffect(() => {
+    const p =
+      quota?.reviewCurvePreset ||
+      quota?.student?.reviewCurvePreset ||
+      (quota?.reviewTimes === 3
+        ? "times3"
+        : quota?.reviewTimes === 7
+          ? "times7"
+          : quota?.reviewTimes === 10
+            ? "times10"
+            : "times5");
+    setReviewPreset(normalizeReviewCurvePreset(p));
+  }, [quota?.reviewCurvePreset, quota?.student?.reviewCurvePreset, quota?.reviewTimes]);
+
+  const saveReviewCurve = async (next: ReviewCurvePreset) => {
+    setReviewPreset(next);
+    setReviewSaving(true);
+    try {
+      const res = await setTeacherStudentReviewCurve(studentId, next);
+      if (res.code !== 200) {
+        showToast.error(res.msg || "保存失败");
+        return;
+      }
+      setQuota((prev) =>
+        prev
+          ? {
+              ...prev,
+              reviewCurvePreset: next,
+              reviewTimes: res.data?.reviewTimes,
+              student: prev.student
+                ? { ...prev.student, reviewCurvePreset: next }
+                : prev.student,
+            }
+          : prev
+      );
+      showToast.success("抗遗忘次数已更新");
+    } catch {
+      showToast.error("保存失败");
+    } finally {
+      setReviewSaving(false);
+    }
+  };
 
   const onTabChange = (v: string) => {
     const next = (v as TabKey) || "hours";
@@ -269,23 +315,6 @@ export default function StudentDetail() {
       showToast.error(msg);
     } finally {
       setRemovingId(null);
-    }
-  };
-
-  const openVocabDetail = async (item: StudentActivityListItem) => {
-    setDetailOpen(true);
-    setDetailLoading(true);
-    setDetailVocab(null);
-    try {
-      const res = await getStudentVocabRecordAsTeacher(studentId, item.id);
-      if (res.code !== 200) throw new Error(res.msg || "加载失败");
-      setDetailVocab(res.data as VocabTestRecordDTO);
-    } catch (e) {
-      console.error(e);
-      showToast.error("加载测评详情失败");
-      setDetailOpen(false);
-    } finally {
-      setDetailLoading(false);
     }
   };
 
@@ -428,6 +457,30 @@ export default function StudentDetail() {
               </CloudCard>
 
               <CloudCard className="p-4 space-y-3">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">抗遗忘次数</div>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    按艾宾浩斯曲线排期：学完次日首次复习，之后按间隔出现在抗遗忘日历；列表会显示对应识记时段。
+                    当前：{reviewCurveLabel(reviewPreset)}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {REVIEW_TIMES_OPTIONS.map((opt) => (
+                    <CloudButton
+                      key={opt.value}
+                      type="button"
+                      variant={reviewPreset === opt.value ? "brand" : "outline"}
+                      size="sm"
+                      disabled={reviewSaving}
+                      onClick={() => void saveReviewCurve(opt.value)}
+                    >
+                      {opt.label}
+                    </CloudButton>
+                  ))}
+                </div>
+              </CloudCard>
+
+              <CloudCard className="p-4 space-y-3">
                 <div className="text-sm font-semibold text-foreground">快捷操作</div>
                 <div className="flex flex-wrap gap-2">
                   <CloudButton
@@ -549,7 +602,11 @@ export default function StudentDetail() {
                 type="button"
                 key={`${item.kind}-${item.id}`}
                 className="w-full text-left"
-                onClick={() => void openVocabDetail(item)}
+                onClick={() =>
+                  navigate(
+                    `/vocabulary-test/result?studentId=${studentId}&recordId=${item.id}`
+                  )
+                }
               >
                 <CloudCard className="p-3 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between gap-2">
@@ -667,43 +724,6 @@ export default function StudentDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {detailOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-[#E2E8F0] overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] shrink-0">
-              <div className="text-[#2D3748] font-semibold">词汇测评结果</div>
-              <CloudButton
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setDetailOpen(false);
-                  setDetailVocab(null);
-                }}
-              >
-                关闭
-              </CloudButton>
-            </div>
-            <div className="p-4 overflow-y-auto flex-1 bg-[#F7F9FC]">
-              {detailLoading ? (
-                <div className="text-[#718096] py-8 text-center">加载中…</div>
-              ) : detailVocab ? (
-                <VocabTestResultView
-                  compact
-                  result={{
-                    level: detailVocab.estimatedLevel,
-                    estimatedVocab: detailVocab.estimatedVocab,
-                    correctCount: detailVocab.correctCount,
-                    totalCount: detailVocab.questionCount,
-                  }}
-                />
-              ) : (
-                <div className="text-[#718096] py-8 text-center">暂无数据</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

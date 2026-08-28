@@ -9,6 +9,7 @@ export interface VocabNextRequest {
 
 export interface VocabSubmitRequest {
   answers: Array<{ questionId: number; answer: string }>
+  studentId?: number
 }
 
 export const getVocabStart = async (): Promise<ApiResponse<any>> => {

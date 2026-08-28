@@ -3,18 +3,22 @@ import { useNavigate } from "react-router";
 import { BookOpen, ChevronLeft, ChevronRight, Clock, Eye } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudDatePicker, CloudEmpty, CloudSpin } from "../components/cloudsteps/arco";
-import { listReviewBooksByDate } from "../api/review";
+import { listReviewBooksByDate, type ReviewBookStatRow } from "../api/review";
+import { useAuthStore } from "../stores/authStore";
+import { formatPracticeTimeRange } from "../utils/reviewPracticeTime";
+import { reviewCurveLabel } from "../utils/reviewCurve";
 
-type ReviewBookStat = { wordBookId: number; cnt: number; name: string; level: string };
+type ReviewBookStat = ReviewBookStatRow;
 
 type ReviewTask = {
-  id: number;
-  time: string;
+  id: string;
+  practiceTimeLabel: string;
   student: string;
   vocabularyPack: string;
   trainingTime: string;
   status: "pending" | "completed";
   wordBookId: number;
+  sessionId: number;
   count: number;
 };
 
@@ -34,6 +38,7 @@ function parseYMDLocal(ymd: string): Date {
 export default function AntiForgetting() {
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
   const navigate = useNavigate();
+  const reviewCurvePreset = useAuthStore((s) => s.user?.reviewCurvePreset) || "times5";
 
   const [bookStats, setBookStats] = useState<ReviewBookStat[]>([]);
   const [loadingBooks, setLoadingBooks] = useState(true);
@@ -60,15 +65,16 @@ export default function AntiForgetting() {
 
   const reviewTasks = useMemo<ReviewTask[]>(() => {
     const student = sessionStorage.getItem("lb_user_name") || "当前用户";
-    const times = ["08:00", "10:00", "14:00", "16:00", "18:00"];
-    return bookStats.map((b, idx) => ({
-      id: idx + 1,
-      time: times[idx % times.length],
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai";
+    return bookStats.map((b) => ({
+      id: `${b.wordBookId}-${b.sessionId ?? 0}`,
+      practiceTimeLabel: formatPracticeTimeRange(b.practiceStartedAt, b.practiceEndedAt, tz),
       student,
       vocabularyPack: b.name,
       trainingTime: `${Math.min(60, Math.max(10, Math.ceil(b.cnt / 20) * 10))}分钟`,
       status: "pending",
       wordBookId: b.wordBookId,
+      sessionId: b.sessionId ?? 0,
       count: b.cnt,
     }));
   }, [bookStats]);
@@ -95,19 +101,38 @@ export default function AntiForgetting() {
     sessionStorage.setItem("lb_review_wordbook_name", task.vocabularyPack);
     sessionStorage.setItem("lb_review_date", selectedDate);
     sessionStorage.setItem("lb_review_return", "/anti-forgetting");
+    if (task.sessionId > 0) {
+      sessionStorage.setItem("lb_review_study_session_id", String(task.sessionId));
+    } else {
+      sessionStorage.removeItem("lb_review_study_session_id");
+    }
     if (isToday) {
       sessionStorage.setItem("lb_mode", "review");
-      navigate(`/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}`);
+      const sessionQ =
+        task.sessionId > 0 ? `&studySessionId=${encodeURIComponent(String(task.sessionId))}` : "";
+      navigate(
+        `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}${sessionQ}`
+      );
       return;
     }
     sessionStorage.removeItem("lb_mode");
+    const sessionQ =
+      task.sessionId > 0 ? `&studySessionId=${encodeURIComponent(String(task.sessionId))}` : "";
     navigate(
-      `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}&view=1`
+      `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}&view=1${sessionQ}`
     );
   };
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2 px-1">
+        <p className="text-xs text-muted-foreground">
+          曲线：{reviewCurveLabel(reviewCurvePreset)}
+        </p>
+        <CloudButton variant="ghost" size="sm" onClick={() => navigate("/create-anti-forgetting")}>
+          调整曲线
+        </CloudButton>
+      </div>
       <CloudCard className="p-4 sm:p-5">
         <div className="flex items-center gap-2 sm:gap-4">
           <CloudButton
@@ -170,10 +195,12 @@ export default function AntiForgetting() {
                     className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3.5 sm:px-5 hover:bg-muted/40 transition-colors"
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground tabular-nums w-[4.5rem] shrink-0">
-                        <Clock size={14} className="text-primary" />
-                        {task.time}
-                      </span>
+                      {task.practiceTimeLabel ? (
+                        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground tabular-nums shrink-0 max-w-[11rem] sm:max-w-none">
+                          <Clock size={14} className="text-primary shrink-0" />
+                          <span className="truncate">{task.practiceTimeLabel}</span>
+                        </span>
+                      ) : null}
                       <span className="inline-flex items-center gap-2 min-w-0 flex-1">
                         <BookOpen size={15} className="text-secondary-brand shrink-0" />
                         <span className="text-sm text-charcoal truncate">{task.vocabularyPack}</span>

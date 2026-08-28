@@ -12,14 +12,13 @@ import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
-import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
+import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { buildWordPracticeSequence } from "../utils/wordPracticeSequence";
 import { getPracticeTapState } from "../utils/wordPracticeTap";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import type { UserWordView } from "../api/wordbooks";
-import { WordEditTrigger } from "../components/WordEditControls";
 
 type PracticeWord = {
   id: number;
@@ -97,8 +96,8 @@ export default function WordPractice() {
                   phoneticUk: e.phoneticUk,
                   phoneticUs: e.phoneticUs,
                 }) || w.phonetic,
-              translation: formatTranslation(e.translation) || w.translation,
-              translationShort: formatTranslationShort(e.translation) || w.translationShort,
+              translation: displayTranslationFull(e.translation) || w.translation,
+              translationShort: (e.translationShort || "").trim() || w.translationShort,
             }
       )
     );
@@ -180,8 +179,8 @@ export default function WordPractice() {
         id: Number(w.id),
         word: String(w.word || ""),
         phonetic: pickPhoneticDisplay(w),
-        translation: formatTranslation(w.translation),
-        translationShort: formatTranslationShort(w.translation),
+        translation: displayTranslationFull(w.translation),
+        translationShort: displayTranslationShort(w),
         audioUrl: w.audioUrl ? String(w.audioUrl) : undefined,
         count: 0,
         completed: false,
@@ -363,21 +362,26 @@ export default function WordPractice() {
                   <ChevronRight size={24} />
                 </CloudButton>
               </div>
-              {!manualReadMode && (
-                <div className="flex items-center justify-center gap-3 border-t border-[#E2E8F0] px-4 py-4">
-                  <WordEditTrigger wordId={cardWord.id} />
-                  {parseAudioUrls(cardWord.audioUrl).length > 0 && (
-                    <CloudButton
-                      variant={playingId === cardWord.id ? "mint" : "mintOutline"}
-                      size="iconRound"
-                      className="size-12 text-sm font-bold"
-                      onClick={() => handlePlayNextAudio(cardWord)}
-                    >
-                      {audioIndexMap.get(cardWord.id) ?? 0}
-                    </CloudButton>
-                  )}
+              <div className="flex items-center justify-center gap-3 border-t border-[#E2E8F0] px-4 py-4">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StudyNoteLauncher
+                    storageKey={wordNoteKey(cardWord.id)}
+                    title={`笔记 · ${cardWord.word}`}
+                    label="笔记"
+                    className="h-9 px-2"
+                  />
                 </div>
-              )}
+                {!manualReadMode && parseAudioUrls(cardWord.audioUrl).length > 0 && (
+                  <CloudButton
+                    variant={playingId === cardWord.id ? "mint" : "mintOutline"}
+                    size="iconRound"
+                    className="size-12 text-sm font-bold"
+                    onClick={() => handlePlayNextAudio(cardWord)}
+                  >
+                    {audioIndexMap.get(cardWord.id) ?? 0}
+                  </CloudButton>
+                )}
+              </div>
             </div>
             {detailMode && cardWord.showTranslation && (
               <div className="w-full">
@@ -417,29 +421,26 @@ export default function WordPractice() {
                     <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{word.word}</div>
                     {renderReveal(word)}
                   </div>
-                  {!manualReadMode && (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <WordEditTrigger wordId={word.id} />
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <StudyNoteLauncher
-                          storageKey={wordNoteKey(word.id)}
-                          title={`笔记 · ${word.word}`}
-                          label="笔记"
-                          className="h-9 px-2"
-                        />
-                      </div>
-                      {parseAudioUrls(word.audioUrl).length > 0 && (
-                        <CloudButton
-                          variant={playingId === word.id ? "mint" : "mintOutline"}
-                          size="iconRound"
-                          className="size-10 text-sm font-bold"
-                          onClick={() => handlePlayNextAudio(word)}
-                        >
-                          {audioIndexMap.get(word.id) ?? 0}
-                        </CloudButton>
-                      )}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <StudyNoteLauncher
+                        storageKey={wordNoteKey(word.id)}
+                        title={`笔记 · ${word.word}`}
+                        label="笔记"
+                        className="h-9 px-2"
+                      />
                     </div>
-                  )}
+                    {!manualReadMode && parseAudioUrls(word.audioUrl).length > 0 && (
+                      <CloudButton
+                        variant={playingId === word.id ? "mint" : "mintOutline"}
+                        size="iconRound"
+                        className="size-10 text-sm font-bold"
+                        onClick={() => handlePlayNextAudio(word)}
+                      >
+                        {audioIndexMap.get(word.id) ?? 0}
+                      </CloudButton>
+                    )}
+                  </div>
                 </div>
                 {detailMode && word.showTranslation && (
                   <WordDetailPanel

@@ -69,8 +69,8 @@ export function needsFinalCheckAfterMilestone(batchIdx: number, totalBatches: nu
 
 export function getCheckPhaseLabel(
   phase: StudyCheckPhase,
-  batchIdx: number,
-  totalBatches: number
+  _batchIdx: number,
+  _totalBatches: number
 ): { title: string; hint: string } {
   if (phase === "final") {
     return {
@@ -78,12 +78,9 @@ export function getCheckPhaseLabel(
       hint: "",
     };
   }
-  const { startBatch, endBatch } = getMilestoneCheckBatchRange(batchIdx, totalBatches);
-  const from = startBatch + 1;
-  const to = endBatch;
   return {
     title: "组内复习",
-    hint: `复习第 ${from}${to > from ? `–${to}` : ""} 组 · 打 × 的单词将回到快闪重练`,
+    hint: "",
   };
 }
 

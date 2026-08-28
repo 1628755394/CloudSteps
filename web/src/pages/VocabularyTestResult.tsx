@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
-import { useNavigate } from "react-router";
-import { ChevronLeft, RefreshCw } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router";
+import { RefreshCw } from "lucide-react";
 
 import { getVocabResult } from "../api/vocab";
+import { getStudentVocabRecordAsTeacher } from "../api/coaching";
 import {
   clearVocabTestResultCache,
   refreshVocabTestQuestions,
@@ -12,6 +13,7 @@ import {
   VocabTestResultView,
   type VocabTestResultPayload,
 } from "../components/VocabTestResultView";
+import { TopBar } from "../components/TopBar";
 
 function normalizeVocabResult(raw: any): VocabTestResultPayload | null {
   const data = raw?.record || raw;
@@ -32,6 +34,10 @@ function normalizeVocabResult(raw: any): VocabTestResultPayload | null {
 
 export default function VocabularyTestResult() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const studentId = Number(searchParams.get("studentId") || 0);
+  const recordId = Number(searchParams.get("recordId") || 0);
+  const isHistory = studentId > 0 && recordId > 0;
   const [result, setResult] = useState<VocabTestResultPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,6 +46,16 @@ export default function VocabularyTestResult() {
     (async () => {
       try {
         setLoading(true);
+        setResult(null);
+        if (isHistory) {
+          const res = await getStudentVocabRecordAsTeacher(studentId, recordId);
+          if (!mounted) return;
+          if (res.code === 200) {
+            setResult(normalizeVocabResult(res.data));
+          }
+          return;
+        }
+
         const cached = sessionStorage.getItem("vocabulary_test_result");
         if (cached) {
           const parsed = normalizeVocabResult(JSON.parse(cached));
@@ -65,33 +81,26 @@ export default function VocabularyTestResult() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isHistory, studentId, recordId]);
 
   useEffect(() => {
-    if (!result) return;
+    if (!result || isHistory) return;
     refreshVocabTestQuestions().catch(() => {});
-  }, [result]);
+  }, [result, isHistory]);
 
   const hasResult = useMemo(() => Boolean(result), [result]);
 
-  return (
-    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F7F9FC] pb-20">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-11 w-full max-w-6xl mx-auto px-3">
-          <CloudButton
-            type="button"
-            variant="ghost"
-            size="iconRound"
-            onClick={() => navigate("/material-selection", { replace: true })}
-            className="mr-2"
-          >
-            <ChevronLeft size={18} className="text-[#2D3748]" />
-          </CloudButton>
-          <span className="text-sm font-semibold text-[#2D3748]">测试结果</span>
-        </div>
-      </div>
+  const handleBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else if (isHistory) navigate(`/my-students/${studentId}?tab=vocab`);
+    else navigate("/");
+  };
 
-      <div className="pt-14 px-4 sm:px-6">
+  return (
+    <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-gray-50 pb-20">
+      <TopBar title="测试结果" onBack={handleBack} />
+
+      <div className="px-4 sm:px-6 py-4">
         {loading ? (
           <div className="max-w-3xl mx-auto text-center text-[#718096] py-16">
             结果加载中...
@@ -99,50 +108,55 @@ export default function VocabularyTestResult() {
         ) : !hasResult || !result ? (
           <div className="max-w-3xl mx-auto bg-white rounded-2xl p-6 sm:p-8 text-center shadow-sm border border-[#E2E8F0]">
             <div className="text-[#2D3748] font-semibold text-base">暂无测试结果</div>
-            <div className="text-[#718096] text-sm mt-2">去开始一次词汇量测试吧</div>
+            <div className="text-[#718096] text-sm mt-2">
+              {isHistory ? "这条测评记录不存在或无权查看" : "去开始一次词汇量测试吧"}
+            </div>
             <CloudButton
               variant="brand"
               size="pill"
               className="mt-6 w-full"
-              onClick={() => navigate("/material-selection", { replace: true })}
+              onClick={() => (isHistory ? handleBack() : navigate("/vocabulary-test"))}
             >
-              返回资料选择
+              {isHistory ? "返回" : "去测试"}
             </CloudButton>
           </div>
         ) : (
           <div className="max-w-3xl mx-auto min-w-0 space-y-4">
             <VocabTestResultView result={result} />
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <CloudButton
-                variant="brand"
-                size="pill"
-                className="flex-1"
-                onClick={() => {
-                  clearVocabTestResultCache();
-                  navigate("/vocabulary-test/testing", { replace: true });
-                }}
-              >
-                重新测试
+            {isHistory ? (
+              <CloudButton variant="outline" size="pill" className="w-full" onClick={handleBack}>
+                返回
               </CloudButton>
-              <CloudButton
-                variant="outline"
-                size="pill"
-                className="flex-1"
-                onClick={() => navigate("/material-selection", { replace: true })}
-              >
-                返回资料选择
-              </CloudButton>
-            </div>
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <CloudButton
+                    variant="brand"
+                    size="pill"
+                    className="flex-1"
+                    onClick={() => {
+                      clearVocabTestResultCache();
+                      navigate("/vocabulary-test/testing", { replace: true });
+                    }}
+                  >
+                    重新测试
+                  </CloudButton>
+                  <CloudButton variant="outline" size="pill" className="flex-1" onClick={handleBack}>
+                    返回
+                  </CloudButton>
+                </div>
 
-            <CloudButton
-              variant="outline"
-              size="pill"
-              className="w-full"
-              onClick={() => window.location.reload()}
-            >
-              <RefreshCw className="w-4 h-4" /> 刷新结果
-            </CloudButton>
+                <CloudButton
+                  variant="outline"
+                  size="pill"
+                  className="w-full"
+                  onClick={() => window.location.reload()}
+                >
+                  <RefreshCw className="w-4 h-4" /> 刷新结果
+                </CloudButton>
+              </>
+            )}
           </div>
         )}
       </div>

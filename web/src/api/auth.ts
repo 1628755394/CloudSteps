@@ -162,6 +162,7 @@ export interface User {
   pushNotifications?: boolean
   systemNotifications?: boolean
   autoCleanUnreadEmails?: boolean
+  reviewCurvePreset?: 'times3' | 'times5' | 'times7' | 'times10' | 'standard' | 'interval3' | 'interval5' | 'interval10'
   twoFactorEnabled?: boolean
   emailVerified?: boolean
 }
@@ -331,6 +332,16 @@ export const verifyPhone = async (code: string): Promise<ApiResponse<null>> => {
 // 更新通知设置
 export const updateNotificationSettings = async (settings: NotificationSettings): Promise<ApiResponse<null>> => {
   return put<null>('/auth/notification-settings', settings)
+}
+
+export type ReviewCurvePreset = 'times3' | 'times5' | 'times7' | 'times10'
+
+export const updateUserPreferences = async (data: {
+  emailNotifications?: boolean
+  autoCleanUnreadEmails?: boolean
+  reviewCurvePreset?: ReviewCurvePreset
+}): Promise<ApiResponse<null>> => {
+  return put<null>('/auth/update/preferences', data)
 }
 
 // 获取账号安全/活动记录
