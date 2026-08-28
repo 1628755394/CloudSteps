@@ -65,7 +65,7 @@ export default function LessonPrep() {
     setLoadingStudents(true)
     ;(async () => {
       try {
-        const rows = await listAllTeacherCoachingQuotas()
+        const rows = await listAllTeacherCoachingQuotas({ includeSelf: true })
         if (!mounted) return
         setStudents(rows)
         const saved = getTrainingStudent()

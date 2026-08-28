@@ -12,7 +12,7 @@
  *  - 用 Taro.switchTab 跳转 tabBar 页(替代 react-router navigate)
  *  - timezone 用 Intl.DateTimeFormat(小程序环境支持)
  */
-import React, { useEffect, useRef, useState } from 'react'
+import { formatAuthErrorMessage } from '../../utils/authErrors'
 import { View, Text, Input, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { CloudButton } from '../../components/button'
@@ -122,13 +122,13 @@ export default function Login() {
     try {
       const res = await sendEmailCode({ email })
       if (res.code !== 200) {
-        setErrorText(res.msg || '验证码发送失败')
+        setErrorText(formatAuthErrorMessage(res.msg, '验证码发送失败'))
         return
       }
       setCodeWait(60)
       Taro.showToast({ title: '验证码已发送', icon: 'none' })
     } catch (e: any) {
-      setErrorText(e?.msg || e?.message || '验证码发送失败')
+      setErrorText(formatAuthErrorMessage(e?.msg || e?.message, '验证码发送失败'))
     }
   }
 
@@ -192,7 +192,7 @@ export default function Login() {
           ...captcha,
         })
         if (reg.code !== 200) {
-          setErrorText(reg.msg || '注册失败')
+          setErrorText(formatAuthErrorMessage(reg.msg, '注册失败'))
           refreshCaptcha()
           return
         }
@@ -220,7 +220,7 @@ export default function Login() {
             ...captcha,
           })
       if (res.code !== 200) {
-        setErrorText(res.msg || '登录失败')
+        setErrorText(formatAuthErrorMessage(res.msg, '登录失败'))
         refreshCaptcha()
         return
       }
@@ -232,7 +232,12 @@ export default function Login() {
       }
       await finishLogin(token, res.data?.user)
     } catch (e: any) {
-      setErrorText(e?.msg || e?.message || (screen === 'register' ? '注册失败' : '登录失败'))
+      setErrorText(
+        formatAuthErrorMessage(
+          e?.msg || e?.message,
+          screen === 'register' ? '注册失败' : '登录失败',
+        ),
+      )
       refreshCaptcha()
     } finally {
       setSubmitting(false)
