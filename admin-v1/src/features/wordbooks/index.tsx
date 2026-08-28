@@ -26,6 +26,14 @@ import { Switch } from '@/components/ui/switch'
 import { AdminPage } from '@/components/admin-page'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { AudioJobButtons } from './audio-job-buttons'
+import { CoverMetaBadges } from './cover-meta-badges'
+import {
+  buildDescriptionFromForm,
+  emptyWordBookForm,
+  type WordBookEditForm,
+  wordBookToForm,
+} from './cover-meta'
+import { coverJobButtonLabel } from './cover-jobs'
 import {
   DEFAULT_WORDBOOK_GROUPS,
   defaultWordbooksSearch,
@@ -36,7 +44,8 @@ import {
   type WordbooksSearch,
 } from './search'
 import { useWordBookAudioJobs } from './use-wordbook-audio-jobs'
-import { WordbookCoverDialog } from './wordbook-cover-dialog'
+import { useWordbookCoverJobs } from './use-wordbook-cover-jobs'
+import { WordbookCoverDrawer } from './wordbook-cover-drawer'
 
 const route = getRouteApi('/_authenticated/wordbooks/')
 
@@ -52,8 +61,18 @@ type WordBook = {
 
 type WordBookGroup = { key: string; label: string }
 
-const emptyForm = { name: '', description: '', level: 'A1' }
 const ALL = 'all'
+
+const COVER_CAT_OPTIONS = [
+  '小学',
+  '初中',
+  '高中',
+  '大学',
+  '考研',
+  '留学考试',
+  '教材',
+  '其他',
+]
 
 export function WordBooksPage() {
   const search = route.useSearch()
@@ -68,7 +87,7 @@ export function WordBooksPage() {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<WordBook | null>(null)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState<WordBookEditForm>(emptyWordBookForm())
   const [saving, setSaving] = useState(false)
   const [publishingId, setPublishingId] = useState<number | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -82,6 +101,13 @@ export function WordBooksPage() {
     startPageBatchAudio,
     startPurgeAudio,
   } = useWordBookAudioJobs(list)
+  const {
+    jobs: coverJobs,
+    startCoverJob,
+    saveCover,
+    clearCover,
+    refreshBookJob,
+  } = useWordbookCoverJobs(list)
 
   const page = search.page
   const pageSize = search.pageSize
@@ -142,8 +168,13 @@ export function WordBooksPage() {
     }
     setSaving(true)
     try {
-      if (editing) await put(`/wordbooks/${editing.id}`, form)
-      else await post('/wordbooks', form)
+      const payload = {
+        name: form.name.trim(),
+        level: form.level.trim(),
+        description: buildDescriptionFromForm(form),
+      }
+      if (editing) await put(`/wordbooks/${editing.id}`, payload)
+      else await post('/wordbooks', payload)
       toast.success(editing ? '已更新' : '已创建')
       setOpen(false)
       await load()
@@ -212,7 +243,7 @@ export function WordBooksPage() {
           <Button
             onClick={() => {
               setEditing(null)
-              setForm(emptyForm)
+              setForm(emptyWordBookForm())
               setOpen(true)
             }}
           >
@@ -331,7 +362,12 @@ export function WordBooksPage() {
         </div>
       ) : (
         <div className='grid gap-4 sm:grid-cols-2 xl:grid-cols-3'>
-          {list.map((b) => (
+          {list.map((b) => {
+            const coverJob = coverJobs[b.id]
+            const coverSrc = coverJob?.previewUrl || b.coverUrl
+            const coverBusy =
+              coverJob?.status === 'queued' || coverJob?.status === 'running'
+            return (
             <Card key={b.id}>
               <CardHeader className='flex flex-row items-start justify-between space-y-0'>
                 <div>
@@ -345,9 +381,9 @@ export function WordBooksPage() {
                       {b.name}
                     </Link>
                   </CardTitle>
-                  <p className='mt-1 line-clamp-2 text-sm text-muted-foreground'>
-                    {b.description || '暂无简介'}
-                  </p>
+                  <div className='mt-1.5'>
+                    <CoverMetaBadges description={b.description} />
+                  </div>
                 </div>
                 {b.isActive ? (
                   <Badge variant='default'>已上架</Badge>
@@ -367,9 +403,9 @@ export function WordBooksPage() {
               </CardHeader>
               <CardContent className='space-y-3'>
                 <div className='relative'>
-                  {b.coverUrl ? (
+                  {coverSrc ? (
                     <img
-                      src={b.coverUrl}
+                      src={coverSrc}
                       alt={`${b.name} 封面`}
                       className='h-28 w-full rounded-md border object-cover bg-muted'
                     />
@@ -387,8 +423,12 @@ export function WordBooksPage() {
                     className='absolute bottom-2 right-2 shadow-sm'
                     onClick={() => setCoverBook(b)}
                   >
-                    <Sparkles className='size-4' />
-                    AI 封面
+                    {coverBusy ? (
+                      <Loader2 className='size-4 animate-spin' />
+                    ) : (
+                      <Sparkles className='size-4' />
+                    )}
+                    {coverJobButtonLabel(coverJob)}
                   </Button>
                 </div>
                 <div className='flex items-center justify-between text-sm text-muted-foreground'>
@@ -415,19 +455,19 @@ export function WordBooksPage() {
                     variant='outline'
                     onClick={() => setCoverBook(b)}
                   >
-                    <Sparkles className='size-4' />
-                    生成封面
+                    {coverBusy ? (
+                      <Loader2 className='size-4 animate-spin' />
+                    ) : (
+                      <Sparkles className='size-4' />
+                    )}
+                    {coverJobButtonLabel(coverJob)}
                   </Button>
                   <Button
                     size='sm'
                     variant='ghost'
                     onClick={() => {
                       setEditing(b)
-                      setForm({
-                        name: b.name,
-                        description: b.description || '',
-                        level: b.level || 'A1',
-                      })
+                      setForm(wordBookToForm(b))
                       setOpen(true)
                     }}
                   >
@@ -443,7 +483,8 @@ export function WordBooksPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -470,11 +511,11 @@ export function WordBooksPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className='max-w-md gap-0 p-0'>
+          <DialogHeader className='border-b px-6 py-4'>
             <DialogTitle>{editing ? '编辑词库' : '新建词库'}</DialogTitle>
           </DialogHeader>
-          <div className='grid gap-3'>
+          <div className='grid gap-4 px-6 py-4'>
             <div className='grid gap-1.5'>
               <Label>名称</Label>
               <Input
@@ -485,22 +526,107 @@ export function WordBooksPage() {
               />
             </div>
             <div className='grid gap-1.5'>
-              <Label>级别</Label>
-              <Input
+              <Label>CEFR 级别</Label>
+              <Select
                 value={form.level}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, level: e.target.value }))
-                }
-              />
+                onValueChange={(v) => setForm((f) => ({ ...f, level: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder='选择级别' />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORDBOOK_LEVELS.map((lv) => (
+                    <SelectItem key={lv} value={lv}>
+                      {lv}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className='space-y-3 rounded-lg border bg-muted/30 p-4'>
+              <p className='text-sm font-medium'>封面标签</p>
+              <p className='text-xs text-muted-foreground'>
+                用于学员端词库卡片展示，保存为结构化数据而非 JSON 文本。
+              </p>
+              <div className='grid gap-3 sm:grid-cols-2'>
+                <div className='grid gap-1.5 sm:col-span-2'>
+                  <Label className='text-xs'>学段分类</Label>
+                  <Select
+                    value={form.coverCat || '__none__'}
+                    onValueChange={(v) =>
+                      setForm((f) => ({
+                        ...f,
+                        coverCat: v === '__none__' ? '' : v,
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder='如：小学' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='__none__'>不设置</SelectItem>
+                      {COVER_CAT_OPTIONS.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className='grid gap-1.5'>
+                  <Label className='text-xs'>上标题 (t1)</Label>
+                  <Input
+                    placeholder='如：小学英语'
+                    value={form.coverT1}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, coverT1: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className='grid gap-1.5'>
+                  <Label className='text-xs'>下标题 (t2)</Label>
+                  <Input
+                    placeholder='如：六年级下册'
+                    value={form.coverT2}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, coverT2: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className='grid gap-1.5 sm:col-span-2'>
+                  <Label className='text-xs'>版本标签 (tag)</Label>
+                  <Input
+                    placeholder='如：陕旅版三起'
+                    value={form.coverTag}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, coverTag: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
             </div>
             <div className='grid gap-1.5'>
-              <Label>简介</Label>
+              <Label>文字简介（可选）</Label>
               <Input
-                value={form.description}
+                placeholder='无封面标签时作为普通简介展示'
+                value={form.notes}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, description: e.target.value }))
+                  setForm((f) => ({ ...f, notes: e.target.value }))
+                }
+                disabled={
+                  Boolean(
+                    form.coverTag.trim() ||
+                      form.coverT1.trim() ||
+                      form.coverT2.trim() ||
+                      form.coverCat.trim()
+                  )
                 }
               />
+              {form.coverTag || form.coverT1 || form.coverT2 || form.coverCat ? (
+                <p className='text-xs text-muted-foreground'>
+                  已填写封面标签时，简介以标签形式展示，无需填写此项。
+                </p>
+              ) : null}
             </div>
             {editing ? (
               <div className='flex items-center gap-2'>
@@ -520,7 +646,7 @@ export function WordBooksPage() {
               </div>
             ) : null}
           </div>
-          <DialogFooter>
+          <DialogFooter className='border-t bg-muted/30 px-6 py-4'>
             <Button variant='outline' onClick={() => setOpen(false)}>
               取消
             </Button>
@@ -549,20 +675,42 @@ export function WordBooksPage() {
         handleConfirm={handleDeleteConfirm}
       />
 
-      <WordbookCoverDialog
+      <WordbookCoverDrawer
         book={coverBook}
         open={!!coverBook}
         onOpenChange={(v) => {
           if (!v) setCoverBook(null)
         }}
-        onSaved={(coverUrl) => {
-          if (!coverBook) return
+        job={coverBook ? coverJobs[coverBook.id] : undefined}
+        onStart={async (book, opts) => {
+          const r = await startCoverJob(book, opts)
+          return r === 'started'
+        }}
+        onSave={async (book) => {
+          const url = await saveCover(book)
+          if (url) {
+            setList((prev) =>
+              prev.map((item) =>
+                item.id === book.id ? { ...item, coverUrl: url } : item
+              )
+            )
+            setCoverBook((prev) =>
+              prev?.id === book.id ? { ...prev, coverUrl: url } : prev
+            )
+          }
+        }}
+        onClear={async (book) => {
+          await clearCover(book)
           setList((prev) =>
             prev.map((item) =>
-              item.id === coverBook.id ? { ...item, coverUrl } : item
+              item.id === book.id ? { ...item, coverUrl: '' } : item
             )
           )
+          setCoverBook((prev) =>
+            prev?.id === book.id ? { ...prev, coverUrl: '' } : prev
+          )
         }}
+        onRefreshJob={refreshBookJob}
       />
     </AdminPage>
   )
