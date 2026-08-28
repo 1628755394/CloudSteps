@@ -241,32 +241,25 @@ func (j *wordBookBatchAudioJob) finish(status, errMsg string) {
 func (h *Handlers) adminListWordBookBatchAudioJobs(c *gin.Context) {
 	reqCtx := c.Request.Context()
 	jobs := make([]gin.H, 0, 8)
-	wordBookBatchAudioJobs.Range(func(_, value any) bool {
+	hasQueued := false
+
+	wordBookBatchAudioJobs.Range(func(key, value any) bool {
 		if reqCtx.Err() != nil {
 			return false
 		}
 		job, ok := value.(*wordBookBatchAudioJob)
 		if !ok || job == nil {
+			wordBookBatchAudioJobs.Delete(key)
 			return true
 		}
 		snap := job.snapshot()
 		status, _ := snap["status"].(string)
 		if status != batchAudioQueued && status != batchAudioRunning {
+			wordBookBatchAudioJobs.Delete(key)
 			return true
 		}
 		if status == batchAudioQueued {
-			wordBookBatchAudioQueueMu.Lock()
-			q := wordBookBatchAudioQ
-			workers := wordBookBatchAudioWorkers
-			wordBookBatchAudioQueueMu.Unlock()
-			snap["queueWorkers"] = workers
-			if q != nil {
-				if taskID, _ := snap["taskId"].(string); taskID != "" {
-					if pos, err := q.Position(reqCtx, taskID); err == nil && pos >= 0 {
-						snap["queuePosition"] = pos
-					}
-				}
-			}
+			hasQueued = true
 		}
 		jobs = append(jobs, snap)
 		return true
@@ -281,12 +274,34 @@ func (h *Handlers) adminListWordBookBatchAudioJobs(c *gin.Context) {
 	q := wordBookBatchAudioQ
 	wordBookBatchAudioQueueMu.Unlock()
 
+	if hasQueued && q != nil {
+		for i := range jobs {
+			status, _ := jobs[i]["status"].(string)
+			if status != batchAudioQueued {
+				continue
+			}
+			taskID, _ := jobs[i]["taskId"].(string)
+			if taskID == "" {
+				continue
+			}
+			posCtx, cancel := context.WithTimeout(reqCtx, 2*time.Second)
+			pos, err := q.Position(posCtx, taskID)
+			cancel()
+			if err == nil && pos >= 0 {
+				jobs[i]["queuePosition"] = pos
+			}
+		}
+	}
+
 	out := gin.H{
 		"jobs":         jobs,
 		"queueWorkers": workers,
 	}
-	if q != nil {
-		if stats, err := q.Stats(reqCtx); err == nil {
+	if hasQueued && q != nil {
+		statsCtx, cancel := context.WithTimeout(reqCtx, 2*time.Second)
+		stats, err := q.Stats(statsCtx)
+		cancel()
+		if err == nil {
 			out["queuePending"] = stats.Pending
 			out["queueRunning"] = stats.Running
 		}

@@ -47,11 +47,24 @@ export function useWordBookAudioJobs(books: BookRef[]) {
   useEffect(() => {
     let stopped = false
     let knownActive = new Set<number>()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const POLL_FAST_MS = 2000
+    const POLL_SLOW_MS = 8000
+    const POLL_IDLE_MS = 30000
+    const JOBS_TIMEOUT_MS = 8000
+
+    const schedule = (ms: number) => {
+      if (timer) window.clearTimeout(timer)
+      timer = window.setTimeout(() => void tick(), ms)
+    }
 
     const tick = async () => {
+      if (stopped) return
+      let nextMs = POLL_IDLE_MS
       try {
         const res = await get<{ jobs?: BatchJobSnap[] }>(
-          '/wordbooks/batch-audio/jobs'
+          '/wordbooks/batch-audio/jobs',
+          { timeout: JOBS_TIMEOUT_MS }
         )
         if (stopped) return
         const remote = res.data?.jobs || []
@@ -109,7 +122,7 @@ export function useWordBookAudioJobs(books: BookRef[]) {
               total?: number
               success?: number
               error?: string
-            }>(`/wordbooks/${id}/words/batch-audio`)
+            }>(`/wordbooks/${id}/words/batch-audio`, { timeout: JOBS_TIMEOUT_MS })
             if (stopped) return
             const status = one.data?.status || 'idle'
             if (status === 'failed') {
@@ -133,18 +146,17 @@ export function useWordBookAudioJobs(books: BookRef[]) {
         }
 
         knownActive = nextActive
+        nextMs = nextActive.size > 0 ? POLL_FAST_MS : POLL_IDLE_MS
       } catch {
-        // keep polling
+        nextMs = POLL_SLOW_MS
       }
+      if (!stopped) schedule(nextMs)
     }
 
     void tick()
-    const timer = window.setInterval(() => {
-      void tick()
-    }, 2000)
     return () => {
       stopped = true
-      window.clearInterval(timer)
+      if (timer) window.clearTimeout(timer)
     }
   }, [])
 

@@ -129,6 +129,10 @@ func getDefaultEndpointTimeouts() map[string]time.Duration {
 
 		// 存储统计接口：2分钟超时（云厂商 stats API 可能较慢）
 		"/api/admin/storage/stats/": 2 * time.Minute,
+
+		// 词库列表轮询：轻量接口，快速失败避免占用 30s 默认超时
+		"/api/wordbooks/batch-audio/jobs": 8 * time.Second,
+		"/api/wordbooks/cover-ai/jobs":    8 * time.Second,
 	}
 }
 

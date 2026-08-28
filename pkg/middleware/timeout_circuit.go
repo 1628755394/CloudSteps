@@ -349,6 +349,10 @@ func DefaultTimeoutConfig() TimeoutConfig {
 			// 语音相关：30秒超时
 			"/api/voice/training/create": 30 * time.Second,
 			"/api/voice/synthesis":       30 * time.Second,
+
+			// 词库列表轮询
+			"/api/wordbooks/batch-audio/jobs": 8 * time.Second,
+			"/api/wordbooks/cover-ai/jobs":    8 * time.Second,
 		},
 		FallbackResponse: map[string]interface{}{
 			"error":   "service_unavailable",
