@@ -1,0 +1,11 @@
+feat(web): 封装 EmptyState 空状态组件并替换 Feedback 页空状态
+
+- 新增 web/src/components/EmptyState.tsx
+  - 支持传入 iconfont 图标类名（如 icon-zanwugongdan）
+  - 支持 title、description 自定义
+  - 未提供 icon 时回退到 Lucide Inbox 图标
+- Feedback 页面工单列表为空时使用 EmptyState 组件
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

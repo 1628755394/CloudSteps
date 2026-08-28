@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle, Plus } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
-import { CloudCard, CloudEmpty, CloudSpin } from "../components/cloudsteps/arco";
+import { CloudCard, CloudSpin } from "../components/cloudsteps/arco";
+import { EmptyState } from "../components/EmptyState";
 import { PageBackHeader } from "../components/PageBackHeader";
 import { showToast } from "../utils/toast";
 import {
@@ -277,7 +278,7 @@ export default function Feedback() {
               {loading ? (
                 <CloudSpin tip="加载工单…" />
               ) : tickets.length === 0 ? (
-                <CloudEmpty description="还没有工单" />
+                <EmptyState icon="icon-zanwugongdan" description="还没有工单" />
               ) : (
                 <CloudCard className="p-1.5">
                   <div className="divide-y divide-border">
