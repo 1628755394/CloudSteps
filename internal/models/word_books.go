@@ -18,7 +18,8 @@ type WordLite struct {
 	Phonetic      string `json:"phonetic"`
 	PhoneticUK    string `json:"phoneticUk"`
 	PhoneticUS    string `json:"phoneticUs"`
-	Translation   string `json:"translation"`
+	Translation     string `json:"translation"`
+	TranslationShort string `json:"translationShort" gorm:"type:text;comment:简译"`
 	PartOfSpeech  string `json:"partOfSpeech"`
 	Definition    string `json:"definition"`
 	AudioURL      string `json:"audioUrl"`
@@ -68,6 +69,7 @@ type Word struct {
 	Word            string `json:"word" gorm:"size:128;not null;index;comment:英文单词"`
 	Phonetic        string `json:"phonetic" gorm:"size:128;comment:音标"`
 	Translation     string `json:"translation" gorm:"type:text;comment:中文释义 JSON数组"`
+	TranslationShort string `json:"translationShort" gorm:"type:text;comment:简译"`
 	ExampleSentence string `json:"exampleSentence" gorm:"type:text;comment:例句"`
 	AudioURL        string `json:"audioUrl" gorm:"size:512;comment:发音音频URL"`
 	Difficulty      int8   `json:"difficulty" gorm:"default:1;comment:难度 1-5"`

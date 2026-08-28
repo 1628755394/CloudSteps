@@ -25,6 +25,7 @@ type adminWordPayload struct {
 	PhoneticUK       string `json:"phoneticUk"`
 	Lemma            string `json:"lemma"`
 	Translation      string `json:"translation"`
+	TranslationShort string `json:"translationShort"`
 	ExampleSentence  string `json:"exampleSentence"`
 	ExampleSentences string `json:"exampleSentences"`
 	AudioURL         string `json:"audioUrl"`
@@ -76,6 +77,7 @@ func (p adminWordPayload) toWord(bookID uint) models.Word {
 		PhoneticUK:       p.PhoneticUK,
 		Lemma:            p.Lemma,
 		Translation:      p.Translation,
+		TranslationShort: p.TranslationShort,
 		ExampleSentence:  p.ExampleSentence,
 		ExampleSentences: p.ExampleSentences,
 		AudioURL:         audio.DeduplicateSlots(p.AudioURL),
@@ -759,6 +761,10 @@ func (h *Handlers) adminUpdateWord(c *gin.Context) {
 	if v, ok := body["audioUrl"]; ok {
 		body["audio_url"] = audio.DeduplicateSlots(strings.TrimSpace(fmt.Sprint(v)))
 		delete(body, "audioUrl")
+	}
+	if v, ok := body["translationShort"]; ok {
+		body["translation_short"] = strings.TrimSpace(fmt.Sprint(v))
+		delete(body, "translationShort")
 	}
 	if err := models.UpdateWord(db, uint(wid), body); err != nil {
 		response.Fail(c, "更新失败", err)
