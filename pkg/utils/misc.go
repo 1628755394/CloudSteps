@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"go.uber.org/zap"
 )
 

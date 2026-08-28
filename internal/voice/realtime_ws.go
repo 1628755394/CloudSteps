@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/voice/realtime"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"

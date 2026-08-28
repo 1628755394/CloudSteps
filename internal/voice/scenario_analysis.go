@@ -11,7 +11,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/CloudStepsGo/pkg/llm"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"go.uber.org/zap"
 )
 
@@ -393,14 +393,10 @@ func generateAIReview(ctx context.Context, scenario *models.ScenarioDialogueScen
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
-	provider, err := llm.NewLLMProvider(ctx, "openai", apiKey, baseURL, "你是专业的英语口语教练，输出简洁中文分析。")
-	if err != nil {
-		logger.Lg.Warn("scenario AI review: provider init failed", zap.Error(err))
-		return ""
-	}
+	cfg := llm.Config{APIKey: apiKey, BaseURL: baseURL, Model: model}
 	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
-	text, err := provider.Query(prompt, model)
+	text, err := llm.Chat(ctx, cfg, "你是专业的英语口语教练，输出简洁中文分析。", prompt)
 	if err != nil {
 		logger.Lg.Warn("scenario AI review: query failed", zap.Error(err))
 		return ""

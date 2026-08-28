@@ -15,7 +15,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

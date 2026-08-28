@@ -11,7 +11,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/middleware"
 	"github.com/LingByte/ling-base/common"
 	lbconfig "github.com/LingByte/ling-base/common/config"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"go.uber.org/zap"
 
 	"gorm.io/gorm"

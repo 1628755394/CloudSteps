@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/pkg/synthesizer"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/queue"
 	memoryqueue "github.com/LingByte/ling-base/queue/memory"
 	"go.uber.org/zap"

@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/notification/email"
 	"github.com/LingByte/ling-base/notification/inbox"
 	"go.uber.org/zap"

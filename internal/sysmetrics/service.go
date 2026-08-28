@@ -9,7 +9,7 @@ import (
 	"github.com/LingByte/ling-base/common/stats"
 	ginstats "github.com/LingByte/ling-base/common/stats/gin"
 	"github.com/LingByte/ling-base/common/stats/memory"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

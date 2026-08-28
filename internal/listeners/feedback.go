@@ -7,7 +7,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/notify"
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	common "github.com/LingByte/ling-base/common"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
