@@ -284,7 +284,6 @@ export default function PostTrainingCheck() {
 
   const wrongWords = useMemo(() => words.filter((w) => w.status === "wrong"), [words]);
   const allMarked = useMemo(() => words.length > 0 && words.every((w) => w.status !== null), [words]);
-  const unmarkedCount = useMemo(() => words.filter((w) => w.status === null).length, [words]);
 
   const submitLabel = useMemo(() => {
     if (mode === "review") return "完成复习";
@@ -587,10 +586,9 @@ export default function PostTrainingCheck() {
         )}
       </StudyNoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-2.5 shadow-lg">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <CloudButton
               type="button"
               variant={note.open ? "brand" : "outline"}
@@ -629,41 +627,19 @@ export default function PostTrainingCheck() {
               拓展
             </CloudButton>
           </div>
-          <div className="text-sm text-[#718096] text-right">
-            正确 <span className="text-[#4ECDC4] font-semibold">{correctCount}</span> · 错误{" "}
-            <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
-            {mode === "study" && isRecheckMode && (
-              <span className="block text-xs text-[#A0AEC0] mt-1">错词复检 · 仅显示刚重练的单词</span>
-            )}
-            {mode === "study" && !isRecheckMode && checkPhase === "milestone" && (
-              <span className="block text-xs text-[#A0AEC0] mt-1">
-                组内复习 · 打 × 将回到快闪剪刀重练
-              </span>
-            )}
-            {mode === "study" && checkPhase === "final" && wrongWords.length > 0 && (
-              <span className="block text-xs text-[#A0AEC0] mt-1">
-                训后检测 · 错词需快闪重练后再提交
-              </span>
-            )}
-          </div>
-        </div>
-        <CloudButton
-          type="button"
-          variant="brand"
-          size="pill"
-          className="w-full"
-          onClick={handleSubmit}
-          disabled={!allMarked || submitting}
-          loading={submitting}
-          loadingText="提交中…"
-        >
-          {submitLabel}
-        </CloudButton>
-        {!allMarked && words.length > 0 && (
-          <p className="text-center text-sm text-[#FF6B6B] mt-2 font-medium">
-            还有 {unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交
-          </p>
-        )}
+          <CloudButton
+            type="button"
+            variant="brand"
+            size="pill"
+            className="shrink-0"
+            onClick={handleSubmit}
+            disabled={!allMarked || submitting}
+            loading={submitting}
+            loadingText="提交中…"
+            title={submitLabel}
+          >
+            {submitLabel}
+          </CloudButton>
         </div>
       </div>
     </FlowPageShell>

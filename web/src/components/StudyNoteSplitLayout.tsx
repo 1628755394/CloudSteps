@@ -34,7 +34,7 @@ export function StudyNoteSplitLayout({
         className={`box-border min-h-[calc(100dvh-9.5rem)] w-full ${
           split
             ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2"
-            : "pb-36 max-w-2xl lg:max-w-5xl mx-auto px-4"
+            : "pb-20 max-w-2xl lg:max-w-5xl mx-auto px-4"
         }`}
         style={split ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}
       >
