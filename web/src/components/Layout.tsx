@@ -139,14 +139,16 @@ function SidebarPanel({
         <div className="inline-flex items-center gap-2 px-2.5 py-0.5 bg-primary-soft rounded-lg mb-2">
           <span className="text-xs text-primary font-semibold">正式陪练</span>
         </div>
-        <div className="text-xs text-muted-foreground mb-0.5">{greetingText}</div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <CloudImageWithFallback
             src={avatarSrc}
             alt={userName || "头像"}
-            className="size-7 rounded-full object-cover border border-border bg-card"
+            className="size-10 rounded-full object-cover border border-border bg-card"
           />
-          <p className="text-foreground font-medium text-sm">Hi, {userName || "-"}</p>
+          <div>
+            <div className="text-xs text-muted-foreground">{greetingText}</div>
+            <p className="text-foreground font-medium text-sm">Hi, {userName || "-"}</p>
+          </div>
         </div>
       </div>
       <NavMenu items={items} activePath={pathname} onNavigate={onNavigate} />
