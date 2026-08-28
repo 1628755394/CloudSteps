@@ -402,16 +402,16 @@ export function WordBooksPage() {
                 )}
               </CardHeader>
               <CardContent className='space-y-3'>
-                <div className='relative'>
+                <div className='relative w-full aspect-[1792/1024] overflow-hidden rounded-md border bg-muted'>
                   {coverSrc ? (
                     <img
                       src={coverSrc}
                       alt={`${b.name} 封面`}
-                      className='h-28 w-full rounded-md border object-cover bg-muted'
+                      className='absolute inset-0 h-full w-full object-cover'
                     />
                   ) : (
                     <div
-                      className='flex h-28 w-full items-center justify-center rounded-md border border-dashed bg-muted/40 text-sm text-muted-foreground'
+                      className='flex h-full w-full items-center justify-center bg-muted/40 text-sm text-muted-foreground'
                     >
                       暂无封面
                     </div>
@@ -420,7 +420,7 @@ export function WordBooksPage() {
                     type='button'
                     size='sm'
                     variant='secondary'
-                    className='absolute bottom-2 right-2 shadow-sm'
+                    className='absolute bottom-2 right-2 z-10 shadow-sm'
                     onClick={() => setCoverBook(b)}
                   >
                     {coverBusy ? (

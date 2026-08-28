@@ -485,13 +485,13 @@ export function WordbookCoverDrawer({
 
             <Section title='预览'>
               <div
-                className='flex min-h-[180px] items-center justify-center rounded-md border border-dashed bg-muted/20 p-4'
+                className='relative flex w-full aspect-[1792/1024] items-center justify-center overflow-hidden rounded-md border border-dashed bg-muted/20'
               >
                 {preview ? (
                   <img
                     src={preview}
                     alt='封面预览'
-                    className='max-h-56 w-full rounded-md object-contain shadow-sm'
+                    className='absolute inset-0 h-full w-full object-cover'
                   />
                 ) : (
                   <div className='flex flex-col items-center gap-2 text-muted-foreground'>

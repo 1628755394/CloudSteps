@@ -381,9 +381,9 @@ export default function WordBooks() {
                     interactive
                     className="overflow-hidden h-full transition-colors group-hover:border-primary"
                   >
-                    {/* 封面区域 */}
+                    {/* 封面区域 1792×1024 */}
                     <div
-                      className={`h-24 flex flex-col items-center justify-center relative ${
+                      className={`relative w-full aspect-[1792/1024] ${
                         coverImage ? "bg-muted" : `bg-gradient-to-br ${gradient}`
                       }`}
                     >
@@ -394,7 +394,7 @@ export default function WordBooks() {
                           className="absolute inset-0 w-full h-full object-cover"
                         />
                       ) : cover ? (
-                        <>
+                        <div className='flex h-full w-full flex-col items-center justify-center'>
                           <span className="text-white/90 text-xs font-medium tracking-wide">
                             {cover.t1}
                           </span>
@@ -406,11 +406,13 @@ export default function WordBooks() {
                               {cover.tag}
                             </span>
                           )}
-                        </>
+                        </div>
                       ) : (
-                        <span className="text-white text-sm font-bold text-center px-2 line-clamp-2">
-                          {b.name}
-                        </span>
+                        <div className="flex h-full w-full items-center justify-center px-2">
+                          <span className="text-white text-sm font-bold text-center line-clamp-2">
+                            {b.name}
+                          </span>
+                        </div>
                       )}
                       {b.level ? (
                         <span className="absolute top-2 left-2 z-10 text-[10px] font-medium px-2 py-0.5 rounded-md bg-white/90 text-charcoal">
