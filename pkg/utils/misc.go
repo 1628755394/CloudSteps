@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,34 +14,20 @@ import (
 	"time"
 
 	"github.com/LingByte/ling-base/common/logger"
+	"github.com/LingByte/ling-base/common/random"
 	"go.uber.org/zap"
 )
 
-var letterRunes = []rune("0123456789abcdefghijklmnopqrstuvwxyz")
-var numberRunes = []rune("0123456789")
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-func randRunes(n int, source []rune) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = source[rand.Intn(len(source))]
-	}
-	return string(b)
-}
-
 func RandText(n int) string {
-	return randRunes(n, letterRunes)
+	return random.StringWithCharset(n, random.CharsetAlphaLower+random.CharsetNumeric)
 }
 
 func RandNumberText(n int) string {
-	return randRunes(n, numberRunes)
+	return random.NumericString(n)
 }
 
 func RandString(n int) string {
-	return randRunes(n, letterRunes)
+	return RandText(n)
 }
 
 func SafeCall(f func() error, failHandle func(error)) error {
@@ -94,10 +79,7 @@ func StructAsMap(form any, fields []string) (vals map[string]any) {
 
 // GenerateSecureToken generate a fixed-length secure token
 func GenerateSecureToken(length int) (string, error) {
-	token := make([]byte, length)
-	if _, err := rand.Read(token); err != nil {
-		return "", err
-	}
+	token := random.Bytes(length)
 	return base64.URLEncoding.EncodeToString(token), nil
 }
 

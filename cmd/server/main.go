@@ -169,8 +169,10 @@ func main() {
 
 	// 15. Initialize Gin Routing
 	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()        // Use gin.New() instead of gin.Default() to avoid automatic redirects
-	r.Use(gin.Recovery()) // Manually add Recovery middleware
+	r := gin.New() // Use gin.New() instead of gin.Default() to avoid automatic redirects
+	r.Use(middleware.RequestIDMiddleware())
+	r.Use(middleware.PanicRecovery())
+	r.Use(middleware.SecurityHeadersMiddleware())
 	r.LoadHTMLGlob("templates/**/**")
 
 	// Disable automatic redirects to avoid CORS issues caused by 307 redirects
@@ -196,7 +198,7 @@ func main() {
 	// Cors Handle Middleware
 	r.Use(middleware.CorsMiddleware())
 
-	// Logger Handle Middleware
+	// Logger Handle Middleware (after RequestID so X-Reqid is available)
 	r.Use(middleware.LoggerMiddleware(zap.L()))
 
 	// Static service for uploaded files

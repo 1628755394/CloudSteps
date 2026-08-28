@@ -9,6 +9,7 @@ require (
 	github.com/LingByte/ling-base/captcha v0.2.3
 	github.com/LingByte/ling-base/common v0.3.1
 	github.com/LingByte/ling-base/common/config v0.1.1
+	github.com/LingByte/ling-base/common/constants v0.1.1
 	github.com/LingByte/ling-base/common/geoip v0.1.0
 	github.com/LingByte/ling-base/common/imageutil v0.1.0
 	github.com/LingByte/ling-base/common/logger v0.1.1
@@ -78,7 +79,6 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/LingByte/ling-base/common/circuitbreaker v0.1.0 // indirect
-	github.com/LingByte/ling-base/common/constants v0.1.1 // indirect
 	github.com/LingByte/ling-base/common/idgen v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/logger/gin v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/pool v0.1.0 // indirect

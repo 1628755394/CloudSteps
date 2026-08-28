@@ -23,6 +23,10 @@ func OperationLogMiddleware() gin.HandlerFunc {
 		// 先执行后续处理，确保用户信息已经设置
 		c.Next()
 
+		if OperationAlreadyLogged(c) {
+			return
+		}
+
 		// 获取用户信息，如果没有用户信息则跳过记录
 		user, exists := c.Get(constants.UserField)
 		if !exists {
@@ -63,6 +67,8 @@ func OperationLogMiddleware() gin.HandlerFunc {
 		action := c.Request.Method
 		target := c.Request.URL.Path
 		details := operationLogConfig.GetOperationDescription(action, target)
+
+		MarkOperationLogged(c)
 
 		// 记录操作日志（异步执行，避免影响响应时间）
 		go func() {

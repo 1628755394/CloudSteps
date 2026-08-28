@@ -1,5 +1,9 @@
 package constants
 
+import (
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+)
+
 const (
 	USER_TABLE_NAME             = "users"
 	USER_DEVICE_TABLE_NAME      = "user_devices"
@@ -29,7 +33,10 @@ const ENV_SESSION_EXPIRE_DAYS = "SESSION_EXPIRE_DAYS"
 // DB
 const ENV_DB_DRIVER = "DB_DRIVER"
 const ENV_DSN = "DSN"
-const DbField = "_CloudStepsGo_db"
+
+// DbField is the gin context key for *gorm.DB (aligned with ling-base InjectDB).
+const DbField = lbconstants.DbField
+
 const ConfigField = "_CloudStepsGo_config"
 const UserField = "_CloudStepsGo_uid"
 const GroupField = "_CloudStepsGo_gid"

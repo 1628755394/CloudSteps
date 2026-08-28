@@ -5,7 +5,6 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/ling-base/common"
-	lbmw "github.com/LingByte/ling-base/middleware"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-contrib/sessions/memstore"
@@ -14,11 +13,11 @@ import (
 
 // CorsMiddleware handles cross-origin resource sharing via ling-base.
 func CorsMiddleware() gin.HandlerFunc {
-	return lbmw.CORSWithConfig(lbmw.CORSConfig{
+	return CORSWithConfig(CORSConfig{
 		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodOptions, http.MethodHead},
-		AllowHeaders:     []string{"Content-Type", "Authorization", "Origin", "X-API-KEY", "X-API-SECRET", "X-Requested-With"},
-		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "Origin", "X-API-KEY", "X-API-SECRET", "X-Requested-With", "X-Reqid"},
+		ExposeHeaders:    []string{"Content-Length", "Content-Type", "X-Reqid"},
 		AllowCredentials: true,
 		MaxAge:           86400,
 	})
@@ -44,29 +43,32 @@ func GetCarrotSessionField() string {
 	return v
 }
 
-// SecurityMiddlewareChain returns security middleware chain
+// SecurityHeadersMiddleware applies ling-base security response headers
+// without CSRF / XSS mutation / input-validation (those break JSON API clients).
+func SecurityHeadersMiddleware() gin.HandlerFunc {
+	cfg := DefaultSecurityConfig()
+	// Align with server MaxMultipartMemory (32MB) so cover/audio uploads are not rejected.
+	cfg.MaxRequestSize = 32 << 20
+	return SecurityMiddleware(cfg)
+}
+
+// SecurityMiddlewareChain returns the full ling-base security chain
+// (headers + XSS + input validation + CSRF). Prefer SecurityHeadersMiddleware
+// for JSON APIs; use this only when cookie-form CSRF is required.
 func SecurityMiddlewareChain() []gin.HandlerFunc {
 	config := DefaultSecurityConfig()
 
 	return []gin.HandlerFunc{
-		// 1. Basic security headers
 		SecurityMiddleware(config),
-
-		// 2. XSS protection
 		XSSProtectionMiddleware(),
-
-		// 3. Input validation
 		InputValidationMiddleware(),
-
-		// 4. CSRF protection (only for state-changing operations)
 		CSRFMiddleware(config),
 	}
 }
 
-// ApplySecurityMiddleware applies security middleware to router group
+// ApplySecurityMiddleware applies SecurityMiddlewareChain to a router group.
 func ApplySecurityMiddleware(r *gin.RouterGroup) {
-	middlewares := SecurityMiddlewareChain()
-	for _, middleware := range middlewares {
-		r.Use(middleware)
+	for _, mw := range SecurityMiddlewareChain() {
+		r.Use(mw)
 	}
 }

@@ -19,7 +19,7 @@ func TestConstants(t *testing.T) {
 	// Test database related constants
 	assert.Equal(t, "DB_DRIVER", ENV_DB_DRIVER, "ENV_DB_DRIVER should be 'DB_DRIVER'")
 	assert.Equal(t, "DSN", ENV_DSN, "ENV_DSN should be 'DSN'")
-	assert.Equal(t, "_CloudStepsGo_db", DbField, "DbField should be '_CloudStepsGo_db'")
+	assert.Equal(t, "_ling_db", DbField, "DbField should match ling-base common/constants.DbField")
 	assert.Equal(t, "_CloudStepsGo_uid", UserField, "UserField should be '_CloudStepsGo_uid'")
 	assert.Equal(t, "_CloudStepsGo_gid", GroupField, "GroupField should be '_CloudStepsGo_gid'")
 	assert.Equal(t, "_CloudStepsGo_tz", TzField, "TzField should be '_CloudStepsGo_tz'")
