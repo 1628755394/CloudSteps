@@ -51,17 +51,58 @@ func TestPreparePasswordLogin_acceptsUsernameOrEmail(t *testing.T) {
 	}
 }
 
-func TestPreparePasswordRegister_rejectsPublicSignup(t *testing.T) {
+func TestPreparePasswordRegister_acceptsUsername(t *testing.T) {
 	form := &models.RegisterUserForm{
-		Username: "user@example.com",
+		Username: "teacher01",
+		Password: "password1",
+	}
+	if err := PreparePasswordRegister(form); err != nil {
+		t.Fatalf("PreparePasswordRegister() error = %v", err)
+	}
+	if form.Username != "teacher01" {
+		t.Fatalf("username = %q", form.Username)
+	}
+	if form.DisplayName != "teacher01" {
+		t.Fatalf("displayName = %q", form.DisplayName)
+	}
+}
+
+func TestPreparePasswordRegister_acceptsAtSignWithoutEmailRules(t *testing.T) {
+	form := &models.RegisterUserForm{
+		Username: "a@b",
+		Password: "password1",
+	}
+	if err := PreparePasswordRegister(form); err != nil {
+		t.Fatalf("username with @ should not require email format: %v", err)
+	}
+}
+
+func TestPreparePasswordRegister_rejectsShortUsername(t *testing.T) {
+	form := &models.RegisterUserForm{
+		Username: "a",
 		Password: "password1",
 	}
 	err := PreparePasswordRegister(form)
 	if err == nil {
-		t.Fatal("password register should be disabled")
+		t.Fatal("expected username length error")
 	}
-	if AbortMessage(err) != "请使用邮箱验证码注册" {
+	if AbortMessage(err) != "账号至少 2 个字符" {
 		t.Fatalf("msg = %q", AbortMessage(err))
+	}
+}
+
+func TestPreparePasswordRegister_rejectsShortPassword(t *testing.T) {
+	form := &models.RegisterUserForm{
+		Username: "teacher01",
+		Password: "123",
+	}
+	err := PreparePasswordRegister(form)
+	if err == nil {
+		t.Fatal("expected password validation error")
+	}
+	msg := AbortMessage(err)
+	if msg != "密码至少 6 位" && msg != "长度不符合要求" {
+		t.Fatalf("msg = %q", msg)
 	}
 }
 

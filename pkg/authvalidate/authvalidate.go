@@ -125,8 +125,21 @@ func validateAccount(account string) error {
 	if strings.Contains(account, "@") {
 		return check(lbvalidate.ValidateWithTag(normalizeEmail(account), "email"))
 	}
-	if err := check(lbvalidate.ValidateWithTag(account, "required,min=2,max=30")); err != nil {
-		return err
+	return validateUsername(account)
+}
+
+// validateUsername only checks non-empty + length. No email / charset rules.
+func validateUsername(account string) error {
+	account = normalizeText(account)
+	if account == "" {
+		return lbvalidate.FieldError{Field: "Username", Rule: "required", Message: "is required"}
+	}
+	runes := []rune(account)
+	if len(runes) < 2 {
+		return lbvalidate.FieldError{Field: "Username", Rule: "min", Message: "min:2"}
+	}
+	if len(runes) > 30 {
+		return lbvalidate.FieldError{Field: "Username", Rule: "max", Message: "max:30"}
 	}
 	return nil
 }
@@ -196,15 +209,28 @@ func PrepareEmailCodeLogin(form *models.UserOperatorForm) error {
 	return nil
 }
 
-var ErrPasswordRegisterDisabled = errors.New("请使用邮箱验证码注册")
-
-// PreparePasswordRegister rejects public password signup. Learners register
-// with an email verification code via PrepareEmailRegister.
+// PreparePasswordRegister normalizes and validates username/password signup.
+// Username has no format requirement beyond length (2–30 runes).
 func PreparePasswordRegister(form *models.RegisterUserForm) error {
 	if form == nil {
 		return errors.New("invalid request")
 	}
-	return ErrPasswordRegisterDisabled
+	account := normalizeText(form.Username)
+	if err := validateUsername(account); err != nil {
+		return err
+	}
+	form.Username = account
+	if err := validatePassword(form.Password); err != nil {
+		return err
+	}
+	form.Password = normalizeText(form.Password)
+	form.DisplayName = normalizeText(form.DisplayName)
+	if form.DisplayName == "" {
+		form.DisplayName = form.Username
+	} else if err := check(lbvalidate.ValidateWithTag(form.DisplayName, "max=50")); err != nil {
+		return err
+	}
+	return nil
 }
 
 // PrepareEmailRegister normalizes and validates email-code registration.

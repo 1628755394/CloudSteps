@@ -37,26 +37,29 @@ import (
 // registerAuthRoutes User Module
 func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 	auth := r.Group(config.GlobalConfig.Server.AuthPrefix)
+	// IP-based auth throttle (ling-base); covers unauthenticated login/register
+	// where the global RateLimiter endpoint buckets require a user id.
+	authLimit := middleware.AuthRateLimiter(30, time.Minute, 30)
 	{
 		// register
 		auth.GET("/register", h.handleUserSignupPage)
-		auth.POST("/register", h.handleUserSignup)
-		auth.POST("/register/email", h.handleUserSignupByEmail)
-		auth.POST("/send/email", h.handleSendEmailCode)
+		auth.POST("/register", authLimit, h.handleUserSignup)
+		auth.POST("/register/email", authLimit, h.handleUserSignupByEmail)
+		auth.POST("/send/email", authLimit, h.handleSendEmailCode)
 
 		// captcha
 		auth.GET("/captcha", h.handleGetCaptcha)
-		auth.POST("/captcha/verify", h.handleVerifyCaptcha)
+		auth.POST("/captcha/verify", authLimit, h.handleVerifyCaptcha)
 
 		// password encryption salt
 		auth.GET("/salt", h.handleGetSalt)
 
 		// login
 		auth.GET("/login", h.handleUserSigninPage)
-		auth.POST("/login", h.handleUserSignin)
-		auth.POST("/login/password", h.handleUserSigninByPassword)
-		auth.POST("/login/username", h.handleUserSigninByUsername)
-		auth.POST("/login/email", h.handleUserSigninByEmail)
+		auth.POST("/login", authLimit, h.handleUserSignin)
+		auth.POST("/login/password", authLimit, h.handleUserSigninByPassword)
+		auth.POST("/login/username", authLimit, h.handleUserSigninByUsername)
+		auth.POST("/login/email", authLimit, h.handleUserSigninByEmail)
 
 		// logout
 		auth.GET("/logout", models.AuthRequired, h.handleUserLogout)
@@ -64,8 +67,8 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 
 		// password management
 		auth.GET("/reset-password", h.handleUserResetPasswordPage)
-		auth.POST("/reset-password", h.handleResetPassword)
-		auth.POST("/reset-password/confirm", h.handleResetPasswordConfirm)
+		auth.POST("/reset-password", authLimit, h.handleResetPassword)
+		auth.POST("/reset-password/confirm", authLimit, h.handleResetPasswordConfirm)
 		auth.POST("/change-password", models.AuthRequired, h.handleChangePassword)
 		auth.POST("/change-password/email", models.AuthRequired, h.handleChangePasswordByEmail)
 
@@ -574,7 +577,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	}
 
 	db := c.MustGet(constants.DbField).(*gorm.DB)
-	if models.IsExistsByUsername(db, form.Username) || models.IsExistsByEmail(db, form.Username) {
+	if models.IsExistsByUsername(db, form.Username) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "username already exists")
 		}
@@ -597,13 +600,9 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
 		}
-		logger.Warn("create user failed", zap.Any("email", form.Username), zap.Error(err))
+		logger.Warn("create user failed", zap.String("username", form.Username), zap.Error(err))
 		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
-	}
-
-	if err := models.SetEmail(db, user, form.Username); err != nil {
-		logger.Warn("bind email on password register failed", zap.Uint("userId", user.ID), zap.Error(err))
 	}
 
 	// 记录成功注册
@@ -648,7 +647,8 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	}
 	models.Login(c, user)
 	response.SuccessMsg(c, "signup success", gin.H{
-		"email": user.Username,
+		"username": user.Username,
+		"email":    user.Email,
 	})
 }
 

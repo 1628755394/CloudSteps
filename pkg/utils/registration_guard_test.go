@@ -318,8 +318,8 @@ func TestRegistrationGuard_CheckRegistrationAllowed_Username(t *testing.T) {
 	defer cleanup()
 
 	err := rg.CheckRegistrationAllowed("192.168.1.1", "teacher01", "password123")
-	if err == nil {
-		t.Fatal("public registration should require an email")
+	if err != nil {
+		t.Fatalf("username registration should be allowed: %v", err)
 	}
 }
 
@@ -327,12 +327,10 @@ func TestRegistrationGuard_CheckRegistrationAllowed_InvalidEmail(t *testing.T) {
 	rg, cleanup := setupTestRegistrationGuard(t)
 	defer cleanup()
 
+	// Username registration no longer requires email format.
 	err := rg.CheckRegistrationAllowed("192.168.1.1", "not-an-email@", "password123")
-	if err == nil {
-		t.Fatal("invalid email account should be rejected")
-	}
-	if IsRegistrationThrottleError(err) {
-		t.Fatal("invalid email should not be treated as throttle")
+	if err != nil {
+		t.Fatalf("non-email username should be allowed: %v", err)
 	}
 }
 
