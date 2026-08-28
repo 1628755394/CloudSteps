@@ -13,9 +13,11 @@ import {
 import { Header } from "./header";
 import { NavMenu } from "./NavMenu";
 import { AnimatedOutlet } from "./PageTransition";
+import { CloudImageWithFallback } from "./cloudsteps";
 import { useAuthStore } from "../stores/authStore";
 import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
 import { useThemeStore, type LayoutMode } from "../stores/themeStore";
+import { teacherAvatarSrc } from "../utils/avatar";
 
 const navItems = [
   { path: "/", label: "首页", icon: Home },
@@ -119,6 +121,7 @@ function SidebarPanel({
   pathname,
   greetingText,
   userName,
+  avatarSrc,
   onNavigate,
   className = "",
 }: {
@@ -126,6 +129,7 @@ function SidebarPanel({
   pathname: string;
   greetingText: string;
   userName: string;
+  avatarSrc: string;
   onNavigate?: () => void;
   className?: string;
 }) {
@@ -136,7 +140,14 @@ function SidebarPanel({
           <span className="text-xs text-primary font-semibold">正式陪练</span>
         </div>
         <div className="text-xs text-muted-foreground mb-0.5">{greetingText}</div>
-        <p className="text-foreground font-medium text-sm">Hi, {userName || "-"}</p>
+        <div className="flex items-center gap-2">
+          <CloudImageWithFallback
+            src={avatarSrc}
+            alt={userName || "头像"}
+            className="size-7 rounded-full object-cover border border-border bg-card"
+          />
+          <p className="text-foreground font-medium text-sm">Hi, {userName || "-"}</p>
+        </div>
       </div>
       <NavMenu items={items} activePath={pathname} onNavigate={onNavigate} />
     </div>
@@ -148,7 +159,9 @@ export function Layout() {
   const layout = useThemeStore((s) => s.layout) as LayoutMode;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userRole = useAuthStore((s) => s.user?.role);
-  const userName = useAuthStore((s) => s.user?.displayName || s.user?.email || "");
+  const user = useAuthStore((s) => s.user);
+  const userName = user?.displayName || user?.email || "";
+  const avatarSrc = teacherAvatarSrc(user?.avatar);
 
   const greetingText = useMemo(() => {
     const hour = new Date().getHours();
@@ -268,6 +281,7 @@ export function Layout() {
             pathname={location.pathname}
             greetingText={greetingText}
             userName={userName}
+            avatarSrc={avatarSrc}
           />
         </aside>
       )}
@@ -294,6 +308,7 @@ export function Layout() {
               pathname={location.pathname}
               greetingText={greetingText}
               userName={userName}
+              avatarSrc={avatarSrc}
               onNavigate={closeMobileMenu}
             />
           </aside>
