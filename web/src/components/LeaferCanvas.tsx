@@ -719,12 +719,10 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       const layer = drawLayerRef.current;
       const container = containerRef.current;
       if (!app || !layer || !container) return;
-      const cw = container.clientWidth;
-      const ch = container.clientHeight;
       const text = new Text({
         text: "双击编辑文字",
-        x: cw / 2 - 80,
-        y: ch / 2 - fontSizeRef.current / 2,
+        x: 52,
+        y: 12,
         fill: colorRef.current,
         fontSize: fontSizeRef.current,
         editable: true,
