@@ -10,6 +10,7 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, Star } from '@nutui/icons-react-taro'
 import { CloudButton } from '../../components/button'
 import { getVocabStart } from '../../api/vocab'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 export default function VocabTest() {
@@ -44,7 +45,7 @@ export default function VocabTest() {
       {/* 顶部导航 */}
       <View className="vt__nav">
         <View className="vt__nav-back" onClick={handleBack}>
-          <ArrowLeft size={20} color="#37352f" />
+          <ArrowLeft size={20} color={color.charcoal} />
         </View>
         <Text className="vt__nav-title">词汇测试</Text>
         <View className="vt__nav-placeholder" />
@@ -59,7 +60,7 @@ export default function VocabTest() {
 
         <View className="vt__icon-wrap">
           <View className="vt__icon-circle">
-            <Star size={48} color="#4ECDC4" />
+            <Star size={48} color={color.primary} />
           </View>
         </View>
 

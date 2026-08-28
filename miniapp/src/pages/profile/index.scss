@@ -2,10 +2,9 @@
  * 个人中心样式 — Warm Mint 主题,移动端布局。
  */
 .profile {
-  min-height: 100vh;
-  background-color: var(--background);
-  padding: 32rpx 32rpx 64rpx;
-  box-sizing: border-box;
+  min-height: 100%;
+  background-color: #f6f5f4;
+  padding-top: 32px; padding-left: 32px; padding-right: 32px; padding-bottom: 64px;
 
   &--loading {
     display: flex;
@@ -14,8 +13,8 @@
   }
 
   &__loading-text {
-    color: var(--muted-foreground);
-    font-size: 28rpx;
+    color: #787671;
+    font-size: 28px;
   }
 }
 
@@ -23,81 +22,77 @@
 .profile__header {
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  padding: 32rpx;
-  background: linear-gradient(135deg, var(--primary) 0%, #55A3FF 100%);
-  border-radius: var(--radius-lg);
-  margin-bottom: 32rpx;
+  gap: 24px;
+  padding: 32px;
+  border-radius: 16px;
+  margin-bottom: 32px;
 }
 
 .profile__avatar {
-  width: 128rpx;
-  height: 128rpx;
-  border-radius: 999rpx;
+  width: 128px;
+  height: 128px;
+  border-radius: 999px;
   background-color: rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
-  border: 4rpx solid rgba(255, 255, 255, 0.4);
+  border: 4px solid rgba(255, 255, 255, 0.4);
 }
 
 .profile__avatar-img {
   width: 100%;
   height: 100%;
-  border-radius: 999rpx;
+  border-radius: 999px;
 }
 
 .profile__avatar-text {
   color: #ffffff;
-  font-size: 52rpx;
+  font-size: 52px;
   font-weight: 600;
 }
 
 .profile__user-info {
   flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 12px;
 }
 
 .profile__name {
   color: #ffffff;
-  font-size: 36rpx;
+  font-size: 36px;
   font-weight: 600;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .profile__role-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8rpx;
-  padding: 6rpx 20rpx;
+  gap: 8px;
+  padding: 6px 20px;
   background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 999rpx;
+  border-radius: 999px;
   align-self: flex-start;
 }
 
 .profile__role-text {
   color: #ffffff;
-  font-size: 22rpx;
+  font-size: 22px;
   font-weight: 500;
 }
 
 .profile__header-actions {
   display: flex;
-  gap: 16rpx;
+  gap: 16px;
   flex-shrink: 0;
 }
 
 .profile__icon-btn {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: var(--radius-sm);
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
   background-color: rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
@@ -107,84 +102,82 @@
 /* ============ 统计卡片 ============ */
 .profile__stats {
   display: flex;
-  gap: 16rpx;
-  margin-bottom: 32rpx;
+  gap: 16px;
+  margin-bottom: 32px;
 }
 
 .profile__stat-card {
   flex: 1;
-  background-color: var(--card);
-  border: 2rpx solid var(--border);
-  border-radius: var(--radius);
-  padding: 24rpx 16rpx;
+  background-color: #ffffff;
+  border: 2px solid #e5e3df;
+  border-radius: 12px;
+  padding: 24px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8rpx;
-  box-shadow: var(--shadow-rest);
+  gap: 8px;
 }
 
 .profile__stat-icon {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: var(--radius-sm);
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 4rpx;
+  margin-bottom: 4px;
 }
 
 .profile__stat-value {
-  font-size: 36rpx;
+  font-size: 36px;
   font-weight: 600;
-  color: var(--foreground);
+  color: #1a1a1a;
   line-height: 1.2;
 }
 
 .profile__stat-label {
-  font-size: 22rpx;
-  color: var(--muted-foreground);
+  font-size: 22px;
+  color: #787671;
 }
 
 /* ============ 通用 section ============ */
 .profile__section {
-  margin-bottom: 32rpx;
+  margin-bottom: 32px;
 }
 
 .profile__section-title {
-  display: block;
-  font-size: 30rpx;
+  display: flex;
+  font-size: 30px;
   font-weight: 600;
-  color: var(--charcoal);
-  margin-bottom: 16rpx;
-  padding-left: 8rpx;
+  color: #37352f;
+  margin-bottom: 16px;
+  padding-left: 8px;
 }
 
 .profile__card {
-  background-color: var(--card);
-  border: 2rpx solid var(--border);
-  border-radius: var(--radius);
+  background-color: #ffffff;
+  border: 2px solid #e5e3df;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: var(--shadow-rest);
 }
 
 /* ============ 信息列表项 ============ */
 .profile__info-item {
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  padding: 28rpx 32rpx;
+  gap: 24px;
+  padding: 28px 32px;
 
   &--border {
-    border-bottom: 2rpx solid var(--border);
+    border-bottom: 2px solid #e5e3df;
   }
 }
 
 .profile__info-icon {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: var(--radius-sm);
-  background-color: var(--surface-soft);
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background-color: #fafaf9;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -193,46 +186,39 @@
 
 .profile__info-content {
   flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 4px;
 }
 
 .profile__info-label {
-  font-size: 22rpx;
-  color: var(--muted-soft);
+  font-size: 22px;
+  color: #a4a097;
 }
 
 .profile__info-value {
-  font-size: 28rpx;
-  color: var(--charcoal);
+  font-size: 28px;
+  color: #37352f;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ============ 菜单列表项 ============ */
 .profile__menu-item {
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  padding: 28rpx 32rpx;
+  gap: 24px;
+  padding: 28px 32px;
 
   &--border {
-    border-bottom: 2rpx solid var(--border);
-  }
-
-  &:active {
-    background-color: var(--surface-soft);
+    border-bottom: 2px solid #e5e3df;
   }
 }
 
 .profile__menu-icon {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: var(--radius-sm);
-  background-color: var(--primary-soft);
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background-color: rgba(78, 205, 196, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -241,27 +227,26 @@
 
 .profile__menu-content {
   flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 4px;
 }
 
 .profile__menu-label {
-  font-size: 28rpx;
+  font-size: 28px;
   font-weight: 500;
-  color: var(--charcoal);
+  color: #37352f;
 }
 
 .profile__menu-desc {
-  font-size: 22rpx;
-  color: var(--muted-foreground);
+  font-size: 22px;
+  color: #787671;
 }
 
 /* ============ 退出登录 ============ */
 .profile__logout {
-  margin-top: 16rpx;
-  margin-bottom: 32rpx;
+  margin-top: 16px;
+  margin-bottom: 32px;
 }
 
 .profile__logout-btn {
@@ -274,10 +259,10 @@
 /* ============ 底部 ============ */
 .profile__footer {
   text-align: center;
-  padding: 16rpx 0;
+  padding: 16px 0px;
 }
 
 .profile__footer-text {
-  font-size: 22rpx;
-  color: var(--muted-soft);
+  font-size: 22px;
+  color: #a4a097;
 }

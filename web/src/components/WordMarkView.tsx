@@ -4,6 +4,7 @@ import { PRACTICE_TRANS_CLASS, PRACTICE_CARD_WORD_CLASS } from "./PracticeFontSe
 import { CloudButton } from "./cloudsteps";
 import { WordDetailPanel } from "./WordDetailPanel";
 import { StudyNoteLauncher } from "./StudyNotePanel";
+import { WordEditTrigger } from "./WordEditControls";
 
 export type MarkableWord = {
   id: number;
@@ -237,6 +238,7 @@ export function WordCardPanel({
         </div>
 
         <div className="flex items-center justify-center gap-4 border-t border-border/60 px-4 py-4">
+          <WordEditTrigger wordId={word.id} />
           {noteStorageKey && (
             <StudyNoteLauncher
               storageKey={noteStorageKey(word)}

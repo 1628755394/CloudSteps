@@ -26,7 +26,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#ffffff',
-    navigationBarTitleText: '云阶',
+    navigationBarTitleText: '解忧',
     navigationBarTextStyle: 'black',
     backgroundColor: '#f6f5f4',
   },

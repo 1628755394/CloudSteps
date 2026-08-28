@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Search, Volume2, Loader2 } from "lucide-reac
 import { CloudButton } from "../components/cloudsteps";
 import { getWordBook, listWordBookWords, type WordBookWord } from "../api/wordbooks";
 import { resolveMediaUrl } from "../utils/mediaUrl";
+import { WordEditHost, WordEditTrigger } from "../components/WordEditControls";
 
 function formatPhonetic(w: WordBookWord): string {
   const parts = [w.phonetic, w.phoneticUs, w.phoneticUk].filter((x) => x && String(x).trim());
@@ -214,6 +215,9 @@ export default function WordBookWords() {
                     {w.partOfSpeech ? (
                       <span className="text-xs text-[#718096] bg-[#F7F9FC] px-2 py-0.5 rounded">{w.partOfSpeech}</span>
                     ) : null}
+                    {w.overridden ? (
+                      <span className="text-xs text-[#2C7A7B] bg-[#4ECDC4]/15 px-2 py-0.5 rounded">已修正</span>
+                    ) : null}
                   </div>
                   {ipa ? <div className="text-sm text-[#55A3FF] font-mono mt-1">{ipa}</div> : null}
                   <div className="text-sm text-[#4A5568] mt-2 leading-relaxed">{mean}</div>
@@ -223,7 +227,8 @@ export default function WordBookWords() {
                     </div>
                   ) : null}
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <WordEditTrigger wordId={w.id} />
                   <CloudButton
                     type="button"
                     disabled={!hasAudio}
@@ -297,6 +302,12 @@ export default function WordBookWords() {
           </div>
         </div>
       )}
+
+      <WordEditHost
+        onSaved={() => {
+          void load();
+        }}
+      />
     </div>
   );
 }

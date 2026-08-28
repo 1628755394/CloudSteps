@@ -116,10 +116,18 @@ axiosInstance.interceptors.response.use(
       }
 
       switch (status) {
-        case 403:
-          console.error('Forbidden: Access denied')
-          toast.error('没有权限执行此操作')
+        case 403: {
+          // 陪练关系未建立时由页面空状态引导，避免误报「没有权限」
+          const msg =
+            data && typeof data === 'object' && 'msg' in data
+              ? String((data as { msg?: unknown }).msg || '')
+              : ''
+          if (msg.includes('陪练关系') || msg.includes('无权查看该学员')) {
+            break
+          }
+          toast.error(msg || '没有权限执行此操作')
           break
+        }
         case 404:
           console.error('Not Found: API endpoint not found')
           break

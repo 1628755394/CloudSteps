@@ -1,21 +1,30 @@
-import { ArrowRight, Lightbulb } from "lucide-react";
+import { ArrowRight, Lightbulb, UserPlus, Users } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
-import { CloudSelect } from "../components/cloudsteps/arco";
+import { CloudSelect, CloudSpin } from "../components/cloudsteps/arco";
 import { FlowPageShell } from "../components/PageTransition";
 import { MemoryLighthouse, type MemoryLighthouseData } from "../components/MemoryLighthouse";
 import { TopBar } from "../components/TopBar";
 import { AudioMuteToggleButton } from "../components/AudioMuteToggleButton";
 import { useAuthStore } from "../stores/authStore";
-import { listStudentWordBooksAsTeacher, type StudentWordBookItem } from "../api/coaching";
+import {
+  listAllTeacherCoachingQuotas,
+  listStudentWordBooksAsTeacher,
+  type StudentWordBookItem,
+} from "../api/coaching";
 import { fetchLighthouse, getCachedLighthouse } from "../utils/lighthouseCache";
 import {
   getCachedWordBooks,
   loadWordBooksStaleWhileRevalidate,
   type CachedWordBook,
 } from "../utils/wordBooksCache";
-import { getTrainingStudent, setTrainingStudent } from "../utils/trainingStudent";
+import {
+  clearTrainingStudent,
+  getTrainingStudent,
+  setTrainingStudent,
+  studentLabelFromQuota,
+} from "../utils/trainingStudent";
 
 type LighthouseDay = { id: string; count: number; label: string };
 
@@ -38,11 +47,17 @@ export default function WordTraining() {
   const isStudent = role === "student";
   const isCoach = !isStudent;
 
-  const cachedStudent = getTrainingStudent();
-  const studentId = cachedStudent?.id ? String(cachedStudent.id) : "";
-
   const initialBooks = getCachedWordBooks() || [];
   const initialPick = resolvePick(initialBooks);
+
+  /** 教练端：先校验陪练关系，避免本地残留学员 ID 触发 403 */
+  const [coachGate, setCoachGate] = useState<"idle" | "loading" | "ready" | "no-students">(
+    isCoach ? "loading" : "idle"
+  );
+  const [studentId, setStudentId] = useState(() => {
+    const cached = getTrainingStudent();
+    return cached?.id ? String(cached.id) : "";
+  });
 
   const [wordBooks, setWordBooks] = useState<CachedWordBook[]>(initialBooks);
   const [studentWordBooks, setStudentWordBooks] = useState<StudentWordBookItem[]>([]);
@@ -95,6 +110,43 @@ export default function WordTraining() {
   };
 
   useEffect(() => {
+    if (!isCoach) {
+      setCoachGate("idle");
+      return;
+    }
+    let mounted = true;
+    setCoachGate("loading");
+    (async () => {
+      try {
+        const rows = await listAllTeacherCoachingQuotas();
+        if (!mounted) return;
+        if (!rows.length) {
+          clearTrainingStudent();
+          setStudentId("");
+          setStudentWordBooks([]);
+          setCoachGate("no-students");
+          return;
+        }
+        const saved = getTrainingStudent();
+        const selected =
+          (saved?.id && rows.find((row) => row.studentId === saved.id)) || rows[0];
+        setTrainingStudent(selected.studentId, studentLabelFromQuota(selected));
+        setStudentId(String(selected.studentId));
+        setCoachGate("ready");
+      } catch {
+        if (!mounted) return;
+        // 额度接口失败时仍允许看词库，但不带无效学员上下文
+        clearTrainingStudent();
+        setStudentId("");
+        setCoachGate("ready");
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [isCoach]);
+
+  useEffect(() => {
     let mounted = true;
     (async () => {
       try {
@@ -121,7 +173,7 @@ export default function WordTraining() {
 
   // 教练选学员时：拉取学员词库，优先展示；仅一本则自动选中（除非该学员已手动选过）
   useEffect(() => {
-    if (!isCoach || !studentId) {
+    if (!isCoach || coachGate !== "ready" || !studentId) {
       setStudentWordBooks([]);
       return;
     }
@@ -160,11 +212,12 @@ export default function WordTraining() {
     return () => {
       mounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to student change
-  }, [isCoach, studentId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to student / gate change
+  }, [isCoach, coachGate, studentId]);
 
   useEffect(() => {
     let mounted = true;
+    if (isCoach && coachGate !== "ready") return;
     if (!selectedWordBookId) return;
 
     const cached = getCachedLighthouse(selectedWordBookId);
@@ -195,7 +248,7 @@ export default function WordTraining() {
     return () => {
       mounted = false;
     };
-  }, [selectedWordBookId]);
+  }, [selectedWordBookId, isCoach, coachGate]);
 
   const wordBookOptions = useMemo(() => {
     const assignedIds = new Set(studentWordBooks.map((b) => b.id));
@@ -220,6 +273,57 @@ export default function WordTraining() {
   };
 
   const lighthouseBoxes = memoryData.map(({ count }) => ({ count }));
+
+  if (isCoach && coachGate === "loading") {
+    return (
+      <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
+        <div className="px-4 mt-16 flex justify-center">
+          <CloudSpin tip="加载学员…" />
+        </div>
+      </FlowPageShell>
+    );
+  }
+
+  if (isCoach && coachGate === "no-students") {
+    return (
+      <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
+        <div className="px-4 mt-8">
+          <div className="bg-white rounded-xl p-6 shadow-sm text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-tint-sky flex items-center justify-center">
+              <Users className="text-secondary-brand" size={22} />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-base font-semibold text-[#2D3748]">还没有学员</h2>
+              <p className="text-sm text-[#718096] leading-relaxed">
+                单词训练需要先绑定陪练学员。请先新建学员账号，或关联已有学员后再开始训练。
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+              <CloudButton
+                variant="brand"
+                size="pillLg"
+                className="flex-1"
+                onClick={() => navigate("/my-students/new")}
+              >
+                <UserPlus size={16} className="mr-1.5" />
+                新建学员
+              </CloudButton>
+              <CloudButton
+                variant="brandOutline"
+                size="pillLg"
+                className="flex-1"
+                onClick={() => navigate("/my-students?link=1")}
+              >
+                去学员管理
+              </CloudButton>
+            </div>
+          </div>
+        </div>
+      </FlowPageShell>
+    );
+  }
 
   return (
     <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">

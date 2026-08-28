@@ -16,6 +16,7 @@ import { ArrowLeft, ArrowRight, Clock, Eye } from '@nutui/icons-react-taro'
 import { useAuthStore } from '@/stores/authStore'
 import { listReviewBooksByDate, type ReviewBookStatRow } from '@/api/review'
 import { CloudButton } from '@/components/button'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 function toDateInputValue(d: Date) {
@@ -134,7 +135,7 @@ export default function AntiForgetting() {
       {/* 日期选择卡片 */}
       <View className="anti__date-card">
         <View className="anti__date-arrow" onClick={() => shiftDate(-1)}>
-          <ArrowLeft size={22} color="#4ECDC4" />
+          <ArrowLeft size={22} color={color.primary} />
         </View>
         <Picker
           mode="date"
@@ -147,7 +148,7 @@ export default function AntiForgetting() {
           </View>
         </Picker>
         <View className="anti__date-arrow" onClick={() => shiftDate(1)}>
-          <ArrowRight size={22} color="#4ECDC4" />
+          <ArrowRight size={22} color={color.primary} />
         </View>
       </View>
 
@@ -159,7 +160,7 @@ export default function AntiForgetting() {
       ) : reviewTasks.length === 0 ? (
         <View className="anti__empty">
           <View className="anti__empty-icon">
-            <Clock size={40} color="#a4a097" />
+            <Clock size={40} color={color.mutedSoft} />
           </View>
           <Text className="anti__empty-text">
             该日暂无待复习词库任务{'\n'}可切换日期查看其它天的计划
@@ -191,7 +192,7 @@ export default function AntiForgetting() {
                     {/* 第一行:时间 + 词包名 */}
                     <View className="anti__task-line">
                       <View className="anti__task-time">
-                        <Clock size={14} color="#4ECDC4" />
+                        <Clock size={14} color={color.primary} />
                         <Text className="anti__task-time-text">{task.time}</Text>
                       </View>
                       <Text className="anti__task-pack-name" numberOfLines={1}>{task.vocabularyPack}</Text>
@@ -209,7 +210,7 @@ export default function AntiForgetting() {
                           onClick={() => handleOpenTask(task)}
                         >
                           <View className="anti__task-btn-inner">
-                            <Eye size={14} color="#fff" />
+                            <Eye size={14} color={color.white} />
                             <Text className="anti__task-btn-text">
                               {task.count <= 0 ? '暂无词' : isToday ? '复习' : '查看'}
                             </Text>

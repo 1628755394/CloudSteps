@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { registerUser, getUserInfo, logoutUser, type User, type RegisterUserForm } from '../api/auth'
+import { clearTrainingStudent } from '../utils/trainingStudent'
 
 interface AuthState {
   user: User | null
@@ -109,6 +110,7 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           // 清除本地存储
           localStorage.removeItem('auth_token')
+          clearTrainingStudent()
           set({ user: null, isAuthenticated: false, token: null })
         }
       },
@@ -132,6 +134,7 @@ export const useAuthStore = create<AuthState>()(
           console.error('Failed to refresh user info:', error)
           // 如果获取用户信息失败，清除认证状态
           localStorage.removeItem('auth_token')
+          clearTrainingStudent()
           set({ user: null, isAuthenticated: false, token: null })
         }
       },
@@ -146,6 +149,7 @@ export const useAuthStore = create<AuthState>()(
         // 新增的清除用户信息方法
         clearUser: () => {
             localStorage.removeItem('auth_token')
+            clearTrainingStudent()
             set({ user: null, isAuthenticated: false, token: null })
         },
     }),

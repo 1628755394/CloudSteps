@@ -444,9 +444,13 @@ func CreateUser(db *gorm.DB, username, password string) (*User, error) {
 		Password: HashPassword(password),
 		Role:     RoleTeacher, // Explicitly set default role
 	}
-
-	result := db.Create(&user)
-	return &user, result.Error
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+		return GrantSignupCoachingQuota(tx, user.ID)
+	})
+	return &user, err
 }
 func UpdateUserFields(db *gorm.DB, user *User, vals map[string]any) error {
 	return db.Model(user).Updates(vals).Error
@@ -719,28 +723,66 @@ func (u *User) IsStudent() bool {
 	return u.Role == RoleStudent
 }
 
-// CountNewUsersByDay returns signup counts keyed by YYYY-MM-DD for [from, to].
+// CountNewUsersByDay returns public signup counts keyed by YYYY-MM-DD for [from, to].
+// Teacher-created students, seed accounts, and admin-created users are excluded.
 func CountNewUsersByDay(db *gorm.DB, from, to string) (map[string]int64, error) {
 	out := map[string]int64{}
 	if db == nil || from == "" || to == "" {
 		return out, nil
 	}
+	start, err := time.ParseInLocation("2006-01-02", from, time.Local)
+	if err != nil {
+		return out, err
+	}
+	end, err := time.ParseInLocation("2006-01-02", to, time.Local)
+	if err != nil {
+		return out, err
+	}
+	endExclusive := end.AddDate(0, 0, 1)
+
 	type row struct {
 		Day   string
 		Count int64
 	}
 	var rows []row
-	err := db.Model(&User{}).
-		Select("DATE(created_at) AS day, COUNT(*) AS count").
+	dayExpr := sqlCalendarDayExpr(db, "created_at")
+	err = db.Model(&User{}).
+		Select(dayExpr+" AS day, COUNT(*) AS count").
 		Where("is_deleted = ?", SoftDeleteStatusActive).
-		Where("DATE(created_at) >= ? AND DATE(created_at) <= ?", from, to).
-		Group("DATE(created_at)").
+		Where("created_at >= ? AND created_at < ?", start, endExclusive).
+		Where("LOWER(TRIM(IFNULL(source, ''))) NOT IN ?", []string{"teacher_create", "seed", "admin"}).
+		Group("day").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
 	for _, r := range rows {
-		out[r.Day] = r.Count
+		if key := metricDayKey(r.Day); key != "" {
+			out[key] += r.Count
+		}
 	}
 	return out, nil
+}
+
+func sqlCalendarDayExpr(db *gorm.DB, column string) string {
+	name := ""
+	if db != nil && db.Dialector != nil {
+		name = db.Dialector.Name()
+	}
+	switch name {
+	case "mysql":
+		return "DATE_FORMAT(" + column + ", '%Y-%m-%d')"
+	case "sqlite", "sqlite3":
+		return "strftime('%Y-%m-%d', " + column + ")"
+	default:
+		return "DATE(" + column + ")"
+	}
+}
+
+func metricDayKey(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if len(raw) >= 10 && raw[4] == '-' && raw[7] == '-' {
+		return raw[:10]
+	}
+	return raw
 }

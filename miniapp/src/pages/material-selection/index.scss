@@ -4,97 +4,86 @@
 .ms {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  background-color: var(--background);
-  box-sizing: border-box;
+  min-height: 100%;
+  background-color: #f6f5f4;
 }
 
 /* ============ 顶部导航 ============ */
 .ms__nav {
   display: flex;
   align-items: center;
-  height: 96rpx;
-  padding: 0 24rpx;
-  background-color: var(--card);
-  border-bottom: 2rpx solid var(--border);
+  height: 96px;
+  padding: 0px 24px;
+  background-color: #ffffff;
+  border-bottom: 2px solid #e5e3df;
   flex-shrink: 0;
 }
 
 .ms__nav-back {
-  width: 64rpx;
-  height: 64rpx;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999rpx;
-
-  &:active {
-    background-color: var(--surface-soft);
-  }
+  border-radius: 999px;
 }
 
 .ms__nav-title {
   flex: 1;
   text-align: center;
-  font-size: 32rpx;
+  font-size: 32px;
   font-weight: 600;
-  color: var(--charcoal);
+  color: #37352f;
 }
 
 .ms__nav-placeholder {
-  width: 64rpx;
+  width: 64px;
   flex-shrink: 0;
 }
 
 /* ============ 内容区 ============ */
 .ms__body {
   flex: 1;
-  min-height: 0;
-  padding: 32rpx 32rpx 64rpx;
+  min-height: 0px;
+  padding-top: 32px; padding-left: 32px; padding-right: 32px; padding-bottom: 64px;
 }
 
 .ms__subtitle {
-  display: block;
+  display: flex;
   text-align: center;
-  font-size: 24rpx;
-  color: var(--muted-foreground);
-  margin-bottom: 28rpx;
+  font-size: 24px;
+  color: #787671;
+  margin-bottom: 28px;
 }
 
 .ms__list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 20px;
 }
 
 /* ============ 材料卡片 ============ */
 .ms__card {
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  padding: 32rpx 28rpx;
-  background-color: var(--card);
-  border: 2rpx solid var(--primary);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-rest);
-
-  &:active {
-    transform: scale(0.99);
-    border-color: var(--primary-deep);
-  }
+  gap: 24px;
+  padding: 32px 28px;
+  background-color: #ffffff;
+  border: 2px solid #4ECDC4;
+  border-radius: 12px;
 
   &--disabled {
-    background-color: var(--surface-soft);
-    border-color: var(--border);
+    background-color: #fafaf9;
+    border-color: #e5e3df;
     opacity: 0.55;
   }
 }
 
 .ms__card-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: var(--radius-sm);
-  background-color: var(--primary-soft);
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  background-color: rgba(78, 205, 196, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,20 +92,19 @@
 
 .ms__card-content {
   flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6rpx;
+  gap: 6px;
 }
 
 .ms__card-title {
-  font-size: 30rpx;
+  font-size: 30px;
   font-weight: 600;
-  color: var(--charcoal);
+  color: #37352f;
 }
 
 .ms__card-desc {
-  font-size: 24rpx;
-  color: var(--muted-foreground);
+  font-size: 24px;
+  color: #787671;
   line-height: 1.5;
 }

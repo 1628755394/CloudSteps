@@ -33,7 +33,7 @@ export function AnimatedOutlet() {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: direction * -18 }}
         transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full flex-1 flex flex-col min-h-0 motion-reduce:transform-none motion-reduce:transition-none"
+        className="w-full h-full flex flex-col min-h-0 motion-reduce:transform-none motion-reduce:transition-none"
       >
         {outlet}
       </motion.div>

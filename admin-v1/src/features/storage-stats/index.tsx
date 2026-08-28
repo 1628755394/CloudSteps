@@ -425,9 +425,10 @@ export function StorageStatsPage() {
                     <XAxis dataKey='time' tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={(v) => formatBytes(v)} tick={{ fontSize: 11 }} />
                     <Tooltip
-                      formatter={(v: number, name: string) =>
-                        name === 'traffic' ? formatBytes(v) : formatNumber(v)
-                      }
+                      formatter={(v, name) => {
+                        const n = typeof v === 'number' ? v : Number(v ?? 0)
+                        return name === 'traffic' ? formatBytes(n) : formatNumber(n)
+                      }}
                     />
                     <Legend />
                     <Area
@@ -477,7 +478,11 @@ export function StorageStatsPage() {
                     <CartesianGrid strokeDasharray='3 3' className='stroke-muted' />
                     <XAxis dataKey='time' tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={(v) => formatBytes(v)} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => formatBytes(v)} />
+                    <Tooltip
+                      formatter={(v) =>
+                        formatBytes(typeof v === 'number' ? v : Number(v ?? 0))
+                      }
+                    />
                     <Legend />
                     <Area
                       type='monotone'
@@ -529,7 +534,11 @@ export function StorageStatsPage() {
                     <CartesianGrid strokeDasharray='3 3' className='stroke-muted' />
                     <XAxis dataKey='time' tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={(v) => formatBytes(v)} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => formatBytes(v)} />
+                    <Tooltip
+                      formatter={(v) =>
+                        formatBytes(typeof v === 'number' ? v : Number(v ?? 0))
+                      }
+                    />
                     <Legend />
                     <Area
                       type='monotone'

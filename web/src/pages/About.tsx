@@ -7,7 +7,7 @@ export default function About() {
       <div className="flex-1 max-w-3xl w-full mx-auto px-4 py-5 space-y-4 text-charcoal leading-relaxed text-sm">
         <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <p>
-            云阶（CloudSteps）是一款面向语言学习与训练场景的产品，致力于为学习者与教练/陪练提供更高效、可追踪、可持续的学习与训练体验。
+            解忧（CloudSteps）是一款面向语言学习与训练场景的产品，致力于为学习者与教练/陪练提供更高效、可追踪、可持续的学习与训练体验。
             我们提供与学习相关的功能模块，包括但不限于训练记录、复习计划、学习提醒、个人中心与账户设置等。
           </p>
           <p>

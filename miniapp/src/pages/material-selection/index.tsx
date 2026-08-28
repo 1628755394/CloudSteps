@@ -8,6 +8,7 @@ import React from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ArrowLeft, Right, Star, List, ShieldCheck, Clock, Check, Notice } from '@nutui/icons-react-taro'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 interface Material {
@@ -44,7 +45,7 @@ export default function MaterialSelection() {
       id: 1,
       name: '词汇测试',
       desc: '测一测你的词汇量水平',
-      icon: <Star size={24} color="#4ECDC4" />,
+      icon: <Star size={24} color={color.primary} />,
       enabled: true,
       action: goVocabTest,
     },
@@ -52,7 +53,7 @@ export default function MaterialSelection() {
       id: 2,
       name: '单词练习',
       desc: '选择词库进行单词训练',
-      icon: <List size={24} color="#55A3FF" />,
+      icon: <List size={24} color={color.secondaryBrand} />,
       enabled: true,
       action: goWordbooks,
     },
@@ -60,7 +61,7 @@ export default function MaterialSelection() {
       id: 3,
       name: '解析语法',
       desc: '深入理解句子语法结构',
-      icon: <ShieldCheck size={24} color="#4ECDC4" />,
+      icon: <ShieldCheck size={24} color={color.primary} />,
       enabled: true,
       action: todo,
     },
@@ -68,7 +69,7 @@ export default function MaterialSelection() {
       id: 4,
       name: '阅读理解',
       desc: '提升阅读分析与理解力',
-      icon: <Clock size={24} color="#55A3FF" />,
+      icon: <Clock size={24} color={color.secondaryBrand} />,
       enabled: true,
       action: todo,
     },
@@ -76,7 +77,7 @@ export default function MaterialSelection() {
       id: 5,
       name: '完形填空',
       desc: '语境填空强化语感',
-      icon: <Check size={24} color="#4ECDC4" />,
+      icon: <Check size={24} color={color.primary} />,
       enabled: true,
       action: todo,
     },
@@ -84,7 +85,7 @@ export default function MaterialSelection() {
       id: 6,
       name: '情景口语',
       desc: '真实场景对话练习',
-      icon: <Notice size={24} color="#55A3FF" />,
+      icon: <Notice size={24} color={color.secondaryBrand} />,
       enabled: true,
       action: goScenario,
     },
@@ -95,7 +96,7 @@ export default function MaterialSelection() {
       {/* 顶部导航 */}
       <View className="ms__nav">
         <View className="ms__nav-back" onClick={handleBack}>
-          <ArrowLeft size={20} color="#37352f" />
+          <ArrowLeft size={20} color={color.charcoal} />
         </View>
         <Text className="ms__nav-title">选择学习材料</Text>
         <View className="ms__nav-placeholder" />
@@ -116,7 +117,7 @@ export default function MaterialSelection() {
                 <Text className="ms__card-title">{m.name}</Text>
                 <Text className="ms__card-desc">{m.desc}</Text>
               </View>
-              <Right size={18} color="#a4a097" />
+              <Right size={18} color={color.mutedSoft} />
             </View>
           ))}
         </View>

@@ -16,6 +16,7 @@ import {
   getUserActivity,
   type UserActivity,
 } from '../../api/auth'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 type Panel = 'password' | 'email' | 'notifications' | 'security' | null
@@ -178,7 +179,7 @@ export default function Settings() {
       title: '确认退出登录?',
       content: '退出后需要重新登录才能继续使用',
       confirmText: '退出登录',
-      confirmColor: '#e03131',
+      confirmColor: color.destructive,
     })
     if (res.confirm) {
       await logout()
@@ -294,7 +295,7 @@ export default function Settings() {
                 <Text className="settings__notif-label">{item.label}</Text>
                 <Text className="settings__notif-desc">{item.desc}</Text>
               </View>
-              <Switch checked={item.checked} onChange={(e) => item.onChange(e.detail.value)} color="#4ECDC4" />
+              <Switch checked={item.checked} onChange={(e) => item.onChange(e.detail.value)} color={color.primary} />
             </View>
           ))}
           {errorText && <View className="settings__error"><Text>{errorText}</Text></View>}

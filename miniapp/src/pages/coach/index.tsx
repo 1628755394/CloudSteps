@@ -17,6 +17,7 @@ import {
 } from '@nutui/icons-react-taro'
 import { useAuthStore } from '../../stores/authStore'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 type Tint = 'mint' | 'sky' | 'cream'
@@ -60,7 +61,7 @@ export default function Coach() {
       label: '已上课程',
       desc: '查看近 90 天已完成的陪练记录与课时结算',
       tint: 'mint',
-      icon: <Clock size={20} color="#4ECDC4" />,
+      icon: <Clock size={20} color={color.primary} />,
       path: '/pages/training-records/index',
       coachOnly: true,
     },
@@ -69,7 +70,7 @@ export default function Coach() {
       label: '词汇测试记录',
       desc: '查看词汇测评历史',
       tint: 'sky',
-      icon: <Star size={20} color="#55A3FF" />,
+      icon: <Star size={20} color={color.secondaryBrand} />,
       path: '/pages/vocab-test/index',
     },
     {
@@ -77,7 +78,7 @@ export default function Coach() {
       label: '我的学生',
       desc: '学员与课时管理',
       tint: 'sky',
-      icon: <List size={20} color="#55A3FF" />,
+      icon: <List size={20} color={color.secondaryBrand} />,
       path: '/pages/my-students/index',
     },
     {
@@ -85,7 +86,7 @@ export default function Coach() {
       label: '通知',
       desc: '消息与提醒',
       tint: 'mint',
-      icon: <Notice size={20} color="#4ECDC4" />,
+      icon: <Notice size={20} color={color.primary} />,
       path: '/pages/notifications/index',
     },
     {
@@ -93,7 +94,7 @@ export default function Coach() {
       label: '设置',
       desc: '账号与偏好设置',
       tint: 'cream',
-      icon: <Setting size={20} color="#c37d0d" />,
+      icon: <Setting size={20} color={color.warning} />,
       path: '/pages/settings/index',
     },
     {
@@ -101,7 +102,7 @@ export default function Coach() {
       label: '防遗忘',
       desc: '复习计划与记忆曲线',
       tint: 'mint',
-      icon: <ShieldCheck size={20} color="#4ECDC4" />,
+      icon: <ShieldCheck size={20} color={color.primary} />,
       path: '/pages/anti-forgetting/index',
     },
   ]
@@ -124,15 +125,12 @@ export default function Coach() {
             <Text className="coach__user-name">{name || '-'}</Text>
             <Text className="coach__user-greeting">{greetingText}</Text>
           </View>
-          <Text className="coach__user-sub">
-            正式陪练 · ID {user?.id ?? '-'}
-          </Text>
         </View>
         <View
           className="coach__edit-btn"
           onClick={() => go('/pages/profile-edit/index')}
         >
-          <Edit size={18} color="#787671" />
+          <Edit size={18} color={color.mutedForeground} />
         </View>
       </View>
 
@@ -143,12 +141,12 @@ export default function Coach() {
           onClick={() => go('/pages/training-records/index')}
         >
           <View className="coach__completed-icon">
-            <Clock size={24} color="#4ECDC4" />
+            <Clock size={24} color={color.primary} />
           </View>
           <View className="coach__completed-text">
             <View className="coach__completed-title-row">
               <Text className="coach__completed-title">已上课程</Text>
-              <Right size={18} color="#a4a097" />
+              <Right size={18} color={color.mutedSoft} />
             </View>
             <Text className="coach__completed-desc">
               查看近 90 天已完成的陪练记录与课时结算
@@ -174,14 +172,14 @@ export default function Coach() {
                 <Text className="coach__feature-label">{feature.label}</Text>
                 <Text className="coach__feature-desc">{feature.desc}</Text>
               </View>
-              <Right size={16} color="#a4a097" />
+              <Right size={16} color={color.mutedSoft} />
             </View>
           ))}
         </View>
       </View>
 
       <View className="coach__footer">
-        <Text className="coach__footer-text">云阶 CloudSteps</Text>
+        <Text className="coach__footer-text">解忧 CloudSteps</Text>
       </View>
     </ScrollView>
   )

@@ -11,6 +11,7 @@ import {
   type WordBookItem,
   type WordBookGroup,
 } from '../../api/wordbooks'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 const PAGE_SIZE = 20
@@ -171,7 +172,7 @@ export default function Wordbooks() {
       {/* 搜索栏 */}
       <View className="wordbooks__search">
         <View className="wordbooks__search-box">
-          <Search size={18} color="#a4a097" />
+          <Search size={18} color={color.mutedSoft} />
           <Input
             className="wordbooks__search-input"
             value={searchInput}
@@ -183,7 +184,7 @@ export default function Wordbooks() {
           />
           {searchInput ? (
             <View className="wordbooks__search-clear" onClick={() => setSearchInput('')}>
-              <Close size={14} color="#a4a097" />
+              <Close size={14} color={color.mutedSoft} />
             </View>
           ) : null}
         </View>
@@ -260,7 +261,7 @@ export default function Wordbooks() {
                   <Text className="wordbooks__name">{b.name}</Text>
                   <View className="wordbooks__meta">
                     <Text className="wordbooks__count">{b.wordCount || 0} 词</Text>
-                    <Right size={14} color="#a4a097" />
+                    <Right size={14} color={color.mutedSoft} />
                   </View>
                 </View>
               </View>

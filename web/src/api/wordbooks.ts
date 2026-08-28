@@ -1,4 +1,4 @@
-import { get, ApiResponse } from '../utils/request'
+import { get, put, del, ApiResponse } from '../utils/request'
 
 export interface WordBookItem {
   id: number
@@ -62,6 +62,7 @@ export interface WordBookWord {
   partOfSpeech?: string
   exampleSentence?: string
   audioUrl?: string
+  overridden?: boolean
 }
 
 export const listWordBookWords = async (
@@ -101,8 +102,47 @@ export interface WordDetail {
   homophones?: string
   mnemonic?: string
   tags?: string
+  exampleSentence?: string
+  overridden?: boolean
 }
 
 export const getWordDetail = async (id: number): Promise<ApiResponse<WordDetail>> => {
   return get<WordDetail>(`/words/${id}`)
+}
+
+export interface UserWordFields {
+  word?: string
+  phonetic?: string
+  phoneticUs?: string
+  phoneticUk?: string
+  translation?: string
+  partOfSpeech?: string
+  definition?: string
+  exampleSentence?: string
+  notes?: string
+}
+
+export interface UserWordView {
+  wordId: number
+  wordBookId: number
+  canonical: UserWordFields
+  overlay: UserWordFields | null
+  effective: UserWordFields
+  status?: string
+  hasOverlay: boolean
+}
+
+export const getUserWord = async (wordId: number): Promise<ApiResponse<UserWordView>> => {
+  return get<UserWordView>(`/words/${wordId}/user-word`)
+}
+
+export const saveUserWord = async (
+  wordId: number,
+  body: UserWordFields
+): Promise<ApiResponse<UserWordView>> => {
+  return put<UserWordView>(`/words/${wordId}/user-word`, body)
+}
+
+export const deleteUserWord = async (wordId: number): Promise<ApiResponse<UserWordView>> => {
+  return del<UserWordView>(`/words/${wordId}/user-word`)
 }

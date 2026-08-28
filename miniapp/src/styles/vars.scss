@@ -14,6 +14,7 @@ $secondary-brand: #55A3FF;
 $background: #f6f5f4;
 $card: #ffffff;
 $surface-soft: #fafaf9;
+$white: #ffffff;
 
 /* 边框 */
 $border: #e5e3df;
@@ -29,11 +30,49 @@ $muted-soft: #a4a097;
 $success: #1aae39;
 $warning: #c37d0d;
 $destructive: #e03131;
+$wrong: #ff6b6b;
+$wrong-soft-5: rgba(255, 107, 107, 0.05);
 
 /* 色调卡片 */
 $tint-mint: #e8f8f5;
 $tint-sky: #e8f2fc;
 $tint-cream: #f8f5e8;
+
+/* 透明叠加（用于按压态/图标底色/状态底色） */
+$primary-soft-4: rgba(78, 205, 196, 0.04);
+$primary-soft-6: rgba(78, 205, 196, 0.06);
+$primary-soft-8: rgba(78, 205, 196, 0.08);
+$primary-soft-10: rgba(78, 205, 196, 0.10);
+$primary-soft-20: rgba(78, 205, 196, 0.20);
+$primary-soft-30: rgba(78, 205, 196, 0.30);
+$sky-soft-10: rgba(85, 163, 255, 0.10);
+$sky-soft-12: rgba(85, 163, 255, 0.12);
+$cream-soft-10: rgba(195, 125, 13, 0.10);
+$cream-soft-12: rgba(195, 125, 13, 0.12);
+$cream-soft-20: rgba(195, 125, 13, 0.20);
+$success-soft-10: rgba(26, 174, 57, 0.10);
+$success-soft-12: rgba(26, 174, 57, 0.12);
+$destructive-soft-4: rgba(224, 49, 49, 0.04);
+$destructive-soft-5: rgba(224, 49, 49, 0.05);
+$destructive-soft-6: rgba(224, 49, 49, 0.06);
+$destructive-soft-8: rgba(224, 49, 49, 0.08);
+$destructive-soft-20: rgba(224, 49, 49, 0.20);
+$destructive-soft-25: rgba(224, 49, 49, 0.25);
+$destructive-soft-30: rgba(224, 49, 49, 0.30);
+$destructive-90: rgba(224, 49, 49, 0.90);
+
+/* 白色/黑色透明叠加（遮罩、文字叠加等通用） */
+$white-15: rgba(255, 255, 255, 0.15);
+$white-20: rgba(255, 255, 255, 0.20);
+$white-25: rgba(255, 255, 255, 0.25);
+$white-40: rgba(255, 255, 255, 0.40);
+$white-60: rgba(255, 255, 255, 0.60);
+$white-85: rgba(255, 255, 255, 0.85);
+$white-90: rgba(255, 255, 255, 0.90);
+$white-92: rgba(255, 255, 255, 0.92);
+$black-40: rgba(0, 0, 0, 0.40);
+$black-45: rgba(0, 0, 0, 0.45);
+$black-50: rgba(0, 0, 0, 0.50);
 
 /* 圆角 */
 $radius-sm: 8px;
@@ -43,9 +82,16 @@ $radius-lg: 16px;
 /* 阴影 */
 $shadow-rest: 0 1px 2px rgba(0, 0, 0, 0.04);
 
+/* 焦点环 */
+$ring: rgba(78, 205, 196, 0.4);
+
+/* 字体 */
+$font-sans: "Plus Jakarta Sans", "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+$font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
 /* 间距(4px 基准) */
-$gap-xs: 8rpx;
-$gap-sm: 16rpx;
-$gap-md: 24rpx;
-$gap-lg: 32rpx;
-$gap-xl: 48rpx;
+$gap-xs: 8px;
+$gap-sm: 16px;
+$gap-md: 24px;
+$gap-lg: 32px;
+$gap-xl: 48px;

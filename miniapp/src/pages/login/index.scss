@@ -3,73 +3,68 @@
  * 居中卡片 + Warm Mint 主题。
  */
 .login {
-  min-height: 100vh;
+  min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48rpx 32rpx;
-  background-color: var(--background);
-  box-sizing: border-box;
+  padding: 48px 32px;
+  background-color: #f6f5f4;
 
   &__container {
     width: 100%;
-    max-width: 640rpx;
-    background-color: var(--card);
-    border: 2rpx solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 48rpx 40rpx;
-    box-shadow: var(--shadow-rest);
-    box-sizing: border-box;
+    background-color: #ffffff;
+    border: 2px solid #e5e3df;
+    border-radius: 16px;
+    padding: 48px 40px;
   }
 
   &__header {
-    margin-bottom: 48rpx;
+    margin-bottom: 48px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
   }
 
   &__logo {
-    width: 120rpx;
-    height: 120rpx;
-    border-radius: var(--radius);
-    margin-bottom: 24rpx;
+    width: 120px;
+    height: 120px;
+    border-radius: 12px;
+    margin-bottom: 24px;
   }
 
   &__title {
-    font-size: 52rpx;
+    font-size: 52px;
     font-weight: 600;
-    color: var(--foreground);
+    color: #1a1a1a;
     line-height: 1.25;
   }
 
   &__subtitle {
-    font-size: 26rpx;
-    color: var(--muted-foreground);
-    margin-top: 12rpx;
+    font-size: 26px;
+    color: #787671;
+    margin-top: 12px;
     line-height: 1.5;
   }
 
   &__methods {
     display: flex;
-    gap: 16rpx;
-    margin-bottom: 40rpx;
+    gap: 16px;
+    margin-bottom: 40px;
   }
 
   &__method {
-    height: 64rpx;
-    padding: 0 24rpx;
-    border-radius: var(--radius-sm);
+    height: 64px;
+    padding: 0px 24px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 26rpx;
-    color: var(--muted-foreground);
-    transition: all 0.2s ease;
+    font-size: 26px;
+    color: #787671;
 
     &--active {
-      background-color: var(--primary-soft);
-      color: var(--primary);
+      background-color: rgba(78, 205, 196, 0.12);
+      color: #4ECDC4;
       font-weight: 500;
     }
   }
@@ -77,36 +72,30 @@
   &__form {
     display: flex;
     flex-direction: column;
-    gap: 32rpx;
+    gap: 32px;
   }
 
   &__field {
     display: flex;
     flex-direction: column;
-    gap: 12rpx;
+    gap: 12px;
   }
 
   &__label {
-    font-size: 26rpx;
+    font-size: 26px;
     font-weight: 500;
-    color: var(--charcoal);
+    color: #37352f;
   }
 
   &__input {
     width: 100%;
-    height: 88rpx;
-    padding: 0 32rpx;
-    border-radius: var(--radius);
-    background-color: var(--card);
-    border: 2rpx solid var(--input);
-    color: var(--charcoal);
-    font-size: 30rpx;
-    box-sizing: border-box;
-    transition: border-color 0.2s ease;
-
-    &:focus {
-      border-color: var(--primary);
-    }
+    height: 88px;
+    padding: 0px 32px;
+    border-radius: 12px;
+    background-color: #ffffff;
+    border: 2px solid #c8c4be;
+    color: #37352f;
+    font-size: 30px;
 
     &--code {
       flex: 1;
@@ -114,63 +103,62 @@
   }
 
   &__placeholder {
-    color: var(--muted-soft);
+    color: #a4a097;
   }
 
   &__code-row {
     display: flex;
-    gap: 16rpx;
+    gap: 16px;
     align-items: center;
   }
 
   &__send-btn {
     flex-shrink: 0;
-    height: 88rpx;
-    padding: 0 24rpx;
-    border-radius: var(--radius);
-    border: 2rpx solid var(--input);
-    color: var(--foreground);
-    font-size: 26rpx;
+    height: 88px;
+    padding: 0px 24px;
+    border-radius: 12px;
+    border: 2px solid #c8c4be;
+    color: #1a1a1a;
+    font-size: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
-    white-space: nowrap;
 
     &--disabled {
-      color: var(--muted-foreground);
+      color: #787671;
       opacity: 0.6;
     }
   }
 
   &__error {
     background-color: rgba(224, 49, 49, 0.05);
-    border: 2rpx solid rgba(224, 49, 49, 0.2);
-    border-radius: var(--radius);
-    padding: 24rpx;
-    color: var(--destructive);
-    font-size: 26rpx;
+    border: 2px solid rgba(224, 49, 49, 0.2);
+    border-radius: 12px;
+    padding: 24px;
+    color: #e03131;
+    font-size: 26px;
   }
 
   &__submit {
     width: 100%;
-    margin-top: 8rpx;
+    margin-top: 8px;
   }
 
   &__switch {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8rpx;
-    margin-top: 8rpx;
+    gap: 8px;
+    margin-top: 8px;
   }
 
   &__switch-text {
-    font-size: 26rpx;
-    color: var(--muted-foreground);
+    font-size: 26px;
+    color: #787671;
   }
 
   &__switch-link {
-    font-size: 26rpx;
-    color: var(--primary);
+    font-size: 26px;
+    color: #4ECDC4;
   }
 }

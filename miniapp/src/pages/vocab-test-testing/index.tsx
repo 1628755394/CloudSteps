@@ -13,6 +13,7 @@ import { ArrowLeft, Close } from '@nutui/icons-react-taro'
 import { CloudButton } from '../../components/button'
 import { getVocabNext, submitVocabTest } from '../../api/vocab'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 interface VocabQuestion {
@@ -295,7 +296,7 @@ export default function VocabTestTesting() {
       {/* 顶部导航 */}
       <View className="vtt__nav">
         <View className="vtt__nav-back" onClick={handleBack}>
-          <ArrowLeft size={20} color="#37352f" />
+          <ArrowLeft size={20} color={color.charcoal} />
         </View>
         <Text className="vtt__nav-title">词汇量测试</Text>
         <View className="vtt__nav-placeholder" />
@@ -310,7 +311,7 @@ export default function VocabTestTesting() {
           <View className="vtt__progress-fill" style={{ width: `${progress}%` }} />
         </View>
         <View className="vtt__progress-close" onClick={handleQuit}>
-          <Close size={20} color="#787671" />
+          <Close size={20} color={color.mutedForeground} />
         </View>
       </View>
 

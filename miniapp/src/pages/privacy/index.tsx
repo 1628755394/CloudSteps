@@ -11,7 +11,7 @@ export default function Privacy() {
       <View className="doc__card">
         <Text className="doc__intro">
           我们非常重视你的个人信息保护。本隐私政策旨在说明我们如何收集、使用、存储、共享与保护你的个人信息，以及你如何行使相关权利。
-          你在使用云阶（CloudSteps）服务前，请仔细阅读并理解本政策。
+          你在使用解忧（CloudSteps）服务前，请仔细阅读并理解本政策。
         </Text>
 
         <View className="doc__section">

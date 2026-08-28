@@ -318,8 +318,8 @@ func TestRegistrationGuard_CheckRegistrationAllowed_Username(t *testing.T) {
 	defer cleanup()
 
 	err := rg.CheckRegistrationAllowed("192.168.1.1", "teacher01", "password123")
-	if err != nil {
-		t.Fatalf("username registration should be allowed, got: %v", err)
+	if err == nil {
+		t.Fatal("public registration should require an email")
 	}
 }
 

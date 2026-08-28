@@ -10,7 +10,7 @@ export default function About() {
     <ScrollView className="doc" scrollY enableFlex>
       <View className="doc__card">
         <Text className="doc__intro">
-          云阶（CloudSteps）是一款面向语言学习与训练场景的产品，致力于为学习者与教练/陪练提供更高效、可追踪、可持续的学习与训练体验。
+          解忧（CloudSteps）是一款面向语言学习与训练场景的产品，致力于为学习者与教练/陪练提供更高效、可追踪、可持续的学习与训练体验。
           我们提供与学习相关的功能模块，包括但不限于训练记录、复习计划、学习提醒、个人中心与账户设置等。
         </Text>
         <Text className="doc__intro">

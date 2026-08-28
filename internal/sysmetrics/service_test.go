@@ -70,6 +70,25 @@ func TestFlushDoesNotDoubleCount(t *testing.T) {
 	require.Equal(t, int64(1), row.Requests)
 }
 
+func TestListDaysIncludesNewUsers(t *testing.T) {
+	db := testDB(t)
+	s := NewWithFlush(db, 0)
+	t.Cleanup(func() { _ = s.Close() })
+
+	now := time.Now()
+	u := models.User{Username: "dash-new-user", Role: models.RoleTeacher}
+	u.CreatedAt = now
+	u.UpdatedAt = now
+	require.NoError(t, db.Create(&u).Error)
+	require.NoError(t, db.Model(&u).Update("created_at", now).Error)
+
+	rows, err := s.ListDays(3)
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	require.Equal(t, now.Format("2006-01-02"), rows[2].MetricDate)
+	require.Equal(t, int64(1), rows[2].NewUsers)
+}
+
 func TestListDaysFillsRange(t *testing.T) {
 	db := testDB(t)
 	s := NewWithFlush(db, 0)

@@ -101,6 +101,11 @@ func (s *SeedService) seedNotificationTemplates() error {
 			"邮箱已更换",
 			"{{.Username}}，您的账号邮箱已由 {{.OldEmail}} 更换为 {{.NewEmail}}。如非本人操作请立即联系管理员。"},
 	}
+	if err := upsertNotificationTemplate(s.db, notify.TmplFeedbackReply, "反馈回复通知", models.NotificationTemplateTypeInbox, "", "", "管理员在工单中回复后提醒用户去看完整对话",
+		"您的反馈有了新回复",
+		"{{.Username}}，管理员回复了你的反馈：{{.ReplyPreview}}。请前往「反馈给我们」查看完整对话。"); err != nil {
+		return err
+	}
 	for _, d := range defs {
 		if err := upsertNotificationTemplate(s.db, d.code, d.emailName, models.NotificationTemplateTypeEmail, d.subject, d.html, d.desc, "", ""); err != nil {
 			return err

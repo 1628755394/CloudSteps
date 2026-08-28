@@ -149,6 +149,9 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 	words := r.Group("words")
 	words.Use(models.AuthRequired)
 	{
+		words.GET("/:id/user-word", h.handleGetMyUserWord)
+		words.PUT("/:id/user-word", h.handleUpsertMyUserWord)
+		words.DELETE("/:id/user-word", h.handleDeleteMyUserWord)
 		words.GET("/:id", h.handleGetWordDetail)
 	}
 }
@@ -207,6 +210,7 @@ func (h *Handlers) handleGetWordDetail(c *gin.Context) {
 		response.Fail(c, "单词不存在", err)
 		return
 	}
+	overlayCurrentUserWord(c, db, &word)
 	response.SuccessMsg(c, "success", word)
 }
 
@@ -246,6 +250,7 @@ func (h *Handlers) handleListWordBookWords(c *gin.Context) {
 		response.Fail(c, "查询失败", err)
 		return
 	}
+	overlayCurrentUserWordLites(c, db, words)
 	response.SuccessMsg(c, "success", gin.H{
 		"list":     words,
 		"total":    total,
@@ -354,6 +359,7 @@ func (h *Handlers) handleScreenNext(c *gin.Context) {
 		response.SuccessMsg(c, "筛词已完成", gin.H{"completed": true})
 		return
 	}
+	models.OverlayWord(db, user.ID, &word)
 
 	// 使用 word_books.word_count 冗余字段
 	totalWords, _ := models.GetWordCountByBookID(db, uint(id))

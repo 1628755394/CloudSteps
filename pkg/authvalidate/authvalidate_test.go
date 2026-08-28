@@ -51,13 +51,17 @@ func TestPreparePasswordLogin_acceptsUsernameOrEmail(t *testing.T) {
 	}
 }
 
-func TestPreparePasswordRegister_acceptsPlainUsername(t *testing.T) {
+func TestPreparePasswordRegister_rejectsPublicSignup(t *testing.T) {
 	form := &models.RegisterUserForm{
-		Username: "teacher01",
+		Username: "user@example.com",
 		Password: "password1",
 	}
-	if err := PreparePasswordRegister(form); err != nil {
-		t.Fatalf("PreparePasswordRegister() error = %v", err)
+	err := PreparePasswordRegister(form)
+	if err == nil {
+		t.Fatal("password register should be disabled")
+	}
+	if AbortMessage(err) != "请使用邮箱验证码注册" {
+		t.Fatalf("msg = %q", AbortMessage(err))
 	}
 }
 

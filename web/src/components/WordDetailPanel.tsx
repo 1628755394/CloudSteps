@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Volume2 } from "lucide-react";
+import { Loader2, Volume2, Pencil } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
-import { getWordDetail, type WordDetail } from "../api/wordbooks";
+import { getWordDetail, type WordDetail, type UserWordView } from "../api/wordbooks";
 import { formatTranslation, formatTranslationShort, withPartOfSpeech } from "../utils/wordFormat";
 import { playWordAudio } from "../utils/audioPlayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
+import { UserWordEditor } from "./UserWordEditor";
 
 function parseJSON<T>(raw?: string | null): T | null {
   if (!raw || raw === "[]" || raw === "") return null;
@@ -71,6 +72,7 @@ type Props = {
   variant?: "full" | "tags" | "inline";
   /** 简易：只展示部分拓展标签；默认 true */
   simpleMode?: boolean;
+  onWordPatched?: (view: UserWordView) => void;
 };
 
 /**
@@ -81,11 +83,13 @@ export function WordDetailPanel({
   wordText,
   variant = "full",
   simpleMode = true,
+  onWordPatched,
 }: Props) {
   const [detail, setDetail] = useState<WordDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [active, setActive] = useState<ExtKey | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -198,6 +202,17 @@ export function WordDetailPanel({
             ) : (
               <p className="text-sm text-muted-foreground flex-1">该单词暂无拓展内容</p>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditorOpen(true);
+              }}
+              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-[#718096] hover:bg-[#F1F5F9] hover:text-[#2C7A7B]"
+            >
+              <Pencil size={12} />
+              纠错
+            </button>
           </div>
 
           {active && active !== "translation" && (
@@ -215,10 +230,28 @@ export function WordDetailPanel({
     </>
   );
 
+  const editor = (
+    <UserWordEditor
+      wordId={wordId}
+      open={editorOpen}
+      onOpenChange={setEditorOpen}
+      onSaved={async (view) => {
+        onWordPatched?.(view);
+        try {
+          const res = await getWordDetail(wordId);
+          if (res.data) setDetail(res.data);
+        } catch {
+          /* keep current detail */
+        }
+      }}
+    />
+  );
+
   if (variant === "tags") {
     return (
       <div className="w-full" onClick={(event) => event.stopPropagation()}>
         {tagsBlock}
+        {editor}
       </div>
     );
   }
@@ -231,6 +264,7 @@ export function WordDetailPanel({
         onClick={(event) => event.stopPropagation()}
       >
         {tagsBlock}
+        {editor}
       </div>
     );
   }
@@ -269,6 +303,7 @@ export function WordDetailPanel({
         </div>
       </div>
       <div className="px-3 pb-4">{tagsBlock}</div>
+      {editor}
     </div>
   );
 }

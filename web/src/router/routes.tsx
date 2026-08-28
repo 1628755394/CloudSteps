@@ -8,6 +8,7 @@ import VocabularyTest from "../pages/VocabularyTest";
 import VocabularyTestTesting from "../pages/VocabularyTestTesting";
 import VocabularyTestResult from "../pages/VocabularyTestResult";
 import TestRecords from "../pages/TestRecords";
+import Feedback from "../pages/Feedback";
 import Settings from "../pages/Settings";
 import MaterialSelection from "../pages/MaterialSelection";
 import ReadingComprehension from "../pages/ReadingComprehension";
@@ -144,6 +145,14 @@ export const router = createBrowserRouter(
     element: (
       <RequireAuth>
         <Settings />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/feedback",
+    element: (
+      <RequireAuth>
+        <Feedback />
       </RequireAuth>
     ),
   },

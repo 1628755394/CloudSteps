@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Eye, Loader2 } from 'lucide-react'
-import { get } from '@/lib/api'
+import { Eye, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { del, get } from '@/lib/api'
 import { AdminPage } from '@/components/admin-page'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -17,14 +25,23 @@ import {
   VocabQuestionDetailSheet,
   type VocabQuestion,
 } from './question-detail-sheet'
+import { VocabQuestionFormDialog } from './question-form-dialog'
+
+const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1'] as const
 
 export function VocabQuestionsPage() {
   const [list, setList] = useState<VocabQuestion[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [keyword, setKeyword] = useState('')
+  const [level, setLevel] = useState<string>('all')
   const [loading, setLoading] = useState(false)
   const [detail, setDetail] = useState<VocabQuestion | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editing, setEditing] = useState<VocabQuestion | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<VocabQuestion | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const pageSize = 20
 
   const load = async (nextPage = page) => {
@@ -34,7 +51,8 @@ export function VocabQuestionsPage() {
         page: String(nextPage),
         pageSize: String(pageSize),
       })
-      if (keyword) params.append('word', keyword)
+      if (keyword.trim()) params.append('word', keyword.trim())
+      if (level !== 'all') params.append('level', level)
       const res = await get<{
         list?: VocabQuestion[]
         questions?: VocabQuestion[]
@@ -52,12 +70,48 @@ export function VocabQuestionsPage() {
   useEffect(() => {
     void load(page)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page])
+  }, [page, level])
+
+  const openCreate = () => {
+    setEditing(null)
+    setFormOpen(true)
+  }
+
+  const openEdit = (q: VocabQuestion) => {
+    setEditing(q)
+    setFormOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await del(`/vocab/questions/${deleteTarget.id}`)
+      toast.success('已删除题目')
+      setDeleteOpen(false)
+      setDeleteTarget(null)
+      if (detail?.id === deleteTarget.id) setDetail(null)
+      await load(page)
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : '删除失败')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
-    <AdminPage title='词汇测评题库' description={`共 ${total} 题`}>
+    <AdminPage
+      title='词汇测评题库'
+      description={`共 ${total} 题`}
+      extra={
+        <Button onClick={openCreate}>
+          <Plus />
+          新增题目
+        </Button>
+      }
+    >
       <form
-        className='mb-4 flex gap-2'
+        className='mb-4 flex flex-wrap gap-2'
         onSubmit={(e) => {
           e.preventDefault()
           setPage(1)
@@ -70,6 +124,22 @@ export function VocabQuestionsPage() {
           placeholder='搜索单词'
           onChange={(e) => setKeyword(e.target.value)}
         />
+        <Select value={level} onValueChange={(v) => {
+          setLevel(v)
+          setPage(1)
+        }}>
+          <SelectTrigger className='w-[120px]'>
+            <SelectValue placeholder='级别' />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>全部级别</SelectItem>
+            {LEVELS.map((lv) => (
+              <SelectItem key={lv} value={lv}>
+                {lv}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button type='submit' variant='secondary'>
           搜索
         </Button>
@@ -87,32 +157,64 @@ export function VocabQuestionsPage() {
               <TableHead>单词</TableHead>
               <TableHead>正确答案</TableHead>
               <TableHead>级别</TableHead>
+              <TableHead>难度</TableHead>
               <TableHead>音频</TableHead>
-              <TableHead className='w-24'>操作</TableHead>
+              <TableHead className='w-48'>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {list.map((q) => (
-              <TableRow key={q.id}>
-                <TableCell>{q.id}</TableCell>
-                <TableCell className='font-medium'>{q.word}</TableCell>
-                <TableCell className='max-w-xs truncate'>
-                  {q.correctAnswer || '—'}
-                </TableCell>
-                <TableCell>{q.level}</TableCell>
-                <TableCell>{q.audioUrl ? '有' : '无'}</TableCell>
-                <TableCell>
-                  <Button
-                    size='sm'
-                    variant='ghost'
-                    onClick={() => setDetail(q)}
-                  >
-                    <Eye />
-                    详情
-                  </Button>
+            {list.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className='text-center text-muted-foreground'>
+                  暂无题目
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              list.map((q) => (
+                <TableRow key={q.id}>
+                  <TableCell>{q.id}</TableCell>
+                  <TableCell className='font-medium'>{q.word}</TableCell>
+                  <TableCell className='max-w-xs truncate'>
+                    {q.correctAnswer || '—'}
+                  </TableCell>
+                  <TableCell>{q.level}</TableCell>
+                  <TableCell>{q.difficultyScore ?? '—'}</TableCell>
+                  <TableCell>{q.audioUrl ? '有' : '无'}</TableCell>
+                  <TableCell>
+                    <div className='flex flex-wrap gap-1'>
+                      <Button
+                        size='sm'
+                        variant='ghost'
+                        onClick={() => setDetail(q)}
+                      >
+                        <Eye />
+                        详情
+                      </Button>
+                      <Button
+                        size='sm'
+                        variant='ghost'
+                        onClick={() => openEdit(q)}
+                      >
+                        <Pencil />
+                        编辑
+                      </Button>
+                      <Button
+                        size='sm'
+                        variant='ghost'
+                        className='text-destructive hover:text-destructive'
+                        onClick={() => {
+                          setDeleteTarget(q)
+                          setDeleteOpen(true)
+                        }}
+                      >
+                        <Trash2 />
+                        删除
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       )}
@@ -134,12 +236,46 @@ export function VocabQuestionsPage() {
           下一页
         </Button>
       </div>
+
       <VocabQuestionDetailSheet
         open={!!detail}
         onOpenChange={(open) => {
           if (!open) setDetail(null)
         }}
         question={detail}
+        onEdit={(q) => {
+          setDetail(null)
+          openEdit(q)
+        }}
+      />
+
+      <VocabQuestionFormDialog
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open)
+          if (!open) setEditing(null)
+        }}
+        question={editing}
+        onSaved={() => load(page)}
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={(v) => {
+          setDeleteOpen(v)
+          if (!v) setDeleteTarget(null)
+        }}
+        destructive
+        isLoading={deleting}
+        title='确认删除题目？'
+        desc={
+          deleteTarget
+            ? `将永久删除单词「${deleteTarget.word}」（ID ${deleteTarget.id}）。此操作不可撤销。`
+            : '将永久删除该题目。'
+        }
+        confirmText='删除'
+        cancelBtnText='取消'
+        handleConfirm={handleDeleteConfirm}
       />
     </AdminPage>
   )

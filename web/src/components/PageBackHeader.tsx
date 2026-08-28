@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router";
 import { CloudButton } from "./cloudsteps";
@@ -10,6 +11,7 @@ type PageBackHeaderProps = {
   fallbackTo?: string;
   /** 内容区最大宽度，默认与主站一致 */
   maxWidthClass?: string;
+  extra?: ReactNode;
 };
 
 /**
@@ -22,6 +24,7 @@ export function PageBackHeader({
   onBack,
   fallbackTo = "/",
   maxWidthClass = "max-w-3xl",
+  extra,
 }: PageBackHeaderProps) {
   const navigate = useNavigate();
 
@@ -62,6 +65,7 @@ export function PageBackHeader({
             </p>
           ) : null}
         </div>
+        {extra ? <div className="shrink-0">{extra}</div> : null}
       </div>
     </header>
   );

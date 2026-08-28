@@ -81,6 +81,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 	if len(wordIDs) > 0 {
 		_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 	}
+	models.OverlayWordLites(db, user.ID, words)
 
 	sorted := make([]models.WordLite, 0, len(words))
 	tmp := make([]*models.WordLite, len(items))
@@ -350,6 +351,7 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 
 	var words []models.WordLite
 	_ = db.Where("id IN ?", wordIDs).Find(&words).Error
+	models.OverlayWordLites(db, user.ID, words)
 
 	session = models.StudySession{
 		UserID:      user.ID,
@@ -561,6 +563,7 @@ func (h *Handlers) handleReviewSessionGet(c *gin.Context) {
 	if len(wordIDs) > 0 {
 		_ = db.Where("id IN ?", wordIDs).Find(&words).Error
 	}
+	models.OverlayWordLites(db, user.ID, words)
 
 	response.SuccessMsg(c, "success", gin.H{"session": session, "words": words})
 }

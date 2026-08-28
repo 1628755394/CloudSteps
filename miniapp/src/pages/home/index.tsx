@@ -9,6 +9,7 @@ import Taro from '@tarojs/taro'
 import { Right, Star, Clock, Plus, List } from '@nutui/icons-react-taro'
 import { useAuthStore } from '../../stores/authStore'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { color } from '../../styles/tokens'
 import {
   listAllTeacherCoachingQuotas,
   type TeacherCoachingQuotaRow,
@@ -18,6 +19,8 @@ import {
   setTrainingStudent,
   studentLabelFromQuota,
 } from '../../utils/trainingStudent'
+import { shouldShowCoachOnboarding } from '../../utils/coachOnboarding'
+import { CoachOnboarding } from '../../components/coach-onboarding/CoachOnboarding'
 import './index.scss'
 
 interface QuickCard {
@@ -37,8 +40,10 @@ interface MaterialItem {
 
 export default function LessonPrep() {
   const user = useAuthStore((s) => s.user)
+  const hasHydrated = useAuthStore((s) => s.hasHydrated)
   const role = (user as { role?: string } | null)?.role || 'user'
   const isCoach = role === 'user' || role === 'admin' || role === 'teacher'
+  const userId = user?.id ? Number(user.id) : 0
 
   const [students, setStudents] = useState<TeacherCoachingQuotaRow[]>([])
   const [studentId, setStudentId] = useState<string>(() => {
@@ -47,6 +52,12 @@ export default function LessonPrep() {
   })
   const [studentPickerOpen, setStudentPickerOpen] = useState(false)
   const [loadingStudents, setLoadingStudents] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (!hasHydrated || !userId) return
+    setShowOnboarding(shouldShowCoachOnboarding(role, userId))
+  }, [hasHydrated, userId, role])
 
   useEffect(() => {
     if (!isCoach) return
@@ -104,7 +115,7 @@ export default function LessonPrep() {
       title: '词汇测试',
       desc: '进入测评',
       tint: 'mint',
-      icon: <Star size={18} color="#4ECDC4" />,
+      icon: <Star size={18} color={color.primary} />,
       onClick: () => go('/pages/vocab-test/index'),
     },
     {
@@ -112,7 +123,7 @@ export default function LessonPrep() {
       title: '单词训练',
       desc: '选择词库',
       tint: 'sky',
-      icon: <List size={18} color="#55A3FF" />,
+      icon: <List size={18} color={color.secondaryBrand} />,
       onClick: () => go('/pages/material-selection/index'),
     },
     ...(isCoach
@@ -122,7 +133,7 @@ export default function LessonPrep() {
             title: '学员管理',
             desc: '学员与时长',
             tint: 'sky' as const,
-            icon: <Plus size={18} color="#55A3FF" />,
+            icon: <Plus size={18} color={color.secondaryBrand} />,
             onClick: () => go('/pages/my-students/index'),
           },
         ]
@@ -132,7 +143,7 @@ export default function LessonPrep() {
       title: '学习记录',
       desc: '正课与复习',
       tint: 'cream',
-      icon: <Clock size={18} color="#c37d0d" />,
+      icon: <Clock size={18} color={color.warning} />,
       onClick: () => go('/pages/training-records/index'),
     },
   ]
@@ -151,6 +162,7 @@ export default function LessonPrep() {
   }
 
   return (
+    <View className="home-wrap">
     <ScrollView className="home" scrollY enableFlex>
       {/* 顶部欢迎区 + 头像入口 */}
       <View className="home__hero">
@@ -172,7 +184,7 @@ export default function LessonPrep() {
 
       {/* 学员选择器(教练角色才显示) */}
       {isCoach && (
-        <View className="home__student-bar">
+        <View className="home__student-bar" data-coach="picker">
           <Text className="home__student-label">学员</Text>
           <View
             className="home__student-picker"
@@ -185,7 +197,7 @@ export default function LessonPrep() {
                 ? '加载中…'
                 : currentStudentLabel || '选择学员'}
             </Text>
-            <Right size={14} color="#a4a097" />
+            <Right size={14} color={color.mutedSoft} />
           </View>
         </View>
       )}
@@ -211,7 +223,7 @@ export default function LessonPrep() {
               >
                 <Text className="home__student-option-text">{opt.label}</Text>
                 {opt.value === studentId && (
-                  <Star size={14} color="#4ECDC4" />
+                  <Star size={14} color={color.primary} />
                 )}
               </View>
             ))
@@ -227,6 +239,13 @@ export default function LessonPrep() {
             <View
               key={card.key}
               className={`home__quick-card home__quick-card--${card.tint}`}
+              data-coach={
+                card.key === 'my-students'
+                  ? 'students'
+                  : card.key === 'material-selection'
+                    ? 'training'
+                    : undefined
+              }
               onClick={card.onClick}
             >
               <View className={`home__quick-icon home__quick-icon--${card.tint}`}>
@@ -252,21 +271,30 @@ export default function LessonPrep() {
               onClick={() => go(item.path)}
             >
               <View className="home__material-icon">
-                <List size={16} color="#787671" />
+                <List size={16} color={color.mutedForeground} />
               </View>
               <View className="home__material-text">
                 <Text className="home__material-name">{item.name}</Text>
                 <Text className="home__material-desc">{item.desc}</Text>
               </View>
-              <Right size={16} color="#a4a097" />
+              <Right size={16} color={color.mutedSoft} />
             </View>
           ))}
         </View>
       </View>
 
       <View className="home__footer">
-        <Text className="home__footer-text">云阶 CloudSteps</Text>
+        <Text className="home__footer-text">解忧 CloudSteps</Text>
       </View>
     </ScrollView>
+
+      {userId > 0 ? (
+        <CoachOnboarding
+          open={showOnboarding}
+          userId={userId}
+          onDone={() => setShowOnboarding(false)}
+        />
+      ) : null}
+    </View>
   )
 }

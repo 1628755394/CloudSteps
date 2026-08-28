@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronsUpDown, LogOut, UserCog } from 'lucide-react'
 import useDialogState from '@/hooks/use-dialog-state'
-import { mediaSrc } from '@/features/wordbooks/word-audio'
+import { DEFAULT_TEACHER_AVATAR, teacherAvatarSrc } from '@/lib/avatar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -20,23 +20,13 @@ import {
 import { SignOutDialog } from '@/components/sign-out-dialog'
 import { useAuthStore } from '@/stores/auth-store'
 
-function initials(name: string, email: string) {
-  const src = (name || email || '?').trim()
-  const parts = src.split(/\s+/).filter(Boolean)
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase()
-  }
-  return src.slice(0, 2).toUpperCase()
-}
-
 export function NavUser() {
   const { isMobile } = useSidebar()
   const [open, setOpen] = useDialogState()
   const user = useAuthStore((s) => s.auth.user)
   const name = user?.displayName || user?.email || user?.accountNo || '管理员'
   const email = user?.email || ''
-  const avatar = user?.avatar ? mediaSrc(user.avatar) : ''
-  const fallback = initials(name, email)
+  const avatar = teacherAvatarSrc(user?.avatar)
 
   return (
     <>
@@ -50,7 +40,9 @@ export function NavUser() {
               >
                 <Avatar className='h-8 w-8 rounded-lg'>
                   <AvatarImage src={avatar} alt={name} />
-                  <AvatarFallback className='rounded-lg'>{fallback}</AvatarFallback>
+                  <AvatarFallback className='rounded-lg p-0 overflow-hidden'>
+                    <img src={DEFAULT_TEACHER_AVATAR} alt='' className='size-full object-cover' />
+                  </AvatarFallback>
                 </Avatar>
                 <div className='grid flex-1 text-start text-sm leading-tight'>
                   <span className='truncate font-semibold'>{name}</span>
@@ -69,7 +61,9 @@ export function NavUser() {
                 <div className='flex items-center gap-2 px-1 py-1.5 text-start text-sm'>
                   <Avatar className='h-8 w-8 rounded-lg'>
                     <AvatarImage src={avatar} alt={name} />
-                    <AvatarFallback className='rounded-lg'>{fallback}</AvatarFallback>
+                    <AvatarFallback className='rounded-lg p-0 overflow-hidden'>
+                      <img src={DEFAULT_TEACHER_AVATAR} alt='' className='size-full object-cover' />
+                    </AvatarFallback>
                   </Avatar>
                   <div className='grid flex-1 text-start text-sm leading-tight'>
                     <span className='truncate font-semibold'>{name}</span>

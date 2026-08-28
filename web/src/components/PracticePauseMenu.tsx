@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { CloudButton } from "./cloudsteps";
 import { getReviewReturnPath } from "../utils/reviewPractice";
+import { useClassTimerStore } from "../stores/classTimerStore";
+import { settleAndStop } from "./ClassSessionTimer";
 
 type Props = {
   open: boolean;
@@ -22,6 +24,10 @@ export function PracticePauseMenu({
   const navigate = useNavigate();
   const [confirmEnd, setConfirmEnd] = useState(false);
 
+  useEffect(() => {
+    if (!open) setConfirmEnd(false);
+  }, [open]);
+
   if (!open) return null;
 
   const isReview = sessionStorage.getItem("lb_mode") === "review";
@@ -40,6 +46,7 @@ export function PracticePauseMenu({
       className="fixed inset-0 bg-black/50 z-50"
       onClick={() => {
         setConfirmEnd(false);
+        useClassTimerStore.getState().resume();
         onClose();
       }}
     >
@@ -53,6 +60,7 @@ export function PracticePauseMenu({
               variant="ghost"
               className="w-full justify-start rounded-none px-6 py-3 h-auto"
               onClick={() => {
+                useClassTimerStore.getState().resume();
                 onClose();
                 navigate(homePath);
               }}
@@ -62,7 +70,10 @@ export function PracticePauseMenu({
             <CloudButton
               variant="ghost"
               className="w-full justify-start rounded-none px-6 py-3 h-auto"
-              onClick={onClose}
+              onClick={() => {
+                useClassTimerStore.getState().resume();
+                onClose();
+              }}
             >
               {continueLabel}
             </CloudButton>
@@ -90,18 +101,21 @@ export function PracticePauseMenu({
               variant="ghost"
               className="w-full justify-start rounded-none px-6 py-3 h-auto text-[#E53E3E]"
               onClick={() => {
-                onClose();
-                if (isReview) {
-                  // 提前读出回跳路径，再清 session，避免 clear 后丢失
-                  const path = homePath;
-                  sessionStorage.removeItem("lb_review_return");
-                  if (sessionStorage.getItem("lb_mode") === "review") {
-                    sessionStorage.removeItem("lb_mode");
+                void (async () => {
+                  await settleAndStop();
+                  onClose();
+                  if (isReview) {
+                    // 提前读出回跳路径，再清 session，避免 clear 后丢失
+                    const path = homePath;
+                    sessionStorage.removeItem("lb_review_return");
+                    if (sessionStorage.getItem("lb_mode") === "review") {
+                      sessionStorage.removeItem("lb_mode");
+                    }
+                    navigate(path, { replace: true });
+                    return;
                   }
-                  navigate(path, { replace: true });
-                  return;
-                }
-                navigate(endPath, { replace: true });
+                  navigate(endPath, { replace: true });
+                })();
               }}
             >
               确定

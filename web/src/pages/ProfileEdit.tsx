@@ -5,7 +5,7 @@ import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudSelect } from "../components/cloudsteps/arco";
 import { updateCurrentUser, uploadAvatar } from "../api/auth";
 import { useAuthStore } from "../stores/authStore";
-import { resolveMediaUrl } from "../utils/mediaUrl";
+import { teacherAvatarSrc } from "../utils/avatar";
 import { showToast } from "../utils/toast";
 
 const fieldClass =
@@ -29,7 +29,7 @@ export default function ProfileEdit() {
   const [uploading, setUploading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const avatarUrl = resolveMediaUrl(avatarPreview || user?.avatar);
+  const avatarUrl = teacherAvatarSrc(avatarPreview || user?.avatar);
 
   const profileComplete = useMemo(() => {
     if (typeof user?.profileComplete === "number") return user.profileComplete;
@@ -166,9 +166,6 @@ export default function ProfileEdit() {
     }
   };
 
-  const initial =
-    (displayName || user?.email || "?").trim().slice(0, 1).toUpperCase() || "?";
-
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3 max-w-2xl w-full mx-auto">
       <div className="flex items-center gap-2 shrink-0">
@@ -220,17 +217,11 @@ export default function ProfileEdit() {
               className="group relative block size-full appearance-none overflow-hidden rounded-full border border-border bg-primary-soft p-0 shadow-sm transition-[box-shadow,opacity] hover:shadow-md focus:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 disabled:opacity-60 [clip-path:circle(50%_at_50%_50%)]"
               aria-label="更换头像"
             >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="block size-full rounded-full object-cover"
-                />
-              ) : (
-                <span className="flex size-full items-center justify-center rounded-full text-base font-semibold text-primary">
-                  {initial}
-                </span>
-              )}
+              <img
+                src={avatarUrl}
+                alt=""
+                className="block size-full rounded-full object-cover"
+              />
               <span className="pointer-events-none absolute inset-0 rounded-full bg-black/0 transition-colors group-hover:bg-black/25" />
             </button>
             <span className="pointer-events-none absolute bottom-0 right-0 z-10 flex size-6 items-center justify-center rounded-full border border-border bg-card text-charcoal shadow-sm">

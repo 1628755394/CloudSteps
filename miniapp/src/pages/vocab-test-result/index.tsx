@@ -10,6 +10,7 @@ import Taro from '@tarojs/taro'
 import { ArrowLeft, Refresh, Star, Check, Clock } from '@nutui/icons-react-taro'
 import { CloudButton } from '../../components/button'
 import { getVocabResult } from '../../api/vocab'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 interface VocabResult {
@@ -109,7 +110,7 @@ export default function VocabTestResult() {
       {/* 顶部导航 */}
       <View className="vtr__nav">
         <View className="vtr__nav-back" onClick={handleBack}>
-          <ArrowLeft size={20} color="#37352f" />
+          <ArrowLeft size={20} color={color.charcoal} />
         </View>
         <Text className="vtr__nav-title">测试结果</Text>
         <View className="vtr__nav-placeholder" />
@@ -136,7 +137,7 @@ export default function VocabTestResult() {
               <Text className="vtr__hero-number">{result.estimatedVocab.toLocaleString()}</Text>
               {result.level ? (
                 <View className="vtr__hero-level">
-                  <Star size={18} color="#4ECDC4" />
+                  <Star size={18} color={color.primary} />
                   <Text className="vtr__hero-level-text">{result.level}</Text>
                 </View>
               ) : null}
@@ -146,21 +147,21 @@ export default function VocabTestResult() {
             <View className="vtr__stats">
               <View className="vtr__stat-card">
                 <View className="vtr__stat-icon vtr__stat-icon--total">
-                  <Clock size={22} color="#55A3FF" />
+                  <Clock size={22} color={color.secondaryBrand} />
                 </View>
                 <Text className="vtr__stat-value">{result.totalCount}</Text>
                 <Text className="vtr__stat-label">总题数</Text>
               </View>
               <View className="vtr__stat-card">
                 <View className="vtr__stat-icon vtr__stat-icon--correct">
-                  <Check size={22} color="#1aae39" />
+                  <Check size={22} color={color.success} />
                 </View>
                 <Text className="vtr__stat-value">{result.correctCount}</Text>
                 <Text className="vtr__stat-label">正确数</Text>
               </View>
               <View className="vtr__stat-card">
                 <View className="vtr__stat-icon vtr__stat-icon--rate">
-                  <Star size={22} color="#4ECDC4" />
+                  <Star size={22} color={color.primary} />
                 </View>
                 <Text className="vtr__stat-value">{correctRate}%</Text>
                 <Text className="vtr__stat-label">正确率</Text>
@@ -178,7 +179,7 @@ export default function VocabTestResult() {
             </View>
 
             <CloudButton variant="ghost" size="pill" className="vtr__refresh-btn" onClick={handleRefresh}>
-              <Refresh size={16} color="#787671" />
+              <Refresh size={16} color={color.mutedForeground} />
               <Text style={{ marginLeft: '8rpx' }}>刷新结果</Text>
             </CloudButton>
           </View>

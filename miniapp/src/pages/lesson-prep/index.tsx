@@ -28,6 +28,7 @@ import {
   type TeacherCoachingQuotaRow,
 } from '@/api/coaching'
 import { CloudButton } from '@/components/button'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -76,10 +77,10 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  scheduled: '#4ECDC4',
-  in_progress: '#55A3FF',
-  completed: '#a4a097',
-  cancelled: '#e03131',
+  scheduled: color.primary,
+  in_progress: color.secondaryBrand,
+  completed: color.mutedSoft,
+  cancelled: color.destructive,
 }
 
 /** 判断课程属于哪个节次(按 startTime 匹配) */
@@ -236,7 +237,7 @@ export default function LessonPrep() {
       title: '删除排课',
       content: '确定删除该排课？删除后不可恢复。',
       confirmText: '确定删除',
-      confirmColor: '#e03131',
+      confirmColor: color.destructive,
       success: async (r) => {
         if (!r.confirm) return
         try {
@@ -301,7 +302,7 @@ export default function LessonPrep() {
         <View className="lp__header-top">
           <View className="lp__header-info">
             <View className="lp__title-row">
-              <Text className="lp__title">{isCoach ? '陪练排课' : '我的课表'}</Text>
+              <Text className="lp__title">{isCoach ? '学生课表' : '我的课表'}</Text>
               <View className="lp__count-badge">
                 <Text className="lp__count-text">待上 {activeCount}</Text>
               </View>
@@ -310,7 +311,7 @@ export default function LessonPrep() {
           </View>
           {isCoach && (
             <View className="lp__add-btn" onClick={() => setShowScheduleForm(true)}>
-              <Plus size={18} color="#fff" />
+              <Plus size={18} color={color.white} />
               <Text className="lp__add-btn-text">排课</Text>
             </View>
           )}
@@ -370,20 +371,22 @@ export default function LessonPrep() {
                       <View key={dIdx} className={`lp__grid-cell lp__grid-cell--empty ${isToday ? 'lp__grid-cell--today-col' : ''}`} />
                     )
                   }
-                  const color = STATUS_COLOR[s.status] || '#4ECDC4'
+                  const statusColor = STATUS_COLOR[s.status] || color.primary
                   return (
                     <View
                       key={dIdx}
                       className={`lp__grid-cell lp__grid-cell--lesson ${isToday ? 'lp__grid-cell--today-col' : ''}`}
                       onClick={() => setSelectedSchedule(s)}
                     >
-                      <View className="lp__lesson-card" style={{ borderLeftColor: color }}>
-                        <Text className="lp__lesson-title" numberOfLines={2}>{s.title || '课程'}</Text>
+                      <View className="lp__lesson-card" style={{ borderLeftColor: statusColor }}>
+                        <Text className="lp__lesson-title" numberOfLines={2}>
+                          {(s.title || '').replace(/\s*[·•]\s*陪练\s*$/u, '').trim() || s.students?.[0] || '课程'}
+                        </Text>
                         {s.students && s.students.length > 0 && (
                           <Text className="lp__lesson-student" numberOfLines={1}>{s.students[0]}</Text>
                         )}
-                        <View className="lp__lesson-status" style={{ backgroundColor: `${color}1a` }}>
-                          <Text className="lp__lesson-status-text" style={{ color }}>{STATUS_LABEL[s.status] || s.status}</Text>
+                        <View className="lp__lesson-status" style={{ backgroundColor: `${statusColor}1a` }}>
+                          <Text className="lp__lesson-status-text" style={{ color: statusColor }}>{STATUS_LABEL[s.status] || s.status}</Text>
                         </View>
                       </View>
                     </View>
@@ -420,7 +423,7 @@ export default function LessonPrep() {
                       ? studentOptions.find((o) => o.value === aStudent)?.label || '选择学员'
                       : studentOptions.length ? '选择学员' : '请先添加学员'}
                   </Text>
-                  <Right size={14} color="#a4a097" />
+                  <Right size={14} color={color.mutedSoft} />
                 </View>
               </Picker>
             </View>
@@ -429,7 +432,7 @@ export default function LessonPrep() {
               <Picker mode="date" value={aDate} onChange={(e) => setADate(String(e.detail.value))}>
                 <View className="lp__form-picker">
                   <Text className="lp__form-picker-text">{aDate}</Text>
-                  <Right size={14} color="#a4a097" />
+                  <Right size={14} color={color.mutedSoft} />
                 </View>
               </Picker>
             </View>
@@ -439,7 +442,7 @@ export default function LessonPrep() {
                 <Picker mode="time" value={aStart} onChange={(e) => setAStart(String(e.detail.value))}>
                   <View className="lp__form-picker">
                     <Text className="lp__form-picker-text">{aStart}</Text>
-                    <Right size={14} color="#a4a097" />
+                    <Right size={14} color={color.mutedSoft} />
                   </View>
                 </Picker>
               </View>
@@ -448,7 +451,7 @@ export default function LessonPrep() {
                 <Picker mode="time" value={aEnd} onChange={(e) => setAEnd(String(e.detail.value))}>
                   <View className="lp__form-picker">
                     <Text className="lp__form-picker-text">{aEnd}</Text>
-                    <Right size={14} color="#a4a097" />
+                    <Right size={14} color={color.mutedSoft} />
                   </View>
                 </Picker>
               </View>
@@ -474,7 +477,11 @@ export default function LessonPrep() {
         <View className="lp__modal-mask" onClick={() => setSelectedSchedule(null)}>
           <View className="lp__modal-sheet" onClick={(e) => e.stopPropagation()}>
             <View className="lp__modal-header">
-              <Text className="lp__modal-title">{selectedSchedule.title || '课程详情'}</Text>
+              <Text className="lp__modal-title">
+                {(selectedSchedule.title || '').replace(/\s*[·•]\s*陪练\s*$/u, '').trim() ||
+                  selectedSchedule.students?.[0] ||
+                  '课程详情'}
+              </Text>
               <Text className="lp__modal-close" onClick={() => setSelectedSchedule(null)}>关闭</Text>
             </View>
             <View className="lp__detail-info">
@@ -492,8 +499,8 @@ export default function LessonPrep() {
               )}
               <View className="lp__detail-row">
                 <Text className="lp__detail-label">状态</Text>
-                <View className="lp__detail-status" style={{ backgroundColor: `${STATUS_COLOR[selectedSchedule.status] || '#4ECDC4'}1a` }}>
-                  <Text className="lp__detail-status-text" style={{ color: STATUS_COLOR[selectedSchedule.status] || '#4ECDC4' }}>
+                <View className="lp__detail-status" style={{ backgroundColor: `${STATUS_COLOR[selectedSchedule.status] || color.primary}1a` }}>
+                  <Text className="lp__detail-status-text" style={{ color: STATUS_COLOR[selectedSchedule.status] || color.primary }}>
                     {STATUS_LABEL[selectedSchedule.status] || selectedSchedule.status}
                   </Text>
                 </View>

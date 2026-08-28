@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { mediaSrc } from '@/features/wordbooks/word-audio'
-import { userDisplayName, userInitials, type CloudUser } from './user-display'
+import { DEFAULT_TEACHER_AVATAR, teacherAvatarSrc } from '@/lib/avatar'
+import { userDisplayName, type CloudUser } from './user-display'
 
 type UserAvatarProps = {
   user: CloudUser
@@ -8,15 +8,17 @@ type UserAvatarProps = {
 }
 
 export function UserAvatar({ user, className }: UserAvatarProps) {
-  const src = user.avatar ? mediaSrc(user.avatar) : ''
+  const src = teacherAvatarSrc(user.avatar)
   const name = userDisplayName(user)
   const deleted = user.isDeleted === true
 
   return (
     <div className='relative inline-block'>
       <Avatar className={className}>
-        {src ? <AvatarImage src={src} alt={name} /> : null}
-        <AvatarFallback>{userInitials(user)}</AvatarFallback>
+        <AvatarImage src={src} alt={name} />
+        <AvatarFallback className='p-0 overflow-hidden'>
+          <img src={DEFAULT_TEACHER_AVATAR} alt='' className='size-full object-cover' />
+        </AvatarFallback>
       </Avatar>
       {deleted ? (
         <span

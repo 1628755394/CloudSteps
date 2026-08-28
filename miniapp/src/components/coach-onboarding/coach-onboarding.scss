@@ -1,0 +1,185 @@
+/**
+ * 老师新手引导 — 蒙层挖洞 + 指向卡片
+ */
+@import '../../styles/vars.scss';
+
+.coach-ob__mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  box-sizing: border-box;
+}
+
+.coach-ob__mask--center {
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.coach-ob__mask--spotlight {
+  background-color: transparent;
+  pointer-events: auto;
+}
+
+.coach-ob__hole {
+  position: absolute;
+  border-radius: 14px;
+  border: 2px solid $primary;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  z-index: 1;
+  animation: coach-ob-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes coach-ob-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55), 0 0 0 0 rgba(78, 205, 196, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55), 0 0 0 8px rgba(78, 205, 196, 0);
+  }
+}
+
+.coach-ob__tip-wrap {
+  position: absolute;
+  z-index: 2;
+  animation: coach-ob-in 0.28s ease-out;
+}
+
+.coach-ob__arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+
+.coach-ob__arrow--up {
+  bottom: 100%;
+  border-bottom: 8px solid $card;
+}
+
+.coach-ob__arrow--down {
+  top: 100%;
+  border-top: 8px solid $card;
+}
+
+.coach-ob__tip {
+  width: 100%;
+  background-color: $card;
+  border: 2px solid $border;
+  border-radius: $radius-lg;
+  padding: 20px 20px 22px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.coach-ob__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.coach-ob__progress {
+  font-size: 22px;
+  color: $muted-foreground;
+  font-weight: 500;
+}
+
+.coach-ob__skip {
+  font-size: 24px;
+  color: $muted-foreground;
+}
+
+.coach-ob__row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.coach-ob__icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: $radius;
+  background-color: $primary-soft;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.coach-ob__icon-wrap--sm {
+  width: 56px;
+  height: 56px;
+}
+
+.coach-ob__copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.coach-ob__title {
+  font-size: 30px;
+  font-weight: 600;
+  color: $foreground;
+  line-height: 1.3;
+}
+
+.coach-ob__desc {
+  font-size: 24px;
+  color: $muted-foreground;
+  line-height: 1.5;
+}
+
+.coach-ob__dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 14px;
+}
+
+.coach-ob__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background-color: $border;
+}
+
+.coach-ob__dot--active {
+  width: 28px;
+  background-color: $primary;
+}
+
+.coach-ob__actions {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+}
+
+.coach-ob__btn {
+  flex: 1;
+}
+
+@keyframes coach-ob-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

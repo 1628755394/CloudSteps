@@ -10,6 +10,7 @@ import Taro, { getCurrentInstance } from '@tarojs/taro'
 import { ArrowLeft, Search } from '@nutui/icons-react-taro'
 import { listWordBookWords, type WordBookWord } from '../../api/wordbooks'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 function formatPhonetic(w: WordBookWord): string {
@@ -191,7 +192,7 @@ export default function WordBookWords() {
       {/* 顶部导航 */}
       <View className="wbw__nav">
         <View className="wbw__nav-back" onClick={handleBack}>
-          <ArrowLeft size={20} color="#37352f" />
+          <ArrowLeft size={20} color={color.charcoal} />
         </View>
         <Text className="wbw__nav-title">{bookName || `词库 #${bookId}`}</Text>
         <View className="wbw__nav-placeholder" />
@@ -199,7 +200,7 @@ export default function WordBookWords() {
 
       {/* 搜索框 */}
       <View className="wbw__search">
-        <Search size={20} color="#a4a097" />
+        <Search size={20} color={color.mutedSoft} />
         <Input
           className="wbw__search-input"
           type="text"

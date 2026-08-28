@@ -13,14 +13,13 @@
  *  - timezone 用 Intl.DateTimeFormat(小程序环境支持)
  */
 import React, { useEffect, useRef, useState } from 'react'
-import { View, Text, Input, Image } from '@tarojs/components'
+import { View, Text, Input, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { CloudButton } from '../../components/button'
 import CaptchaWidget from '../../components/captcha'
 import {
   loginWithEmailCode,
   loginWithPassword,
-  registerUser,
   registerUserByEmail,
   sendEmailCode,
   type CaptchaFields,
@@ -66,7 +65,8 @@ export default function Login() {
   const captchaKeyRef = useRef(0)
 
   const isSubmitting = isLoading || submitting
-  const useEmail = method === 'email'
+  const registering = screen === 'register'
+  const useEmail = registering || method === 'email'
 
   const refreshCaptcha = () => {
     captchaKeyRef.current += 1
@@ -155,7 +155,7 @@ export default function Login() {
       setErrorText('请输入密码')
       return
     }
-    if (screen === 'register') {
+    if (registering) {
       if (!password) {
         setErrorText('请设置密码')
         return
@@ -180,36 +180,21 @@ export default function Login() {
     setSubmitting(true)
     try {
       if (screen === 'register') {
-        if (useEmail) {
-          const reg = await registerUserByEmail({
-            email: identity,
-            username: identity,
-            displayName: identity.split('@')[0],
-            password,
-            code: code.trim(),
-            timezone,
-            source: 'miniapp',
-            ...captcha,
-          })
-          if (reg.code !== 200) {
-            setErrorText(reg.msg || '注册失败')
-            refreshCaptcha()
-            return
-          }
-        } else {
-          const reg = await registerUser({
-            username: identity,
-            password,
-            displayName: identity,
-            timezone,
-            source: 'miniapp',
-            ...captcha,
-          })
-          if (reg.code !== 200) {
-            setErrorText(reg.msg || '注册失败')
-            refreshCaptcha()
-            return
-          }
+        const reg = await registerUserByEmail({
+          email: identity,
+          username: identity,
+          userName: identity,
+          displayName: identity.split('@')[0],
+          password,
+          code: code.trim(),
+          timezone,
+          source: 'miniapp',
+          ...captcha,
+        })
+        if (reg.code !== 200) {
+          setErrorText(reg.msg || '注册失败')
+          refreshCaptcha()
+          return
         }
         setScreen('login')
         setPassword('')
@@ -258,16 +243,17 @@ export default function Login() {
   const subtitle = screen === 'login' ? '登录以继续陪练与单词训练' : '创建账号开始学习'
 
   return (
-    <View className="login">
-      <View className="login__container">
+    <ScrollView scrollY className="login-scroll">
+      <View className="login">
+        <View className="login__container">
         {/* Header */}
         <View className="login__header">
           <Image className="login__logo" src="/assets/logo.png" mode="aspectFit" />
-          <Text className="login__title">云阶</Text>
+          <Text className="login__title">解忧</Text>
           <Text className="login__subtitle">{subtitle}</Text>
         </View>
 
-        {/* Method tabs */}
+        {screen === 'login' ? (
         <View className="login__methods">
           {(
             [
@@ -284,6 +270,11 @@ export default function Login() {
             </View>
           ))}
         </View>
+        ) : (
+          <View className="login__field">
+            <Text className="login__subtitle">请用邮箱收取验证码完成注册，并设置密码以便之后登录。</Text>
+          </View>
+        )}
 
         {/* Form */}
         <View className="login__form">
@@ -324,7 +315,7 @@ export default function Login() {
           ) : null}
 
           {/* 密码 */}
-          {(!useEmail || screen === 'register') ? (
+          {(registering || !useEmail) ? (
             <View className="login__field">
               <Text className="login__label">{screen === 'register' ? '设置密码' : '密码'}</Text>
               <Input
@@ -379,5 +370,6 @@ export default function Login() {
         </View>
       </View>
     </View>
+    </ScrollView>
   )
 }

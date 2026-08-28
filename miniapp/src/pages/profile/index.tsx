@@ -30,6 +30,7 @@ import {
 import { CloudButton } from '../../components/button'
 import { useAuthStore } from '../../stores/authStore'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { color } from '../../styles/tokens'
 import './index.scss'
 
 interface MenuItem {
@@ -78,7 +79,7 @@ export default function Profile() {
       title: '确认退出',
       content: '退出后需要重新登录',
       confirmText: '退出',
-      confirmColor: '#e03131',
+      confirmColor: color.destructive,
     })
     if (res.confirm) {
       await logout()
@@ -119,24 +120,24 @@ export default function Profile() {
   })()
 
   const stats = [
-    { label: '登录次数', value: String(user?.loginCount ?? '-'), icon: <Clock size={20} color="#4ECDC4" />, color: '#4ECDC4' },
-    { label: '资料完整度', value: `${profileComplete}%`, icon: <Check size={20} color="#55A3FF" />, color: '#55A3FF' },
-    { label: '连续学习', value: typeof (user as any)?.streakDays === 'number' ? `${(user as any).streakDays}天` : '-', icon: <Star size={20} color="#FF6B6B" />, color: '#FF6B6B' },
+    { label: '登录次数', value: String(user?.loginCount ?? '-'), icon: <Clock size={20} color={color.primary} />, color: color.primary },
+    { label: '资料完整度', value: `${profileComplete}%`, icon: <Check size={20} color={color.secondaryBrand} />, color: color.secondaryBrand },
+    { label: '连续学习', value: typeof (user as any)?.streakDays === 'number' ? `${(user as any).streakDays}天` : '-', icon: <Star size={20} color={color.wrong} />, color: color.wrong },
   ]
 
   // 基本信息
   const infoItems = [
-    { icon: <Mail size={18} color="#55A3FF" />, label: '邮箱', value: user?.email || '未填写' },
-    { icon: <Phone size={18} color="#4ECDC4" />, label: '手机号', value: user?.phone || '未填写' },
-    { icon: <Location size={18} color="#FF6B6B" />, label: '地区', value: [user?.region, user?.city].filter(Boolean).join(' · ') || '未填写' },
+    { icon: <Mail size={18} color={color.secondaryBrand} />, label: '邮箱', value: user?.email || '未填写' },
+    { icon: <Phone size={18} color={color.primary} />, label: '手机号', value: user?.phone || '未填写' },
+    { icon: <Location size={18} color={color.wrong} />, label: '地区', value: [user?.region, user?.city].filter(Boolean).join(' · ') || '未填写' },
   ]
 
   // 设置菜单
   const settingMenus: MenuItem[] = [
-    { id: 'password', icon: <Setting size={20} color="#4ECDC4" />, label: '修改密码', desc: '定期修改保障安全', onClick: () => Taro.navigateTo({ url: '/pages/settings/index' }) },
-    { id: 'email', icon: <Mail size={20} color="#4ECDC4" />, label: '绑定邮箱', desc: user?.email || '用于通知与找回', onClick: () => Taro.navigateTo({ url: '/pages/settings/index' }) },
-    { id: 'notifications', icon: <Notice size={20} color="#4ECDC4" />, label: '消息通知', desc: '管理推送提醒', onClick: () => Taro.navigateTo({ url: '/pages/settings/index' }) },
-    { id: 'security', icon: <ShieldCheck size={20} color="#55A3FF" />, label: '账号安全', desc: '登录记录与设备', onClick: () => Taro.navigateTo({ url: '/pages/settings/index' }) },
+    { id: 'password', icon: <Setting size={20} color={color.primary} />, label: '修改密码', desc: '定期修改保障安全', onClick: () => Taro.navigateTo({ url: '/pages/settings/index' }) },
+    { id: 'email', icon: <Mail size={20} color={color.primary} />, label: '绑定邮箱', desc: user?.email || '用于通知与找回', onClick: () => Taro.navigateTo({ url: '/pages/settings/index' }) },
+    { id: 'notifications', icon: <Notice size={20} color={color.primary} />, label: '消息通知', desc: '管理推送提醒', onClick: () => Taro.navigateTo({ url: '/pages/settings/index' }) },
+    { id: 'security', icon: <ShieldCheck size={20} color={color.secondaryBrand} />, label: '账号安全', desc: '登录记录与设备', onClick: () => Taro.navigateTo({ url: '/pages/settings/index' }) },
   ]
 
   // 其他链接
@@ -168,16 +169,16 @@ export default function Profile() {
         <View className="profile__user-info">
           <Text className="profile__name">{displayName}</Text>
           <View className="profile__role-badge">
-            <ShieldCheck size={22} color="#4ECDC4" />
+            <ShieldCheck size={22} color={color.primary} />
             <Text className="profile__role-text">{roleText}</Text>
           </View>
         </View>
         <View className="profile__header-actions">
           <View className="profile__icon-btn" onClick={handleRefresh}>
-            <Refresh size={20} color="#787671" />
+            <Refresh size={20} color={color.mutedForeground} />
           </View>
           <View className="profile__icon-btn" onClick={handleEdit}>
-            <Edit size={20} color="#787671" />
+            <Edit size={20} color={color.mutedForeground} />
           </View>
         </View>
       </View>
@@ -229,7 +230,7 @@ export default function Profile() {
                 <Text className="profile__menu-label">{item.label}</Text>
                 <Text className="profile__menu-desc">{item.desc}</Text>
               </View>
-              <Right size={16} color="#a4a097" />
+              <Right size={16} color={color.mutedSoft} />
             </View>
           ))}
         </View>
@@ -247,7 +248,7 @@ export default function Profile() {
               <View className="profile__menu-content">
                 <Text className="profile__menu-label">{link.label}</Text>
               </View>
-              <Right size={16} color="#a4a097" />
+              <Right size={16} color={color.mutedSoft} />
             </View>
           ))}
         </View>
@@ -261,13 +262,13 @@ export default function Profile() {
           onClick={handleLogout}
           className="profile__logout-btn"
         >
-          <Close size={18} color="#e03131" />
-          <Text style={{ color: '#e03131', marginLeft: '8rpx' }}>退出登录</Text>
+          <Close size={18} color={color.destructive} />
+          <Text style={{ color: color.destructive, marginLeft: '8rpx' }}>退出登录</Text>
         </CloudButton>
       </View>
 
       <View className="profile__footer">
-        <Text className="profile__footer-text">云阶 CloudSteps v1.0.0</Text>
+        <Text className="profile__footer-text">解忧 CloudSteps v1.0.0</Text>
       </View>
     </ScrollView>
   )

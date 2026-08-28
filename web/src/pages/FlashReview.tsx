@@ -12,6 +12,7 @@ import confetti from "canvas-confetti";
 import { playFirstWordAudio, playSecondWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, formatTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+import { WordEditTrigger, applyUserWordView } from "../components/WordEditControls";
 import {
   clearStudyRetryFlash,
   getStudyRetryWords,
@@ -303,6 +304,19 @@ export default function FlashReview() {
             annotationOpen={annotationOpen}
             onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
             wordCount={words.length}
+            onWordPatched={(view) =>
+              setWords((prev) =>
+                applyUserWordView(prev, view).map((w) =>
+                  w.id === view.wordId
+                    ? {
+                        ...w,
+                        translationShort:
+                          formatTranslationShort(view.effective.translation) || w.translationShort,
+                      }
+                    : w
+                )
+              )
+            }
           />
         }
       />
@@ -371,6 +385,7 @@ export default function FlashReview() {
                 </CloudButton>
               </div>
               <div className="flex items-center justify-center gap-4 border-t border-border/60 px-4 py-4">
+                <WordEditTrigger wordId={visibleWords[cardIndex].id} />
                 <CloudButton
                   type="button"
                   variant="ghost"
@@ -442,6 +457,9 @@ export default function FlashReview() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <WordEditTrigger wordId={word.id} />
+                    </div>
                     <CloudButton
                       type="button"
                       variant="ghost"

@@ -29,6 +29,7 @@ const (
 	TmplLogout             = "logout"
 	TmplChangeEmail        = "change_email"
 	TmplChangeEmailDone    = "change_email_done"
+	TmplFeedbackReply      = "feedback_reply"
 )
 
 // ChannelLoader loads enabled system email channels.

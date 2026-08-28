@@ -1,7 +1,7 @@
 # CloudSteps DESIGN.md — Warm Mint
 
 > Hybrid of **Mintlify** (mint accent, reading clarity) × **Notion** (warm surfaces, low-pressure calm).  
-> Product: 云阶 CloudSteps — coaching, vocabulary training, scenario dialogue.
+> Product: 解忧 CloudSteps — coaching, vocabulary training, scenario dialogue.
 
 ## 1. Visual Theme & Atmosphere
 
