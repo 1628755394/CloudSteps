@@ -67,6 +67,21 @@ export function roleLabel(role?: string): string {
   }
 }
 
+const SOURCE_LABELS: Record<string, string> = {
+  web: '网页注册',
+  miniapp: '小程序',
+  admin: '管理后台',
+  teacher_create: '教师创建',
+  seed: '种子数据',
+}
+
+export function sourceLabel(source?: string): string {
+  const raw = source?.trim()
+  if (!raw) return '—'
+  const key = raw.toLowerCase()
+  return SOURCE_LABELS[key] ?? raw
+}
+
 export function genderLabel(gender?: string): string {
   const value = gender?.trim().toLowerCase()
   if (!value) return '—'

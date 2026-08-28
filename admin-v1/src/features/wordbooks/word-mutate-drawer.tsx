@@ -258,7 +258,15 @@ export function WordMutateDrawer({
                 </div>
               </div>
 
-              <Field id='translation' label='释义（JSON 数组或文本）'>
+              <Field id='translationShort' label='简译'>
+                <Input
+                  id='translationShort'
+                  placeholder='列表/训练时展示的简短释义'
+                  value={form.translationShort}
+                  onChange={(e) => setField('translationShort', e.target.value)}
+                />
+              </Field>
+              <Field id='translation' label='完整释义（JSON 数组或文本）'>
                 <Textarea
                   id='translation'
                   rows={5}

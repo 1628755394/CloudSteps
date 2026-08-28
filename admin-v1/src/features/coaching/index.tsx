@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Eye, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
 import { get } from '@/lib/api'
 import { AdminPage } from '@/components/admin-page'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -14,44 +22,40 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { AppointmentDetailSheet } from './appointment-detail-sheet'
+import {
+  appointmentTitle,
+  formatScheduleDate,
+  monthRange,
+  personLabel,
+  slotLabel,
+  statusBadge,
+  weekRange,
+  type CoachingAppointment,
+} from './appointment-display'
 
-type Appointment = {
-  id: number
-  teacherId?: number
-  studentId?: number
-  scheduledDate?: string
-  startTime?: string
-  endTime?: string
-  status?: string
-  title?: string
-}
+const ALL = 'all'
+const PAGE_SIZE = 20
 
-function fmtDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
-}
-
-function weekRange(): { from: string; to: string } {
-  const x = new Date()
-  const fromMon = (x.getDay() + 6) % 7
-  const mon = new Date(x)
-  mon.setDate(x.getDate() - fromMon)
-  const sun = new Date(mon)
-  sun.setDate(mon.getDate() + 6)
-  return { from: fmtDate(mon), to: fmtDate(sun) }
-}
-
-function monthRange(): { from: string; to: string } {
-  const x = new Date()
-  const from = new Date(x.getFullYear(), x.getMonth(), 1)
-  const to = new Date(x.getFullYear(), x.getMonth() + 1, 0)
-  return { from: fmtDate(from), to: fmtDate(to) }
-}
+const STATUS_OPTIONS = [
+  { value: ALL, label: '全部状态' },
+  { value: 'scheduled', label: '已排课' },
+  { value: 'in_progress', label: '进行中' },
+  { value: 'completed', label: '已完成' },
+  { value: 'cancelled', label: '已取消' },
+  { value: 'no_show', label: '未到课' },
+] as const
 
 export function CoachingPage() {
-  const [list, setList] = useState<Appointment[]>([])
+  const initial = weekRange()
+  const [list, setList] = useState<CoachingAppointment[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
-  const [from, setFrom] = useState(weekRange().from)
-  const [to, setTo] = useState(weekRange().to)
+  const [from, setFrom] = useState(initial.from)
+  const [to, setTo] = useState(initial.to)
+  const [status, setStatus] = useState(ALL)
+  const [detail, setDetail] = useState<CoachingAppointment | null>(null)
 
   const load = useCallback(async () => {
     if (!from || !to) {
@@ -64,28 +68,58 @@ export function CoachingPage() {
     }
     setLoading(true)
     try {
-      const res = await get<Appointment[] | { list?: Appointment[] }>(
-        `/coaching/appointments?from=${from}&to=${to}`
-      )
+      const res = await get<
+        CoachingAppointment[] | { list?: CoachingAppointment[]; total?: number }
+      >('/coaching/appointments', {
+        params: {
+          from,
+          to,
+          page,
+          pageSize: PAGE_SIZE,
+          status: status === ALL ? undefined : status,
+        },
+      })
       const data = res.data
-      setList(Array.isArray(data) ? data : data.list || [])
+      const rows = Array.isArray(data) ? data : data.list || []
+      setList(rows)
+      setTotal(Array.isArray(data) ? rows.length : data.total ?? rows.length)
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : '加载陪练失败')
     } finally {
       setLoading(false)
     }
-  }, [from, to])
+  }, [from, to, page, status])
 
   useEffect(() => {
     void load()
   }, [load])
 
+  const openDetail = async (row: CoachingAppointment) => {
+    setDetail(row)
+    try {
+      const res = await get<CoachingAppointment>(
+        `/coaching/appointments/${row.id}`
+      )
+      setDetail({ ...row, ...res.data })
+    } catch {
+      // list row already has summary fields
+    }
+  }
+
+  const applyRange = (range: { from: string; to: string }) => {
+    setFrom(range.from)
+    setTo(range.to)
+    setPage(1)
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
   return (
     <AdminPage
       title='一对一陪练'
-      description={`${from} ~ ${to} 预约记录`}
+      description={`${from} ~ ${to} · 共 ${total} 条`}
     >
-      <div className='mb-4 flex flex-wrap items-end gap-4'>
+      <div className='mb-4 flex flex-wrap items-end gap-3'>
         <div className='grid gap-1.5'>
           <Label htmlFor='coaching-from'>开始日期</Label>
           <Input
@@ -93,7 +127,10 @@ export function CoachingPage() {
             type='date'
             className='w-40'
             value={from}
-            onChange={(e) => setFrom(e.target.value)}
+            onChange={(e) => {
+              setFrom(e.target.value)
+              setPage(1)
+            }}
           />
         </div>
         <div className='grid gap-1.5'>
@@ -103,32 +140,40 @@ export function CoachingPage() {
             type='date'
             className='w-40'
             value={to}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={(e) => {
+              setTo(e.target.value)
+              setPage(1)
+            }}
           />
+        </div>
+        <div className='grid gap-1.5'>
+          <Label>状态</Label>
+          <Select
+            value={status}
+            onValueChange={(v) => {
+              setStatus(v)
+              setPage(1)
+            }}
+          >
+            <SelectTrigger className='w-36'>
+              <SelectValue placeholder='全部状态' />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button variant='outline' onClick={() => void load()} disabled={loading}>
           查询
         </Button>
-        <Button
-          variant='ghost'
-          size='sm'
-          onClick={() => {
-            const r = weekRange()
-            setFrom(r.from)
-            setTo(r.to)
-          }}
-        >
+        <Button variant='ghost' size='sm' onClick={() => applyRange(weekRange())}>
           本周
         </Button>
-        <Button
-          variant='ghost'
-          size='sm'
-          onClick={() => {
-            const r = monthRange()
-            setFrom(r.from)
-            setTo(r.to)
-          }}
-        >
+        <Button variant='ghost' size='sm' onClick={() => applyRange(monthRange())}>
           本月
         </Button>
       </div>
@@ -142,38 +187,98 @@ export function CoachingPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>学员 ID</TableHead>
-              <TableHead>老师 ID</TableHead>
-              <TableHead>开始</TableHead>
-              <TableHead>结束</TableHead>
+              <TableHead>日期</TableHead>
+              <TableHead>时段</TableHead>
+              <TableHead>老师</TableHead>
+              <TableHead>学员</TableHead>
+              <TableHead>课程</TableHead>
               <TableHead>状态</TableHead>
+              <TableHead className='w-24'>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className='text-center text-muted-foreground'>
-                  该日期范围内暂无预约
+                <TableCell
+                  colSpan={7}
+                  className='text-center text-muted-foreground'
+                >
+                  该筛选条件下暂无排课
                 </TableCell>
               </TableRow>
             ) : (
-              list.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell>{a.studentId ?? '—'}</TableCell>
-                  <TableCell>{a.teacherId ?? '—'}</TableCell>
-                  <TableCell>
-                    {[a.scheduledDate, a.startTime].filter(Boolean).join(' ') || '—'}
-                  </TableCell>
-                  <TableCell>
-                    {[a.scheduledDate, a.endTime].filter(Boolean).join(' ') || '—'}
-                  </TableCell>
-                  <TableCell>{a.status || a.title || '—'}</TableCell>
-                </TableRow>
-              ))
+              list.map((a) => {
+                const badge = statusBadge(a.status)
+                return (
+                  <TableRow
+                    key={a.id}
+                    className='cursor-pointer'
+                    onClick={() => void openDetail(a)}
+                  >
+                    <TableCell className='whitespace-nowrap'>
+                      {formatScheduleDate(a.scheduledDate)}
+                    </TableCell>
+                    <TableCell className='whitespace-nowrap'>
+                      {slotLabel(a.startTime, a.endTime)}
+                    </TableCell>
+                    <TableCell>{personLabel(a.teacher, a.teacherId)}</TableCell>
+                    <TableCell>{personLabel(a.student, a.studentId)}</TableCell>
+                    <TableCell className='max-w-48 truncate'>
+                      {appointmentTitle(a)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size='sm'
+                        variant='ghost'
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void openDetail(a)
+                        }}
+                      >
+                        <Eye />
+                        详情
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
       )}
+
+      <div className='mt-4 flex items-center justify-end gap-2'>
+        <span className='text-xs text-muted-foreground tabular-nums'>
+          第 {page}/{totalPages} 页
+        </span>
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={page <= 1 || loading}
+          onClick={() => setPage((p) => p - 1)}
+        >
+          上一页
+        </Button>
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={page >= totalPages || loading || total === 0}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          下一页
+        </Button>
+      </div>
+
+      <AppointmentDetailSheet
+        open={!!detail}
+        onOpenChange={(open) => {
+          if (!open) setDetail(null)
+        }}
+        appointment={detail}
+      />
     </AdminPage>
   )
 }

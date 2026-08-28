@@ -7,6 +7,7 @@ export type Word = {
   phoneticUk?: string
   lemma?: string
   translation?: string
+  translationShort?: string
   exampleSentence?: string
   exampleSentences?: string
   audioUrl?: string
@@ -44,6 +45,7 @@ export type WordForm = {
   phoneticUk: string
   lemma: string
   translation: string
+  translationShort: string
   exampleSentence: string
   exampleSentences: string
   audioUrl: string

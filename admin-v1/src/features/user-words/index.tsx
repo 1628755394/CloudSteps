@@ -36,6 +36,7 @@ type UserWordFields = {
   phonetic?: string
   phoneticUs?: string
   phoneticUk?: string
+  translationShort?: string
   translation?: string
   partOfSpeech?: string
   definition?: string
@@ -225,9 +226,18 @@ export function UserWordsPage() {
                 const overlayWord = row.overlay.word || row.canonical.word || `#${row.wordId}`
                 const wordChanged =
                   Boolean(row.overlay.word) && row.overlay.word !== row.canonical.word
+                const transShortChanged =
+                  Boolean(row.overlay.translationShort) &&
+                  pretty(row.overlay.translationShort) !==
+                    pretty(row.canonical.translationShort)
                 const transChanged =
                   Boolean(row.overlay.translation) &&
                   pretty(row.overlay.translation) !== pretty(row.canonical.translation)
+                const overlayTrans = pretty(
+                  row.overlay.translationShort ||
+                    row.overlay.translation ||
+                    row.overlay.definition
+                )
                 return (
                   <TableRow key={row.id}>
                     <TableCell>
@@ -249,12 +259,12 @@ export function UserWordsPage() {
                       </div>
                       <div
                         className={`truncate text-xs ${
-                          transChanged
+                          transShortChanged || transChanged
                             ? 'text-emerald-700 dark:text-emerald-400'
                             : 'text-muted-foreground'
                         }`}
                       >
-                        {pretty(row.overlay.translation || row.overlay.definition)}
+                        {overlayTrans}
                       </div>
                     </TableCell>
                     <TableCell className='max-w-xs'>
@@ -369,7 +379,8 @@ const COMPARE_ROWS: Array<{ key: keyof UserWordFields; label: string }> = [
   { key: 'phoneticUs', label: '美音' },
   { key: 'phoneticUk', label: '英音' },
   { key: 'partOfSpeech', label: '词性' },
-  { key: 'translation', label: '中文释义' },
+  { key: 'translationShort', label: '简译' },
+  { key: 'translation', label: '完整释义' },
   { key: 'definition', label: '英文释义' },
   { key: 'exampleSentence', label: '例句' },
 ]

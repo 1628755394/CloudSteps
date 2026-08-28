@@ -24,7 +24,7 @@ import {
 import { AdminPage } from '@/components/admin-page'
 import { UserAvatar } from './user-avatar'
 import { UserDetailSheet, type CloudUser } from './user-detail-sheet'
-import { roleLabel, userDisplayName } from './user-display'
+import { roleLabel, sourceLabel, userDisplayName } from './user-display'
 
 const ALL = 'all'
 
@@ -159,7 +159,7 @@ export function CloudUsersPage() {
                         </p>
                         <p className='text-xs text-muted-foreground'>
                           ID {u.id}
-                          {u.source ? ` · ${u.source}` : ''}
+                          {u.source ? ` · ${sourceLabel(u.source)}` : ''}
                         </p>
                       </div>
                     </div>
