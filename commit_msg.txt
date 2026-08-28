@@ -1,0 +1,11 @@
+style(web): 优化词库详情页顶部信息卡片
+
+- 上下内边距从 p-5 改为 px-5 py-3.5，压矮卡片高度
+- 标题字重从 font-semibold 降为 font-medium
+- 单词数量字号从 text-xs 升为 text-sm，字重 font-medium，颜色加深
+- 标题与数量间距从 mt-1 减为 mt-0.5
+- 圆角从 rounded-2xl 改为 rounded-xl
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
