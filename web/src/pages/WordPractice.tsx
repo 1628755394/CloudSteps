@@ -526,8 +526,18 @@ export default function WordPractice() {
               size="pill"
               onClick={() => {
                 setDetailMode((v) => {
-                  if (v) setDetailWord(null);
-                  return !v;
+                  const next = !v;
+                  if (next) {
+                    const targetIndex = viewMode === "card" ? cardIndex : (selectedIndex ?? activeIndex);
+                    if (targetIndex >= 0 && words[targetIndex]) {
+                      setWords((prev) =>
+                        prev.map((w, i) => (i === targetIndex ? { ...w, showTranslation: true } : w))
+                      );
+                    }
+                  } else {
+                    setDetailWord(null);
+                  }
+                  return next;
                 });
               }}
             >
