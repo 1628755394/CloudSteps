@@ -66,14 +66,29 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", period.ID).First(&lockedPeriod).Error; err != nil {
 			return err
 		}
+
+		var pool models.TeacherTeachingPool
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("teacher_id = ? AND is_deleted = 0", ap.TeacherID).
+			First(&pool).Error; err != nil {
+			return err
+		}
 		teacherCred := billedStudent
-		if lockedPeriod.CapMinutes > 0 {
-			room := lockedPeriod.CapMinutes - lockedPeriod.UsedMinutes
-			if room < 0 {
-				room = 0
+		if pool.RemainingMinutes < teacherCred {
+			teacherCred = pool.RemainingMinutes
+		}
+		if teacherCred > 0 {
+			poolRes := tx.Model(&models.TeacherTeachingPool{}).
+				Where("id = ? AND version = ?", pool.ID, pool.Version).
+				Updates(map[string]any{
+					"remaining_minutes": pool.RemainingMinutes - teacherCred,
+					"version":           pool.Version + 1,
+				})
+			if poolRes.Error != nil {
+				return poolRes.Error
 			}
-			if teacherCred > room {
-				teacherCred = room
+			if poolRes.RowsAffected == 0 {
+				return errors.New("老师授课池更新冲突，请重试")
 			}
 		}
 		if err := tx.Model(&lockedPeriod).Update("used_minutes", lockedPeriod.UsedMinutes+teacherCred).Error; err != nil {

@@ -131,3 +131,85 @@ func mustCreateAppointment(t *testing.T, db *gorm.DB, teacherID, studentID uint,
 	}
 	return ap
 }
+
+func TestCoachingTeacherListQuotas_excludesSelfPair(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.StudentTeacherCoachingQuota{},
+		&models.VocabTestRecord{},
+		&models.CoachingSessionRecord{},
+		&models.StudySession{},
+		&models.TeacherTeachingPool{},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	teacher := mustCreateTeacher(t, db, "coach-self")
+	student := mustCreateStudent(t, db, "real-stu")
+	legacy := models.StudentTeacherCoachingQuota{
+		TeacherID:             teacher.ID,
+		StudentID:             teacher.ID,
+		RemainingMinutes:      1000,
+		TotalAllocatedMinutes: 1000,
+	}
+	if err := db.Create(&legacy).Error; err != nil {
+		t.Fatal(err)
+	}
+	real := models.StudentTeacherCoachingQuota{
+		TeacherID:             teacher.ID,
+		StudentID:             student.ID,
+		RemainingMinutes:      120,
+		TotalAllocatedMinutes: 120,
+	}
+	if err := db.Create(&real).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	listFor := func(includeSelf bool) []uint {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		url := "/teacher/coaching/quotas?limit=20"
+		if includeSelf {
+			url += "&includeSelf=1"
+		}
+		c.Request = httptest.NewRequest(http.MethodGet, url, nil)
+		c.Set(constants.DbField, db)
+		c.Set(constants.UserField, teacher)
+
+		h := &Handlers{}
+		h.coachingTeacherListQuotas(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("status %d body %s", w.Code, w.Body.String())
+		}
+		var envelope struct {
+			Code int `json:"code"`
+			Data struct {
+				List []struct {
+					StudentID uint `json:"studentId"`
+				} `json:"list"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
+			t.Fatalf("json: %v", err)
+		}
+		ids := make([]uint, 0, len(envelope.Data.List))
+		for _, row := range envelope.Data.List {
+			ids = append(ids, row.StudentID)
+		}
+		return ids
+	}
+
+	defaultIDs := listFor(false)
+	if len(defaultIDs) != 1 || defaultIDs[0] != student.ID {
+		t.Fatalf("default list studentIds=%v want only %d", defaultIDs, student.ID)
+	}
+	withSelf := listFor(true)
+	if len(withSelf) != 1 || withSelf[0] != student.ID {
+		t.Fatalf("includeSelf list studentIds=%v want only %d", withSelf, student.ID)
+	}
+}
