@@ -235,6 +235,18 @@ func (m *Mailer) SendInbox(code string, data map[string]any) error {
 	return nil
 }
 
+// SendWelcomeInbox writes the welcome inbox notification for a user.
+func SendWelcomeInbox(db *gorm.DB, userID uint, ip, displayName, loginURL string) error {
+	if db == nil || userID == 0 {
+		return nil
+	}
+	m := NewMailer(db, userID, ip)
+	return m.SendInbox(TmplWelcome, map[string]any{
+		"Username":  displayName,
+		"VerifyURL": loginURL,
+	})
+}
+
 func renderTemplate(src string, data any) (string, error) {
 	tmpl, err := template.New("email").Parse(src)
 	if err != nil {
