@@ -114,7 +114,7 @@ func mustCreateStudent(t *testing.T, db *gorm.DB, username string) *models.User 
 	return &u
 }
 
-func mustCreateAppointment(t *testing.T, db *gorm.DB, teacherID, studentID uint, day time.Time, status, title string) {
+func mustCreateAppointment(t *testing.T, db *gorm.DB, teacherID, studentID uint, day time.Time, status, title string) models.CoachingAppointment {
 	t.Helper()
 	ap := models.CoachingAppointment{
 		TeacherID:       teacherID,
@@ -129,4 +129,5 @@ func mustCreateAppointment(t *testing.T, db *gorm.DB, teacherID, studentID uint,
 	if err := db.Create(&ap).Error; err != nil {
 		t.Fatal(err)
 	}
+	return ap
 }

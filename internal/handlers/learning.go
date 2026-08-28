@@ -73,6 +73,8 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 	}
 
 	now := time.Now().UTC()
+	loc := models.UserReviewLocation(user)
+	firstDue := models.FirstReviewDueAt(loc)
 
 	// Ensure user selected this wordbook (idempotent)
 	uwb := models.UserWordBook{UserID: user.ID, WordBookID: body.WordBookID}
@@ -90,13 +92,13 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 			LearnStatus:    "learned",
 			ReviewStage:    0,
 			FirstLearnedAt: &now,
-			NextReviewAt:   &now,
+			NextReviewAt:   &firstDue,
 		})
 		queueItems = append(queueItems, models.ReviewQueue{
 			UserID:     user.ID,
 			WordID:     wid,
 			WordBookID: body.WordBookID,
-			DueAt:      now,
+			DueAt:      firstDue,
 			Stage:      0,
 			Status:     "pending",
 		})
@@ -241,7 +243,8 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 			remembered := resMap[wid]
 			if remembered {
 				newStage := it.Stage + 1
-				if newStage >= len(models.EbbinghausIntervals) {
+				intervals := models.ReviewIntervalsForUser(user)
+				if newStage >= len(intervals) {
 					// mastered: remove queue
 					if err := tx.Where("id = ?", it.ID).Delete(&models.ReviewQueue{}).Error; err != nil {
 						return err
@@ -254,7 +257,7 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 					continue
 				}
 
-				due := now.AddDate(0, 0, models.EbbinghausIntervals[newStage])
+				due, newStage := models.ReviewDueAfterSuccess(now, it.Stage, user.ReviewCurvePreset)
 				if err := tx.Model(&models.ReviewQueue{}).Where("id = ?", it.ID).
 					Updates(map[string]any{"due_at": due, "stage": newStage, "status": "pending"}).Error; err != nil {
 					return err
@@ -266,15 +269,7 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 				}
 			} else {
 				// ×：九宫格退一格；最快明天再到期，当天不再出现
-				newStage := it.Stage - 1
-				if newStage < 0 {
-					newStage = 0
-				}
-				dueDays := 1
-				if newStage < len(models.EbbinghausIntervals) && models.EbbinghausIntervals[newStage] > 1 {
-					dueDays = models.EbbinghausIntervals[newStage]
-				}
-				due := now.AddDate(0, 0, dueDays)
+				due, newStage := models.ReviewDueAfterFail(now, it.Stage, user.ReviewCurvePreset)
 				if err := tx.Model(&models.ReviewQueue{}).Where("id = ?", it.ID).
 					Updates(map[string]any{"due_at": due, "stage": newStage, "status": "pending"}).Error; err != nil {
 					return err

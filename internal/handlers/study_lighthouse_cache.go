@@ -123,12 +123,14 @@ func computeStudyLighthouse(db *gorm.DB, userID uint, wordBookID int) gin.H {
 	}
 
 	days := make([]dayItem, 0, 7)
-	intervals := models.EbbinghausIntervals
+	var presetUser models.User
+	_ = db.Select("review_curve_preset").Where("id = ?", userID).First(&presetUser).Error
+	intervals := models.ReviewIntervalsForUser(&presetUser)
 	for i := 0; i < 7; i++ {
 		label := fmt.Sprintf("第%d步", i+1)
 		if i < len(intervals) {
 			if i == 0 {
-				label += "·初学"
+				label += "·次日"
 			} else {
 				label += fmt.Sprintf("·%d天后", intervals[i])
 			}

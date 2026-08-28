@@ -131,8 +131,9 @@ type User struct {
 	LoginCount         int        `json:"loginCount" gorm:"default:0"`                     // 登录次数
 	LastPasswordChange *time.Time `json:"lastPasswordChange,omitempty"`                    // 最后密码修改时间
 	Role               string     `json:"role,omitempty" gorm:"size:50;default:'teacher'"` // 用户角色
-	EmailNotifications    bool `json:"emailNotifications" gorm:"default:true"`
-	AutoCleanUnreadEmails bool `json:"autoCleanUnreadEmails" gorm:"default:false"`
+	EmailNotifications    bool   `json:"emailNotifications" gorm:"default:true"`
+	AutoCleanUnreadEmails bool   `json:"autoCleanUnreadEmails" gorm:"default:false"`
+	ReviewCurvePreset     string `json:"reviewCurvePreset" gorm:"size:20;default:'times5'"` // times3 | times5 | times7 | times10
 	// 学习连续天数（每次完成 study_session 时维护，当天已学不变，隔天+1，断天归零）
 	StreakDays    int        `json:"streakDays" gorm:"default:0"` // 连续学习天数
 	LastStudyDate *time.Time `json:"lastStudyDate,omitempty"`     // 最后学习日期（精确到天）

@@ -53,10 +53,18 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 	dayEnd := dayStart.Add(24 * time.Hour)
 	isSelectedToday := dayStart.Equal(todayStart)
 
+	studySessionID, _ := strconv.Atoi(c.Query("studySessionId"))
+
 	q := db.Model(&models.ReviewQueue{}).
 		Where("user_id = ? AND status = ?", user.ID, "pending")
 	if wordBookID > 0 {
 		q = q.Where("word_book_id = ?", wordBookID)
+	}
+	if studySessionID > 0 {
+		q = q.Where(
+			"source_session_id = ? OR (source_session_id = 0 AND word_id IN (SELECT word_id FROM session_words WHERE session_id = ? AND remembered = 1))",
+			uint(studySessionID), uint(studySessionID),
+		)
 	}
 	if isSelectedToday {
 		q = q.Where("due_at < ?", dayEnd)
@@ -177,32 +185,53 @@ func (h *Handlers) handleReviewBooksByDate(c *gin.Context) {
 	isSelectedToday := dayStart.Equal(todayStart)
 
 	type bookStat struct {
-		WordBookID uint   `gorm:"column:word_book_id" json:"wordBookId"`
-		Count      int64  `gorm:"column:cnt" json:"cnt"`
-		BookName   string `gorm:"column:name" json:"name"`
-		Level      string `gorm:"column:level" json:"level"`
+		SessionID         uint       `gorm:"column:session_id" json:"sessionId"`
+		WordBookID        uint       `gorm:"column:word_book_id" json:"wordBookId"`
+		Count             int64      `gorm:"column:cnt" json:"cnt"`
+		BookName          string     `gorm:"column:name" json:"name"`
+		Level             string     `gorm:"column:level" json:"level"`
+		PracticeStartedAt *time.Time `gorm:"column:practice_started_at" json:"practiceStartedAt"`
+		PracticeEndedAt   *time.Time `gorm:"column:practice_ended_at" json:"practiceEndedAt"`
 	}
 	var stats []bookStat
+
+	sessionJoin := `
+		LEFT JOIN study_sessions ss ON ss.id = CASE
+			WHEN rq.source_session_id > 0 THEN rq.source_session_id
+			ELSE (
+				SELECT ss2.id FROM study_sessions ss2
+				INNER JOIN session_words sw2 ON sw2.session_id = ss2.id AND sw2.word_id = rq.word_id AND sw2.remembered = 1
+				WHERE ss2.user_id = rq.user_id AND ss2.word_book_id = rq.word_book_id
+				ORDER BY COALESCE(ss2.completed_at, ss2.started_at) DESC, ss2.id DESC
+				LIMIT 1
+			)
+		END
+	`
 
 	var q string
 	var args []any
 	if isSelectedToday {
-		// 今日：待复习且 due 不晚于「本地明天 0 点」＝今日应完成 + 逾期
 		q = `
-			SELECT rq.word_book_id, COUNT(*) as cnt, wb.name, wb.level
+			SELECT COALESCE(ss.id, 0) AS session_id, rq.word_book_id, COUNT(*) AS cnt, wb.name, wb.level,
+				ss.started_at AS practice_started_at, ss.completed_at AS practice_ended_at
 			FROM review_queue rq
 			JOIN word_books wb ON wb.id = rq.word_book_id
+			` + sessionJoin + `
 			WHERE rq.user_id = ? AND rq.status = 'pending' AND rq.due_at < ?
-			GROUP BY rq.word_book_id, wb.name, wb.level
+			GROUP BY COALESCE(ss.id, 0), rq.word_book_id, wb.name, wb.level, ss.started_at, ss.completed_at
+			ORDER BY COALESCE(ss.started_at, rq.created_at) DESC, rq.word_book_id
 		`
 		args = []any{user.ID, dayEnd}
 	} else {
 		q = `
-			SELECT rq.word_book_id, COUNT(*) as cnt, wb.name, wb.level
+			SELECT COALESCE(ss.id, 0) AS session_id, rq.word_book_id, COUNT(*) AS cnt, wb.name, wb.level,
+				ss.started_at AS practice_started_at, ss.completed_at AS practice_ended_at
 			FROM review_queue rq
 			JOIN word_books wb ON wb.id = rq.word_book_id
+			` + sessionJoin + `
 			WHERE rq.user_id = ? AND rq.status = 'pending' AND rq.due_at >= ? AND rq.due_at < ?
-			GROUP BY rq.word_book_id, wb.name, wb.level
+			GROUP BY COALESCE(ss.id, 0), rq.word_book_id, wb.name, wb.level, ss.started_at, ss.completed_at
+			ORDER BY COALESCE(ss.started_at, rq.created_at) DESC, rq.word_book_id
 		`
 		args = []any{user.ID, dayStart, dayEnd}
 	}
@@ -243,12 +272,13 @@ func (h *Handlers) handleReviewCurve(c *gin.Context) {
 	var mastered int64
 	_ = db.Model(&models.UserWordState{}).Where("user_id = ? AND learn_status = ?", user.ID, "mastered").Count(&mastered).Error
 
-	stages := make([]gin.H, 0, len(models.EbbinghausIntervals))
-	for i, days := range models.EbbinghausIntervals {
+	stages := make([]gin.H, 0)
+	intervals := models.ReviewIntervalsForUser(user)
+	for i, days := range intervals {
 		label := ""
 		switch i {
 		case 0:
-			label = "学习"
+			label = "次日"
 		default:
 			label = strconv.Itoa(days) + "天"
 		}
@@ -256,8 +286,11 @@ func (h *Handlers) handleReviewCurve(c *gin.Context) {
 	}
 
 	response.SuccessMsg(c, "success", gin.H{
-		"stages":   stages,
-		"mastered": mastered,
+		"stages":            stages,
+		"mastered":          mastered,
+		"reviewCurvePreset": models.NormalizeReviewCurvePreset(user.ReviewCurvePreset),
+		"presetLabel":       models.ReviewCurvePresetLabel(user.ReviewCurvePreset),
+		"intervals":         intervals,
 	})
 }
 
@@ -458,7 +491,8 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 			remembered := resMap[wid]
 			if remembered {
 				newStage := it.Stage + 1
-				if newStage >= len(models.EbbinghausIntervals) {
+				intervals := models.ReviewIntervalsForUser(user)
+				if newStage >= len(intervals) {
 					if err := tx.Where("id = ?", it.ID).Delete(&models.ReviewQueue{}).Error; err != nil {
 						return err
 					}
@@ -470,7 +504,7 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 					continue
 				}
 
-				due := now.AddDate(0, 0, models.EbbinghausIntervals[newStage])
+				due, newStage := models.ReviewDueAfterSuccess(now, it.Stage, user.ReviewCurvePreset)
 				if err := tx.Model(&models.ReviewQueue{}).Where("id = ?", it.ID).
 					Updates(map[string]any{"due_at": due, "stage": newStage, "status": "pending"}).Error; err != nil {
 					return err
@@ -482,15 +516,7 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 				}
 			} else {
 				// ×：九宫格退一格；最快明天再到期，当天不再出现
-				newStage := it.Stage - 1
-				if newStage < 0 {
-					newStage = 0
-				}
-				dueDays := 1
-				if newStage < len(models.EbbinghausIntervals) && models.EbbinghausIntervals[newStage] > 1 {
-					dueDays = models.EbbinghausIntervals[newStage]
-				}
-				due := now.AddDate(0, 0, dueDays)
+				due, newStage := models.ReviewDueAfterFail(now, it.Stage, user.ReviewCurvePreset)
 				if err := tx.Model(&models.ReviewQueue{}).Where("id = ?", it.ID).
 					Updates(map[string]any{"due_at": due, "stage": newStage, "status": "pending"}).Error; err != nil {
 					return err

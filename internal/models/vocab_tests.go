@@ -18,7 +18,8 @@ func (VocabTestQuestion) TableName() string { return "vocab_test_questions" }
 // VocabTestRecord 词汇量测试记录
 type VocabTestRecord struct {
 	BaseModel
-	UserID         uint       `json:"userId" gorm:"index;not null;comment:用户ID"`
+	UserID         uint       `json:"userId" gorm:"index;not null;comment:提交人（老师代测时为老师）"`
+	StudentID      uint       `json:"studentId" gorm:"index;comment:绑定学员；0 表示提交人自己"`
 	EstimatedLevel string     `json:"estimatedLevel" gorm:"size:10;comment:测出等级 A1-C1"`
 	EstimatedVocab int        `json:"estimatedVocab" gorm:"comment:估算词汇量"`
 	Answers        string     `json:"answers" gorm:"type:text;comment:答题详情快照 JSON"`
@@ -26,6 +27,14 @@ type VocabTestRecord struct {
 	CorrectCount   int        `json:"correctCount" gorm:"comment:答对数量"`
 	IsLatest       bool       `json:"isLatest" gorm:"default:false;index;comment:是否最新测试结果"`
 	CompletedAt    *time.Time `json:"completedAt" gorm:"comment:完成时间"`
+}
+
+// VocabTestOwnerID 该记录归属的学员：老师代测用 StudentID，学员自测用 UserID。
+func (r VocabTestRecord) VocabTestOwnerID() uint {
+	if r.StudentID > 0 {
+		return r.StudentID
+	}
+	return r.UserID
 }
 
 func (VocabTestRecord) TableName() string { return "vocab_test_records" }

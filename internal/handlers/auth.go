@@ -846,8 +846,9 @@ func (h *Handlers) handleUserUpdateBasicInfo(c *gin.Context) {
 
 func (h *Handlers) handleUserUpdatePreferences(c *gin.Context) {
 	var preferences struct {
-		EmailNotifications    *bool `json:"emailNotifications"`
-		AutoCleanUnreadEmails *bool `json:"autoCleanUnreadEmails"`
+		EmailNotifications    *bool   `json:"emailNotifications"`
+		AutoCleanUnreadEmails *bool   `json:"autoCleanUnreadEmails"`
+		ReviewCurvePreset     *string `json:"reviewCurvePreset"`
 	}
 	if err := c.ShouldBindJSON(&preferences); err != nil {
 		response.Fail(c, "Invalid request", err)
@@ -860,6 +861,9 @@ func (h *Handlers) handleUserUpdatePreferences(c *gin.Context) {
 	}
 	if preferences.AutoCleanUnreadEmails != nil {
 		vals["auto_clean_unread_emails"] = *preferences.AutoCleanUnreadEmails
+	}
+	if preferences.ReviewCurvePreset != nil {
+		vals["review_curve_preset"] = string(models.NormalizeReviewCurvePreset(*preferences.ReviewCurvePreset))
 	}
 	if len(vals) == 0 {
 		response.SuccessMsg(c, "No preferences changed", nil)
@@ -1918,6 +1922,7 @@ func serializeUser(u *models.User) gin.H {
 		"region":        u.Region,
 		"streakDays":    u.StreakDays,
 		"lastStudyDate": lastStudy,
+		"reviewCurvePreset": models.NormalizeReviewCurvePreset(u.ReviewCurvePreset),
 		"createdAt":     u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		"updatedAt":     u.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

@@ -95,6 +95,51 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 	return finalLevel, vocabMap[finalLevel]
 }
 
+// vocabTestOwnedByStudent 老师代测（student_id）+ 学员自测（user_id 且未绑定）。
+func vocabTestOwnedByStudent(studentID uint) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("student_id = ? OR (student_id = 0 AND user_id = ?)", studentID, studentID)
+	}
+}
+
+func vocabTestsOwnedByStudents(studentIDs []uint) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("student_id IN ? OR (student_id = 0 AND user_id IN ?)", studentIDs, studentIDs)
+	}
+}
+
+func resolveVocabTestStudentID(db *gorm.DB, user *models.User, requested uint) (uint, error) {
+	if user == nil {
+		return 0, errors.New("未登录")
+	}
+	if requested == 0 {
+		if user.IsStudent() {
+			return user.ID, nil
+		}
+		return 0, nil
+	}
+	if requested == user.ID {
+		return requested, nil
+	}
+	if user.IsStudent() {
+		return 0, errors.New("无权为其他学员提交测评")
+	}
+	if err := coachingTeacherHasStudentPair(db, user.ID, requested); err != nil {
+		return 0, err
+	}
+	return requested, nil
+}
+
+func clearLatestVocabTest(tx *gorm.DB, userID, studentID uint) error {
+	q := tx.Model(&models.VocabTestRecord{}).Where("is_latest = ?", true)
+	if studentID > 0 {
+		q = q.Where("student_id = ?", studentID)
+	} else {
+		q = q.Where("user_id = ? AND student_id = 0", userID)
+	}
+	return q.Update("is_latest", false).Error
+}
+
 func nextLevelOf(level string) string {
 	next := map[string]string{
 		"A1": "A2",
@@ -307,13 +352,24 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	user := models.CurrentUser(c)
 
 	var body struct {
-		Answers []struct {
+		StudentID uint `json:"studentId"`
+		Answers   []struct {
 			QuestionID uint   `json:"questionId"`
 			Answer     string `json:"answer"`
 		} `json:"answers" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		return
+	}
+
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		return
+	}
+	studentID, err := resolveVocabTestStudentID(db, user, body.StudentID)
+	if err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
 		return
 	}
 
@@ -378,14 +434,15 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	}
 	estimatedLevel, estimatedVocab := estimateLevelWeighted(weightedCorrect, weightedTotal, weightedCorrectAll, weightedTotalAll)
 	answersJSON, _ := json.Marshal(answerDetails)
-	err := db.Transaction(func(tx *gorm.DB) error {
-		tx.Model(&models.VocabTestRecord{}).
-			Where("user_id = ? AND is_latest = ?", user.ID, true).
-			Update("is_latest", false)
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if err := clearLatestVocabTest(tx, user.ID, studentID); err != nil {
+			return err
+		}
 
 		now := time.Now()
 		record := models.VocabTestRecord{
 			UserID:         user.ID,
+			StudentID:      studentID,
 			EstimatedLevel: estimatedLevel,
 			EstimatedVocab: estimatedVocab,
 			Answers:        string(answersJSON),
