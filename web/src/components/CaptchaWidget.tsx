@@ -10,6 +10,9 @@ interface CaptchaWidgetProps {
 
 const SKIPPED_CAPTCHA_TYPES = new Set(["click", "jigsaw", "rotate", "slider"]);
 
+const inputClass =
+  "flex-1 min-w-0 h-[46px] px-4 rounded-xl bg-card border border-input text-charcoal outline-none focus:border-primary";
+
 /**
  * CaptchaWidget renders login captcha challenges (image + math only).
  */
@@ -57,30 +60,35 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
   const renderImage = () => {
     const img = (captcha?.data?.image as string) || "";
     return (
-      <div className="flex items-center gap-3">
-        <input
-          type="text"
-          value={value || ""}
-          onChange={(e) => reportValue(e.target.value)}
-          placeholder="输入图中字符"
-          className="flex-1 h-[46px] px-4 rounded-xl bg-card border border-input text-charcoal outline-none focus:border-primary"
-        />
-        <button
-          type="button"
-          onClick={refresh}
-          className="relative h-[46px] aspect-[10/3] shrink-0 overflow-hidden rounded-xl border border-input bg-card p-0 leading-none"
-          aria-label="刷新验证码"
-        >
-          {img ? (
-            <img
-              src={img}
-              alt="captcha"
-              className="absolute inset-0 block size-full object-cover"
-            />
-          ) : (
-            <span className="text-xs text-muted-foreground">加载中...</span>
-          )}
-        </button>
+      <div className="w-full min-w-0">
+        <div className="flex items-center gap-2 w-full min-w-0">
+          <input
+            type="text"
+            value={value || ""}
+            onChange={(e) => reportValue(e.target.value)}
+            placeholder="输入图中字符"
+            className={inputClass}
+          />
+          <button
+            type="button"
+            onClick={refresh}
+            className="h-[46px] shrink-0 rounded-xl border border-input bg-card overflow-hidden leading-none"
+            aria-label="刷新验证码"
+          >
+            {img ? (
+              <img
+                src={img}
+                alt="captcha"
+                className="h-full w-auto max-h-[46px] block select-none"
+                draggable={false}
+              />
+            ) : (
+              <span className="inline-flex h-full items-center px-3 text-xs text-muted-foreground">
+                加载中
+              </span>
+            )}
+          </button>
+        </div>
       </div>
     );
   };
@@ -88,16 +96,22 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
   const renderMath = () => {
     const q = (captcha?.data?.question as string) || "";
     return (
-      <div className="flex items-center gap-3">
-        <span className="px-3 py-2 rounded-xl bg-muted text-sm font-mono whitespace-nowrap">{q}</span>
+      <div className="flex items-center gap-2 w-full min-w-0">
+        <span className="shrink-0 px-3 py-2 rounded-xl bg-muted text-sm font-mono">
+          {q}
+        </span>
         <input
           type="number"
           value={value ?? ""}
           onChange={(e) => reportValue(Number(e.target.value))}
           placeholder="答案"
-          className="flex-1 h-[46px] px-4 rounded-xl bg-card border border-input text-charcoal outline-none focus:border-primary"
+          className={inputClass}
         />
-        <button type="button" onClick={refresh} className="text-xs text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onClick={refresh}
+          className="shrink-0 text-xs text-muted-foreground hover:text-foreground px-1"
+        >
           换一题
         </button>
       </div>

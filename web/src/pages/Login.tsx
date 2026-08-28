@@ -12,6 +12,7 @@ import {
   type User,
 } from "../api/auth";
 import { useAuthStore } from "../stores/authStore";
+import { formatAuthErrorMessage } from "../utils/authErrors";
 
 const fieldClass =
   "w-full px-4 py-3 rounded-xl bg-card border border-input text-charcoal placeholder:text-muted-soft transition-colors duration-200 outline-none hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25";
@@ -69,6 +70,7 @@ export default function Login() {
   useEffect(() => {
     setErrorText(null);
     setCode("");
+    setCodeWait(0);
   }, [screen, method]);
 
   useEffect(() => {
@@ -114,12 +116,12 @@ export default function Login() {
     try {
       const res = await sendEmailCode({ email });
       if (res.code !== 200) {
-        setErrorText(res.msg || "验证码发送失败");
+        setErrorText(formatAuthErrorMessage(res.msg, "验证码发送失败"));
         return;
       }
       setCodeWait(60);
     } catch (e: any) {
-      setErrorText(e?.msg || e?.message || "验证码发送失败");
+      setErrorText(formatAuthErrorMessage(e?.msg || e?.message, "验证码发送失败"));
     }
   };
 
@@ -183,13 +185,15 @@ export default function Login() {
           ...captcha,
         });
         if (reg.code !== 200) {
-          setErrorText(reg.msg || "注册失败");
+          setErrorText(formatAuthErrorMessage(reg.msg, "注册失败"));
           refreshCaptcha();
           return;
         }
         setScreen("login");
+        setMethod("password");
         setPassword("");
         setCode("");
+        setCodeWait(0);
         refreshCaptcha();
         setErrorText("注册成功，请登录");
         return;
@@ -211,7 +215,7 @@ export default function Login() {
             ...captcha,
           });
       if (res.code !== 200) {
-        setErrorText(res.msg || "登录失败");
+        setErrorText(formatAuthErrorMessage(res.msg, "登录失败"));
         refreshCaptcha();
         return;
       }
@@ -223,7 +227,12 @@ export default function Login() {
       }
       await finishLogin(token, res.data?.user);
     } catch (e: any) {
-      setErrorText(e?.msg || e?.message || (screen === "register" ? "注册失败" : "登录失败"));
+      setErrorText(
+        formatAuthErrorMessage(
+          e?.msg || e?.message,
+          screen === "register" ? "注册失败" : "登录失败",
+        ),
+      );
       refreshCaptcha();
     } finally {
       setSubmitting(false);
