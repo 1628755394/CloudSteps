@@ -19,6 +19,7 @@ import { showToast } from "../utils/toast";
 
 import { kickoffVocabTestPrefetch } from "../utils/vocabTestCache";
 import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
+import { resolveMediaUrl } from "../utils/mediaUrl";
 
 // 封面渐变色组（按 tag hash 分配）
 const COVER_GRADIENTS = [
@@ -369,6 +370,7 @@ export default function WordBooks() {
             {books.map((b) => {
               const cover = parseCover(b.description);
               const gradient = pickGradient(cover?.tag || b.name);
+              const coverImage = resolveMediaUrl(b.coverUrl);
               return (
                 <Link
                   key={b.id}
@@ -380,8 +382,18 @@ export default function WordBooks() {
                     className="overflow-hidden h-full transition-colors group-hover:border-primary"
                   >
                     {/* 封面区域 */}
-                    <div className={`h-24 flex flex-col items-center justify-center relative bg-gradient-to-br ${gradient}`}>
-                      {cover ? (
+                    <div
+                      className={`h-24 flex flex-col items-center justify-center relative ${
+                        coverImage ? "bg-muted" : `bg-gradient-to-br ${gradient}`
+                      }`}
+                    >
+                      {coverImage ? (
+                        <img
+                          src={coverImage}
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      ) : cover ? (
                         <>
                           <span className="text-white/90 text-xs font-medium tracking-wide">
                             {cover.t1}
@@ -401,7 +413,7 @@ export default function WordBooks() {
                         </span>
                       )}
                       {b.level ? (
-                        <span className="absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-md bg-white/90 text-charcoal">
+                        <span className="absolute top-2 left-2 z-10 text-[10px] font-medium px-2 py-0.5 rounded-md bg-white/90 text-charcoal">
                           {b.level}
                         </span>
                       ) : null}
