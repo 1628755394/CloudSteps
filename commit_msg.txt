@@ -1,0 +1,8 @@
+style(web): EmptyState 图标默认颜色改为主题色
+
+- 默认 iconClassName 从 text-muted-foreground/60 改为 text-primary/80
+- 让空状态图标随项目主题色（#4ECDC4 青色）显示
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

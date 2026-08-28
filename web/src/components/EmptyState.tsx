@@ -5,7 +5,7 @@ type EmptyStateProps = {
   icon?: string;
   /** 图标尺寸（像素），默认 64 */
   iconSize?: number;
-  /** 图标颜色 class，默认 text-muted-foreground/60 */
+  /** 图标颜色 class，默认 text-primary/80 */
   iconClassName?: string;
   title?: string;
   description?: string;
@@ -20,7 +20,7 @@ type EmptyStateProps = {
 export function EmptyState({
   icon,
   iconSize = 64,
-  iconClassName = "text-muted-foreground/60",
+  iconClassName = "text-primary/80",
   title,
   description,
   className,
