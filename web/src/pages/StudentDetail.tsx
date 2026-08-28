@@ -27,6 +27,7 @@ import {
   listStudentActivityRecordsAsTeacher,
   listStudentWordBooksAsTeacher,
   removeStudentWordBookAsTeacher,
+  removeTeacherStudent,
   setTeacherStudentPassword,
   setTeacherStudentReviewCurve,
   type StudentActivityListItem,
@@ -108,6 +109,8 @@ export default function StudentDetail() {
   const [pwdSaving, setPwdSaving] = useState(false);
   const [reviewPreset, setReviewPreset] = useState<ReviewCurvePreset>("times5");
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const fromNav = (location.state as { studentName?: string } | null)?.studentName;
@@ -347,6 +350,26 @@ export default function StudentDetail() {
     }
   };
 
+  const handleRemoveStudent = async () => {
+    setDeleting(true);
+    try {
+      const res = await removeTeacherStudent(studentId);
+      if (res.code !== 200) {
+        showToast.error(res.msg || "移除失败");
+        return;
+      }
+      showToast.success("已从名下移除该学员");
+      setDeleteOpen(false);
+      navigate("/my-students", { replace: true });
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "移除失败";
+      showToast.error(msg);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const displayName = title || `学员 #${studentId}`;
   const avatar = resolveMediaUrl(quota?.student?.avatar);
   const remaining = quota?.remainingMinutes ?? 0;
@@ -395,6 +418,17 @@ export default function StudentDetail() {
             </span>
           </div>
         </div>
+        <CloudButton
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0 text-destructive border-destructive/30 hover:bg-destructive/5"
+          onClick={() => setDeleteOpen(true)}
+          disabled={!quota || deleting}
+        >
+          <Trash2 size={14} className="mr-1" />
+          移除
+        </CloudButton>
       </div>
 
       <Tabs value={tab} onValueChange={onTabChange} className="flex flex-col flex-1 min-h-0 gap-3">
@@ -678,6 +712,43 @@ export default function StudentDetail() {
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (deleting) return;
+          setDeleteOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>移除学员</DialogTitle>
+            <DialogDescription>
+              将「{displayName}」从你的学员列表中移除。学员账号仍会保留，之后可通过「关联」再次添加。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
+            <CloudButton
+              type="button"
+              variant="outline"
+              className="flex-1"
+              disabled={deleting}
+              onClick={() => setDeleteOpen(false)}
+            >
+              取消
+            </CloudButton>
+            <CloudButton
+              type="button"
+              variant="brand"
+              className="flex-1 bg-destructive hover:bg-destructive/90"
+              loading={deleting}
+              onClick={() => void handleRemoveStudent()}
+            >
+              确认移除
+            </CloudButton>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

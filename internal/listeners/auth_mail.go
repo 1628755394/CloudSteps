@@ -48,7 +48,17 @@ func initAuthMailListeners(db *gorm.DB) {
 	}
 
 	connectAsync(constants.SigUserCreate, deliverWelcomeEmail)
-	connectAsync(constants.SigUserCreate, deliverWelcomeInbox)
+	common.Sig().Connect(constants.SigUserCreate, func(_ any, params ...any) {
+		workDB := db
+		workParams := params
+		if n := len(params); n > 0 {
+			if passed, ok := params[n-1].(*gorm.DB); ok {
+				workDB = passed
+				workParams = params[:n-1]
+			}
+		}
+		deliverWelcomeInbox(workDB, workParams...)
+	})
 	connectAsync(constants.SigUserVerifyEmail, deliverVerificationEmail)
 	connectAsync(constants.SigUserVerifyEmail, deliverVerificationInbox)
 	connectAsync(constants.SigUserResetPassword, deliverPasswordResetEmail)
@@ -56,7 +66,17 @@ func initAuthMailListeners(db *gorm.DB) {
 	connectAsync(constants.SigUserNewDeviceLogin, deliverNewDeviceLoginEmail)
 	connectAsync(constants.SigUserNewDeviceLogin, deliverNewDeviceLoginInbox)
 	connectAsync(constants.SigUserLogin, deliverLoginEmail)
-	connectAsync(constants.SigUserLogin, deliverLoginInbox)
+	common.Sig().Connect(constants.SigUserLogin, func(_ any, params ...any) {
+		workDB := db
+		workParams := params
+		if n := len(params); n > 0 {
+			if passed, ok := params[n-1].(*gorm.DB); ok {
+				workDB = passed
+				workParams = params[:n-1]
+			}
+		}
+		deliverLoginInbox(workDB, workParams...)
+	})
 	connectAsync(constants.SigUserLogout, deliverLogoutEmail)
 	connectAsync(constants.SigUserLogout, deliverLogoutInbox)
 	connectAsync(constants.SigUserChangeEmail, deliverChangeEmailEmail)
@@ -84,10 +104,7 @@ func deliverWelcomeInbox(db *gorm.DB, params ...any) {
 	if !ok {
 		return
 	}
-	mailer := notify.NewMailer(db, user.ID, user.LastLoginIP)
-	if err := mailer.SendInbox(notify.TmplWelcome, map[string]any{
-		"Username": displayName(user), "VerifyURL": siteURL() + "/login",
-	}); err != nil {
+	if err := notify.SendWelcomeInbox(db, user.ID, user.LastLoginIP, displayName(user), siteURL()+"/login"); err != nil {
 		logger.Warn("auth notify: welcome inbox failed",
 			zap.Uint("userId", user.ID), zap.Error(err))
 	}
@@ -211,8 +228,17 @@ func deliverLoginInbox(db *gorm.DB, params ...any) {
 		return
 	}
 	ip := resolveClientIP(user, params)
-	loginTime := time.Now().Format("2006-01-02 15:04:05")
 	mailer := notify.NewMailer(db, user.ID, ip)
+	if firstLoginTodayFromParams(params) && isCoachTeacherUser(user) {
+		if err := notify.SendWelcomeInbox(db, user.ID, ip, displayName(user), siteURL()+"/login"); err != nil {
+			logger.Warn("auth notify: teacher daily welcome inbox failed",
+				zap.Uint("userId", user.ID), zap.Error(err))
+		} else {
+			logger.Info("auth notify: teacher daily welcome inbox sent", zap.Uint("userId", user.ID))
+		}
+		return
+	}
+	loginTime := time.Now().Format("2006-01-02 15:04:05")
 	if err := mailer.SendInbox(notify.TmplLogin, map[string]any{
 		"Username": displayName(user), "LoginTime": loginTime, "IPAddress": ip,
 	}); err != nil {
@@ -221,6 +247,22 @@ func deliverLoginInbox(db *gorm.DB, params ...any) {
 		return
 	}
 	logger.Info("auth notify: login inbox sent", zap.Uint("userId", user.ID))
+}
+
+func isCoachTeacherUser(user *models.User) bool {
+	if user == nil {
+		return false
+	}
+	return user.IsTeacher() || user.Role == "user"
+}
+
+func firstLoginTodayFromParams(params []any) bool {
+	for _, p := range params {
+		if v, ok := p.(bool); ok {
+			return v
+		}
+	}
+	return false
 }
 
 func deliverLogoutEmail(db *gorm.DB, params ...any) {

@@ -128,6 +128,13 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 			admin.GET("/list", h.adminListWordBooks)
 			admin.GET("/batch-audio/jobs", h.adminListWordBookBatchAudioJobs)
 			admin.POST("/:id/recount-count", h.adminRecountWordBookCount)
+			admin.GET("/cover-ai/defaults", h.adminWordBookCoverDefaults)
+			admin.GET("/cover-ai/jobs", h.adminListWordBookCoverJobs)
+			admin.POST("/cover-ai/test", h.adminWordBookCoverTest)
+			admin.POST("/:id/generate-cover", h.adminStartWordBookCover)
+			admin.GET("/:id/generate-cover", h.adminWordBookCoverStatus)
+			admin.POST("/:id/generate-cover/save", h.adminSaveWordBookCover)
+			admin.POST("/:id/generate-cover/clear", h.adminClearWordBookCover)
 			admin.POST("", h.adminCreateWordBook)
 			admin.PUT("/:id", h.adminUpdateWordBook)
 			admin.DELETE("/:id", h.adminDeleteWordBook)
@@ -522,6 +529,9 @@ func (h *Handlers) adminListWordBooks(c *gin.Context) {
 	}
 	if sourceName != "" {
 		q = q.Where("source_name = ?", sourceName)
+	}
+	if c.Query("hasCover") == "true" {
+		q = q.Where("cover_url IS NOT NULL AND cover_url != ''")
 	}
 
 	var total int64

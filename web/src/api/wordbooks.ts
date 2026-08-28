@@ -7,6 +7,7 @@ export interface WordBookItem {
   wordCount?: number
   category?: string
   description?: string
+  coverUrl?: string
 }
 
 export interface WordBookListResult {

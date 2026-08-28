@@ -134,6 +134,7 @@ func RunMigrations(db *gorm.DB) error {
 		&models.MailTemplate{},
 		&models.MailLog{},
 		&models.StudentTeacherCoachingQuota{},
+		&models.TeacherTeachingPool{},
 		&models.TeacherCoachingUsagePeriod{},
 		&models.CoachingAppointment{},
 		&models.CoachingSessionRecord{},
@@ -148,6 +149,9 @@ func RunMigrations(db *gorm.DB) error {
 		return err
 	}
 	if err := fixScenarioDialogueCharset(db); err != nil {
+		return err
+	}
+	if err := dropUsersUsernameUniqueIndex(db); err != nil {
 		return err
 	}
 	return nil
@@ -198,6 +202,46 @@ func ensureUsersEmailColumn(db *gorm.DB) error {
 		}
 	}
 	logger.Info("users.email column ensured via explicit ALTER TABLE")
+	return nil
+}
+
+// dropUsersUsernameUniqueIndex allows re-registering with the same username after soft-delete.
+func dropUsersUsernameUniqueIndex(db *gorm.DB) error {
+	driver := config.GlobalConfig.Database.Driver
+	if driver == "mysql" {
+		type indexRow struct {
+			IndexName  string
+			NonUnique  int
+			ColumnName string
+		}
+		var rows []indexRow
+		if err := db.Raw(`
+			SELECT INDEX_NAME, NON_UNIQUE, COLUMN_NAME
+			FROM information_schema.statistics
+			WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'username'
+		`).Scan(&rows).Error; err != nil {
+			return err
+		}
+		dropped := map[string]bool{}
+		for _, row := range rows {
+			if row.NonUnique != 0 || row.IndexName == "PRIMARY" || dropped[row.IndexName] {
+				continue
+			}
+			stmt := "ALTER TABLE users DROP INDEX `" + row.IndexName + "`"
+			if err := db.Exec(stmt).Error; err != nil {
+				if !strings.Contains(err.Error(), "check that column/key exists") {
+					return err
+				}
+			}
+			dropped[row.IndexName] = true
+			logger.Info("dropped users.username unique index", zap.String("index", row.IndexName))
+		}
+		return nil
+	}
+	if driver == "sqlite" {
+		// SQLite cannot drop a single index easily on legacy schemas; in-memory tests use fresh tables.
+		return nil
+	}
 	return nil
 }
 

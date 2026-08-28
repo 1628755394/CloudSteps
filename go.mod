@@ -79,13 +79,20 @@ require (
 	cloud.google.com/go/texttospeech v1.21.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
+	github.com/LingByte/ling-base/common/circuitbreaker v0.1.0 // indirect
+	github.com/LingByte/ling-base/common/constants v0.1.1 // indirect
 	github.com/LingByte/ling-base/common/idgen v0.1.0 // indirect
+	github.com/LingByte/ling-base/common/imageutil v0.1.0 // indirect
+	github.com/LingByte/ling-base/common/logger v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/pool v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/response v0.1.0 // indirect
+	github.com/LingByte/ling-base/common/retry v0.1.0 // indirect
 	github.com/LingByte/ling-base/constants v0.1.0 // indirect
 	github.com/LingByte/ling-base/eventbus v0.1.0 // indirect
 	github.com/LingByte/ling-base/eventbus/memory v0.1.0 // indirect
 	github.com/LingByte/ling-base/notification v0.1.0 // indirect
+	github.com/LingByte/ling-base/relay v0.1.0 // indirect
+	github.com/LingByte/ling-base/relay/relaykit v0.1.0 // indirect
 	github.com/LingByte/ling-base/version v0.1.0 // indirect
 	github.com/alex-ant/gomath v0.0.0-20160516115720-89013a210a82 // indirect
 	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.5 // indirect
@@ -133,6 +140,7 @@ require (
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
+	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emersion/go-imap/v2 v2.0.0-20251216103119-7ac47a9cfd9a // indirect
 	github.com/emersion/go-message v0.18.2 // indirect
@@ -195,6 +203,7 @@ require (
 	github.com/richardlehane/mscfb v1.0.6 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/rs/xid v1.6.0 // indirect
+	github.com/samber/lo v1.47.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cdn v1.3.154 // indirect

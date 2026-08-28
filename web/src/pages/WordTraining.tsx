@@ -1,4 +1,4 @@
-import { ArrowRight, Lightbulb, UserPlus, Users } from "lucide-react";
+import { ArrowRight, Clock, Lightbulb, UserPlus, Users } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
@@ -9,10 +9,12 @@ import { TopBar } from "../components/TopBar";
 import { AudioMuteToggleButton } from "../components/AudioMuteToggleButton";
 import { useAuthStore } from "../stores/authStore";
 import {
+  getTeacherTeachingPool,
   listAllTeacherCoachingQuotas,
   listStudentWordBooksAsTeacher,
   type StudentWordBookItem,
 } from "../api/coaching";
+import { formatTeachingMinutes } from "../utils/formatMinutes";
 import { fetchLighthouse, getCachedLighthouse } from "../utils/lighthouseCache";
 import {
   getCachedWordBooks,
@@ -50,10 +52,10 @@ export default function WordTraining() {
   const initialBooks = getCachedWordBooks() || [];
   const initialPick = resolvePick(initialBooks);
 
-  /** 教练端：先校验陪练关系，避免本地残留学员 ID 触发 403 */
-  const [coachGate, setCoachGate] = useState<"idle" | "loading" | "ready" | "no-students">(
-    isCoach ? "loading" : "idle"
-  );
+  /** 教练端：先校验授课池与陪练关系，避免无效进入练习流 */
+  const [coachGate, setCoachGate] = useState<
+    "idle" | "loading" | "ready" | "no-students" | "pool-empty"
+  >(isCoach ? "loading" : "idle");
   const [studentId, setStudentId] = useState(() => {
     const cached = getTrainingStudent();
     return cached?.id ? String(cached.id) : "";
@@ -118,8 +120,21 @@ export default function WordTraining() {
     setCoachGate("loading");
     (async () => {
       try {
-        const rows = await listAllTeacherCoachingQuotas();
+        const [rows, poolRes] = await Promise.all([
+          listAllTeacherCoachingQuotas({ includeSelf: true }),
+          getTeacherTeachingPool(),
+        ]);
         if (!mounted) return;
+
+        const poolMinutes =
+          poolRes.code === 200 && poolRes.data
+            ? Number(poolRes.data.remainingMinutes ?? 0)
+            : 0;
+        if (poolMinutes <= 0) {
+          setCoachGate("pool-empty");
+          return;
+        }
+
         if (!rows.length) {
           clearTrainingStudent();
           setStudentId("");
@@ -280,6 +295,31 @@ export default function WordTraining() {
         <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
         <div className="px-4 mt-16 flex justify-center">
           <CloudSpin tip="加载学员…" />
+        </div>
+      </FlowPageShell>
+    );
+  }
+
+  if (isCoach && coachGate === "pool-empty") {
+    return (
+      <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
+        <div className="px-4 mt-8">
+          <div className="bg-white rounded-xl p-6 shadow-sm text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
+              <Clock className="text-amber-600" size={22} />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-base font-semibold text-[#2D3748]">授课额度已用尽</h2>
+              <p className="text-sm text-[#718096] leading-relaxed">
+                您的可授课总池剩余 {formatTeachingMinutes(0)}，无法开始新的单词训练或上课计时。
+                请联系管理员补充授课池后再继续。
+              </p>
+            </div>
+            <CloudButton variant="brand" size="pillLg" className="w-full" onClick={handleBack}>
+              返回首页
+            </CloudButton>
+          </div>
         </div>
       </FlowPageShell>
     );

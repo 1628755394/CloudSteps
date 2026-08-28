@@ -61,6 +61,7 @@ export function getTeacherCoachingQuotas(params?: {
   cursor?: string
   limit?: number
   q?: string
+  includeSelf?: boolean
 }): Promise<ApiResponse<{
   list: TeacherCoachingQuotaRow[]
   nextCursor?: string
@@ -70,8 +71,10 @@ export function getTeacherCoachingQuotas(params?: {
   return get('/teacher/coaching/quotas', params as any)
 }
 
-export async function listAllTeacherCoachingQuotas(): Promise<TeacherCoachingQuotaRow[]> {
-  const res = await getTeacherCoachingQuotas({ limit: 100 })
+export async function listAllTeacherCoachingQuotas(opts?: {
+  includeSelf?: boolean
+}): Promise<TeacherCoachingQuotaRow[]> {
+  const res = await getTeacherCoachingQuotas({ limit: 100, includeSelf: opts?.includeSelf })
   if (res.code !== 200) return []
   const data = res.data as unknown
   if (Array.isArray(data)) return data as TeacherCoachingQuotaRow[]

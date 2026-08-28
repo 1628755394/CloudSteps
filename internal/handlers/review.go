@@ -219,7 +219,7 @@ func (h *Handlers) handleReviewBooksByDate(c *gin.Context) {
 			` + sessionJoin + `
 			WHERE rq.user_id = ? AND rq.status = 'pending' AND rq.due_at < ?
 			GROUP BY COALESCE(ss.id, 0), rq.word_book_id, wb.name, wb.level, ss.started_at, ss.completed_at
-			ORDER BY COALESCE(ss.started_at, rq.created_at) DESC, rq.word_book_id
+			ORDER BY COALESCE(ss.started_at, MAX(rq.created_at)) DESC, rq.word_book_id
 		`
 		args = []any{user.ID, dayEnd}
 	} else {
@@ -231,7 +231,7 @@ func (h *Handlers) handleReviewBooksByDate(c *gin.Context) {
 			` + sessionJoin + `
 			WHERE rq.user_id = ? AND rq.status = 'pending' AND rq.due_at >= ? AND rq.due_at < ?
 			GROUP BY COALESCE(ss.id, 0), rq.word_book_id, wb.name, wb.level, ss.started_at, ss.completed_at
-			ORDER BY COALESCE(ss.started_at, rq.created_at) DESC, rq.word_book_id
+			ORDER BY COALESCE(ss.started_at, MAX(rq.created_at)) DESC, rq.word_book_id
 		`
 		args = []any{user.ID, dayStart, dayEnd}
 	}

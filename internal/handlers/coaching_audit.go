@@ -13,34 +13,27 @@ import (
 	"gorm.io/gorm"
 )
 
-var errCoachingTeacherCapFull = errors.New("本月老师计费额度已满，无法开始上课")
+var errCoachingTeacherPoolEmpty = errors.New("老师授课额度不足，无法开始上课")
 
 const (
 	coachingAuditAppointmentCreate = "appointment_create"
 	coachingAuditAppointmentUpdate = "appointment_update"
 	coachingAuditAppointmentDelete = "appointment_delete"
 	coachingAuditQuotaUpsert       = "quota_upsert"
+	coachingAuditQuotaRemove     = "quota_remove"
 	coachingAuditUsagePeriodPut    = "usage_period_put"
 	coachingAuditSessionStart      = "session_start"
 	coachingAuditSessionEnd        = "session_end"
 	coachingAuditSessionAutoEnd    = "session_auto_end"
 )
 
-func coachingTeacherCapAllowsStart(db *gorm.DB, teacherID uint, ref time.Time) error {
-	loc := time.Local
-	ref = ref.In(loc)
-	y, m, _ := ref.Date()
-	periodStart := time.Date(y, m, 1, 0, 0, 0, 0, loc)
-	var p models.TeacherCoachingUsagePeriod
-	err := db.Where("teacher_id = ? AND period_start = ? AND is_deleted = 0", teacherID, periodStart).First(&p).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil
-	}
+func coachingTeacherPoolAllowsStart(db *gorm.DB, teacherID uint) error {
+	pool, err := models.EnsureTeacherTeachingPool(db, teacherID)
 	if err != nil {
 		return err
 	}
-	if p.CapMinutes > 0 && p.UsedMinutes >= p.CapMinutes {
-		return errCoachingTeacherCapFull
+	if pool == nil || pool.RemainingMinutes <= 0 {
+		return errCoachingTeacherPoolEmpty
 	}
 	return nil
 }

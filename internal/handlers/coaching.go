@@ -27,6 +27,8 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 		adminG.DELETE("/appointments/:id", h.coachingAdminDeleteAppointment)
 		adminG.GET("/quotas", h.coachingAdminListQuotas)
 		adminG.PUT("/quotas", h.coachingAdminUpsertQuota)
+		adminG.GET("/teacher-pools", h.coachingAdminListTeacherPools)
+		adminG.PUT("/teacher-pools", h.coachingAdminUpsertTeacherPool)
 		adminG.GET("/usage-periods", h.coachingAdminListUsagePeriods)
 		adminG.PUT("/usage-periods", h.coachingAdminPutUsagePeriod)
 		adminG.GET("/audit-logs", h.coachingAdminListAuditLogs)
@@ -38,8 +40,10 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 		t.GET("/week", h.coachingTeacherWeek)
 		t.GET("/completed", h.coachingTeacherCompleted)
 		t.GET("/quotas", h.coachingTeacherListQuotas)
+		t.GET("/teacher-pool", h.coachingTeacherGetMyPool)
 		t.POST("/quotas", h.coachingTeacherUpsertQuota)
 		t.POST("/students", h.coachingTeacherCreateStudent)
+		t.DELETE("/students/:studentId", h.coachingTeacherRemoveStudent)
 		t.POST("/students/:studentId/password", h.coachingTeacherSetStudentPassword)
 		t.PUT("/students/:studentId/review-curve", h.coachingTeacherSetStudentReviewCurve)
 		t.GET("/students/search", h.coachingTeacherSearchStudents)
@@ -410,10 +414,16 @@ func (h *Handlers) coachingAdminDeleteAppointment(c *gin.Context) {
 func (h *Handlers) coachingAdminListQuotas(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	var list []models.StudentTeacherCoachingQuota
-	tx := db.Where("is_deleted = 0").Preload("Teacher").Preload("Student").Order("teacher_id, student_id")
+	tx := db.Where("is_deleted = 0 AND student_id <> teacher_id").
+		Preload("Teacher").Preload("Student").Order("teacher_id, student_id")
 	if tid := c.Query("teacherId"); tid != "" {
 		if v, _ := strconv.Atoi(tid); v > 0 {
 			tx = tx.Where("teacher_id = ?", v)
+		}
+	}
+	if sid := c.Query("studentId"); sid != "" {
+		if v, _ := strconv.Atoi(sid); v > 0 {
+			tx = tx.Where("student_id = ?", v)
 		}
 	}
 	if err := tx.Find(&list).Error; err != nil {
@@ -484,30 +494,82 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 	response.SuccessMsg(c, "ok", q)
 }
 
+func (h *Handlers) coachingAdminListTeacherPools(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	tx := db.Where("is_deleted = 0").Preload("Teacher").Order("teacher_id")
+	if tid := c.Query("teacherId"); tid != "" {
+		if v, _ := strconv.Atoi(tid); v > 0 {
+			tx = tx.Where("teacher_id = ?", v)
+		}
+	}
+	var list []models.TeacherTeachingPool
+	if err := tx.Find(&list).Error; err != nil {
+		response.Fail(c, "查询失败", err.Error())
+		return
+	}
+	response.SuccessMsg(c, "ok", list)
+}
+
+type coachingTeacherPoolBody struct {
+	TeacherID        uint `json:"teacherId" binding:"required"`
+	RemainingMinutes int  `json:"remainingMinutes"`
+}
+
+func (h *Handlers) coachingAdminUpsertTeacherPool(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	var body coachingTeacherPoolBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		return
+	}
+	if body.RemainingMinutes < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "remainingMinutes 不能为负"})
+		return
+	}
+	if err := coachingLoadUserRoles(db, body.TeacherID, "teacher"); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		return
+	}
+
+	row, err := models.EnsureTeacherTeachingPool(db, body.TeacherID)
+	if err != nil {
+		response.Fail(c, "查询失败", err.Error())
+		return
+	}
+	if body.RemainingMinutes > row.RemainingMinutes {
+		row.TotalAllocatedMinutes += body.RemainingMinutes - row.RemainingMinutes
+	}
+	row.RemainingMinutes = body.RemainingMinutes
+	if err := db.Model(row).Updates(map[string]any{
+		"remaining_minutes":       row.RemainingMinutes,
+		"total_allocated_minutes": row.TotalAllocatedMinutes,
+	}).Error; err != nil {
+		response.Fail(c, "保存失败", err.Error())
+		return
+	}
+	_ = db.Preload("Teacher").First(row, row.ID).Error
+	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "teacher_pool", row.ID, 0, "更新老师授课池", map[string]any{
+		"teacherId": body.TeacherID, "remainingMinutes": body.RemainingMinutes,
+	})
+	response.SuccessMsg(c, "ok", row)
+}
+
 func (h *Handlers) coachingAdminListUsagePeriods(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
-	tidStr := c.Query("teacherId")
-	if tidStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "需要 teacherId"})
-		return
-	}
-	tid, _ := strconv.Atoi(tidStr)
-	if tid <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "teacherId 无效"})
-		return
-	}
-	limit := 24
+	limit := 50
 	if l := c.Query("limit"); l != "" {
-		if v, _ := strconv.Atoi(l); v > 0 && v <= 120 {
+		if v, _ := strconv.Atoi(l); v > 0 && v <= 200 {
 			limit = v
 		}
 	}
+	tx := db.Where("is_deleted = 0").Preload("Teacher").Order("period_start DESC")
+	if tidStr := c.Query("teacherId"); tidStr != "" {
+		if tid, _ := strconv.Atoi(tidStr); tid > 0 {
+			tx = tx.Where("teacher_id = ?", tid)
+		}
+	}
 	var rows []models.TeacherCoachingUsagePeriod
-	if err := db.Where("teacher_id = ? AND is_deleted = 0", tid).
-		Preload("Teacher").
-		Order("period_start DESC").
-		Limit(limit).
-		Find(&rows).Error; err != nil {
+	if err := tx.Limit(limit).Find(&rows).Error; err != nil {
 		response.Fail(c, "查询失败", err.Error())
 		return
 	}
@@ -668,6 +730,7 @@ func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
 		return
 	}
+	_ = models.RepairTeacherCoachingRelations(db, tid)
 
 	limit := 20
 	if ps := c.Query("limit"); ps != "" {
@@ -683,18 +746,23 @@ func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 		}
 	}
 
+	includeSelf := strings.TrimSpace(c.Query("includeSelf")) == "1" ||
+		strings.EqualFold(strings.TrimSpace(c.Query("includeSelf")), "true")
 	tx := db.Model(&models.StudentTeacherCoachingQuota{}).
+		Joins("INNER JOIN users ON users.id = student_teacher_coaching_quotas.student_id AND users.is_deleted = ?", models.SoftDeleteStatusActive).
 		Where("student_teacher_coaching_quotas.teacher_id = ? AND student_teacher_coaching_quotas.is_deleted = 0", tid)
+	if !includeSelf {
+		tx = tx.Where("student_teacher_coaching_quotas.student_id != ?", tid)
+	}
 	if cursorID > 0 {
 		tx = tx.Where("student_teacher_coaching_quotas.id < ?", cursorID)
 	}
 	if q != "" {
 		like := "%" + q + "%"
-		tx = tx.Joins("LEFT JOIN users ON users.id = student_teacher_coaching_quotas.student_id").
-			Where(
-				"users.display_name LIKE ? OR users.username LIKE ? OR users.phone LIKE ? OR CAST(student_teacher_coaching_quotas.student_id AS CHAR) LIKE ?",
-				like, like, like, like,
-			)
+		tx = tx.Where(
+			"users.display_name LIKE ? OR users.username LIKE ? OR users.phone LIKE ? OR CAST(student_teacher_coaching_quotas.student_id AS CHAR) LIKE ?",
+			like, like, like, like,
+		)
 	}
 
 	var list []models.StudentTeacherCoachingQuota
@@ -725,6 +793,30 @@ func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 		"nextCursor": nextCursor,
 		"hasMore":    hasMore,
 		"limit":      limit,
+	})
+}
+
+func (h *Handlers) coachingTeacherGetMyPool(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	tid := coachingCoachingTeacherID(c)
+	if tid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		return
+	}
+	_ = models.RepairTeacherCoachingRelations(db, tid)
+	pool, err := models.EnsureTeacherTeachingPool(db, tid)
+	if err != nil {
+		response.Fail(c, "查询失败", err.Error())
+		return
+	}
+	remaining, total := 0, 0
+	if pool != nil {
+		remaining = pool.RemainingMinutes
+		total = pool.TotalAllocatedMinutes
+	}
+	response.SuccessMsg(c, "ok", gin.H{
+		"remainingMinutes":      remaining,
+		"totalAllocatedMinutes": total,
 	})
 }
 
@@ -1073,6 +1165,57 @@ func (h *Handlers) coachingTeacherSetStudentReviewCurve(c *gin.Context) {
 	})
 }
 
+func (h *Handlers) coachingTeacherRemoveStudent(c *gin.Context) {
+	db := c.MustGet(constants.DbField).(*gorm.DB)
+	tid := coachingCoachingTeacherID(c)
+	if tid == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		return
+	}
+	sid, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
+	if err != nil || sid == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		return
+	}
+	if models.IsSelfCoachingPair(tid, uint(sid)) {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无法移除自练额度"})
+		return
+	}
+	if err := coachingTeacherHasStudentPair(db, tid, uint(sid)); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		return
+	}
+
+	var q models.StudentTeacherCoachingQuota
+	if err := db.Where("teacher_id = ? AND student_id = ? AND is_deleted = 0", tid, sid).First(&q).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "学员不在你的名下"})
+			return
+		}
+		response.Fail(c, "查询失败", err.Error())
+		return
+	}
+
+	op := ""
+	if u := models.CurrentUser(c); u != nil {
+		op = u.Username
+	}
+	q.SoftDelete(op)
+	if err := db.Model(&q).Updates(map[string]any{
+		"is_deleted": q.IsDeleted,
+		"update_by":  q.UpdateBy,
+		"updated_at": q.UpdatedAt,
+	}).Error; err != nil {
+		response.Fail(c, "移除失败", err.Error())
+		return
+	}
+
+	coachingWriteCoachingAudit(db, c, coachingAuditQuotaRemove, "quota", q.ID, 0, "老师移除学员", map[string]any{
+		"teacherId": tid, "studentId": sid,
+	})
+	response.SuccessMsg(c, "ok", gin.H{"studentId": sid})
+}
+
 func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
@@ -1397,8 +1540,8 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
 		return
 	}
-	if err := coachingTeacherCapAllowsStart(db, ap.TeacherID, now); err != nil {
-		if errors.Is(err, errCoachingTeacherCapFull) {
+	if err := coachingTeacherPoolAllowsStart(db, ap.TeacherID); err != nil {
+		if errors.Is(err, errCoachingTeacherPoolEmpty) {
 			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
 			return
 		}
@@ -1484,8 +1627,8 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	}
 
 	now := time.Now().In(time.Local)
-	if err := coachingTeacherCapAllowsStart(db, tid, now); err != nil {
-		if errors.Is(err, errCoachingTeacherCapFull) {
+	if err := coachingTeacherPoolAllowsStart(db, tid); err != nil {
+		if errors.Is(err, errCoachingTeacherPoolEmpty) {
 			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
 			return
 		}

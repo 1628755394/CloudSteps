@@ -26,12 +26,20 @@ github.com/LingByte/ling-base/captcha v0.2.3 h1:29yOKG1TDQLChfDOjA3zZwsq8CJ77QKL
 github.com/LingByte/ling-base/captcha v0.2.3/go.mod h1:zwPT/zI0IcCq+g9420N2UyEZrYt5yb9bSuk3jeefDT0=
 github.com/LingByte/ling-base/common v0.3.1 h1:NwAaDYEt57oKnsfl4PYlIaFT6DnUKIS9DJLmSDDgu9k=
 github.com/LingByte/ling-base/common v0.3.1/go.mod h1:aHdCQErsfKvlYjJWMoobT+37hbIY3/wMw0NYi3XoiSQ=
+github.com/LingByte/ling-base/common/circuitbreaker v0.1.0 h1:QQuBVacjMGrqX07PBbvT6uJ4riAQHYcx1OMBwWRVrHU=
+github.com/LingByte/ling-base/common/circuitbreaker v0.1.0/go.mod h1:Rhvx4eLRtBfzDAD94bO36SXI002V2WK2ObScHpL0C/U=
 github.com/LingByte/ling-base/common/config v0.1.1 h1:DsFp8gxWiqg2YiXV4BVE4DWXayMH3iAOYZq0q/BmtPE=
 github.com/LingByte/ling-base/common/config v0.1.1/go.mod h1:tNGkMMvQOmNsq2MOJ2owgUm92j81E36Zl55X3yj21oo=
+github.com/LingByte/ling-base/common/constants v0.1.1 h1:GgQdADJQyZFc6sVgLD5AyDeJpFLD5vpNCKpsIxflHZc=
+github.com/LingByte/ling-base/common/constants v0.1.1/go.mod h1:+SzjhQLefioUr38aN3GjipHGNDRm8dOnjzR4y0pyM8U=
 github.com/LingByte/ling-base/common/geoip v0.1.0 h1:c4y9BmOQjSm5ALlOG7YyLf1jFOAPxl7NbhQp4MP9Jxg=
 github.com/LingByte/ling-base/common/geoip v0.1.0/go.mod h1:FoSq5U1AiB4xHpvkn/3pSCp5PXjynrGns9RDRz+gi+k=
 github.com/LingByte/ling-base/common/idgen v0.1.0 h1:phZYlAcsBOUkqE7KQ2tx05R6pLaMWpBHl1OAiHDJOUk=
 github.com/LingByte/ling-base/common/idgen v0.1.0/go.mod h1:l6qlmKfTYYi7YhtdjjcMPMpRC6wT+W0scsmcGEq39sk=
+github.com/LingByte/ling-base/common/imageutil v0.1.0 h1:OQGj/2OLZc2kkSXdKWyM+XmmImWcpEwgz2fKZl+XuHY=
+github.com/LingByte/ling-base/common/imageutil v0.1.0/go.mod h1:NdH/663RjlEk9/8SwNBxWxf5MTT3HGRypDUcQjgXdg0=
+github.com/LingByte/ling-base/common/logger v0.1.0 h1:4wdlgnbqK0nc+1LvhzmqNKHWMwdrglf8ZzJCz8OxMGg=
+github.com/LingByte/ling-base/common/logger v0.1.0/go.mod h1:S9BpHEi5QbOd1rr5QOUqPa9ev8WSXe3rJlU+lkJYkGE=
 github.com/LingByte/ling-base/common/pool v0.1.0 h1:GZiWWZF08BZek6DHIYS0JuBAL3Qo92MekABRb0Xp8CM=
 github.com/LingByte/ling-base/common/pool v0.1.0/go.mod h1:pR0rU51wB71SfKbEMPado4OJpwkEvZOTSJT/Hf+x080=
 github.com/LingByte/ling-base/common/random v0.1.0 h1:drcy5T8otCadWE8xS7MM/o7jaTRIFisi4gY6MIjX/qY=
@@ -40,6 +48,8 @@ github.com/LingByte/ling-base/common/response v0.1.0 h1:tXTHl8IfFYvERYWUL1Leh85N
 github.com/LingByte/ling-base/common/response v0.1.0/go.mod h1:MgLRPQiqt5cYHyPuXcFKhPCThzcHYxrZL/SWEyT2bhk=
 github.com/LingByte/ling-base/common/response/gin v0.1.0 h1:G+MGBf00BNctoi2AiFg48/lf8tOe44DRPczUbpbG1rc=
 github.com/LingByte/ling-base/common/response/gin v0.1.0/go.mod h1:Pg2JU0eSl6TuILiZwTCEc9jtAaGo4NzPIn4hXuy/pjE=
+github.com/LingByte/ling-base/common/retry v0.1.0 h1:MyzMq79Bb5TtK5BVidr6h5/Ek1E2Y4nLBtT6GEosNGk=
+github.com/LingByte/ling-base/common/retry v0.1.0/go.mod h1:frN7TOyqI32CsPxVOrOs+QvXQtgKvCLhymdxoya6w6Y=
 github.com/LingByte/ling-base/common/stats v0.3.0 h1:awPzoUDWtKr2DY6nT6XE9sG4jtjSGl6BBRfdYBdboU4=
 github.com/LingByte/ling-base/common/stats v0.3.0/go.mod h1:O2Doot94fHaCOBUB01iJBEl/dumGfJSiKQL8ewhChhI=
 github.com/LingByte/ling-base/common/stats/file v0.1.0 h1:2QveUivxZ0NsQUDszqW4M26Nm1Ebtbd1unKE2ZsbUKs=
@@ -68,6 +78,10 @@ github.com/LingByte/ling-base/queue v0.1.0 h1:223xZUmUo6s+sO/iS4W51g/LQjfLulc/uy
 github.com/LingByte/ling-base/queue v0.1.0/go.mod h1:13jW+GDdFcEEZKoB+3x3EGDT3Rx7DaMFQlq64cdKV2g=
 github.com/LingByte/ling-base/queue/memory v0.1.0 h1:GH+n1+02RjcrhUC6PxzYU/CNCqVbxWCil3uQg1zxlmY=
 github.com/LingByte/ling-base/queue/memory v0.1.0/go.mod h1:+OMU0tDOVpz39xC/TYYAXFqWo35d7qQd1X5tSetfU8k=
+github.com/LingByte/ling-base/relay v0.1.0 h1:kOOYDvVH9tjtJObFqG8oDEhqGWXmXS+W0yeYbWOYfr0=
+github.com/LingByte/ling-base/relay v0.1.0/go.mod h1:eMf8TmEjfJh6jzuXDtiapHCfS2YsQjfUIUNLiuD9S94=
+github.com/LingByte/ling-base/relay/relaykit v0.1.0 h1:eB9/D/v+8qrb8hUKvNjSQ3J7Z9coLDR98dwLb0I1xeE=
+github.com/LingByte/ling-base/relay/relaykit v0.1.0/go.mod h1:tQGVnGDc8qnOW6sv+Qy6Kh7PKzlEne7ZccFHVvtVmME=
 github.com/LingByte/ling-base/stores v0.1.4 h1:tX61C5eifV/ysOoSwnyrtLUndFThGx+8NZV/uzc7+ho=
 github.com/LingByte/ling-base/stores v0.1.4/go.mod h1:uHdKlriceQ5SCtm46q2RsetpuKT4hj39t1Xayk+Sx8Y=
 github.com/LingByte/ling-base/stores/cos v0.1.4 h1:SlslyLk7cvEj0mrLTr6qYBS/3zwDXGFtFm4IaxefjS4=
@@ -274,6 +288,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc h1:8WFBn63wegobsYAX0YjD+8suexZDga5CctH4CCTx2+8=
 github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc/go.mod h1:c9O8+fpSOX1DM8cPNSkX/qsBWdkD4yd2dpciOWQjpBw=
+github.com/disintegration/imaging v1.6.2 h1:w1LecBlG2Lnp8B3jk5zSuNqd7b4DXhcjwek1ei82L+c=
+github.com/disintegration/imaging v1.6.2/go.mod h1:44/5580QXChDfwIclfc/PCwrr44amcmDAg8hxG0Ewe4=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/emersion/go-imap/v2 v2.0.0-20251216103119-7ac47a9cfd9a h1:osLV050EfO19PwiN8mpeWphfnZQGQHnyXNyjDE8f+Ys=
@@ -514,6 +530,8 @@ github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7
 github.com/rs/dnscache v0.0.0-20230804202142-fc85eb664529/go.mod h1:qe5TWALJ8/a1Lqznoc5BDHpYX/8HU60Hm2AwRmqzxqA=
 github.com/rs/xid v1.6.0 h1:fV591PaemRlL6JfRxGDEPl69wICngIQ3shQtzfy2gxU=
 github.com/rs/xid v1.6.0/go.mod h1:7XoLgs4eV+QndskICGsho+ADou8ySMSjJKDIan90Nz0=
+github.com/samber/lo v1.47.0 h1:z7RynLwP5nbyRscyvcD043DWYoOcYRv3mV8lBeqOCLc=
+github.com/samber/lo v1.47.0/go.mod h1:RmDH9Ct32Qy3gduHQuKJ3gW1fMHAnE/fAzQuf6He5cU=
 github.com/sashabaranov/go-openai v1.41.2 h1:vfPRBZNMpnqu8ELsclWcAvF19lDNgh1t6TVfFFOPiSM=
 github.com/sashabaranov/go-openai v1.41.2/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
 github.com/shopspring/decimal v1.4.0/go.mod h1:gawqmDU56v4yIKSwfBSFip1HdCCXN8/+DMd9qYNcwME=
@@ -646,6 +664,7 @@ golang.org/x/crypto v0.24.0/go.mod h1:Z1PMYSOR5nyMcyAVAIQSKCDwalqy85Aqn1x3Ws4L5D
 golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
 golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2dk=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
+golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/image v0.45.0 h1:FMb1nTbH5H9vF55SriQHgFw5GnNL9Jg6L25BwXKzhB0=
 golang.org/x/image v0.45.0/go.mod h1:n62x/7RqlwXDvGsSU4u6IUTUf6KghUZ9Bt7cG/T9Fx4=
 golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=

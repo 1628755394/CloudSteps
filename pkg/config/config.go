@@ -60,6 +60,7 @@ type AuthConfig struct {
 // ServicesConfig services configuration
 type ServicesConfig struct {
 	LLM           LLMConfig           `mapstructure:"llm"`
+	ImageGen      ImageGenConfig      `mapstructure:"image_gen"`
 	Mail          MailConfig          `mapstructure:"mail"`
 	KnowledgeBase KnowledgeBaseConfig `mapstructure:"knowledge_base"`
 	Voice         VoiceConfig         `mapstructure:"voice"`
@@ -84,6 +85,13 @@ type LLMConfig struct {
 	APIKey  string `env:"LLM_API_KEY"`
 	BaseURL string `env:"LLM_BASE_URL"`
 	Model   string `env:"LLM_MODEL"`
+}
+
+// ImageGenConfig OpenAI-compatible image generation (ling-base/relay).
+type ImageGenConfig struct {
+	APIKey  string `env:"IMAGE_GEN_API_KEY"`
+	BaseURL string `env:"IMAGE_GEN_BASE_URL"`
+	Model   string `env:"IMAGE_GEN_MODEL"`
 }
 
 // KnowledgeBaseConfig knowledge base configuration
@@ -309,6 +317,11 @@ func Load() error {
 				APIKey:  getStringOrDefault("LLM_API_KEY", ""),
 				BaseURL: getStringOrDefault("LLM_BASE_URL", "https://api.openai.com/v1"),
 				Model:   getStringOrDefault("LLM_MODEL", "gpt-3.5-turbo"),
+			},
+			ImageGen: ImageGenConfig{
+				APIKey:  getStringOrDefault("IMAGE_GEN_API_KEY", ""),
+				BaseURL: getStringOrDefault("IMAGE_GEN_BASE_URL", "https://ai.lingecho.com"),
+				Model:   getStringOrDefault("IMAGE_GEN_MODEL", "gpt-image-2-1k"),
 			},
 			Mail: loadMailConfig(),
 			KnowledgeBase: KnowledgeBaseConfig{

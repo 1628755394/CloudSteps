@@ -23,7 +23,8 @@ const (
 
 const (
 	CoachingSessionStatusCompleted = "completed"
-	SignupCoachingQuotaMinutes     = 1000
+	// SignupTeachingPoolMinutes 新老师注册赠送的可授课总时长（分钟，跨学员合计）。
+	SignupTeachingPoolMinutes = 1000
 )
 
 // StudentTeacherCoachingQuota 学员在某老师名下的陪练剩余时长（分钟）
@@ -40,31 +41,127 @@ type StudentTeacherCoachingQuota struct {
 
 func (StudentTeacherCoachingQuota) TableName() string { return "student_teacher_coaching_quotas" }
 
-// GrantSignupCoachingQuota gives a new account 1000 minutes of self-pair
-// coaching remaining so they can start class without a prior recharge.
-func GrantSignupCoachingQuota(db *gorm.DB, userID uint) error {
-	if db == nil || userID == 0 {
-		return nil
-	}
-	var n int64
-	if err := db.Model(&StudentTeacherCoachingQuota{}).
-		Where("teacher_id = ? AND student_id = ? AND is_deleted = ?", userID, userID, SoftDeleteStatusActive).
-		Count(&n).Error; err != nil {
-		return err
-	}
-	if n > 0 {
-		return nil
-	}
-	q := StudentTeacherCoachingQuota{
-		TeacherID:             userID,
-		StudentID:             userID,
-		RemainingMinutes:      SignupCoachingQuotaMinutes,
-		TotalAllocatedMinutes: SignupCoachingQuotaMinutes,
-	}
-	return db.Create(&q).Error
+// IsSelfCoachingPair 历史误建的自关联额度（teacher_id = student_id），不应出现在学员列表。
+func IsSelfCoachingPair(teacherID, studentID uint) bool {
+	return teacherID > 0 && teacherID == studentID
 }
 
-// TeacherCoachingUsagePeriod 老师按周期的已上分钟数（计费计量）
+func cleanupSelfPairCoachingQuota(db *gorm.DB, teacherID uint) error {
+	res := db.Model(&StudentTeacherCoachingQuota{}).
+		Where("teacher_id = ? AND student_id = ? AND is_deleted = ?", teacherID, teacherID, SoftDeleteStatusActive).
+		Updates(map[string]any{"is_deleted": SoftDeleteStatusDeleted})
+	return res.Error
+}
+
+// clearCoachingBalancesInTx zeros remaining coaching minutes/pool for a user before soft-delete.
+func clearCoachingBalancesInTx(tx *gorm.DB, userID uint, operator string) error {
+	if tx == nil || userID == 0 {
+		return nil
+	}
+	quotaZero := map[string]any{
+		"remaining_minutes":       0,
+		"total_allocated_minutes": 0,
+		"update_by":               operator,
+	}
+	if err := tx.Model(&StudentTeacherCoachingQuota{}).
+		Where("(teacher_id = ? OR student_id = ?) AND is_deleted = ?", userID, userID, SoftDeleteStatusActive).
+		Updates(quotaZero).Error; err != nil {
+		return err
+	}
+	poolZero := map[string]any{
+		"remaining_minutes":       0,
+		"total_allocated_minutes": 0,
+		"update_by":               operator,
+	}
+	return tx.Model(&TeacherTeachingPool{}).
+		Where("teacher_id = ? AND is_deleted = ?", userID, SoftDeleteStatusActive).
+		Updates(poolZero).Error
+}
+
+// TeacherTeachingPool 老师可授课总池（跨学员合计扣减，非按月）。
+type TeacherTeachingPool struct {
+	BaseModel
+	TeacherID             uint  `json:"teacherId" gorm:"uniqueIndex:idx_teacher_pool_teacher;not null"`
+	RemainingMinutes      int   `json:"remainingMinutes" gorm:"not null;default:0"`
+	TotalAllocatedMinutes int   `json:"totalAllocatedMinutes" gorm:"not null;default:0"`
+	Version               int   `json:"version" gorm:"not null;default:0"`
+	Teacher               *User `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
+}
+
+func (TeacherTeachingPool) TableName() string { return "teacher_teaching_pools" }
+
+// EnsureTeacherTeachingPool 确保老师授课池行存在（默认 0，不自动赠送）。
+func EnsureTeacherTeachingPool(db *gorm.DB, teacherID uint) (*TeacherTeachingPool, error) {
+	if db == nil || teacherID == 0 {
+		return nil, nil
+	}
+	var row TeacherTeachingPool
+	err := db.Where("teacher_id = ? AND is_deleted = ?", teacherID, SoftDeleteStatusActive).First(&row).Error
+	if err == nil {
+		return &row, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	row = TeacherTeachingPool{
+		TeacherID:             teacherID,
+		RemainingMinutes:      0,
+		TotalAllocatedMinutes: 0,
+	}
+	if err := db.Create(&row).Error; err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
+// GrantSignupTeacherTeachingPool 注册赠送：可授课总池 +SignupTeachingPoolMinutes（一次性，非按月）。
+func GrantSignupTeacherTeachingPool(db *gorm.DB, teacherID uint) error {
+	if db == nil || teacherID == 0 {
+		return nil
+	}
+	if err := cleanupSelfPairCoachingQuota(db, teacherID); err != nil {
+		return err
+	}
+	row, err := EnsureTeacherTeachingPool(db, teacherID)
+	if err != nil {
+		return err
+	}
+	if row == nil {
+		return nil
+	}
+	if row.TotalAllocatedMinutes >= SignupTeachingPoolMinutes {
+		return nil
+	}
+	add := SignupTeachingPoolMinutes - row.TotalAllocatedMinutes
+	if add <= 0 {
+		return nil
+	}
+	return db.Model(row).Updates(map[string]any{
+		"remaining_minutes":       row.RemainingMinutes + add,
+		"total_allocated_minutes": row.TotalAllocatedMinutes + add,
+	}).Error
+}
+
+// RepairTeacherCoachingRelations 清理历史误数据并确保授课池行存在（不赠送分钟）。
+func RepairTeacherCoachingRelations(db *gorm.DB, teacherID uint) error {
+	if err := cleanupSelfPairCoachingQuota(db, teacherID); err != nil {
+		return err
+	}
+	_, err := EnsureTeacherTeachingPool(db, teacherID)
+	return err
+}
+
+// GrantSignupTeacherTeachingCap 兼容旧名。
+func GrantSignupTeacherTeachingCap(db *gorm.DB, teacherID uint) error {
+	return GrantSignupTeacherTeachingPool(db, teacherID)
+}
+
+// GrantSignupCoachingQuota 兼容旧名。
+func GrantSignupCoachingQuota(db *gorm.DB, userID uint) error {
+	return GrantSignupTeacherTeachingPool(db, userID)
+}
+
+// TeacherCoachingUsagePeriod 老师按周期的已上分钟数（计费计量，仅统计）
 type TeacherCoachingUsagePeriod struct {
 	BaseModel
 	TeacherID   uint      `json:"teacherId" gorm:"uniqueIndex:idx_coach_usage_period;not null;index"`

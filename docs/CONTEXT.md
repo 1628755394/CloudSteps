@@ -45,6 +45,6 @@ A per-user overlay of a Word. Display prefers it when present; it does not mutat
 _Avoid_: UserWordState (that is learning progress); treating one user's overlay as the shared Word without adopting it
 
 **Signup coaching quota**:
-Public registration grants 1000 minutes of self-pair coaching remaining (`teacher_id = student_id`) so the new account can start class. Teacher-created students still use the hours the teacher sets.
-_Avoid_: treating this gift as a teacher monthly cap; double-granting on every login
+Public registration grants the new **teacher** `SignupTeachingPoolMinutes` (1000) into `teacher_teaching_pools` — a **total** pool across all students, default 0 before gift. Student hours remain per-row in `student_teacher_coaching_quotas`. Monthly `teacher_coaching_usage_periods` is stats-only, not the signup gift.
+_Avoid_: self-pair student rows; monthly cap as teaching limit
 

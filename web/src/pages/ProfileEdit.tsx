@@ -20,6 +20,7 @@ export default function ProfileEdit() {
 
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState("");
   const [region, setRegion] = useState("");
   const [city, setCity] = useState("");
   const [timezone, setTimezone] = useState("");
@@ -38,13 +39,14 @@ export default function ProfileEdit() {
       Boolean(displayName.trim() || user?.displayName),
       Boolean(avatarPreview || user?.avatar),
       Boolean(phone.trim() || user?.phone),
+      Boolean(gender.trim() || user?.gender),
       Boolean(city.trim() || user?.city),
       Boolean(region.trim() || user?.region),
       Boolean(user?.locale),
     ];
     const n = checks.filter(Boolean).length;
     return Math.round((n / checks.length) * 100);
-  }, [user, displayName, avatarPreview, phone, city, region]);
+  }, [user, displayName, avatarPreview, phone, gender, city, region]);
 
   const stats = useMemo(() => {
     return [
@@ -60,10 +62,20 @@ export default function ProfileEdit() {
   useEffect(() => {
     setDisplayName(user?.displayName ?? "");
     setPhone(user?.phone ?? "");
+    setGender(user?.gender ?? "");
     setRegion(user?.region ?? "");
     setCity(user?.city ?? "");
     setTimezone(user?.timezone ?? "");
   }, [user]);
+
+  const genderOptions = useMemo(
+    () => [
+      { value: "male", label: "男" },
+      { value: "female", label: "女" },
+      { value: "other", label: "其他" },
+    ],
+    [],
+  );
 
   const timezoneOptions = useMemo(
     () => [
@@ -141,6 +153,7 @@ export default function ProfileEdit() {
       const res = await updateCurrentUser({
         displayName: displayName.trim(),
         phone: phone.trim(),
+        gender: gender.trim(),
         region: region.trim(),
         city: city.trim(),
         timezone: timezone.trim(),
@@ -262,6 +275,16 @@ export default function ProfileEdit() {
               className={fieldClass}
             />
           </div>
+
+          <CloudSelect
+            label="性别"
+            value={gender || undefined}
+            onChange={(v) => setGender(v ?? "")}
+            options={genderOptions}
+            placeholder="请选择性别"
+            allowClear
+            sheetTitle="选择性别"
+          />
 
           <CloudSelect
             label="时区"

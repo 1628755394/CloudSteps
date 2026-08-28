@@ -403,3 +403,8 @@ export const sendBindEmailCode = async (email: string): Promise<ApiResponse<null
 export const bindEmail = async (email: string, code: string): Promise<ApiResponse<{ email: string }>> => {
   return post<{ email: string }>('/auth/bind-email', { email: email.trim(), code: code.trim() })
 }
+
+// 注销当前账号（软删除，清空额度，教师会级联注销名下学员）
+export const deactivateAccount = async (): Promise<ApiResponse<null>> => {
+  return post<null>('/auth/deactivate')
+}
