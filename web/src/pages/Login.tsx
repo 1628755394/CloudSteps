@@ -5,7 +5,7 @@ import CaptchaWidget from "../components/CaptchaWidget";
 import {
   loginWithEmailCode,
   loginWithPassword,
-  registerUserByEmail,
+  registerUser,
   sendEmailCode,
   type CaptchaFields,
   type LoginResponseData,
@@ -55,7 +55,8 @@ export default function Login() {
 
   const isSubmitting = isLoading || submitting;
   const registering = screen === "register";
-  const useEmail = registering || method === "email";
+  // Register is username+password only; email-code is a login method.
+  const useEmail = !registering && method === "email";
 
   const nextPath = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -149,6 +150,14 @@ export default function Login() {
       return;
     }
     if (registering) {
+      if ([...identity].length < 2) {
+        setErrorText("账号至少 2 个字符");
+        return;
+      }
+      if ([...identity].length > 30) {
+        setErrorText("账号过长");
+        return;
+      }
       if (!password) {
         setErrorText("请设置密码");
         return;
@@ -173,13 +182,10 @@ export default function Login() {
     setSubmitting(true);
     try {
       if (screen === "register") {
-        const reg = await registerUserByEmail({
-          email: identity,
+        const reg = await registerUser({
           username: identity,
-          userName: identity,
-          displayName: identity.split("@")[0],
           password,
-          code: code.trim(),
+          displayName: identity,
           timezone,
           source: "web",
           ...captcha,
@@ -275,7 +281,7 @@ export default function Login() {
           ))}
         </div>
         ) : (
-          <p className="text-sm text-muted-foreground mb-5">请用邮箱收取验证码完成注册，并设置密码以便之后登录。</p>
+          <p className="text-sm text-muted-foreground mb-5">设置账号和密码即可注册，邮箱可在登录后绑定。</p>
         )}
 
         <div className="space-y-4">
@@ -286,7 +292,7 @@ export default function Login() {
             <input
               value={account}
               onChange={(e) => setAccount(e.target.value)}
-              placeholder={useEmail ? "name@example.com" : "用户名 / 邮箱"}
+              placeholder={useEmail ? "name@example.com" : registering ? "用户名（2-30 个字符）" : "用户名 / 邮箱"}
               className={fieldClass}
               autoComplete={useEmail ? "email" : "username"}
             />
@@ -360,7 +366,10 @@ export default function Login() {
                 <button
                   type="button"
                   className="ml-1 text-primary hover:underline"
-                  onClick={() => setScreen("register")}
+                  onClick={() => {
+                    setScreen("register");
+                    setMethod("password");
+                  }}
                 >
                   点击注册
                 </button>
