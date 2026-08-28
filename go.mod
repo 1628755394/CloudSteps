@@ -82,6 +82,7 @@ require (
 	github.com/LingByte/ling-base/common/circuitbreaker v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/constants v0.1.1 // indirect
 	github.com/LingByte/ling-base/common/idgen v0.1.0 // indirect
+	github.com/LingByte/ling-base/common/imageutil v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/logger v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/pool v0.1.0 // indirect
 	github.com/LingByte/ling-base/common/response v0.1.0 // indirect
@@ -139,6 +140,7 @@ require (
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
+	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emersion/go-imap/v2 v2.0.0-20251216103119-7ac47a9cfd9a // indirect
 	github.com/emersion/go-message v0.18.2 // indirect

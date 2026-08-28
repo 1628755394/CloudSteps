@@ -36,6 +36,8 @@ github.com/LingByte/ling-base/common/geoip v0.1.0 h1:c4y9BmOQjSm5ALlOG7YyLf1jFOA
 github.com/LingByte/ling-base/common/geoip v0.1.0/go.mod h1:FoSq5U1AiB4xHpvkn/3pSCp5PXjynrGns9RDRz+gi+k=
 github.com/LingByte/ling-base/common/idgen v0.1.0 h1:phZYlAcsBOUkqE7KQ2tx05R6pLaMWpBHl1OAiHDJOUk=
 github.com/LingByte/ling-base/common/idgen v0.1.0/go.mod h1:l6qlmKfTYYi7YhtdjjcMPMpRC6wT+W0scsmcGEq39sk=
+github.com/LingByte/ling-base/common/imageutil v0.1.0 h1:OQGj/2OLZc2kkSXdKWyM+XmmImWcpEwgz2fKZl+XuHY=
+github.com/LingByte/ling-base/common/imageutil v0.1.0/go.mod h1:NdH/663RjlEk9/8SwNBxWxf5MTT3HGRypDUcQjgXdg0=
 github.com/LingByte/ling-base/common/logger v0.1.0 h1:4wdlgnbqK0nc+1LvhzmqNKHWMwdrglf8ZzJCz8OxMGg=
 github.com/LingByte/ling-base/common/logger v0.1.0/go.mod h1:S9BpHEi5QbOd1rr5QOUqPa9ev8WSXe3rJlU+lkJYkGE=
 github.com/LingByte/ling-base/common/pool v0.1.0 h1:GZiWWZF08BZek6DHIYS0JuBAL3Qo92MekABRb0Xp8CM=
@@ -286,6 +288,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc h1:8WFBn63wegobsYAX0YjD+8suexZDga5CctH4CCTx2+8=
 github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc/go.mod h1:c9O8+fpSOX1DM8cPNSkX/qsBWdkD4yd2dpciOWQjpBw=
+github.com/disintegration/imaging v1.6.2 h1:w1LecBlG2Lnp8B3jk5zSuNqd7b4DXhcjwek1ei82L+c=
+github.com/disintegration/imaging v1.6.2/go.mod h1:44/5580QXChDfwIclfc/PCwrr44amcmDAg8hxG0Ewe4=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/emersion/go-imap/v2 v2.0.0-20251216103119-7ac47a9cfd9a h1:osLV050EfO19PwiN8mpeWphfnZQGQHnyXNyjDE8f+Ys=
@@ -660,6 +664,7 @@ golang.org/x/crypto v0.24.0/go.mod h1:Z1PMYSOR5nyMcyAVAIQSKCDwalqy85Aqn1x3Ws4L5D
 golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
 golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2dk=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
+golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/image v0.45.0 h1:FMb1nTbH5H9vF55SriQHgFw5GnNL9Jg6L25BwXKzhB0=
 golang.org/x/image v0.45.0/go.mod h1:n62x/7RqlwXDvGsSU4u6IUTUf6KghUZ9Bt7cG/T9Fx4=
 golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=

@@ -94,10 +94,7 @@ func Generate(ctx context.Context, cfg Config, req GenerateRequest) (*Result, er
 	if strings.TrimSpace(req.Prompt) == "" {
 		return nil, fmt.Errorf("prompt is required")
 	}
-	size := strings.TrimSpace(req.Size)
-	if size == "" {
-		size = "1024x1024"
-	}
+	size := NormalizeCoverSize(req.Size)
 
 	client := cfg.relayClient()
 	n := 1
