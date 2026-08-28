@@ -33,7 +33,7 @@ PLATFORMS := \
 
 # 前端目录
 WEB_DIR   := web
-ADMIN_DIR := admin-v1
+ADMIN_DIR := admin
 
 # 颜色
 COLOR_RESET := \033[0m
@@ -67,7 +67,7 @@ web: ## 构建前端 (web)
 	cd $(WEB_DIR) && npm run build
 	@echo "$(COLOR_GREEN)==> web 构建完成: $(WEB_DIR)/dist/$(COLOR_RESET)"
 
-admin: ## 构建管理后台 (admin-v1)
+admin: ## 构建管理后台 (admin)
 	@echo "$(COLOR_CYAN)==> 构建 admin 前端$(COLOR_RESET)"
 	cd $(ADMIN_DIR) && pnpm run build
 	@echo "$(COLOR_GREEN)==> admin 构建完成: $(ADMIN_DIR)/dist/$(COLOR_RESET)"

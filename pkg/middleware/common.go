@@ -1,52 +1,27 @@
 package middleware
 
 import (
+	"net/http"
+
 	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/ling-base/common"
+	lbmw "github.com/LingByte/ling-base/middleware"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-contrib/sessions/memstore"
 	"github.com/gin-gonic/gin"
 )
 
-// CorsMiddleware handles cross-origin resource sharing
+// CorsMiddleware handles cross-origin resource sharing via ling-base.
 func CorsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		origin := c.Request.Header.Get("Origin")
-
-		// Set CORS headers
-		if origin != "" {
-			// Allow specific Origin
-			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-			c.Writer.Header().Set("Vary", "Origin") // Avoid cache pollution
-		} else {
-			// If no Origin header, allow all origins (development environment)
-			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		}
-
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true") // Allow cookies
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, X-API-KEY, X-API-SECRET, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Expose-Headers", "Content-Length, Content-Type")
-
-		// Handle preflight requests
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		// Continue processing request, ensure CORS headers exist in all responses
-		c.Next()
-
-		// Ensure CORS headers are also included in response (handle redirects etc.)
-		if c.Writer.Header().Get("Access-Control-Allow-Origin") == "" {
-			if origin != "" {
-				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-			} else {
-				c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-			}
-		}
-	}
+	return lbmw.CORSWithConfig(lbmw.CORSConfig{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodOptions, http.MethodHead},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "Origin", "X-API-KEY", "X-API-SECRET", "X-Requested-With"},
+		ExposeHeaders:    []string{"Content-Length", "Content-Type"},
+		AllowCredentials: true,
+		MaxAge:           86400,
+	})
 }
 
 func WithMemSession(secret string) gin.HandlerFunc {

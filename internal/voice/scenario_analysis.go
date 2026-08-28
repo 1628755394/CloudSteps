@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/llm"
 	"github.com/LingByte/ling-base/common/logger"
+	relay "github.com/LingByte/ling-base/relay"
+	"github.com/LingByte/ling-base/relay/channel/openai"
+	"github.com/LingByte/ling-base/relay/meter"
 	"go.uber.org/zap"
 )
 
@@ -387,21 +391,72 @@ func generateAIReview(ctx context.Context, scenario *models.ScenarioDialogueScen
 		detail.WordsPerMinute, detail.ExplicitCorrections+detail.ImplicitCorrections,
 		detail.ChineseTurnCount, transcript.String())
 
-	apiKey := config.GlobalConfig.Services.LLM.APIKey
-	baseURL := config.GlobalConfig.Services.LLM.BaseURL
-	model := config.GlobalConfig.Services.LLM.Model
+	apiKey := strings.TrimSpace(config.GlobalConfig.Services.LLM.APIKey)
+	baseURL := normalizeLLMBaseURL(config.GlobalConfig.Services.LLM.BaseURL)
+	model := strings.TrimSpace(config.GlobalConfig.Services.LLM.Model)
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
-	cfg := llm.Config{APIKey: apiKey, BaseURL: baseURL, Model: model}
+	if apiKey == "" || baseURL == "" {
+		return ""
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
-	text, err := llm.Chat(ctx, cfg, "你是专业的英语口语教练，输出简洁中文分析。", prompt)
+
+	client := relay.New(
+		relay.WithProvider(openai.NewProvider(apiKey, openai.WithBaseURL(baseURL))),
+		relay.WithMeter(meter.NewMemoryMeter()),
+		relay.WithHTTPClient(&http.Client{
+			Timeout: 60 * time.Second,
+			Transport: &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				DialContext: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).DialContext,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   15 * time.Second,
+				ResponseHeaderTimeout: 60 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			},
+		}),
+	)
+
+	resp, err := client.Chat(ctx, &relay.ChatRequest{
+		Model: model,
+		Messages: []relay.Message{
+			{Role: "system", Content: "你是专业的英语口语教练，输出简洁中文分析。"},
+			{Role: "user", Content: prompt},
+		},
+	})
 	if err != nil {
 		logger.Lg.Warn("scenario AI review: query failed", zap.Error(err))
 		return ""
 	}
-	return strings.TrimSpace(text)
+	if resp == nil || len(resp.Choices) == 0 {
+		return ""
+	}
+	msg := resp.Choices[0].Message
+	text := strings.TrimSpace(msg.StringContent())
+	if text == "" {
+		switch v := msg.Content.(type) {
+		case string:
+			text = strings.TrimSpace(v)
+		case json.RawMessage:
+			_ = json.Unmarshal(v, &text)
+			text = strings.TrimSpace(text)
+		}
+	}
+	return text
+}
+
+func normalizeLLMBaseURL(raw string) string {
+	u := strings.TrimSpace(raw)
+	u = strings.TrimSuffix(u, "/")
+	u = strings.TrimSuffix(u, "/v1")
+	return u
 }
 
 func hasExplicitCorrection(s string) bool {

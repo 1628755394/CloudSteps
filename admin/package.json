@@ -1,5 +1,5 @@
 {
-  "name": "cloudsteps-admin-v1",
+  "name": "cloudsteps-admin",
   "private": true,
   "version": "2.2.1",
   "type": "module",
