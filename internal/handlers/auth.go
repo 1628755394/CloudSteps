@@ -41,8 +41,6 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 	// where the global RateLimiter endpoint buckets require a user id.
 	authLimit := middleware.AuthRateLimiter(30, time.Minute, 30)
 	{
-		// register
-		auth.GET("/register", h.handleUserSignupPage)
 		auth.POST("/register", authLimit, h.handleUserSignup)
 		auth.POST("/register/email", authLimit, h.handleUserSignupByEmail)
 		auth.POST("/send/email", authLimit, h.handleSendEmailCode)
@@ -55,10 +53,7 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 		auth.GET("/salt", h.handleGetSalt)
 
 		// login
-		auth.GET("/login", h.handleUserSigninPage)
-		auth.POST("/login", authLimit, h.handleUserSignin)
 		auth.POST("/login/password", authLimit, h.handleUserSigninByPassword)
-		auth.POST("/login/username", authLimit, h.handleUserSigninByUsername)
 		auth.POST("/login/email", authLimit, h.handleUserSigninByEmail)
 
 		// logout
@@ -66,7 +61,6 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 		auth.GET("/info", models.AuthRequired, h.handleUserInfo)
 
 		// password management
-		auth.GET("/reset-password", h.handleUserResetPasswordPage)
 		auth.POST("/reset-password", authLimit, h.handleResetPassword)
 		auth.POST("/reset-password/confirm", authLimit, h.handleResetPasswordConfirm)
 		auth.POST("/change-password", models.AuthRequired, h.handleChangePassword)
@@ -107,26 +101,6 @@ func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
 		// self-service account deactivation
 		auth.POST("/deactivate", models.AuthRequired, h.handleUserDeactivateAccount)
 	}
-}
-
-// handleUserSignupPage handle user signup page
-func (h *Handlers) handleUserSignupPage(c *gin.Context) {
-	ctx := CloudStepsGo.GetRenderPageContext(c)
-	ctx["SignupText"] = "Sign Up Now"
-	ctx["Site.SignupApi"] = h.configStore.GetValue(constants.KEY_SITE_SIGNUP_API)
-	c.HTML(http.StatusOK, "signup.html", ctx)
-}
-
-// handleUserResetPasswordPage handle user reset password page
-func (h *Handlers) handleUserResetPasswordPage(c *gin.Context) {
-	c.HTML(http.StatusOK, "reset_password.html", CloudStepsGo.GetRenderPageContext(c))
-}
-
-// handleUserSigninPage handle user signin page
-func (h *Handlers) handleUserSigninPage(c *gin.Context) {
-	ctx := CloudStepsGo.GetRenderPageContext(c)
-	ctx["SignupText"] = "Sign Up Now"
-	c.HTML(http.StatusOK, "signin.html", ctx)
 }
 
 // handleUserLogout handle user logout
@@ -477,55 +451,6 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 
 	logger.Info("Login successful", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
 	response.SuccessMsg(c, "login successful", responseData)
-}
-
-// handleUserSignin handle user signin
-func (h *Handlers) handleUserSignin(c *gin.Context) {
-	var form models.LoginForm
-	if err := c.BindJSON(&form); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
-		return
-	}
-	if form.AuthToken == "" {
-		if err := authvalidate.PreparePasswordLogin(&form); err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
-			return
-		}
-	}
-
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	var user *models.User
-	var err error
-	if form.Password != "" {
-		user, err = models.GetUserByLoginAccount(db, form.Username)
-		if err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("user not exists"))
-			return
-		}
-		if !models.CheckPassword(user, form.Password) {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusUnauthorized, errors.New("unauthorized"))
-			return
-		}
-	} else {
-		user, err = models.DecodeHashToken(db, form.AuthToken, false)
-		if err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusUnauthorized, err)
-			return
-		}
-	}
-
-	err = models.CheckUserAllowLogin(db, user)
-	if err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusForbidden, err)
-		return
-	}
-
-	models.Login(c, user)
-
-	if form.Remember {
-		user.AuthToken = models.BuildAuthToken(user, h.authTokenTTL(), false)
-	}
-	c.JSON(http.StatusOK, user)
 }
 
 // handleUserSignup handle user signup
@@ -1038,25 +963,6 @@ func (h *Handlers) handleChangePasswordByEmail(c *gin.Context) {
 	// 修改密码成功后强制下线，要求重新登录
 	models.Logout(c, user)
 	response.SuccessMsg(c, "密码修改成功", map[string]any{"logout": true})
-}
-
-// handleGetUserDevices 获取用户的登录设备列表
-func (h *Handlers) handleGetUserDevices(c *gin.Context) {
-	user := models.CurrentUser(c)
-	if user == nil {
-		response.Fail(c, "用户未找到", errors.New("user not found"))
-		return
-	}
-
-	devices, err := models.GetUserLoginDevices(h.db, user.ID)
-	if err != nil {
-		response.Fail(c, "获取设备列表失败", err)
-		return
-	}
-
-	response.SuccessMsg(c, "获取设备列表成功", gin.H{
-		"devices": devices,
-	})
 }
 
 // handleResetPassword 重置密码请求

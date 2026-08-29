@@ -212,9 +212,6 @@ type IntegrationsConfig struct {
 
 // FeaturesConfig feature flags configuration
 type FeaturesConfig struct {
-	SearchEnabled   bool   `env:"SEARCH_ENABLED"`
-	SearchPath      string `env:"SEARCH_PATH"`
-	SearchBatchSize int    `env:"SEARCH_BATCH_SIZE"`
 	LanguageEnabled bool   `env:"LANGUAGE_ENABLED"`
 	BackupEnabled   bool   `env:"BACKUP_ENABLED"`
 	BackupPath      string `env:"BACKUP_PATH"`
@@ -378,9 +375,6 @@ func Load() error {
 			},
 		},
 		Features: FeaturesConfig{
-			SearchEnabled:   getBoolOrDefault("SEARCH_ENABLED", false),
-			SearchPath:      getStringOrDefault("SEARCH_PATH", "./search"),
-			SearchBatchSize: getIntOrDefault("SEARCH_BATCH_SIZE", 100),
 			LanguageEnabled: getBoolOrDefault("LANGUAGE_ENABLED", true),
 			BackupEnabled:   getBoolOrDefault("BACKUP_ENABLED", false),
 			BackupPath:      getStringOrDefault("BACKUP_PATH", "./backups"),

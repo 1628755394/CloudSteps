@@ -26,13 +26,13 @@ func DefaultOperationLogConfig() *OperationLogConfig {
 		ImportantPatterns: map[string][]string{
 			// 认证相关重要操作
 			"auth": {
-				"/api/auth/login",
+				"/api/auth/login/password",
+				"/api/auth/login/email",
 				"/api/auth/register",
 				"/api/auth/logout",
 				"/api/auth/change-password",
 				"/api/auth/reset-password",
 				"/api/auth/verify-email",
-				"/api/auth/two-factor",
 			},
 			// 用户资料重要操作
 			"profile": {
@@ -96,14 +96,14 @@ func DefaultOperationLogConfig() *OperationLogConfig {
 		},
 		OperationDescriptions: map[string]string{
 			// 认证相关操作
-			"/api/auth/login":                   "用户登录",
+			"/api/auth/login/password":          "密码登录",
+			"/api/auth/login/email":             "邮箱验证码登录",
 			"/api/auth/logout":                  "用户登出",
 			"/api/auth/register":                "用户注册",
 			"/api/auth/change-password":         "修改密码",
 			"/api/auth/reset-password":          "重置密码",
 			"/api/auth/update":                  "更新个人资料",
 			"/api/auth/preferences":             "更新偏好设置",
-			"/api/auth/two-factor":              "两步验证操作",
 			"/api/auth/send-email-verification": "发送邮箱验证",
 			"/api/auth/verify-email":            "验证邮箱",
 

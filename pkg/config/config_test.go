@@ -50,11 +50,6 @@ func setAllEnvs(t *testing.T) {
 	t.Setenv("LLM_BASE_URL", "https://llm.example.com")
 	t.Setenv("LLM_MODEL", "gpt-x")
 
-	// Search
-	t.Setenv("SEARCH_ENABLED", "1")
-	t.Setenv("SEARCH_PATH", "/var/search")
-	t.Setenv("SEARCH_BATCH_SIZE", "500")
-
 	t.Setenv("LANGUAGE_ENABLED", "true")
 	t.Setenv("API_SECRET_KEY", "api-secret")
 

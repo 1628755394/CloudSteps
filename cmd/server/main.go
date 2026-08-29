@@ -173,7 +173,6 @@ func main() {
 	r.Use(middleware.RequestIDMiddleware())
 	r.Use(middleware.PanicRecovery())
 	r.Use(middleware.SecurityHeadersMiddleware())
-	r.LoadHTMLGlob("templates/**/**")
 
 	// Disable automatic redirects to avoid CORS issues caused by 307 redirects
 	r.RedirectTrailingSlash = false
@@ -217,15 +216,10 @@ func main() {
 	listeners.InitSystemListeners()
 	listeners.InitAuthMailListeners(db)
 
-	// 20. Start Search Indexer (if enabled)
-	searchEnabled := configStore.GetBoolValue(constants.KEY_SEARCH_ENABLED)
-	if !searchEnabled && config.GlobalConfig != nil {
-		searchEnabled = config.GlobalConfig.Features.SearchEnabled
-	}
-	// 21. Emit system initialization signal
+	// Emit system initialization signal
 	common.Sig().Emit(models.SigInitSystemConfig, nil)
 
-	// 22. Start HTTP/HTTPS Server
+	// Start HTTP/HTTPS Server
 	httpServer := &http.Server{
 		Addr:           addr,
 		Handler:        r,

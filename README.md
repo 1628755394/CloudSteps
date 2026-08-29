@@ -77,7 +77,7 @@ CloudSteps/
 │  └─ utils/                  # 工具
 ├─ web/                       # 学员端 H5 前端（React + Vite）
 ├─ admin/                     # 运营后台前端（React + shadcn/ui）
-├─ templates/                 # 邮件模板 / favicon
+├─ templates/                 # 邮件 HTML 模板（embed）
 ├─ i18n/                      # 国际化翻译
 ├─ docs/                      # 设计 / 实现文档
 ├─ .github/workflows/         # CI（ci.yml + deploy-pages.yml）
