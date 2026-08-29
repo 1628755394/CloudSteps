@@ -106,7 +106,7 @@ export function WordDetailPanel({
         if (res.data) {
           setDetail(res.data);
           // 默认展开"释义"标签
-          if (res.data.translation?.trim()) setActive("translation");
+          if (res.data.translation?.trim() || fallbackTranslation?.trim()) setActive("translation");
         } else {
           setError(true);
         }
