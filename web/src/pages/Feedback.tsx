@@ -278,7 +278,7 @@ export default function Feedback() {
               {loading ? (
                 <CloudSpin tip="加载工单…" />
               ) : tickets.length === 0 ? (
-                <EmptyState icon="icon-zanwugongdan" description="还没有工单" />
+                <EmptyState icon="icon-zu" description="还没有工单" />
               ) : (
                 <CloudCard className="p-1.5">
                   <div className="divide-y divide-border">

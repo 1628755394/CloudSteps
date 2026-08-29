@@ -1,0 +1,10 @@
+feat(web): 工单空状态图标替换为 icon-zu
+
+- iconfont.css 新增第二个 @font-face，从阿里云 CDN 加载 font_5228186 字体
+- 使用 unicode-range 隔离两套字体，互不冲突
+- 新增 .icon-zu 图标类（unicode: e69e）
+- Feedback 页面 EmptyState 图标从 icon-zanwugongdan 改为 icon-zu
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
