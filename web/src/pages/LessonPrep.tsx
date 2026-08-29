@@ -19,7 +19,7 @@ export default function LessonPrep() {
   return (
     <div className="space-y-4">
       <section className="space-y-2.5">
-        <h2 className="text-xs font-medium text-muted-foreground">训练资料</h2>
+        <h2 className="text-sm font-medium text-muted-foreground">训练资料</h2>
         <CloudCard className="divide-y divide-border overflow-hidden p-0">
           {materials.map((item) => (
             <button

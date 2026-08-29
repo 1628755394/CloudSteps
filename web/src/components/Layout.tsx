@@ -320,7 +320,7 @@ export function Layout() {
             <main
               className={`flex-1 ${mainMarginLeft} ${mainPadBottom} flex flex-col min-h-0 overflow-x-hidden min-h-[calc(100dvh-2.75rem-env(safe-area-inset-top,0px))]`}
             >
-              <div className="flex-1 flex flex-col max-w-[1200px] w-full mx-auto min-h-0 px-4 py-3 lg:py-4">
+              <div className="flex-1 flex flex-col max-w-[1200px] w-full min-w-0 mx-auto min-h-0 px-3 sm:px-4 py-3 lg:py-4">
                 <AnimatedOutlet />
               </div>
             </main>
