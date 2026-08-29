@@ -399,13 +399,13 @@ export default function WordPractice() {
         ) : (
           <div
             className={globalNoteOpen && isDesktop
-              ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,1fr))] gap-2.5 overflow-y-auto"
+              ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,auto))] gap-2.5 overflow-y-auto"
               : "space-y-3 mb-6"}
           >
             {words.map((word, index) => (
               <div key={word.id} className={globalNoteOpen && isDesktop ? "min-h-0" : ""}>
                 <div
-                  className={`relative h-full bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
+                  className={`relative min-h-0 bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
                     !manualReadMode && index === selectedIndex
                       ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
                       : "border-transparent"
@@ -444,19 +444,14 @@ export default function WordPractice() {
                   </div>
                 </div>
                 {detailMode && word.showTranslation && (
-                  <div
-                    className="absolute top-full left-0 w-full z-20 bg-white rounded-b-xl shadow-lg border-x-2 border-b-2 border-[#4ECDC4] p-3"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <WordDetailPanel
-                      wordId={word.id}
-                      wordText={word.word}
-                      fallbackTranslation={meaningText(word)}
-                      variant="tags"
-                      onClose={() => setDetailWord(null)}
-                      onWordPatched={applyPatchedWord}
-                    />
-                  </div>
+                  <WordDetailPanel
+                    wordId={word.id}
+                    wordText={word.word}
+                    fallbackTranslation={meaningText(word)}
+                    variant="inline"
+                    onClose={() => setDetailWord(null)}
+                    onWordPatched={applyPatchedWord}
+                  />
                 )}
                 </div>
               </div>
