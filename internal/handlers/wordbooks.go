@@ -114,7 +114,11 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 	wb.Use(models.AuthRequired)
 	{
 		wb.GET("", h.handleListWordBooks)
+		h.registerCustomWordBookRoutes(wb)
 		wb.GET("/:id/words", h.handleListWordBookWords)
+		// 管理员或自定义词书所有者可改删单词（同路径，鉴权在 handler 内）
+		wb.PUT("/:id/words/:wid", h.handleUpdateWordBookWord)
+		wb.DELETE("/:id/words/:wid", h.handleDeleteWordBookWord)
 		wb.GET("/:id", h.handleGetWordBook)
 		wb.POST("/:id/select", h.handleSelectWordBook)
 		wb.GET("/:id/progress", h.handleGetWordBookProgress)
@@ -141,8 +145,6 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 			// 与登录用户浏览 GET /wordbooks/:id/words 区分，避免同路径被 requireAdmin 覆盖
 			admin.GET("/:id/managed-words", h.adminListWords)
 			admin.POST("/:id/words", h.adminCreateWord)
-			admin.PUT("/:id/words/:wid", h.adminUpdateWord)
-			admin.DELETE("/:id/words/:wid", h.adminDeleteWord)
 			admin.POST("/:id/words/check", h.adminCheckWords)
 			admin.POST("/:id/words/batch", h.adminBatchCreateWords)
 			admin.POST("/:id/words/deduplicate-audio", h.adminDeduplicateWordBookAudio)
@@ -180,7 +182,12 @@ func (h *Handlers) handleListWordBooks(c *gin.Context) {
 		pageSize = 20
 	}
 
-	books, total, err := models.ListWordBooksWithSearch(db, keyword, level, category, group, true, page, pageSize)
+	var ownerUID uint
+	if u := models.CurrentUser(c); u != nil {
+		ownerUID = u.ID
+	}
+
+	books, total, err := models.ListWordBooksWithSearch(db, keyword, level, category, group, true, page, pageSize, ownerUID)
 	if err != nil {
 		response.Fail(c, "获取词库列表失败", err)
 		return
@@ -202,6 +209,13 @@ func (h *Handlers) handleGetWordBook(c *gin.Context) {
 	if err != nil {
 		response.Fail(c, "词库不存在", err)
 		return
+	}
+	if book.OwnerUserID > 0 {
+		u := models.CurrentUser(c)
+		if u == nil || u.ID != book.OwnerUserID {
+			response.Fail(c, "无权访问该词库", nil)
+			return
+		}
 	}
 	response.SuccessMsg(c, "success", book)
 }
@@ -236,6 +250,13 @@ func (h *Handlers) handleListWordBookWords(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "词库不存在"})
 		return
+	}
+	if book.OwnerUserID > 0 {
+		u := models.CurrentUser(c)
+		if u == nil || u.ID != book.OwnerUserID {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "无权访问该词库"})
+			return
+		}
 	}
 	if !book.IsActive {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "词库已下架"})
@@ -740,11 +761,50 @@ func (h *Handlers) adminCreateWord(c *gin.Context) {
 	response.SuccessMsg(c, "创建成功", word)
 }
 
-func (h *Handlers) adminUpdateWord(c *gin.Context) {
+func canManageWordBookWords(user *models.User, book *models.WordBook) bool {
+	if user == nil || book == nil {
+		return false
+	}
+	if user.IsAdmin() {
+		return true
+	}
+	return book.OwnerUserID > 0 && book.OwnerUserID == user.ID
+}
+
+func operatorName(user *models.User) string {
+	if user == nil {
+		return ""
+	}
+	if user.DisplayName != "" {
+		return user.DisplayName
+	}
+	if user.Username != "" {
+		return user.Username
+	}
+	return fmt.Sprintf("%d", user.ID)
+}
+
+// handleUpdateWordBookWord PUT /wordbooks/:id/words/:wid — 管理员或自定义词书所有者
+func (h *Handlers) handleUpdateWordBookWord(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	user := models.CurrentUser(c)
+	bookID, _ := strconv.Atoi(c.Param("id"))
 	wid, _ := strconv.Atoi(c.Param("wid"))
-	if _, err := models.GetWordByID(db, uint(wid)); err != nil {
+	if bookID <= 0 || wid <= 0 {
+		response.Fail(c, "参数无效", nil)
+		return
+	}
+	book, err := models.GetWordBookByID(db, uint(bookID))
+	if err != nil {
+		response.Fail(c, "词库不存在", err)
+		return
+	}
+	if !canManageWordBookWords(user, book) {
+		response.Fail(c, "无权修改该词库单词", nil)
+		return
+	}
+	word, err := models.GetWordByID(db, uint(wid))
+	if err != nil || word.WordBookID != uint(bookID) {
 		response.Fail(c, "单词不存在", err)
 		return
 	}
@@ -753,20 +813,15 @@ func (h *Handlers) adminUpdateWord(c *gin.Context) {
 		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
 		return
 	}
-	// Prevent client from tampering audit fields
 	delete(body, "createBy")
 	delete(body, "updateBy")
 	delete(body, "create_by")
 	delete(body, "update_by")
-	if user != nil {
-		operator := user.DisplayName
-		if operator == "" {
-			operator = user.Username
-		}
-		if operator == "" {
-			operator = fmt.Sprintf("%d", user.ID)
-		}
-		body["update_by"] = operator
+	delete(body, "id")
+	delete(body, "wordBookId")
+	delete(body, "word_book_id")
+	if op := operatorName(user); op != "" {
+		body["update_by"] = op
 	}
 	if v, ok := body["audioUrl"]; ok {
 		body["audio_url"] = audio.DeduplicateSlots(strings.TrimSpace(fmt.Sprint(v)))
@@ -776,32 +831,51 @@ func (h *Handlers) adminUpdateWord(c *gin.Context) {
 		body["translation_short"] = strings.TrimSpace(fmt.Sprint(v))
 		delete(body, "translationShort")
 	}
+	if v, ok := body["word"]; ok {
+		w := strings.TrimSpace(fmt.Sprint(v))
+		if w == "" {
+			response.Fail(c, "单词不能为空", nil)
+			return
+		}
+		body["word"] = w
+	}
 	if err := models.UpdateWord(db, uint(wid), body); err != nil {
 		response.Fail(c, "更新失败", err)
 		return
 	}
-	word, _ := models.GetWordByID(db, uint(wid))
-	response.SuccessMsg(c, "更新成功", word)
+	fresh, _ := models.GetWordByID(db, uint(wid))
+	response.SuccessMsg(c, "更新成功", fresh)
 }
 
-func (h *Handlers) adminDeleteWord(c *gin.Context) {
+// handleDeleteWordBookWord DELETE /wordbooks/:id/words/:wid — 管理员或自定义词书所有者
+func (h *Handlers) handleDeleteWordBookWord(c *gin.Context) {
 	db := c.MustGet(constants.DbField).(*gorm.DB)
 	user := models.CurrentUser(c)
+	bookID, _ := strconv.Atoi(c.Param("id"))
 	wid, _ := strconv.Atoi(c.Param("wid"))
-	operator := ""
-	if user != nil {
-		operator = user.DisplayName
-		if operator == "" {
-			operator = user.Username
-		}
-		if operator == "" {
-			operator = fmt.Sprintf("%d", user.ID)
-		}
+	if bookID <= 0 || wid <= 0 {
+		response.Fail(c, "参数无效", nil)
+		return
 	}
-	if err := models.DeleteWord(db, uint(wid), operator); err != nil {
+	book, err := models.GetWordBookByID(db, uint(bookID))
+	if err != nil {
+		response.Fail(c, "词库不存在", err)
+		return
+	}
+	if !canManageWordBookWords(user, book) {
+		response.Fail(c, "无权删除该词库单词", nil)
+		return
+	}
+	word, err := models.GetWordByID(db, uint(wid))
+	if err != nil || word.WordBookID != uint(bookID) {
+		response.Fail(c, "单词不存在", err)
+		return
+	}
+	if err := models.DeleteWord(db, uint(wid), operatorName(user)); err != nil {
 		response.Fail(c, "删除失败", err)
 		return
 	}
+	_ = models.SyncWordBookCount(db, uint(bookID))
 	response.SuccessMsg(c, "删除成功", nil)
 }
 

@@ -62,6 +62,7 @@ require (
 	github.com/mssola/user_agent v0.6.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.12.0
+	github.com/xuri/excelize/v2 v2.9.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/net v0.57.0
 	gorm.io/driver/sqlite v1.6.0
@@ -187,6 +188,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mozillazg/go-httpheader v0.2.1 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.3.1 // indirect
@@ -197,6 +199,8 @@ require (
 	github.com/quic-go/quic-go v0.59.0 // indirect
 	github.com/redis/go-redis/v9 v9.22.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/richardlehane/mscfb v1.0.4 // indirect
+	github.com/richardlehane/msoleps v1.0.4 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/samber/lo v1.47.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
@@ -213,6 +217,8 @@ require (
 	github.com/volcengine/ve-tos-golang-sdk/v2 v2.9.8 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.23 // indirect
 	github.com/volcengine/volcengine-go-sdk v1.2.47 // indirect
+	github.com/xuri/efp v0.0.0-20240408161823-9ad904a10d6d // indirect
+	github.com/xuri/nfp v0.0.0-20240318013403-ab9948c2c4a7 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.3 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect

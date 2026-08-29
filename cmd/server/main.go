@@ -167,6 +167,9 @@ func main() {
 		return handlers.StopWordBookPurgeAudioQueue()
 	})
 
+	// 15.7 自定义词书释义/音标内存缓存（后台扫库去重，enrich 只读缓存）
+	handlers.StartCustomWordEnrichCache(db)
+
 	// 15. Initialize Gin Routing
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New() // Use gin.New() instead of gin.Default() to avoid automatic redirects
@@ -224,7 +227,7 @@ func main() {
 		Addr:           addr,
 		Handler:        r,
 		ReadTimeout:    300 * time.Second,
-		WriteTimeout:   30 * time.Second,
+		WriteTimeout:   300 * time.Second, // 与读超时对齐，避免长任务写响应被切断
 		IdleTimeout:    120 * time.Second,
 		MaxHeaderBytes: 1 << 20, // 1MB
 	}

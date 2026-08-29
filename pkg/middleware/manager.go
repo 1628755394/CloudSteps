@@ -100,19 +100,20 @@ func getDefaultEndpointLimits() map[string]EndpointLimit {
 
 func getDefaultEndpointTimeouts() map[string]time.Duration {
 	return map[string]time.Duration{
-		"/api/auth/login/password": 10 * time.Second,
-		"/api/auth/login/email":    10 * time.Second,
-		"/api/upload":              5 * time.Minute,
-		"/api/assistant/chat":      60 * time.Second,
-		"/api/chat/send":           60 * time.Second,
-		"/api/workflow/execute":    10 * time.Minute,
-		"/api/voice/training/create": 30 * time.Second,
-		"/api/voice/synthesis":       30 * time.Second,
-		"/api/voice/realtime/":       10 * time.Minute,
-		"/api/voice/CloudStepsGo/v1/": 10 * time.Minute,
-		"/api/admin/storage/stats/":  2 * time.Minute,
+		"/api/auth/login/password":        10 * time.Second,
+		"/api/auth/login/email":           10 * time.Second,
+		"/api/upload":                     5 * time.Minute,
+		"/api/assistant/chat":             60 * time.Second,
+		"/api/chat/send":                  60 * time.Second,
+		"/api/workflow/execute":           10 * time.Minute,
+		"/api/voice/training/create":      30 * time.Second,
+		"/api/voice/synthesis":            30 * time.Second,
+		"/api/voice/realtime/":            10 * time.Minute,
+		"/api/voice/CloudStepsGo/v1/":     10 * time.Minute,
+		"/api/admin/storage/stats/":       2 * time.Minute,
 		"/api/wordbooks/batch-audio/jobs": 8 * time.Second,
 		"/api/wordbooks/cover-ai/jobs":    8 * time.Second,
+		"/api/wordbooks/custom":           2 * time.Minute,
 	}
 }
 
