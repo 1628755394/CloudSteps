@@ -199,6 +199,8 @@ export type MobileDateWheelProps = {
   /** 覆盖按钮上展示的文案（仍按 value 回填滚轮） */
   displayValue?: string;
   sheetTitle?: string;
+  /** 自定义触发器；不传则用默认日期按钮 */
+  trigger?: ReactNode;
 };
 
 /** H5 滚轮日期选择（年/月/日） */
@@ -211,6 +213,7 @@ export function MobileDateWheel({
   label,
   displayValue,
   sheetTitle = "选择日期",
+  trigger,
 }: MobileDateWheelProps) {
   const yearNow = new Date().getFullYear();
   const years = useMemo(
@@ -250,20 +253,31 @@ export function MobileDateWheel({
       {label && (
         <label className="text-sm text-charcoal font-medium mb-1.5 block">{label}</label>
       )}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen(true)}
-        className={`w-full h-10 px-3 rounded-xl bg-card border border-input text-sm text-left outline-none transition-colors hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25 disabled:opacity-50 ${className ?? ""}`}
-      >
-        {display ? (
-          <span className="text-charcoal tabular-nums">
-            {displayValue ? display : display.replace(/-/g, "/")}
-          </span>
-        ) : (
-          <span className="text-muted-soft">{placeholder}</span>
-        )}
-      </button>
+      {trigger ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className="w-full text-left rounded-none outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-primary/30 disabled:opacity-50"
+        >
+          {trigger}
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen(true)}
+          className={`w-full h-10 px-3 rounded-xl bg-card border border-input text-sm text-left outline-none transition-colors hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25 disabled:opacity-50 ${className ?? ""}`}
+        >
+          {display ? (
+            <span className="text-charcoal tabular-nums">
+              {displayValue ? display : display.replace(/-/g, "/")}
+            </span>
+          ) : (
+            <span className="text-muted-soft">{placeholder}</span>
+          )}
+        </button>
+      )}
 
       <PickerSheet
         open={open}
@@ -355,7 +369,7 @@ export function MobileSelectSheet({
           type="button"
           disabled={disabled}
           onClick={() => setOpen(true)}
-          className="rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 disabled:opacity-50"
+          className="w-full text-left rounded-none outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-primary/30 disabled:opacity-50"
         >
           {trigger}
         </button>

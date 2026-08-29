@@ -527,14 +527,34 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     [quotas],
   );
 
-  const openScheduleForDay = (day: Date) => {
+  const openScheduleForDay = async (day: Date) => {
     if (!isCoach) return;
-    if (studentOptions.length === 0) {
+    const dayYmd = fmtYMD(day);
+    const todayYmd = fmtYMD(new Date());
+    if (dayYmd < todayYmd) {
+      showToast.info("不能给今天之前的日期排课");
+      return;
+    }
+
+    let options = studentOptions;
+    if (options.length === 0) {
+      try {
+        const list = await listAllTeacherCoachingQuotas();
+        setQuotas(list);
+        options = list.map((q) => ({
+          value: String(q.studentId),
+          label: studentLabel(q.student, q.studentId),
+        }));
+      } catch {
+        // fall through to empty check
+      }
+    }
+    if (options.length === 0) {
       showToast.info("请先在学员管理中添加学员，再来排课");
       navigate("/my-students");
       return;
     }
-    navigate(`/lesson-prep/new?date=${fmtYMD(day)}`);
+    navigate(`/lesson-prep/new?date=${dayYmd}`);
   };
 
   const jumpToWeekOf = (dateString: string) => {

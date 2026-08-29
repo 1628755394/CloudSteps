@@ -8,11 +8,11 @@ import {
 } from "../api/coaching";
 import { PageBackHeader } from "../components/PageBackHeader";
 import { CloudButton } from "../components/cloudsteps";
+import { CloudTimePicker } from "../components/cloudsteps/arco";
 import {
-  CloudDatePicker,
-  CloudSelect,
-  CloudTimePicker,
-} from "../components/cloudsteps/arco";
+  MobileDateWheel,
+  MobileSelectSheet,
+} from "../components/cloudsteps/MobileWheelPicker";
 import { Textarea } from "../components/ui/textarea";
 import { showToast } from "../utils/toast";
 import { cn } from "../utils/cn";
@@ -24,6 +24,34 @@ const REPEAT_OPTIONS = [
   { value: "weekly4", label: "每周（连续 4 周）" },
   { value: "daily7", label: "每天（连续 7 天）" },
 ] as const;
+
+function SettingsRow({
+  label,
+  value,
+  placeholder = "请选择",
+  muted,
+}: {
+  label: string;
+  value?: string;
+  placeholder?: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex w-full items-center justify-between gap-3 px-4 py-3.5 min-h-12">
+      <span className="text-sm text-foreground shrink-0">{label}</span>
+      <span
+        className={cn(
+          "flex items-center gap-0.5 min-w-0 text-sm",
+          value ? "text-foreground" : "text-muted-foreground",
+          muted && "text-muted-foreground",
+        )}
+      >
+        <span className="truncate">{value || placeholder}</span>
+        <ChevronRight size={16} className="shrink-0 text-muted-foreground/70" />
+      </span>
+    </div>
+  );
+}
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -66,13 +94,22 @@ function defaultStartEnd() {
   };
 }
 
+function clampDateToTodayOrLater(ymd: string): string {
+  const today = fmtYMD(new Date());
+  if (!ymd || ymd < today) return today;
+  return ymd;
+}
+
 /**
  * 添加课程 — 全页排课表单（替代原备课页内模态框）
  */
 export default function CreateCoachingAppointment() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialDate = searchParams.get("date") || fmtYMD(new Date());
+  const todayYmd = useMemo(() => fmtYMD(new Date()), []);
+  const initialDate = clampDateToTodayOrLater(
+    searchParams.get("date") || todayYmd,
+  );
   const defaults = useMemo(() => defaultStartEnd(), []);
 
   const [quotas, setQuotas] = useState<TeacherCoachingQuotaRow[]>([]);
@@ -96,6 +133,8 @@ export default function CreateCoachingAppointment() {
 
   const selectedStudentLabel =
     studentOptions.find((o) => o.value === studentId)?.label || "";
+  const selectedRepeatLabel =
+    REPEAT_OPTIONS.find((o) => o.value === repeat)?.label || "不重复";
 
   const durationMin = useMemo(() => {
     const a = parseHm(start);
@@ -134,13 +173,15 @@ export default function CreateCoachingAppointment() {
   };
 
   const scheduleDates = (): string[] => {
+    let dates: string[];
     if (repeat === "weekly4") {
-      return [0, 1, 2, 3].map((i) => addDaysYMD(date, i * 7));
+      dates = [0, 1, 2, 3].map((i) => addDaysYMD(date, i * 7));
+    } else if (repeat === "daily7") {
+      dates = [0, 1, 2, 3, 4, 5, 6].map((i) => addDaysYMD(date, i));
+    } else {
+      dates = [date];
     }
-    if (repeat === "daily7") {
-      return [0, 1, 2, 3, 4, 5, 6].map((i) => addDaysYMD(date, i));
-    }
-    return [date];
+    return dates.filter((d) => d >= todayYmd);
   };
 
   const onCancel = () => {
@@ -158,6 +199,11 @@ export default function CreateCoachingAppointment() {
       showToast.warning("请选择日期与时间");
       return;
     }
+    if (date < todayYmd) {
+      showToast.warning("不能给今天之前的日期排课");
+      setDate(todayYmd);
+      return;
+    }
     const startHm = start.length === 5 ? start : start.slice(0, 5);
     const endHm = end.length === 5 ? end : end.slice(0, 5);
     if (parseHm(endHm) <= parseHm(startHm)) {
@@ -166,6 +212,10 @@ export default function CreateCoachingAppointment() {
     }
 
     const dates = scheduleDates();
+    if (dates.length === 0) {
+      showToast.warning("没有可排的日期（需为今天或之后）");
+      return;
+    }
     setSubmitting(true);
     let ok = 0;
     let fail = 0;
@@ -211,20 +261,19 @@ export default function CreateCoachingAppointment() {
 
   return (
     <div className="min-h-0 flex flex-col flex-1 bg-background">
-      <PageBackHeader title="添加课程" fallbackTo="/lesson-prep" maxWidthClass="max-w-lg" />
+      <PageBackHeader title="添加课程" fallbackTo="/lesson-prep" maxWidthClass="max-w-none" />
 
-      <div className="flex-1 max-w-lg w-full mx-auto px-4 py-4 space-y-5">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">添加课程</h1>
-
+      <div className="flex-1 w-full space-y-4 py-3">
         <section className="space-y-2">
-          <p className="text-xs text-muted-foreground px-0.5">学生信息</p>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <CloudSelect
-              label="选择学生"
-              sheetTitle="选择学生"
+          <p className="text-xs text-muted-foreground px-3">学生信息</p>
+          <div className="bg-card border-y border-border overflow-hidden sm:border sm:rounded-2xl">
+            <MobileSelectSheet
+              title="选择学生"
               value={studentId || undefined}
-              onChange={(v) => setStudentId(v ?? "")}
               options={studentOptions}
+              onChange={setStudentId}
+              showSearch
+              disabled={loadingQuotas || !studentOptions.length}
               placeholder={
                 loadingQuotas
                   ? "加载中…"
@@ -232,10 +281,19 @@ export default function CreateCoachingAppointment() {
                     ? "请点击选择"
                     : "请先添加学员"
               }
-              disabled={loadingQuotas || !studentOptions.length}
-              allowClear={false}
-              showSearch
-              className="w-full"
+              trigger={
+                <SettingsRow
+                  label="选择学生"
+                  value={selectedStudentLabel || undefined}
+                  placeholder={
+                    loadingQuotas
+                      ? "加载中…"
+                      : studentOptions.length
+                        ? "请点击选择"
+                        : "请先添加学员"
+                  }
+                />
+              }
             />
             {!loadingQuotas && studentOptions.length === 0 ? (
               <button
@@ -247,34 +305,41 @@ export default function CreateCoachingAppointment() {
                 <ChevronRight size={16} className="text-muted-foreground" />
               </button>
             ) : null}
-            {selectedStudentLabel ? (
-              <p className="px-4 pb-3 text-xs text-muted-foreground -mt-1">
-                已选：{selectedStudentLabel}
-              </p>
-            ) : null}
           </div>
         </section>
 
         <section className="space-y-2">
-          <p className="text-xs text-muted-foreground px-0.5">授课时间</p>
-          <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border">
-            <div className="px-3 py-2">
-              <CloudDatePicker
-                label="日期"
-                value={date || undefined}
-                onChange={(dateString) => setDate(dateString || "")}
-              />
-            </div>
-            <div className="px-3 py-2">
-              <CloudSelect
-                label="重复设置"
-                sheetTitle="重复设置"
-                value={repeat}
-                onChange={(v) => setRepeat(v || "none")}
-                options={[...REPEAT_OPTIONS]}
-                allowClear={false}
-              />
-            </div>
+          <p className="text-xs text-muted-foreground px-3">授课时间</p>
+          <div className="bg-card border-y border-border overflow-hidden divide-y divide-border sm:border sm:rounded-2xl">
+            <MobileDateWheel
+              value={date || undefined}
+              sheetTitle="选择日期"
+              onChange={(dateString) => {
+                const next = dateString || "";
+                if (next && next < todayYmd) {
+                  showToast.info("不能选择今天之前的日期");
+                  setDate(todayYmd);
+                  return;
+                }
+                setDate(next);
+              }}
+              trigger={
+                <SettingsRow
+                  label="日期"
+                  value={date ? date.replace(/-/g, "/") : undefined}
+                  placeholder="请选择日期"
+                />
+              }
+            />
+            <MobileSelectSheet
+              title="重复设置"
+              value={repeat}
+              options={[...REPEAT_OPTIONS]}
+              onChange={(v) => setRepeat(v || "none")}
+              trigger={
+                <SettingsRow label="重复设置" value={selectedRepeatLabel} />
+              }
+            />
             <div className="px-4 py-5">
               <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2 text-center">
                 <div>
@@ -317,8 +382,8 @@ export default function CreateCoachingAppointment() {
         </section>
 
         <section className="space-y-2">
-          <p className="text-xs text-muted-foreground px-0.5">课程备注</p>
-          <div className="bg-card border border-border rounded-2xl p-3">
+          <p className="text-xs text-muted-foreground px-3">课程备注</p>
+          <div className="bg-card border-y border-border p-3 sm:border sm:rounded-2xl">
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -329,7 +394,7 @@ export default function CreateCoachingAppointment() {
         </section>
       </div>
 
-      <div className="max-w-lg w-full mx-auto px-4 pb-8 flex gap-3">
+      <div className="w-full px-3 pb-8 flex gap-3">
         <CloudButton
           type="button"
           variant="outline"
