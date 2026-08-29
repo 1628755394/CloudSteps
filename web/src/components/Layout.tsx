@@ -216,9 +216,7 @@ export function Layout() {
   // 侧栏布局：移动端用抽屉；底栏布局不需要汉堡；顶栏布局不需要汉堡
   const showMobileDrawer = layout === "sidebar";
   const showHeaderMenu = layout === "sidebar";
-  const isLessonPrep =
-    location.pathname === "/lesson-prep" ||
-    location.pathname.startsWith("/lesson-prep/");
+  const isLessonPrep = location.pathname === "/lesson-prep";
 
   const mainPadBottom =
     showBottomNav

@@ -16,10 +16,9 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { DatePicker, Modal } from "@arco-design/web-react";
 import {
-  createTeacherCoachingAppointment,
   deleteTeacherCoachingAppointment,
   endCoachingAppointment,
   getStudentCoachingWeek,
@@ -40,13 +39,7 @@ import { showToast } from "../utils/toast";
 import { useAuthStore } from "../stores/authStore";
 import { useIsMobile } from "./ui/use-mobile";
 import { MobileDateWheel } from "./cloudsteps/MobileWheelPicker";
-import {
-  CloudSelect,
-  CloudDatePicker,
-  CloudTimePicker,
-  CloudInput,
-  CloudSpin,
-} from "./cloudsteps/arco";
+import { CloudSpin } from "./cloudsteps/arco";
 import { CloudButton } from "./cloudsteps";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -331,6 +324,7 @@ const MODAL_FOOTER_CLASS =
 
 export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useIsMobile();
   const user = useAuthStore((s) => s.user);
   const userId = user?.id ? Number(user.id) : 0;
@@ -343,18 +337,11 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   const [pendingActionById, setPendingActionById] = useState<
     Record<number, "start" | "end" | null>
   >({});
-  const [showScheduleForm, setShowScheduleForm] = useState(false);
   const [selected, setSelected] = useState<CoachingWeekSchedule | null>(null);
   const [showCellTip, setShowCellTip] = useState(false);
   const [tipHole, setTipHole] = useState<CoachTargetRect | null>(null);
   const [tipReady, setTipReady] = useState(false);
 
-  const [aStudent, setAStudent] = useState("");
-  const [aDate, setADate] = useState(fmtYMD(new Date()));
-  const [aStart, setAStart] = useState("09:00");
-  const [aEnd, setAEnd] = useState("10:00");
-  const [aTitle, setATitle] = useState("");
-  const [creatingAppt, setCreatingAppt] = useState(false);
   const timetableHostRef = useRef<HTMLDivElement>(null);
   const [axisHeightPx, setAxisHeightPx] = useState(280);
 
@@ -547,12 +534,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       navigate("/my-students");
       return;
     }
-    setADate(fmtYMD(day));
-    setAStart("09:00");
-    setAEnd("10:00");
-    setATitle("");
-    if (!aStudent && studentOptions[0]) setAStudent(studentOptions[0].value);
-    setShowScheduleForm(true);
+    navigate(`/lesson-prep/new?date=${fmtYMD(day)}`);
   };
 
   const jumpToWeekOf = (dateString: string) => {
@@ -561,53 +543,16 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     if (!Number.isNaN(d.getTime())) setWeekAnchor(weekMonday(d));
   };
 
-  const onCreateAppt = async () => {
-    const sid = Number(aStudent);
-    if (!sid) {
-      showToast.warning("请选择学员");
-      return;
-    }
-    if (!aDate || !aStart || !aEnd) {
-      showToast.warning("请选择日期与时间");
-      return;
-    }
-    const start = aStart.length === 5 ? aStart : aStart.slice(0, 5);
-    const end = aEnd.length === 5 ? aEnd : aEnd.slice(0, 5);
-    if (parseEndMinutes(end) <= parseHmToMinutes(start)) {
-      showToast.warning("结束时间需晚于开始时间");
-      return;
-    }
-    setCreatingAppt(true);
-    try {
-      const res = await createTeacherCoachingAppointment({
-        studentId: sid,
-        scheduledDate: aDate,
-        startTime: start,
-        endTime: end,
-        title: aTitle || undefined,
-      });
-      if (res.code !== 200) {
-        showToast.error(res.msg || "创建失败");
-        return;
-      }
-      showToast.success("已创建排课");
-      setShowScheduleForm(false);
-      setATitle("");
-      const createdDate = aDate;
-      const anchor = new Date(`${createdDate}T12:00:00`);
-      if (!Number.isNaN(anchor.getTime())) setWeekAnchor(anchor);
-      await loadWeek(createdDate);
-      void loadQuotas();
-    } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "创建失败";
-      showToast.error(msg);
-    } finally {
-      setCreatingAppt(false);
-    }
-  };
+  useEffect(() => {
+    const st = location.state as { refreshDate?: string } | null;
+    const refreshDate = st?.refreshDate;
+    if (!refreshDate) return;
+    jumpToWeekOf(refreshDate);
+    void loadWeek(refreshDate);
+    void loadQuotas();
+    navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const onDeleteAppt = async (id: number) => {
     Modal.confirm({
@@ -1003,88 +948,6 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
           </div>
         )}
       </div>
-
-      {/* 新建排课：挂到 body，避免被课表区 overflow 裁切 */}
-      {isCoach &&
-        showScheduleForm &&
-        createPortal(
-          <div
-            className={MODAL_OVERLAY_CLASS}
-            onClick={() => setShowScheduleForm(false)}
-          >
-            <div
-              className={MODAL_SHEET_CLASS}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className={MODAL_BODY_CLASS}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold text-foreground">新建排课</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {aDate} · 请选择具体上课时间
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="shrink-0 p-2 rounded-lg text-muted-foreground hover:bg-muted touch-manipulation"
-                    onClick={() => setShowScheduleForm(false)}
-                    aria-label="关闭"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <CloudSelect
-                    label="学员"
-                    value={aStudent || undefined}
-                    onChange={(v) => setAStudent(v ?? "")}
-                    options={studentOptions}
-                    placeholder={studentOptions.length ? "选择学员" : "请先添加学员"}
-                    disabled={!studentOptions.length}
-                    allowClear={false}
-                    showSearch
-                  />
-                  <CloudDatePicker
-                    label="日期"
-                    value={aDate || undefined}
-                    onChange={(dateString) => setADate(dateString || "")}
-                  />
-                  <CloudTimePicker
-                    label="开始时间"
-                    format="HH:mm"
-                    value={aStart || undefined}
-                    onChange={(timeString) => setAStart(timeString || "")}
-                  />
-                  <CloudTimePicker
-                    label="结束时间"
-                    format="HH:mm"
-                    value={aEnd || undefined}
-                    onChange={(timeString) => setAEnd(timeString || "")}
-                  />
-                  <div className="sm:col-span-2">
-                    <CloudInput
-                      label="标题（可选）"
-                      value={aTitle}
-                      onChange={setATitle}
-                      placeholder="如：四级词汇陪练"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className={MODAL_FOOTER_CLASS}>
-                <CloudButton
-                  variant="brand"
-                  className="w-full min-h-11 touch-manipulation"
-                  loading={creatingAppt}
-                  onClick={() => void onCreateAppt()}
-                >
-                  确认排课
-                </CloudButton>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
 
       {selected &&
         createPortal(

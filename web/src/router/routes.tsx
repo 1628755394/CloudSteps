@@ -38,6 +38,7 @@ import { RouteErrorBoundary } from "../components/RouteErrorBoundary";
 import { PublicOnly, RequireAuth, RequireRole } from "../components/AuthGuard";
 import MyStudents from "../pages/MyStudents";
 import CreateStudent from "../pages/CreateStudent";
+import CreateCoachingAppointment from "../pages/CreateCoachingAppointment";
 import StudentDetail from "../pages/StudentDetail";
 import WordBooks from "../pages/WordBooks";
 import WordBookWords from "../pages/WordBookWords";
@@ -82,6 +83,14 @@ export const router = createBrowserRouter(
         ),
       },
       { path: "lesson-prep", element: <Home /> },
+      {
+        path: "lesson-prep/new",
+        element: (
+          <RequireRole roles={["user", "teacher", "admin"]}>
+            <CreateCoachingAppointment />
+          </RequireRole>
+        ),
+      },
       { path: "word-books", element: <LessonPrep /> },
       { path: "word-books/:id", element: <WordBookWords /> },
       { path: "training-records", element: <TrainingRecords /> },
