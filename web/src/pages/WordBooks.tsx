@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router";
-import { BookOpen, ChevronRight, ChevronLeft, ClipboardList, FileText, Search, Users } from "lucide-react";
+import { BookOpen, ChevronRight, ChevronLeft, ClipboardList, FileText, Plus, Search, Users } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CoachOnboarding } from "../components/CoachOnboarding";
 import { CloudCard, CloudEmpty, CloudSpin, CloudInput } from "../components/cloudsteps/arco";
@@ -16,6 +16,7 @@ import {
 } from "../utils/trainingStudent";
 import { shouldShowCoachOnboarding } from "../utils/coachOnboarding";
 import { showToast } from "../utils/toast";
+import { cn } from "../utils/cn";
 
 import { kickoffVocabTestPrefetch } from "../utils/vocabTestCache";
 import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
@@ -64,18 +65,32 @@ function parseCover(desc?: string): CoverInfo | null {
 
 const PAGE_SIZE = 24;
 
+const CUSTOM_GROUP: WordBookGroup = { key: "custom", label: "自定义" };
+
 const DEFAULT_GROUPS: WordBookGroup[] = [
   { key: "", label: "全部" },
+  CUSTOM_GROUP,
   { key: "primary", label: "小学" },
   { key: "middle", label: "初中" },
   { key: "high", label: "高中" },
-  { key: "cet4", label: "大学四级" },
-  { key: "cet6", label: "大学六级" },
+  { key: "university", label: "大学" },
+  { key: "cet4", label: "四级" },
+  { key: "cet6", label: "六级" },
   { key: "kaoyan", label: "考研" },
   { key: "abroad", label: "留学考试" },
   { key: "tem", label: "专四专八" },
   { key: "textbook", label: "教材" },
 ];
+
+function withCustomGroup(list: WordBookGroup[]): WordBookGroup[] {
+  const rest = list.filter((g) => g.key !== "custom");
+  const hasAll = rest.some((g) => g.key === "");
+  const withoutCustom = hasAll ? rest : [{ key: "", label: "全部" }, ...rest];
+  // 自定义放在「全部」之后
+  const all = withoutCustom.find((g) => g.key === "");
+  const others = withoutCustom.filter((g) => g.key !== "");
+  return all ? [all, CUSTOM_GROUP, ...others] : [CUSTOM_GROUP, ...withoutCustom];
+}
 
 export default function WordBooks() {
   const navigate = useNavigate();
@@ -97,6 +112,7 @@ export default function WordBooks() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const isCustomGroup = group === CUSTOM_GROUP.key;
 
   useEffect(() => {
     if (!hasHydrated || !userId) return;
@@ -107,7 +123,12 @@ export default function WordBooks() {
     setLoading(true);
     setErr(null);
     try {
-      const res = await listWordBooks({ page: p, pageSize: PAGE_SIZE, keyword: kw || undefined, group: g || undefined });
+      const res = await listWordBooks({
+        page: p,
+        pageSize: PAGE_SIZE,
+        keyword: kw || undefined,
+        group: g || undefined,
+      });
       if (res.code !== 200) {
         setErr(res.msg || "加载失败");
         setBooks([]);
@@ -117,7 +138,7 @@ export default function WordBooks() {
       setBooks(Array.isArray(res.data.list) ? res.data.list : []);
       setTotal(res.data.total || 0);
       if (res.data.groups && res.data.groups.length > 0) {
-        setGroups(res.data.groups);
+        setGroups(withCustomGroup(res.data.groups));
       }
     } catch (e: unknown) {
       const msg =
@@ -133,6 +154,20 @@ export default function WordBooks() {
   useEffect(() => {
     fetchBooks(page, keyword, group);
   }, [page, keyword, group, fetchBooks]);
+
+  // 预取分组标签（与列表并行，避免自定义 tab 时 groups 滞后）
+  useEffect(() => {
+    let mounted = true;
+    listWordBooks({ page: 1, pageSize: 1 })
+      .then((res) => {
+        if (!mounted || res.code !== 200 || !res.data?.groups?.length) return;
+        setGroups(withCustomGroup(res.data.groups));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!isCoach) return;
@@ -193,7 +228,7 @@ export default function WordBooks() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0 w-full">
       <section className="space-y-2.5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xs font-medium text-muted-foreground shrink-0">常用</h2>
@@ -311,27 +346,57 @@ export default function WordBooks() {
         </div>
       </section>
 
-      {/* 搜索栏 */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-md">
-          <CloudInput
-            value={searchInput}
-            onChange={(val: string) => setSearchInput(val)}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="搜索词库名称…"
-            prefix={<Search size={16} className="text-muted-foreground" />}
-            allowClear
-          />
+      <section className="space-y-3 min-w-0">
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold text-foreground tracking-tight shrink-0">
+            我的书架
+          </h2>
+          <div className="relative flex-1 min-w-0 max-w-md ml-auto">
+            <CloudInput
+              value={searchInput}
+              onChange={(val: string) => {
+                setSearchInput(val);
+                if (!val.trim() && keyword) {
+                  setPage(1);
+                  setKeyword("");
+                }
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="搜索词库名称…"
+              prefix={<Search size={16} className="text-muted-foreground" />}
+              allowClear
+            />
+          </div>
         </div>
-        {keyword && (
-          <button
-            onClick={handleClearSearch}
-            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1"
-          >
-            清除
-          </button>
-        )}
-      </div>
+
+        {/* min-w-0 限制宽度，才能在父级 overflow-x-hidden 下横向滑到最后一项 */}
+        <div
+          className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <div className="flex w-max items-stretch gap-5 pr-4">
+            {groups.map((g) => {
+              const active = group === g.key;
+              return (
+                <button
+                  key={g.key || "all"}
+                  type="button"
+                  onClick={() => handleGroupChange(g.key)}
+                  className={cn(
+                    "relative shrink-0 whitespace-nowrap pb-2.5 pt-0.5 text-sm transition-colors",
+                    active ? "text-primary font-semibold" : "text-muted-foreground font-medium",
+                  )}
+                >
+                  {g.label}
+                  {active ? (
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-5 rounded-full bg-primary" />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       {err && (
         <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -339,24 +404,103 @@ export default function WordBooks() {
         </div>
       )}
 
-      {/* 分组标签 */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {groups.map((g) => (
-          <button
-            key={g.key || "all"}
-            onClick={() => handleGroupChange(g.key)}
-            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-              group === g.key
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-card border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {g.label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
+      {isCustomGroup ? (
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-card border border-border px-4 py-10 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => navigate("/word-books/custom/new")}
+              className="inline-flex items-center gap-2 text-sm text-foreground/80 hover:text-foreground transition-colors"
+            >
+              <Plus size={18} className="text-primary" strokeWidth={2.5} />
+              <span>自定义词书</span>
+            </button>
+          </div>
+          {loading ? (
+            <CloudCard className="p-10">
+              <CloudSpin tip="加载中…" />
+            </CloudCard>
+          ) : books.length > 0 ? (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {books.map((b) => {
+                  const cover = parseCover(b.description);
+                  const gradient = pickGradient(cover?.tag || b.name);
+                  const coverImage = resolveMediaUrl(b.coverUrl);
+                  return (
+                    <Link
+                      key={b.id}
+                      to={`/word-books/${b.id}`}
+                      className="group block no-underline rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30"
+                    >
+                      <CloudCard
+                        interactive
+                        className="overflow-hidden h-full transition-colors group-hover:border-primary"
+                      >
+                        <div
+                          className={`relative w-full aspect-[1792/1024] ${
+                            coverImage ? "bg-muted" : `bg-gradient-to-br ${gradient}`
+                          }`}
+                        >
+                          {coverImage ? (
+                            <img
+                              src={coverImage}
+                              alt=""
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center px-2">
+                              <span className="text-white text-sm font-bold text-center line-clamp-2">
+                                {b.name}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+                            {b.name}
+                          </h3>
+                          <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-1">
+                              <BookOpen size={12} />
+                              {b.wordCount || 0} 词
+                            </span>
+                            <ChevronRight
+                              size={14}
+                              className="text-muted-soft group-hover:text-primary transition-colors"
+                            />
+                          </div>
+                        </div>
+                      </CloudCard>
+                    </Link>
+                  );
+                })}
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-4 pt-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={16} /> 上一页
+                  </button>
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    下一页 <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      ) : loading ? (
         <CloudCard className="p-10">
           <CloudSpin tip="加载中…" />
         </CloudCard>

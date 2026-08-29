@@ -38,6 +38,11 @@ export default defineConfig({
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
     },
+    // 避免多份 React 导致 hooks 报 null.useEffect
+    dedupe: ['react', 'react-dom'],
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'xlsx'],
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.

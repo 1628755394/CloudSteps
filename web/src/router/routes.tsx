@@ -42,6 +42,7 @@ import CreateCoachingAppointment from "../pages/CreateCoachingAppointment";
 import StudentDetail from "../pages/StudentDetail";
 import WordBooks from "../pages/WordBooks";
 import WordBookWords from "../pages/WordBookWords";
+import CreateCustomWordBook from "../pages/CreateCustomWordBook";
 import LighthouseWords from "../pages/LighthouseWords";
 import TrainingRecords from "../pages/TrainingRecords";
 import LessonPrep from "../pages/LessonPrep";
@@ -92,6 +93,7 @@ export const router = createBrowserRouter(
         ),
       },
       { path: "word-books", element: <LessonPrep /> },
+      { path: "word-books/custom/new", element: <CreateCustomWordBook /> },
       { path: "word-books/:id", element: <WordBookWords /> },
       { path: "training-records", element: <TrainingRecords /> },
       { path: "anti-forgetting", element: <AntiForgetting /> },
