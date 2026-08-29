@@ -142,6 +142,17 @@ export function WordDetailPanel({
     };
   }, [detail]);
 
+  const word = detail?.word || wordText || "";
+  const phonetic = detail?.phoneticUk || detail?.phoneticUs || detail?.phonetic || "";
+  const detailTranslation = detail?.translation?.trim() || fallbackTranslation;
+  const shortMeaning = detail
+    ? withPartOfSpeech(detail.partOfSpeech, detailTranslation ? displayTranslationShort({ ...detail, translation: detailTranslation }) : "")
+    : (fallbackTranslation ? withPartOfSpeech("", displayTranslationShort({ translation: fallbackTranslation })) : "");
+  const fullMeaning = detail
+    ? withPartOfSpeech(detail.partOfSpeech, detailTranslation ? displayTranslationFull(detailTranslation) : "")
+    : (fallbackTranslation ? withPartOfSpeech("", displayTranslationFull(fallbackTranslation)) : "");
+  const showFullInline = active === "translation";
+
   const tabs: ExtTab[] = useMemo(() => {
     if (!detail || !parsed) return [];
     const list: ExtTab[] = [];
@@ -160,18 +171,7 @@ export function WordDetailPanel({
     if (parsed.wordFamily?.length) list.push({ key: "family", label: "词族" });
     if (!simpleMode) return list;
     return list.filter((t) => SIMPLE_KEYS.has(t.key));
-  }, [detail, parsed, simpleMode]);
-
-  const word = detail?.word || wordText || "";
-  const phonetic = detail?.phoneticUk || detail?.phoneticUs || detail?.phonetic || "";
-  const detailTranslation = detail?.translation?.trim() || fallbackTranslation;
-  const shortMeaning = detail
-    ? withPartOfSpeech(detail.partOfSpeech, detailTranslation ? displayTranslationShort({ ...detail, translation: detailTranslation }) : "")
-    : (fallbackTranslation ? withPartOfSpeech("", displayTranslationShort({ translation: fallbackTranslation })) : "");
-  const fullMeaning = detail
-    ? withPartOfSpeech(detail.partOfSpeech, detailTranslation ? displayTranslationFull(detailTranslation) : "")
-    : (fallbackTranslation ? withPartOfSpeech("", displayTranslationFull(fallbackTranslation)) : "");
-  const showFullInline = active === "translation";
+  }, [detail, parsed, simpleMode, detailTranslation]);
 
   const tagsBlock = (
     <>
