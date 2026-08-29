@@ -20,6 +20,7 @@ function parseHeight(minHeight: string): number {
 export function MarkdownEditor({
   value,
   onChange,
+  placeholder = '支持 Markdown 语法',
   className,
   minHeight = '480px',
 }: MarkdownEditorProps) {
@@ -38,7 +39,7 @@ export function MarkdownEditor({
         preview='live'
         visibleDragbar={false}
         textareaProps={{
-          placeholder: '支持 Markdown 语法与 {{.Username}} 等占位符',
+          placeholder,
         }}
       />
     </div>

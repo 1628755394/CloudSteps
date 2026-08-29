@@ -27,6 +27,7 @@ func (h *Handlers) registerStorageAdminRoutes(r *gin.RouterGroup) {
 		st.GET("", h.handleStorageInfo)
 		st.GET("/buckets", h.handleStorageListBuckets)
 		st.GET("/files", h.handleStorageListFiles)
+		st.POST("/files", h.handleStorageUploadFile)
 		st.GET("/files/info", h.handleStorageFileInfo)
 		st.GET("/files/url", h.handleStorageFileURL)
 		st.GET("/files/raw", h.handleStorageFileRaw)
@@ -104,6 +105,64 @@ func (h *Handlers) handleStorageListFiles(c *gin.Context) {
 		return
 	}
 	response.SuccessMsg(c, "ok", resp)
+}
+
+const maxStorageUploadBytes int64 = 64 << 20 // 64 MiB
+
+func (h *Handlers) handleStorageUploadFile(c *gin.Context) {
+	m := requireStorageManager(c)
+	if m == nil {
+		return
+	}
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		response.Fail(c, "请选择要上传的文件", err.Error())
+		return
+	}
+	defer file.Close()
+
+	if header.Size > maxStorageUploadBytes {
+		response.Fail(c, fmt.Sprintf("文件过大，请选择不超过 %dMB 的文件", maxStorageUploadBytes>>20), "")
+		return
+	}
+
+	bucket := strings.TrimSpace(c.PostForm("bucket"))
+	key := strings.TrimSpace(c.PostForm("key"))
+	if key == "" {
+		name := path.Base(strings.ReplaceAll(header.Filename, "\\", "/"))
+		if name == "" || name == "." || name == "/" {
+			response.Fail(c, "缺少 key，且无法从文件名推断", "")
+			return
+		}
+		prefix := strings.TrimSpace(c.PostForm("prefix"))
+		if prefix != "" && !strings.HasSuffix(prefix, "/") {
+			prefix += "/"
+		}
+		key = prefix + name
+	}
+	key = strings.TrimLeft(key, "/")
+	if key == "" || strings.Contains(key, "..") {
+		response.Fail(c, "非法的对象 key", "")
+		return
+	}
+
+	limited := io.LimitReader(file, maxStorageUploadBytes+1)
+	size := header.Size
+	if size < 0 {
+		size = 0
+	}
+	if err := m.UploadFile(bucket, key, limited, size); err != nil {
+		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
+		return
+	}
+
+	response.SuccessMsg(c, "uploaded", gin.H{
+		"bucket": bucket,
+		"key":    key,
+		"size":   header.Size,
+		"name":   header.Filename,
+	})
 }
 
 func (h *Handlers) handleStorageFileInfo(c *gin.Context) {

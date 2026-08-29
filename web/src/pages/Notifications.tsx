@@ -1,32 +1,32 @@
+import { ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type ApiNotification,
+} from "../api/notifications";
 import { CloudButton } from "../components/cloudsteps";
-
-import { listNotifications, markAllNotificationsRead, markNotificationRead } from "../api/notifications";
+import { MarkdownView } from "../components/MarkdownView";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { stripMarkdown } from "../utils/stripMarkdown";
 
 type NotificationItem = {
   id: number;
   title: string;
-  description: string;
+  content: string;
   time: string;
   read: boolean;
-};
-
-type ApiNotification = {
-  id: number;
-  title: string;
-  content: string;
-  read: boolean;
-  created_at: string;
-};
-
-type ListNotificationsResponse = {
-  list: ApiNotification[];
-  total: number;
-  totalUnread: number;
-  totalRead: number;
-  page: number;
-  size: number;
+  actionUrl?: string;
+  actionLabel?: string;
 };
 
 const formatTime = (iso: string) => {
@@ -35,6 +35,18 @@ const formatTime = (iso: string) => {
   return date.toLocaleString();
 };
 
+function toItem(n: ApiNotification): NotificationItem {
+  return {
+    id: n.id,
+    title: n.title,
+    content: n.content,
+    time: formatTime(n.createdAt),
+    read: !!n.read,
+    actionUrl: n.actionUrl,
+    actionLabel: n.actionLabel,
+  };
+}
+
 export default function Notifications() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +54,9 @@ export default function Notifications() {
   const [page] = useState(1);
   const [size] = useState(50);
   const [totalUnread, setTotalUnread] = useState(0);
+  const [detail, setDetail] = useState<NotificationItem | null>(null);
 
-  const unreadCount = useMemo(() => {
-    return totalUnread;
-  }, [totalUnread]);
+  const unreadCount = useMemo(() => totalUnread, [totalUnread]);
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -54,15 +65,7 @@ export default function Notifications() {
       const res = await listNotifications({ page, size });
       const data = res.data;
       setTotalUnread(data.totalUnread ?? 0);
-      setItems(
-        (data.list ?? []).map((n) => ({
-          id: n.id,
-          title: n.title,
-          description: n.content,
-          time: formatTime(n.created_at),
-          read: !!n.read,
-        })),
-      );
+      setItems((data.list ?? []).map(toItem));
     } catch (e: any) {
       setError(e?.msg || e?.message || "加载通知失败");
     } finally {
@@ -80,19 +83,31 @@ export default function Notifications() {
       await markAllNotificationsRead();
       setItems((prev) => prev.map((i) => ({ ...i, read: true })));
       setTotalUnread(0);
+      setDetail((d) => (d ? { ...d, read: true } : d));
+      window.dispatchEvent(new CustomEvent("notifications:unread-changed"));
     } catch (e: any) {
       setError(e?.msg || e?.message || "全部标为已读失败");
     }
   };
 
   const markOneRead = async (id: number) => {
+    if (!Number.isFinite(id) || id <= 0) return;
+    const target = items.find((i) => i.id === id);
+    if (target?.read) return;
     try {
       await markNotificationRead(id);
       setItems((prev) => prev.map((i) => (i.id === id ? { ...i, read: true } : i)));
       setTotalUnread((prev) => Math.max(0, prev - 1));
+      setDetail((d) => (d?.id === id ? { ...d, read: true } : d));
+      window.dispatchEvent(new CustomEvent("notifications:unread-changed"));
     } catch (e: any) {
       setError(e?.msg || e?.message || "标记已读失败");
     }
+  };
+
+  const openDetail = (item: NotificationItem) => {
+    setDetail(item);
+    if (!item.read) void markOneRead(item.id);
   };
 
   return (
@@ -133,11 +148,9 @@ export default function Notifications() {
               type="button"
               variant="ghost"
               className="w-full h-auto justify-start rounded-none px-5 py-4 border-b border-[#E2E8F0] last:border-b-0"
-              onClick={() => {
-                if (!n.read) markOneRead(n.id);
-              }}
+              onClick={() => openDetail(n)}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-4 w-full text-left">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     {!n.read && (
@@ -148,7 +161,7 @@ export default function Notifications() {
                     </div>
                   </div>
                   <div className="text-sm text-[#718096] mt-1 line-clamp-2">
-                    {n.description}
+                    {stripMarkdown(n.content)}
                   </div>
                 </div>
                 <div className="text-xs text-[#A0AEC0] whitespace-nowrap">
@@ -159,6 +172,32 @@ export default function Notifications() {
           ))
         )}
       </div>
+
+      <Dialog open={!!detail} onOpenChange={(open) => !open && setDetail(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-left pr-6">{detail?.title}</DialogTitle>
+            <DialogDescription className="text-left">
+              {detail?.time}
+              {detail && !detail.read ? " · 未读" : detail ? " · 已读" : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <MarkdownView content={detail?.content ?? ""} />
+          {detail?.actionUrl ? (
+            <DialogFooter className="sm:justify-start">
+              <a
+                href={detail.actionUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 h-9 px-4 rounded-xl border border-[#E2E8F0] text-sm font-medium text-[#2D3748] hover:border-[#4ECDC4] hover:text-[#4ECDC4] transition-colors"
+              >
+                <ExternalLink size={16} />
+                {detail.actionLabel || "查看详情"}
+              </a>
+            </DialogFooter>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

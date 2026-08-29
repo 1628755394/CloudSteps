@@ -36,6 +36,37 @@ func (h *Handlers) registerNotificationRoutes(r *gin.RouterGroup) {
 
 func uintToStr(id uint) string { return strconv.FormatUint(uint64(id), 10) }
 
+// apiNotification is the stable JSON shape for learner-facing inbox APIs.
+// ling-base inbox.Message has no json tags (PascalCase by default), so we map explicitly.
+type apiNotification struct {
+	ID          uint      `json:"id"`
+	Title       string    `json:"title"`
+	Content     string    `json:"content"`
+	ActionURL   string    `json:"actionUrl,omitempty"`
+	ActionLabel string    `json:"actionLabel,omitempty"`
+	Read        bool      `json:"read"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+func toAPINotifications(msgs []inbox.Message) []apiNotification {
+	out := make([]apiNotification, 0, len(msgs))
+	for _, m := range msgs {
+		id, _ := strconv.ParseUint(m.ID, 10, 64)
+		out = append(out, apiNotification{
+			ID:          uint(id),
+			Title:       m.Title,
+			Content:     m.Content,
+			ActionURL:   m.ActionURL,
+			ActionLabel: m.ActionLabel,
+			Read:        m.Read,
+			CreatedAt:   m.CreatedAt,
+			UpdatedAt:   m.UpdatedAt,
+		})
+	}
+	return out
+}
+
 // GetUnReadNotificationCount get user unread notification count
 func (h *Handlers) handleUnReadNotificationCount(c *gin.Context) {
 	user := models.CurrentUser(c)
@@ -98,7 +129,7 @@ func (h *Handlers) handleListNotifications(c *gin.Context) {
 		return
 	}
 	response.SuccessMsg(c, "success", gin.H{
-		"list":        res.List,
+		"list":        toAPINotifications(res.List),
 		"total":       res.Total,
 		"totalUnread": res.TotalUnread,
 		"totalRead":   res.TotalRead,
@@ -139,12 +170,13 @@ func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
 	}
 
 	store := inbox.NewGormStore(h.db)
-	if _, err := store.GetByID(uintToStr(user.ID), uintToStr(notificationID)); err != nil {
+	userID := uintToStr(user.ID)
+	if _, err := store.GetByID(userID, uintToStr(notificationID)); err != nil {
 		response.Fail(c, "You don't have permission to flag this message.", nil)
 		return
 	}
 
-	if err := store.MarkRead("", uintToStr(notificationID)); err != nil {
+	if err := store.MarkRead(userID, uintToStr(notificationID)); err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}

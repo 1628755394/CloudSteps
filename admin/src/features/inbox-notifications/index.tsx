@@ -31,9 +31,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Textarea } from '@/components/ui/textarea'
 import { AdminPage } from '@/components/admin-page'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { MarkdownEditor } from '@/components/markdown-editor'
+import { MarkdownView } from '@/components/markdown-view'
+import { UserPicker } from './user-picker'
 
 export type InboxMessage = {
   id: number
@@ -160,7 +162,7 @@ export function InboxNotificationsPage() {
 
     const uid = Number(form.userId)
     if (!uid || !form.title.trim() || !form.content.trim()) {
-      toast.error('请填写用户 ID、标题与正文')
+      toast.error('请选择用户，并填写标题与正文')
       return
     }
     setSaving(true)
@@ -346,26 +348,25 @@ export function InboxNotificationsPage() {
       </div>
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className='overflow-y-auto sm:max-w-lg'>
+        <SheetContent className='overflow-y-auto sm:max-w-2xl'>
           <SheetHeader>
             <SheetTitle>{editing ? '编辑站内信' : '发送站内信'}</SheetTitle>
             <SheetDescription>
               {editing
-                ? '修改标题、正文或已读状态。'
-                : '向指定用户 inbox 写入一条通知。'}
+                ? '修改标题、正文或已读状态。正文支持 Markdown。'
+                : '向指定用户 inbox 写入一条通知。正文支持 Markdown。'}
             </SheetDescription>
           </SheetHeader>
           <div className='mt-4 space-y-4 px-1'>
             {!editing ? (
               <div className='grid gap-1.5'>
-                <Label htmlFor='inbox-user-id'>用户 ID</Label>
-                <Input
-                  id='inbox-user-id'
+                <Label>收件用户</Label>
+                <UserPicker
                   value={form.userId}
-                  placeholder='例如 1'
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, userId: e.target.value }))
+                  onChange={(userId) =>
+                    setForm((prev) => ({ ...prev, userId }))
                   }
+                  disabled={saving}
                 />
               </div>
             ) : (
@@ -384,14 +385,14 @@ export function InboxNotificationsPage() {
               />
             </div>
             <div className='grid gap-1.5'>
-              <Label htmlFor='inbox-content'>正文</Label>
-              <Textarea
-                id='inbox-content'
-                rows={8}
+              <Label>正文（Markdown）</Label>
+              <MarkdownEditor
                 value={form.content}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, content: e.target.value }))
+                onChange={(content) =>
+                  setForm((prev) => ({ ...prev, content }))
                 }
+                minHeight='280px'
+                placeholder='支持 Markdown：标题、列表、链接、加粗等'
               />
             </div>
             <div className='grid gap-1.5'>
@@ -439,7 +440,7 @@ export function InboxNotificationsPage() {
       </Sheet>
 
       <Sheet open={Boolean(detail)} onOpenChange={(open) => !open && setDetail(null)}>
-        <SheetContent className='overflow-y-auto sm:max-w-lg'>
+        <SheetContent className='overflow-y-auto sm:max-w-xl'>
           <SheetHeader>
             <SheetTitle>{detail?.title}</SheetTitle>
             <SheetDescription>
@@ -448,7 +449,7 @@ export function InboxNotificationsPage() {
             </SheetDescription>
           </SheetHeader>
           <div className='mt-4 space-y-3 px-1 text-sm'>
-            <p className='whitespace-pre-wrap'>{detail?.content}</p>
+            <MarkdownView content={detail?.content ?? ''} />
             {detail?.actionUrl ? (
               <p className='text-muted-foreground'>
                 链接：{detail.actionUrl}

@@ -139,7 +139,7 @@ func (h *Handlers) handleMeMarkInboxRead(c *gin.Context) {
 		response.Fail(c, "站内信不存在", err)
 		return
 	}
-	if err := store.MarkRead("", id); err != nil {
+	if err := store.MarkRead(userID, id); err != nil {
 		response.Fail(c, "标记已读失败", err)
 		return
 	}

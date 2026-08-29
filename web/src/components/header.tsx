@@ -1,7 +1,11 @@
 import { Bell, Menu, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { CloudButton } from "./cloudsteps";
+
+import { getUnreadNotificationCount } from "../api/notifications";
+import { useAuthStore } from "../stores/authStore";
 import { useThemeStore } from "../stores/themeStore";
+import { CloudButton } from "./cloudsteps";
 
 type HeaderProps = {
   mobileMenuOpen: boolean;
@@ -10,6 +14,8 @@ type HeaderProps = {
   showMenuButton?: boolean;
 };
 
+const POLL_MS = 60_000;
+
 export function Header({
   mobileMenuOpen,
   onToggleMobileMenu,
@@ -17,7 +23,42 @@ export function Header({
 }: HeaderProps) {
   const navigate = useNavigate();
   const layout = useThemeStore((s) => s.layout);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const NOTIFICATION_PATH = "/notifications";
+  const [unread, setUnread] = useState(0);
+
+  const refreshUnread = useCallback(async () => {
+    if (!isAuthenticated) {
+      setUnread(0);
+      return;
+    }
+    try {
+      const count = await getUnreadNotificationCount();
+      setUnread(count);
+    } catch {
+      // keep last known count
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    void refreshUnread();
+    if (!isAuthenticated) return;
+
+    const onFocus = () => void refreshUnread();
+    const onChanged = () => void refreshUnread();
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("notifications:unread-changed", onChanged);
+    const timer = window.setInterval(() => void refreshUnread(), POLL_MS);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("notifications:unread-changed", onChanged);
+      window.clearInterval(timer);
+    };
+  }, [isAuthenticated, refreshUnread]);
+
+  const badgeLabel =
+    unread > 99 ? "99+" : unread > 0 ? String(unread) : "";
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border transition-colors duration-300">
@@ -62,11 +103,16 @@ export function Header({
         <CloudButton
           variant="ghost"
           size="icon"
-          className="size-9 shrink-0 text-muted-foreground hover:text-primary"
+          className="relative size-9 shrink-0 text-muted-foreground hover:text-primary"
           onClick={() => navigate(NOTIFICATION_PATH)}
-          aria-label="通知"
+          aria-label={unread > 0 ? `通知，${unread} 条未读` : "通知"}
         >
           <Bell size={18} />
+          {badgeLabel ? (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-red-500 text-[10px] leading-[1.1rem] text-white font-semibold text-center tabular-nums">
+              {badgeLabel}
+            </span>
+          ) : null}
         </CloudButton>
       </div>
     </header>

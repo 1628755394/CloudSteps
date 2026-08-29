@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Eye, Folder, Link2, RefreshCw, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Eye, Folder, Link2, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { get, post } from '@/lib/api'
@@ -85,6 +85,8 @@ export function StoragePage() {
   const [selectedPrefixes, setSelectedPrefixes] = useState<Set<string>>(() => new Set())
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const resetList = () => {
     setPage(1)
@@ -259,11 +261,65 @@ export function StoragePage() {
     })
   }
 
+  const uploadFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return
+    if (!info?.supportsManagement) {
+      toast.error('当前后端不支持上传')
+      return
+    }
+    setUploading(true)
+    let ok = 0
+    let fail = 0
+    try {
+      for (const file of Array.from(fileList)) {
+        const form = new FormData()
+        form.append('file', file)
+        if (bucket) form.append('bucket', bucket)
+        if (prefix) form.append('prefix', prefix)
+        try {
+          await post('/admin/storage/files', form, {
+            timeout: 120_000,
+          })
+          ok++
+        } catch {
+          fail++
+        }
+      }
+      if (fail === 0) {
+        toast.success(ok > 1 ? `已上传 ${ok} 个文件` : '上传成功')
+      } else if (ok === 0) {
+        toast.error('上传失败')
+      } else {
+        toast.error(`成功 ${ok} 个，失败 ${fail} 个`)
+      }
+      if (ok > 0) await loadFiles()
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   return (
     <AdminPage
       title='对象存储'
       extra={
         <div className='flex gap-2'>
+          <input
+            ref={fileInputRef}
+            type='file'
+            className='hidden'
+            multiple
+            onChange={(e) => void uploadFiles(e.target.files)}
+          />
+          <Button
+            variant='default'
+            size='sm'
+            disabled={!info?.supportsManagement || uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className='size-4' />
+            {uploading ? '上传中…' : '上传'}
+          </Button>
           {selectionTotal > 0 ? (
             <Button variant='destructive' size='sm' onClick={openBulkDelete}>
               <Trash2 className='size-4' />
