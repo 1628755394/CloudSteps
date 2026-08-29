@@ -383,11 +383,12 @@ export default function WordPractice() {
                 )}
               </div>
             </div>
-            {detailMode && cardWord.showTranslation && (
+            {detailMode && (cardWord.showTranslation || cardIndex === words.findIndex((w) => w.id === cardWord.id)) && (
               <div className="w-full">
                 <WordDetailPanel
                   wordId={cardWord.id}
                   wordText={cardWord.word}
+                  fallbackTranslation={meaningText(cardWord)}
                   variant="inline"
                   onClose={() => setDetailWord(null)}
                   onWordPatched={applyPatchedWord}
@@ -442,10 +443,11 @@ export default function WordPractice() {
                     )}
                   </div>
                 </div>
-                {detailMode && word.showTranslation && (
+                {detailMode && (word.showTranslation || index === selectedIndex) && (
                   <WordDetailPanel
                     wordId={word.id}
                     wordText={word.word}
+                    fallbackTranslation={meaningText(word)}
                     variant="inline"
                     onClose={() => setDetailWord(null)}
                     onWordPatched={applyPatchedWord}

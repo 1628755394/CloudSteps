@@ -67,6 +67,8 @@ type ExtTab = { key: ExtKey; label: string };
 type Props = {
   wordId: number;
   wordText?: string;
+  /** 当后端返回的释义为空时，作为默认“释义”标签内容展示 */
+  fallbackTranslation?: string;
   onClose?: () => void;
   /** tags：仅标签；inline：音标+释义+标签（词下展开）；full：含词头卡片 */
   variant?: "full" | "tags" | "inline";
@@ -81,6 +83,7 @@ type Props = {
 export function WordDetailPanel({
   wordId,
   wordText,
+  fallbackTranslation,
   variant = "full",
   simpleMode = true,
   onWordPatched,
@@ -142,7 +145,7 @@ export function WordDetailPanel({
   const tabs: ExtTab[] = useMemo(() => {
     if (!detail || !parsed) return [];
     const list: ExtTab[] = [];
-    if (detail.translation?.trim()) list.push({ key: "translation", label: "释义" });
+    if (detailTranslation?.trim()) list.push({ key: "translation", label: "释义" });
     if (parsed.examples?.length) list.push({ key: "examples", label: "例句" });
     if (detail.mnemonic?.trim()) list.push({ key: "mnemonic", label: "助记" });
     if (parsed.phrases?.length) list.push({ key: "phrases", label: "词组" });
@@ -161,12 +164,13 @@ export function WordDetailPanel({
 
   const word = detail?.word || wordText || "";
   const phonetic = detail?.phoneticUk || detail?.phoneticUs || detail?.phonetic || "";
+  const detailTranslation = detail?.translation?.trim() || fallbackTranslation;
   const shortMeaning = detail
-    ? withPartOfSpeech(detail.partOfSpeech, displayTranslationShort(detail))
-    : "";
+    ? withPartOfSpeech(detail.partOfSpeech, detailTranslation ? displayTranslationShort({ ...detail, translation: detailTranslation }) : "")
+    : (fallbackTranslation ? withPartOfSpeech("", displayTranslationShort({ translation: fallbackTranslation })) : "");
   const fullMeaning = detail
-    ? withPartOfSpeech(detail.partOfSpeech, displayTranslationFull(detail.translation))
-    : "";
+    ? withPartOfSpeech(detail.partOfSpeech, detailTranslation ? displayTranslationFull(detailTranslation) : "")
+    : (fallbackTranslation ? withPartOfSpeech("", displayTranslationFull(fallbackTranslation)) : "");
   const showFullInline = active === "translation";
 
   const tagsBlock = (
