@@ -443,15 +443,20 @@ export default function WordPractice() {
                     )}
                   </div>
                 </div>
-                {detailMode && (word.showTranslation || index === selectedIndex) && (
-                  <WordDetailPanel
-                    wordId={word.id}
-                    wordText={word.word}
-                    fallbackTranslation={meaningText(word)}
-                    variant="inline"
-                    onClose={() => setDetailWord(null)}
-                    onWordPatched={applyPatchedWord}
-                  />
+                {detailMode && word.showTranslation && (
+                  <div
+                    className="absolute top-full left-0 w-full z-20 bg-white rounded-b-xl shadow-lg border-x-2 border-b-2 border-[#4ECDC4] p-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <WordDetailPanel
+                      wordId={word.id}
+                      wordText={word.word}
+                      fallbackTranslation={meaningText(word)}
+                      variant="tags"
+                      onClose={() => setDetailWord(null)}
+                      onWordPatched={applyPatchedWord}
+                    />
+                  </div>
                 )}
                 </div>
               </div>
