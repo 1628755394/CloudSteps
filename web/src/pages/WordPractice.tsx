@@ -383,11 +383,12 @@ export default function WordPractice() {
                 )}
               </div>
             </div>
-            {detailMode && cardWord.showTranslation && (
+            {detailMode && (cardWord.showTranslation || cardIndex === words.findIndex((w) => w.id === cardWord.id)) && (
               <div className="w-full">
                 <WordDetailPanel
                   wordId={cardWord.id}
                   wordText={cardWord.word}
+                  fallbackTranslation={meaningText(cardWord)}
                   variant="inline"
                   onClose={() => setDetailWord(null)}
                   onWordPatched={applyPatchedWord}
@@ -398,13 +399,13 @@ export default function WordPractice() {
         ) : (
           <div
             className={globalNoteOpen && isDesktop
-              ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,1fr))] gap-2.5 overflow-y-auto"
+              ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,auto))] gap-2.5 overflow-y-auto"
               : "space-y-3 mb-6"}
           >
             {words.map((word, index) => (
               <div key={word.id} className={globalNoteOpen && isDesktop ? "min-h-0" : ""}>
                 <div
-                  className={`relative h-full bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
+                  className={`relative min-h-0 bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
                     !manualReadMode && index === selectedIndex
                       ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
                       : "border-transparent"
@@ -446,6 +447,7 @@ export default function WordPractice() {
                   <WordDetailPanel
                     wordId={word.id}
                     wordText={word.word}
+                    fallbackTranslation={meaningText(word)}
                     variant="inline"
                     onClose={() => setDetailWord(null)}
                     onWordPatched={applyPatchedWord}
@@ -526,8 +528,18 @@ export default function WordPractice() {
               size="pill"
               onClick={() => {
                 setDetailMode((v) => {
-                  if (v) setDetailWord(null);
-                  return !v;
+                  const next = !v;
+                  if (next) {
+                    const targetIndex = viewMode === "card" ? cardIndex : (selectedIndex ?? activeIndex);
+                    if (targetIndex >= 0 && words[targetIndex]) {
+                      setWords((prev) =>
+                        prev.map((w, i) => (i === targetIndex ? { ...w, showTranslation: true } : w))
+                      );
+                    }
+                  } else {
+                    setDetailWord(null);
+                  }
+                  return next;
                 });
               }}
             >

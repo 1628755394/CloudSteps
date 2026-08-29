@@ -90,7 +90,7 @@ export default function CreateStudent() {
 
   return (
     <div className="min-h-0 flex flex-col flex-1 bg-background">
-      <PageBackHeader title="新建学生" fallbackTo="/my-students" maxWidthClass="max-w-2xl" />
+      <PageBackHeader title="新建学生" fallbackTo="/my-students" maxWidthClass="w-full" />
 
       <div className="flex-1 max-w-2xl w-full mx-auto px-4 py-4 space-y-3">
         <section className="bg-card border border-border rounded-2xl overflow-hidden">

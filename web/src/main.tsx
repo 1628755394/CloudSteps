@@ -3,6 +3,7 @@ import "@arco-design/web-react/dist/css/arco.css";
 import App from "./App";
 import "./styles/index.css";
 import "./styles/arco-popup.css";
+import "./styles/iconfont.css";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ArcoAppProvider } from "./providers/ArcoAppProvider";
 

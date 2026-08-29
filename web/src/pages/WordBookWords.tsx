@@ -174,9 +174,9 @@ export default function WordBookWords() {
         </Link>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5">
-        <h1 className="text-lg font-semibold text-[#2D3748]">{bookName || `词库 #${bookId}`}</h1>
-        <p className="text-xs text-[#718096] mt-1">共 {total} 个单词{debouncedKw ? "（已筛选）" : ""}</p>
+      <div className="bg-white rounded-xl border border-[#E2E8F0] px-5 py-3.5">
+        <h1 className="text-lg font-medium text-[#2D3748]">{bookName || `词库 #${bookId}`}</h1>
+        <p className="text-sm font-medium text-[#4A5568] mt-0.5">共 {total} 个单词{debouncedKw ? "（已筛选）" : ""}</p>
       </div>
 
       <div className="relative">
