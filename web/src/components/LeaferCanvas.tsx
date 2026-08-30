@@ -363,19 +363,24 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       if (t === "select") return;
 
       if (t === "text") {
-        // Add text at top-left of visible canvas area, empty for direct typing
+        // Add text at top-left, no border, double-click to edit
         const text = new Text({
           text: "",
-          x: 52,
-          y: 12,
+          x: 16,
+          y: 8,
           fill: colorRef.current,
           fontSize: fontSizeRef.current,
-          editable: true,
-          draggable: false,
+          editable: false,
+          draggable: true,
         });
         drawLayer.add(text);
         pushUndo();
         onContentChange?.();
+        // Enter edit mode immediately for typing
+        text.on("dblclick", () => {
+          app.editor.target = text;
+          (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
+        });
         app.editor.target = text;
         setTimeout(() => {
           (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
@@ -718,16 +723,22 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       if (!app || !layer) return;
       const text = new Text({
         text: "",
-        x: 52,
-        y: 12,
+        x: 16,
+        y: 8,
         fill: colorRef.current,
         fontSize: fontSizeRef.current,
-        editable: true,
+        editable: false,
         draggable: true,
       });
       layer.add(text);
       pushUndo();
       onContentChange?.();
+      // Double-click to edit
+      text.on("dblclick", () => {
+        app.editor.target = text;
+        (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
+      });
+      // Enter edit mode immediately for typing
       app.editor.target = text;
       setTimeout(() => {
         (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
