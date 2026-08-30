@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, Lightbulb, UserPlus, Users } from "lucide-react";
+import { Clock, Lightbulb, UserPlus, Users } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
@@ -366,10 +366,10 @@ export default function WordTraining() {
   }
 
   return (
-    <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+    <FlowPageShell className="h-dvh max-h-dvh bg-gray-50 flex flex-col overflow-hidden">
       <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
 
-      <div className="px-4 mt-3 space-y-3 pb-4">
+      <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] gap-2 overflow-hidden">
         <CloudSelect
           value={selectedWordBookId ? String(selectedWordBookId) : undefined}
           onChange={(v) => {
@@ -385,7 +385,7 @@ export default function WordTraining() {
           sheetTitle="选择词库"
         />
 
-        <div className="bg-white rounded-xl px-4 py-3 shadow-sm space-y-1.5">
+        <div className="bg-white rounded-xl px-3 py-2 shadow-sm space-y-1 shrink-0">
           <div className="flex items-center justify-between text-sm">
             <span className="text-[#718096]">训练日期</span>
             <span className="text-[#2D3748] font-medium tabular-nums">{todayLabel}</span>
@@ -396,61 +396,60 @@ export default function WordTraining() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-3 gap-2 shrink-0">
           <div
             onClick={() => navigate("/lighthouse-words?step=today")}
-            className="bg-white rounded-xl p-3 text-center shadow-sm cursor-pointer hover:bg-gray-50 active:scale-95 transition-all"
+            className="bg-white rounded-xl p-2.5 text-center shadow-sm cursor-pointer hover:bg-gray-50 active:scale-95 transition-all"
           >
-            <div className="text-xl font-bold text-[#4ECDC4] mb-0.5">{todayNewLearned}</div>
-            <div className="text-xs text-[#718096]">今日训新</div>
+            <div className="text-lg font-bold text-[#4ECDC4] mb-0.5">{todayNewLearned}</div>
+            <div className="text-[11px] text-[#718096]">今日训新</div>
           </div>
           <div
             onClick={() => navigate("/lighthouse-words?step=01")}
-            className="bg-white rounded-xl p-3 text-center shadow-sm cursor-pointer hover:bg-gray-50 active:scale-95 transition-all"
+            className="bg-white rounded-xl p-2.5 text-center shadow-sm cursor-pointer hover:bg-gray-50 active:scale-95 transition-all"
           >
-            <div className="text-xl font-bold text-[#FF9800] mb-0.5">{memoryData[0]?.count ?? 0}</div>
-            <div className="text-xs text-[#718096]">今日复习目标</div>
+            <div className="text-lg font-bold text-[#FF9800] mb-0.5">{memoryData[0]?.count ?? 0}</div>
+            <div className="text-[11px] text-[#718096]">今日复习目标</div>
           </div>
           <div
             onClick={() => navigate("/lighthouse-words?step=mastered")}
-            className="bg-white rounded-xl p-3 text-center shadow-sm cursor-pointer hover:bg-gray-50 active:scale-95 transition-all"
+            className="bg-white rounded-xl p-2.5 text-center shadow-sm cursor-pointer hover:bg-gray-50 active:scale-95 transition-all"
           >
-            <div className="text-xl font-bold text-[#66BB6A] mb-0.5">{masteredCount}</div>
-            <div className="text-xs text-[#718096]">累计识词</div>
+            <div className="text-lg font-bold text-[#66BB6A] mb-0.5">{masteredCount}</div>
+            <div className="text-[11px] text-[#718096]">累计识词</div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="flex flex-col items-center gap-1 mb-3">
-            <div className="flex items-center justify-center gap-2">
-              <Lightbulb className="text-[#FFD700]" size={22} />
-              <h3 className="text-base font-semibold text-[#2D3748]">智能记忆灯塔</h3>
-            </div>
+        <div className="bg-white rounded-xl p-2.5 shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-center gap-1.5 mb-1 shrink-0">
+            <Lightbulb className="text-[#FFD700]" size={18} />
+            <h3 className="text-sm font-semibold text-[#2D3748]">智能记忆灯塔</h3>
           </div>
-
-          <MemoryLighthouse
-            data={{
-              boxes: lighthouseBoxes,
-              mastered: masteredCount,
-              unlearned: pendingCount,
-              total:
-                pendingCount +
-                lighthouseBoxes.reduce((sum, box) => sum + box.count, 0) +
-                masteredCount,
-            } as MemoryLighthouseData}
-            onBlockClick={(type, _wordNum, tips) => {
-              const stepMap: Record<string, string> = {
-                BOX_0: "01", BOX_1: "02", BOX_2: "03", BOX_3: "04",
-                BOX_4: "05", BOX_5: "06", BOX_6: "07",
-                BOX_7: "mastered", UNLEARNED: "pending",
-              };
-              const step = stepMap[type] || tips;
-              navigate(`/lighthouse-words?step=${step}`);
-            }}
-          />
+          <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden [&_.aspect-square]:max-w-[min(100%,min(38vh,320px))] [&_.aspect-square]:max-h-[38vh]">
+            <MemoryLighthouse
+              data={{
+                boxes: lighthouseBoxes,
+                mastered: masteredCount,
+                unlearned: pendingCount,
+                total:
+                  pendingCount +
+                  lighthouseBoxes.reduce((sum, box) => sum + box.count, 0) +
+                  masteredCount,
+              } as MemoryLighthouseData}
+              onBlockClick={(type, _wordNum, tips) => {
+                const stepMap: Record<string, string> = {
+                  BOX_0: "01", BOX_1: "02", BOX_2: "03", BOX_3: "04",
+                  BOX_4: "05", BOX_5: "06", BOX_6: "07",
+                  BOX_7: "mastered", UNLEARNED: "pending",
+                };
+                const step = stepMap[type] || tips;
+                navigate(`/lighthouse-words?step=${step}`);
+              }}
+            />
+          </div>
         </div>
 
-        <div className="flex gap-3 pt-1">
+        <div className="flex gap-2.5 shrink-0">
           <CloudButton
             variant="brandOutline"
             size="pillLg"
@@ -479,18 +478,6 @@ export default function WordTraining() {
             继续练习
           </CloudButton>
         </div>
-      </div>
-
-      <div className="fixed bottom-5 right-5 z-30">
-        <CloudButton
-          variant="brand"
-          size="iconRound"
-          className="size-12 shadow-lg"
-          onClick={() => navigate("/pre-training-check")}
-          aria-label="进入训前检测"
-        >
-          <ArrowRight size={22} />
-        </CloudButton>
       </div>
     </FlowPageShell>
   );
