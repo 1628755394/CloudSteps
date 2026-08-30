@@ -1,4 +1,4 @@
-import { Volume2, Check, X, BookOpen, Shuffle, PanelTop } from "lucide-react";
+import { Volume2, Check, X, BookOpen, Shuffle, PanelTop, Type } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
@@ -89,6 +89,10 @@ export default function PostTrainingCheck() {
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
+  const [spellMode, setSpellMode] = useState(false);
+  const [spellTarget, setSpellTarget] = useState<CheckWord | null>(null);
+  const [spellInput, setSpellInput] = useState("");
+  const [spellResult, setSpellResult] = useState<"correct" | "wrong" | null>(null);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
@@ -149,6 +153,29 @@ export default function PostTrainingCheck() {
     setPlayingId(word.id);
     const abort = playWordAudio(word.audioUrl, 300, () => setPlayingId(null));
     abortRef.current = abort;
+  };
+
+  const openSpellDialog = (word: CheckWord) => {
+    setSpellTarget(word);
+    setSpellInput("");
+    setSpellResult(null);
+  };
+
+  const closeSpellDialog = () => {
+    setSpellTarget(null);
+    setSpellInput("");
+    setSpellResult(null);
+  };
+
+  const handleSpellSubmit = () => {
+    if (!spellTarget) return;
+    const isCorrect = spellInput.trim().toLowerCase() === spellTarget.word.trim().toLowerCase();
+    setSpellResult(isCorrect ? "correct" : "wrong");
+    if (isCorrect) {
+      handleStatusClick(spellTarget.id, "correct");
+    } else {
+      handleStatusClick(spellTarget.id, "wrong");
+    }
   };
 
   const handleBack = () => {
@@ -504,14 +531,26 @@ export default function PostTrainingCheck() {
                   isWordCardTapped(word, playingId, word.id)
                 )}`}
                 style={markWordCardStyle(word.status, isWordCardTapped(word, playingId, word.id))}
-                onClick={() => handleWordClick(word)}
+                onClick={() => {
+                  if (spellMode) {
+                    openSpellDialog(word);
+                  } else {
+                    handleWordClick(word);
+                  }
+                }}
               >
                 <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1">
                   <div>
-                    <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
-                      {word.word}
-                    </span>
+                    {spellMode ? (
+                      <span className={`${PRACTICE_WORD_CLASS} tracking-widest text-[#A0AEC0] select-none`}>
+                        {"■".repeat(Math.max(3, Math.ceil(word.word.length * 0.7)))}
+                      </span>
+                    ) : (
+                      <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
+                        {word.word}
+                      </span>
+                    )}
                     {word.showTranslation && (
                       <div className="mt-1 animate-in fade-in slide-in-from-top-1">
                         {word.phonetic ? (
@@ -626,6 +665,14 @@ export default function PostTrainingCheck() {
                 <BookOpen size={16} />
                 拓展
               </CloudButton>
+              <CloudButton
+                variant={spellMode ? "brand" : "outline"}
+                size="pill"
+                onClick={() => setSpellMode((v) => !v)}
+              >
+                <Type size={16} />
+                拼写
+              </CloudButton>
             </div>
             <div className="flex items-center gap-2 w-full md:w-auto min-w-0 shrink-0">
               <CloudButton
@@ -664,6 +711,112 @@ export default function PostTrainingCheck() {
           </div>
         </div>
       </div>
+
+      {spellTarget && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={closeSpellDialog}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 max-w-md w-full mx-auto space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-foreground">拼写单词</h3>
+              {spellTarget.translation && (
+                <p className="text-sm text-muted-foreground mt-1">{spellTarget.translation}</p>
+              )}
+              {spellTarget.phonetic && (
+                <p className="text-sm text-[#718096] font-mono mt-0.5">{spellTarget.phonetic}</p>
+              )}
+            </div>
+
+            {spellTarget.audioUrl && (
+              <div className="flex justify-center">
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  onClick={() => handlePlayAudio(spellTarget)}
+                >
+                  <Volume2
+                    size={24}
+                    className={playingId === spellTarget.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+                  />
+                </CloudButton>
+              </div>
+            )}
+
+            {spellResult === null ? (
+              <>
+                <input
+                  type="text"
+                  value={spellInput}
+                  onChange={(e) => setSpellInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSpellSubmit();
+                  }}
+                  placeholder="输入单词拼写"
+                  autoFocus
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground focus:outline-none focus:border-primary"
+                />
+                <div className="flex gap-3">
+                  <CloudButton
+                    type="button"
+                    variant="outline"
+                    size="pill"
+                    className="flex-1"
+                    onClick={closeSpellDialog}
+                  >
+                    取消
+                  </CloudButton>
+                  <CloudButton
+                    type="button"
+                    variant="brand"
+                    size="pill"
+                    className="flex-1"
+                    onClick={handleSpellSubmit}
+                    disabled={!spellInput.trim()}
+                  >
+                    确认
+                  </CloudButton>
+                </div>
+              </>
+            ) : (
+              <>
+                <div
+                  className={`text-center rounded-xl py-4 ${
+                    spellResult === "correct"
+                      ? "bg-[#4ECDC4]/10 text-[#4ECDC4]"
+                      : "bg-[#FF6B6B]/10 text-[#FF6B6B]"
+                  }`}
+                >
+                  <p className="text-2xl font-bold mb-1">
+                    {spellResult === "correct" ? "✓ 正确" : "✗ 错误"}
+                  </p>
+                  <p className="text-sm text-foreground">
+                    正确答案：<span className="font-semibold">{spellTarget.word}</span>
+                  </p>
+                  {spellResult === "wrong" && spellInput.trim() && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      你的输入：{spellInput.trim()}
+                    </p>
+                  )}
+                </div>
+                <CloudButton
+                  type="button"
+                  variant="brand"
+                  size="pill"
+                  className="w-full"
+                  onClick={closeSpellDialog}
+                >
+                  继续
+                </CloudButton>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </FlowPageShell>
   );
 }
