@@ -17,8 +17,9 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// handleReviewToday GET /review/today?wordBookId=1&date=YYYY-MM-DD&timeZone=Asia/Shanghai
+// handleReviewToday GET /review/today?wordBookId=1&date=YYYY-MM-DD&timeZone=Asia/Shanghai&all=true
 // 取词口径与 /review/books-by-date 对齐：今日含逾期至本地明日 0 点前；其它日仅该日 due。
+// all=true 时忽略日期，返回所有已学待复习单词（不限 due_at）。
 func (h *Handlers) handleReviewToday(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
@@ -32,6 +33,9 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
+
+	// all=true：返回所有已学待复习单词（不限 due_at）
+	allMode := c.Query("all") == "true"
 
 	tzName := c.DefaultQuery("timeZone", "Asia/Shanghai")
 	loc, err := time.LoadLocation(tzName)
@@ -68,10 +72,12 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 			uint(studySessionID), uint(studySessionID),
 		)
 	}
-	if isSelectedToday {
-		q = q.Where("due_at < ?", dayEnd)
-	} else {
-		q = q.Where("due_at >= ? AND due_at < ?", dayStart, dayEnd)
+	if !allMode {
+		if isSelectedToday {
+			q = q.Where("due_at < ?", dayEnd)
+		} else {
+			q = q.Where("due_at >= ? AND due_at < ?", dayStart, dayEnd)
+		}
 	}
 
 	var items []models.ReviewQueue

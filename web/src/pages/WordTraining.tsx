@@ -463,7 +463,7 @@ export default function WordTraining() {
               sessionStorage.setItem("lb_review_date", todayLabel);
               sessionStorage.setItem("lb_review_return", "/word-training");
               navigate(
-                `/review-word-list?wordBookId=${selectedWordBookId}&date=${encodeURIComponent(todayLabel)}`
+                `/review-word-list?wordBookId=${selectedWordBookId}&all=1`
               );
             }}
           >

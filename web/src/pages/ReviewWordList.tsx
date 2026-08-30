@@ -91,6 +91,11 @@ export default function ReviewWordList() {
     return url.searchParams.get("view") === "1";
   }, []);
 
+  const allMode = useMemo(() => {
+    const url = new URL(window.location.href);
+    return url.searchParams.get("all") === "1";
+  }, []);
+
   const [playingId, setPlayingId] = useState<number | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -113,8 +118,9 @@ export default function ReviewWordList() {
       try {
         const res = await getReviewToday(wordBookId, {
           date: reviewDate || undefined,
-          limit: 200,
+          limit: 500,
           studySessionId: studySessionId > 0 ? studySessionId : undefined,
+          all: allMode,
         });
         const ws = Array.isArray(res.data?.words)
           ? (res.data.words as Array<{
@@ -143,7 +149,7 @@ export default function ReviewWordList() {
     return () => {
       mounted = false;
     };
-  }, [wordBookId, reviewDate, studySessionId]);
+  }, [wordBookId, reviewDate, studySessionId, allMode]);
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
