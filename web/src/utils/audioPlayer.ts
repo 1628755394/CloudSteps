@@ -103,7 +103,10 @@ export function playSingleAudio(url: string, onDone?: () => void): () => void {
 
   return () => {
     aborted = true
+    audio.onended = null
+    audio.onerror = null
     audio.pause()
+    audio.src = '' // 释放 WebMediaPlayer 资源
     onDone?.()
   }
 }

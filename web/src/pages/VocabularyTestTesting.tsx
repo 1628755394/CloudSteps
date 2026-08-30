@@ -73,18 +73,15 @@ export default function VocabularyTestTesting() {
     abortAudioRef.current = playFirstWordAudio(currentQuestion.audioUrl);
   };
 
-  // 切题时停掉上一题音频，并自动播放当前题音频
+  // 切题时停掉上一题音频（不自动播放，避免累积 WebMediaPlayer 超限）
   useEffect(() => {
     abortAudioRef.current?.();
     abortAudioRef.current = null;
-    if (currentQuestion?.audioUrl && !loading && !submitting) {
-      abortAudioRef.current = playFirstWordAudio(currentQuestion.audioUrl);
-    }
     return () => {
       abortAudioRef.current?.();
       abortAudioRef.current = null;
     };
-  }, [currentQuestion?.id, loading, submitting]);
+  }, [currentQuestion?.id]);
 
   const options: OptionItem[] = useMemo(() => {
     if (!currentQuestion) return [];
