@@ -383,8 +383,8 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	var body struct {
 		StudentID uint `json:"studentId"`
 		Answers   []struct {
-			QuestionID uint   `json:"questionId"`
-			Answer     string `json:"answer"`
+			QuestionID json.Number `json:"questionId"`
+			Answer     string      `json:"answer"`
 		} `json:"answers" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -410,7 +410,12 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	// 批量查题目
 	ids := make([]uint, 0, len(body.Answers))
 	for _, a := range body.Answers {
-		ids = append(ids, a.QuestionID)
+		u, err := a.QuestionID.Int64()
+		if err != nil {
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("存在无效题目ID"))
+			return
+		}
+		ids = append(ids, uint(u))
 	}
 	var questions []models.VocabTestQuestion
 	db.Where("id IN ?", ids).Find(&questions)
@@ -436,7 +441,8 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	weightedTotalAll := 0.0
 
 	for _, a := range body.Answers {
-		q, ok := qMap[a.QuestionID]
+		qidU, _ := a.QuestionID.Int64()
+		q, ok := qMap[uint(qidU)]
 		if !ok {
 			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("存在无效题目ID"))
 			return
@@ -455,7 +461,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 			weightedCorrectAll += w
 		}
 		answerDetails = append(answerDetails, map[string]any{
-			"questionId": a.QuestionID,
+			"questionId": qidU,
 			"answer":     ans,
 			"correct":    isCorrect,
 			"level":      q.Level,
