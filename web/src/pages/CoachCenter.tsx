@@ -8,15 +8,21 @@ import {
   Clock,
   Mars,
   Venus,
+  Gift,
+  CalendarHeart,
+  Loader2,
+  Check,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { CloudButton, CloudImageWithFallback } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
 import { getTeacherTeachingPool } from "../api/coaching";
+import { getUserQuota, checkInDaily, type UserQuotaSummary } from "../api/quota";
 import { useAuthStore } from "../stores/authStore";
 import { teacherAvatarSrc } from "../utils/avatar";
 import { formatTeachingMinutes } from "../utils/formatMinutes";
+import { showToast } from "../utils/toast";
 
 const features = [
   { id: 2, icon: ClipboardList, label: "词汇测试记录", tint: "sky" as const, path: "/test-records" },
@@ -71,6 +77,10 @@ export default function CoachCenter() {
   const [poolMinutes, setPoolMinutes] = useState<number | null>(null);
   const [poolLoading, setPoolLoading] = useState(false);
 
+  const [quota, setQuota] = useState<UserQuotaSummary | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+  const [checkInLoading, setCheckInLoading] = useState(false);
+
   useEffect(() => {
     void refreshUserInfo();
   }, [refreshUserInfo]);
@@ -93,6 +103,52 @@ export default function CoachCenter() {
       mounted = false;
     };
   }, [isCoach]);
+
+  const loadQuota = useCallback(() => {
+    let mounted = true;
+    setQuotaLoading(true);
+    void getUserQuota()
+      .then((res) => {
+        if (!mounted) return;
+        if (res.code === 200 && res.data) {
+          setQuota(res.data);
+        }
+      })
+      .finally(() => {
+        if (mounted) setQuotaLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const cleanup = loadQuota();
+    return cleanup;
+  }, [loadQuota]);
+
+  const handleCheckIn = useCallback(async () => {
+    if (checkInLoading || quota?.checkedInToday) return;
+    setCheckInLoading(true);
+    try {
+      const res = await checkInDaily();
+      if (res.code === 200 && res.data) {
+        setQuota((prev) => prev ? {
+          ...prev,
+          remainingMinutes: res.data.remainingMinutes,
+          totalAllocatedMinutes: res.data.totalAllocatedMinutes,
+          checkedInToday: true,
+        } : prev);
+        showToast.success(`签到成功，获得 ${res.data.minutesAwarded} 分钟额度`);
+      } else {
+        showToast.error(res.msg || "签到失败");
+      }
+    } catch (err: any) {
+      showToast.error(err?.msg || "签到失败");
+    } finally {
+      setCheckInLoading(false);
+    }
+  }, [checkInLoading, quota?.checkedInToday]);
 
   const name = user?.displayName || user?.email || "";
   const featureList = features;
@@ -139,6 +195,48 @@ export default function CoachCenter() {
             <Pencil size={15} />
           </CloudButton>
         </div>
+      </CloudCard>
+
+      {/* 额度与签到 */}
+      <CloudCard className="px-3.5 py-3 sm:px-4 sm:py-3.5 shrink-0">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-tint-cream text-warning flex items-center justify-center shrink-0">
+            <Gift size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-foreground">我的额度</div>
+            <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+              <Clock size={13} className="shrink-0 text-warning" />
+              <span>
+                {quotaLoading
+                  ? "加载中…"
+                  : formatTeachingMinutes(quota?.remainingMinutes ?? 0)}
+              </span>
+            </div>
+          </div>
+          <CloudButton
+            variant={quota?.checkedInToday ? "outline" : "brand"}
+            size="pill"
+            disabled={quota?.checkedInToday || checkInLoading || quotaLoading}
+            loading={checkInLoading}
+            onClick={handleCheckIn}
+            className="shrink-0"
+          >
+            {checkInLoading ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : quota?.checkedInToday ? (
+              <Check size={15} />
+            ) : (
+              <CalendarHeart size={15} />
+            )}
+            {quota?.checkedInToday ? "已签到" : "签到"}
+          </CloudButton>
+        </div>
+        {!quota?.checkedInToday && !quotaLoading && (
+          <p className="text-[11px] text-muted-soft mt-2 pl-[3.85rem]">
+            每日签到可领取 {quota?.dailyMinutes ?? 60} 分钟额度
+          </p>
+        )}
       </CloudCard>
 
       <div className="flex-1 min-h-0 flex flex-col gap-3 overflow-hidden sm:grid sm:grid-cols-2 sm:items-stretch">

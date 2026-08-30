@@ -111,29 +111,29 @@ type UpdateUserRequest struct {
 
 type User struct {
 	BaseModel
-	Username           string     `json:"username" gorm:"size:128;index"`
-	Password           string     `json:"-" gorm:"size:128"`
-	Email              string     `json:"email,omitempty" gorm:"size:128;index:idx_users_email"` // 绑定邮箱（一个邮箱只能绑定一个用户，唯一性由 IsExistsByEmail 在应用层保证）
-	Phone              string     `json:"phone,omitempty" gorm:"size:64;index"`
-	FirstName          string     `json:"firstName,omitempty" gorm:"size:128"`
-	LastName           string     `json:"lastName,omitempty" gorm:"size:128"`
-	DisplayName        string     `json:"displayName,omitempty" gorm:"size:128"`
-	LastLogin          *time.Time `json:"lastLogin,omitempty"`
-	LastLoginIP        string     `json:"-" gorm:"size:128"`
-	Source             string     `json:"-" gorm:"size:64;index"`
-	Locale             string     `json:"locale,omitempty" gorm:"size:20"`
-	AuthToken          string     `json:"token,omitempty" gorm:"-"`
-	Avatar             string     `json:"avatar,omitempty"`
-	Gender             string     `json:"gender,omitempty"`
-	City               string     `json:"city,omitempty"`
-	Region             string     `json:"region,omitempty"`
-	PhoneVerified      bool       `json:"phoneVerified" gorm:"default:false"`              // 手机已验证
-	LoginCount         int        `json:"loginCount" gorm:"default:0"`                     // 登录次数
-	LastPasswordChange *time.Time `json:"lastPasswordChange,omitempty"`                    // 最后密码修改时间
-	Role               string     `json:"role,omitempty" gorm:"size:50;default:'teacher'"` // 用户角色
-	EmailNotifications    bool   `json:"emailNotifications" gorm:"default:true"`
-	AutoCleanUnreadEmails bool   `json:"autoCleanUnreadEmails" gorm:"default:false"`
-	ReviewCurvePreset     string `json:"reviewCurvePreset" gorm:"size:20;default:'times5'"` // times3 | times5 | times7 | times10
+	Username              string     `json:"username" gorm:"size:128;index"`
+	Password              string     `json:"-" gorm:"size:128"`
+	Email                 string     `json:"email,omitempty" gorm:"size:128;index:idx_users_email"` // 绑定邮箱（一个邮箱只能绑定一个用户，唯一性由 IsExistsByEmail 在应用层保证）
+	Phone                 string     `json:"phone,omitempty" gorm:"size:64;index"`
+	FirstName             string     `json:"firstName,omitempty" gorm:"size:128"`
+	LastName              string     `json:"lastName,omitempty" gorm:"size:128"`
+	DisplayName           string     `json:"displayName,omitempty" gorm:"size:128"`
+	LastLogin             *time.Time `json:"lastLogin,omitempty"`
+	LastLoginIP           string     `json:"-" gorm:"size:128"`
+	Source                string     `json:"-" gorm:"size:64;index"`
+	Locale                string     `json:"locale,omitempty" gorm:"size:20"`
+	AuthToken             string     `json:"token,omitempty" gorm:"-"`
+	Avatar                string     `json:"avatar,omitempty"`
+	Gender                string     `json:"gender,omitempty"`
+	City                  string     `json:"city,omitempty"`
+	Region                string     `json:"region,omitempty"`
+	PhoneVerified         bool       `json:"phoneVerified" gorm:"default:false"`              // 手机已验证
+	LoginCount            int        `json:"loginCount" gorm:"default:0"`                     // 登录次数
+	LastPasswordChange    *time.Time `json:"lastPasswordChange,omitempty"`                    // 最后密码修改时间
+	Role                  string     `json:"role,omitempty" gorm:"size:50;default:'teacher'"` // 用户角色
+	EmailNotifications    bool       `json:"emailNotifications" gorm:"default:true"`
+	AutoCleanUnreadEmails bool       `json:"autoCleanUnreadEmails" gorm:"default:false"`
+	ReviewCurvePreset     string     `json:"reviewCurvePreset" gorm:"size:20;default:'times5'"` // times3 | times5 | times7 | times10
 	// 学习连续天数（每次完成 study_session 时维护，当天已学不变，隔天+1，断天归零）
 	StreakDays    int        `json:"streakDays" gorm:"default:0"` // 连续学习天数
 	LastStudyDate *time.Time `json:"lastStudyDate,omitempty"`     // 最后学习日期（精确到天）
@@ -485,7 +485,10 @@ func CreateUser(db *gorm.DB, username, password string) (*User, error) {
 		if err := tx.Create(&user).Error; err != nil {
 			return err
 		}
-		return GrantSignupTeacherTeachingPool(tx, user.ID)
+		if err := GrantSignupTeacherTeachingPool(tx, user.ID); err != nil {
+			return err
+		}
+		return GrantSignupUserQuota(tx, user.ID)
 	})
 	return &user, err
 }

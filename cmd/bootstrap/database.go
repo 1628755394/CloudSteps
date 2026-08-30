@@ -135,6 +135,8 @@ func RunMigrations(db *gorm.DB) error {
 		&models.MailLog{},
 		&models.StudentTeacherCoachingQuota{},
 		&models.TeacherTeachingPool{},
+		&models.UserQuota{},
+		&models.UserCheckIn{},
 		&models.TeacherCoachingUsagePeriod{},
 		&models.CoachingAppointment{},
 		&models.CoachingSessionRecord{},
