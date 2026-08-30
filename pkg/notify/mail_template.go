@@ -324,6 +324,8 @@ func SaveMailTemplate(db *gorm.DB, tpl *MailTemplate) error {
 }
 
 func DeleteMailTemplateByID(db *gorm.DB, id uint) (int64, error) {
-	res := db.Delete(&MailTemplate{}, id)
+	// 硬删除：MailTemplate 在 (code, channel_type, locale) 上有唯一索引，
+	// 软删除会保留行并占据唯一键，导致后续同 code 重建冲突。
+	res := db.Unscoped().Delete(&MailTemplate{}, id)
 	return res.RowsAffected, res.Error
 }

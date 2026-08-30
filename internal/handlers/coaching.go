@@ -462,7 +462,7 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 	}
 
 	var q models.StudentTeacherCoachingQuota
-	err := db.Where("teacher_id = ? AND student_id = ?", body.TeacherID, body.StudentID).First(&q).Error
+	err := db.Unscoped().Where("teacher_id = ? AND student_id = ?", body.TeacherID, body.StudentID).First(&q).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		q = models.StudentTeacherCoachingQuota{
 			TeacherID: body.TeacherID, StudentID: body.StudentID,
@@ -481,6 +481,10 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 	if err != nil {
 		response.Fail(c, "查询失败", err.Error())
 		return
+	}
+	// 恢复可能被软删的额度行，避免唯一索引冲突
+	if q.DeletedAt.Valid {
+		q.Restore("")
 	}
 	if body.RemainingMinutes > q.RemainingMinutes {
 		q.TotalAllocatedMinutes += body.RemainingMinutes - q.RemainingMinutes
@@ -1329,7 +1333,7 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 	}
 
 	var q models.StudentTeacherCoachingQuota
-	err := db.Where("teacher_id = ? AND student_id = ?", tid, body.StudentID).First(&q).Error
+	err := db.Unscoped().Where("teacher_id = ? AND student_id = ?", tid, body.StudentID).First(&q).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		q = models.StudentTeacherCoachingQuota{
 			TeacherID: tid, StudentID: body.StudentID,
@@ -1349,6 +1353,10 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 	if err != nil {
 		response.Fail(c, "查询失败", err.Error())
 		return
+	}
+	// 恢复可能被软删的额度行，避免唯一索引冲突
+	if q.DeletedAt.Valid {
+		q.Restore("")
 	}
 	if body.RemainingMinutes > q.RemainingMinutes {
 		q.TotalAllocatedMinutes += body.RemainingMinutes - q.RemainingMinutes

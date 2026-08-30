@@ -675,7 +675,7 @@ func (h *Handlers) handleAdminGrammarDeleteLesson(c *gin.Context) {
 		response.Fail(c, "删除失败", err)
 		return
 	}
-	if err := db.Where("lesson_id = ?", lesson.ID).Delete(&models.GrammarQuestion{}).Error; err != nil {
+	if err := db.Unscoped().Where("lesson_id = ?", lesson.ID).Delete(&models.GrammarQuestion{}).Error; err != nil {
 		response.Fail(c, "删除失败", err)
 		return
 	}

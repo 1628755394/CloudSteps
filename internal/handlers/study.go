@@ -67,7 +67,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	// 尚未进入学习流程的词（无 state 记录 或 learn_status = 'pending'），
 	// 与九宫格 01 待学计数（词库总词数 - 已学词数）保持一致。
 	if step == "pending" && wordBookID > 0 {
-		joinClause := "FROM words w LEFT JOIN user_word_states uws ON uws.word_id = w.id AND uws.user_id = ?"
+		joinClause := "FROM words w LEFT JOIN user_word_states uws ON uws.word_id = w.id AND uws.user_id = ? AND uws.deleted_at IS NULL"
 		whereClause := "w.word_book_id = ? AND w.deleted_at IS NULL AND (uws.id IS NULL OR uws.learn_status = 'pending')"
 		queryArgs := []any{user.ID, uint(wordBookID)}
 
@@ -134,7 +134,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 		w.translation, w.translation_short, w.part_of_speech, w.definition, w.audio_url, w.sort_order
 		FROM user_word_states uws
 		JOIN words w ON w.id = uws.word_id AND w.deleted_at IS NULL
-		WHERE ` + stateWhere + `
+		WHERE uws.deleted_at IS NULL AND ` + stateWhere + `
 		ORDER BY w.sort_order ASC, w.id ASC
 		LIMIT ? OFFSET ?`
 	dataArgs := append(append(stateArgs, pageSize), offset)
@@ -440,7 +440,7 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 		}
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "word_id"}},
-			DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "source_session_id", "due_at", "stage", "status"}),
+			DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "source_session_id", "due_at", "stage", "status", "deleted_at"}),
 		}).Create(&queueItems).Error; err != nil {
 			response.Fail(c, "写入复习队列失败", err)
 			return

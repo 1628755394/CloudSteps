@@ -668,7 +668,7 @@ func (h *Handlers) handleAdminDeletePassage(c *gin.Context) {
 		response.Fail(c, "删除失败", err)
 		return
 	}
-	if err := db.Where("passage_id = ?", passage.ID).Delete(&models.ReadingQuestion{}).Error; err != nil {
+	if err := db.Unscoped().Where("passage_id = ?", passage.ID).Delete(&models.ReadingQuestion{}).Error; err != nil {
 		response.Fail(c, "删除失败", err)
 		return
 	}
@@ -708,7 +708,7 @@ func (h *Handlers) handleAdminUpsertQuestions(c *gin.Context) {
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		if body.Replace {
-			if err := tx.Where("passage_id = ?", passage.ID).Delete(&models.ReadingQuestion{}).Error; err != nil {
+			if err := tx.Unscoped().Where("passage_id = ?", passage.ID).Delete(&models.ReadingQuestion{}).Error; err != nil {
 				return err
 			}
 		}

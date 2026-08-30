@@ -627,7 +627,7 @@ func (h *Handlers) handleAdminClozeDeletePassage(c *gin.Context) {
 		response.Fail(c, "删除失败", err)
 		return
 	}
-	if err := db.Where("passage_id = ?", passage.ID).Delete(&models.ClozeBlank{}).Error; err != nil {
+	if err := db.Unscoped().Where("passage_id = ?", passage.ID).Delete(&models.ClozeBlank{}).Error; err != nil {
 		response.Fail(c, "删除失败", err)
 		return
 	}

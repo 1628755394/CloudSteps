@@ -111,7 +111,7 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 
 	if err := db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "word_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "learn_status", "review_stage", "first_learned_at", "next_review_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "learn_status", "review_stage", "first_learned_at", "next_review_at", "deleted_at"}),
 	}).Create(&states).Error; err != nil {
 		response.Fail(c, "保存学习状态失败", err)
 		return
@@ -119,7 +119,7 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 
 	if err := db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "word_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "due_at", "stage", "status"}),
+		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "due_at", "stage", "status", "deleted_at"}),
 	}).Create(&queueItems).Error; err != nil {
 		response.Fail(c, "写入复习队列失败", err)
 		return

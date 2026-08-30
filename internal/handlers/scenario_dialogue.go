@@ -332,7 +332,7 @@ func (h *Handlers) handleScenarioDialogueStats(c *gin.Context) {
 }
 
 func replaceSessionTurns(db *gorm.DB, sessionID uint, turns []models.ScenarioDialogueTurn) {
-	_ = db.Where("session_id = ?", sessionID).Delete(&models.ScenarioDialogueTurn{}).Error
+	_ = db.Unscoped().Where("session_id = ?", sessionID).Delete(&models.ScenarioDialogueTurn{}).Error
 	for _, t := range turns {
 		t.SessionID = sessionID
 		t.ID = 0
@@ -600,7 +600,7 @@ func (h *Handlers) handleAdminDeleteScenario(c *gin.Context) {
 		return
 	}
 
-	if err := db.Delete(&models.ScenarioDialogueScenario{}, id).Error; err != nil {
+	if err := db.Unscoped().Delete(&models.ScenarioDialogueScenario{}, id).Error; err != nil {
 		response.Fail(c, "删除场景失败", nil)
 		return
 	}
