@@ -188,8 +188,6 @@ export default function VocabularyTestTesting() {
     (async () => {
       try {
         setLoading(true);
-        // 强制清除旧缓存，确保每次测试都重新拉题
-        clearVocabTestQuestionsCache();
         const list = await ensureVocabTestQuestions();
         if (!mounted) return;
         // 按等级分组
