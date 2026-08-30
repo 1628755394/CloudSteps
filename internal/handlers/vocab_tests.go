@@ -19,8 +19,10 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
+	"github.com/LingByte/ling-base/common/logger"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -377,6 +379,7 @@ func (h *Handlers) handleVocabTestNext(c *gin.Context) {
 
 // handleVocabTestSubmit POST /vocab-test/submit
 func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
+	fmt.Println("=== [DEBUG] vocab submit called ===")
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 
@@ -388,6 +391,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 		} `json:"answers" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
+		logger.Error("vocab submit bind error", zap.Error(err))
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
@@ -398,6 +402,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	}
 	studentID, err := resolveVocabTestStudentID(db, user, body.StudentID)
 	if err != nil {
+		logger.Error("vocab submit resolve student error", zap.Error(err), zap.Uint("studentId", body.StudentID))
 		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
@@ -412,6 +417,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	for _, a := range body.Answers {
 		u, err := a.QuestionID.Int64()
 		if err != nil {
+			logger.Error("vocab submit invalid question id", zap.String("id", string(a.QuestionID)), zap.Error(err))
 			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("存在无效题目ID"))
 			return
 		}
@@ -420,6 +426,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	var questions []models.VocabTestQuestion
 	db.Where("id IN ?", ids).Find(&questions)
 	if len(questions) != len(ids) {
+		logger.Error("vocab submit question count mismatch", zap.Int("expected", len(ids)), zap.Int("got", len(questions)))
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("存在无效题目ID"))
 		return
 	}
