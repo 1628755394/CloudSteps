@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	common "github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
@@ -40,7 +41,7 @@ type StudentTeacherCoachingQuota struct {
 	Student               *User `json:"student,omitempty" gorm:"foreignKey:StudentID"`
 }
 
-func (StudentTeacherCoachingQuota) TableName() string { return "student_teacher_coaching_quotas" }
+func (StudentTeacherCoachingQuota) TableName() string { return constants.TABLE_STUDENT_TEACHER_COACHING_QUOTAS }
 
 // IsSelfCoachingPair 历史误建的自关联额度（teacher_id = student_id），不应出现在学员列表。
 func IsSelfCoachingPair(teacherID, studentID uint) bool {
@@ -87,7 +88,7 @@ type TeacherTeachingPool struct {
 	Teacher               *User `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
 }
 
-func (TeacherTeachingPool) TableName() string { return "teacher_teaching_pools" }
+func (TeacherTeachingPool) TableName() string { return constants.TABLE_TEACHER_TEACHING_POOLS }
 
 // EnsureTeacherTeachingPool 确保老师授课池行存在（默认 0，不自动赠送）。
 func EnsureTeacherTeachingPool(db *gorm.DB, teacherID uint) (*TeacherTeachingPool, error) {
@@ -171,7 +172,7 @@ type TeacherCoachingUsagePeriod struct {
 	Teacher     *User     `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
 }
 
-func (TeacherCoachingUsagePeriod) TableName() string { return "teacher_coaching_usage_periods" }
+func (TeacherCoachingUsagePeriod) TableName() string { return constants.TABLE_TEACHER_COACHING_USAGE_PERIODS }
 
 // CoachingAppointment 一对一排课
 type CoachingAppointment struct {
@@ -191,7 +192,7 @@ type CoachingAppointment struct {
 	Session         *CoachingSessionRecord `json:"session,omitempty" gorm:"foreignKey:AppointmentID"`
 }
 
-func (CoachingAppointment) TableName() string { return "coaching_appointments" }
+func (CoachingAppointment) TableName() string { return constants.TABLE_COACHING_APPOINTMENTS }
 
 // CoachingSessionRecord 完课记录（actual / billed 分钟）
 type CoachingSessionRecord struct {
@@ -208,7 +209,7 @@ type CoachingSessionRecord struct {
 	Appointment    *CoachingAppointment `json:"appointment,omitempty" gorm:"foreignKey:AppointmentID"`
 }
 
-func (CoachingSessionRecord) TableName() string { return "coaching_session_records" }
+func (CoachingSessionRecord) TableName() string { return constants.TABLE_COACHING_SESSION_RECORDS }
 
 // CoachingAuditLog 陪练模块操作审计（追加写入）
 type CoachingAuditLog struct {
@@ -226,7 +227,7 @@ type CoachingAuditLog struct {
 	IP            string    `json:"ip,omitempty" gorm:"size:64"`
 }
 
-func (CoachingAuditLog) TableName() string { return "coaching_audit_logs" }
+func (CoachingAuditLog) TableName() string { return constants.TABLE_COACHING_AUDIT_LOGS }
 
 // ParseCoachingHM 解析 HH:MM 为当日从 00:00 起的分钟数
 func ParseCoachingHM(s string) (int, error) {

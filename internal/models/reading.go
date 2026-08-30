@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	common "github.com/LingByte/ling-base/common"
 )
 
@@ -24,7 +25,7 @@ type ReadingPassage struct {
 	SortOrder        int    `json:"sortOrder" gorm:"default:0;index;comment:排序"`
 }
 
-func (ReadingPassage) TableName() string { return "reading_passages" }
+func (ReadingPassage) TableName() string { return constants.TABLE_READING_PASSAGES }
 
 // ReadingQuestion 阅读理解题目
 type ReadingQuestion struct {
@@ -37,7 +38,7 @@ type ReadingQuestion struct {
 	SortOrder   int    `json:"sortOrder" gorm:"default:0;index;comment:题序"`
 }
 
-func (ReadingQuestion) TableName() string { return "reading_questions" }
+func (ReadingQuestion) TableName() string { return constants.TABLE_READING_QUESTIONS }
 
 // ReadingRecord 用户阅读答题记录
 type ReadingRecord struct {
@@ -53,4 +54,4 @@ type ReadingRecord struct {
 	CompletedAt   *time.Time `json:"completedAt" gorm:"comment:完成时间"`
 }
 
-func (ReadingRecord) TableName() string { return "reading_records" }
+func (ReadingRecord) TableName() string { return constants.TABLE_READING_RECORDS }

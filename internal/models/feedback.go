@@ -6,6 +6,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	common "github.com/LingByte/ling-base/common"
 )
 
@@ -44,7 +45,7 @@ type FeedbackTicket struct {
 	User             *User           `json:"user,omitempty" gorm:"foreignKey:UserID"`
 }
 
-func (FeedbackTicket) TableName() string { return "feedback_tickets" }
+func (FeedbackTicket) TableName() string { return constants.TABLE_FEEDBACK_TICKETS }
 
 func (t *FeedbackTicket) CanReply() bool {
 	return t != nil && t.Status != FeedbackStatusClosed && !t.DeletedAt.Valid
@@ -59,7 +60,7 @@ type FeedbackReply struct {
 	Content  string `json:"content" gorm:"type:text;not null"`
 }
 
-func (FeedbackReply) TableName() string { return "feedback_replies" }
+func (FeedbackReply) TableName() string { return constants.TABLE_FEEDBACK_REPLIES }
 
 func NormalizeFeedbackContent(raw string) (string, error) {
 	s := strings.TrimSpace(raw)

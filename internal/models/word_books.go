@@ -156,7 +156,7 @@ type WordBookProgress struct {
 	CompletedAt   *time.Time `json:"completedAt" gorm:"comment:完成时间"`
 }
 
-func (WordBookProgress) TableName() string { return "word_book_progress" }
+func (WordBookProgress) TableName() string { return constants.TABLE_WORD_BOOK_PROGRESS }
 
 // UserWordProgress 用户单词学习进度
 type UserWordProgress struct {
@@ -177,7 +177,7 @@ type UserWordProgress struct {
 	Difficulty   int8       `json:"difficulty" gorm:"default:1;comment:个人难度感受 1-5"`
 }
 
-func (UserWordProgress) TableName() string { return "user_word_progress" }
+func (UserWordProgress) TableName() string { return constants.TABLE_USER_WORD_PROGRESS }
 
 // CreateWordBook 创建词库
 func CreateWordBook(db *gorm.DB, book *WordBook) error {

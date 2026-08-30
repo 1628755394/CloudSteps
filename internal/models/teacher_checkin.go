@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	common "github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -58,7 +59,7 @@ type TeacherCheckIn struct {
 	Streak         int       `json:"streak" gorm:"not null;default:1;comment:签到后连续天数"`
 }
 
-func (TeacherCheckIn) TableName() string { return "teacher_checkins" }
+func (TeacherCheckIn) TableName() string { return constants.TABLE_TEACHER_CHECKINS }
 
 // CheckInStatus 签到页展示状态。
 type CheckInStatus struct {

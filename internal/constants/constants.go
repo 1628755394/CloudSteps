@@ -1,15 +1,5 @@
 package constants
 
-const (
-	USER_TABLE_NAME             = "users"
-	USER_DEVICE_TABLE_NAME      = "user_devices"
-	LOGIN_HISTORY_TABLE_NAME    = "login_histories"
-	ACCOUNT_LOCK_TABLE_NAME     = "account_locks"
-	CALL_RECORDING_TABLE_NAME   = "call_recordings"
-	DEVICE_ERROR_LOG_TABLE_NAME = "device_error_logs"
-	SYS_METRIC_TABLE_NAME       = "sys_metrics"
-)
-
 // Gin session field name
 const ENV_SESSION_FIELD = "SESSION_FIELD"
 

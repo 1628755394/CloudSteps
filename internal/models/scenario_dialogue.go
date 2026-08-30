@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	common "github.com/LingByte/ling-base/common"
 )
 
@@ -28,7 +29,7 @@ type ScenarioDialogueScenario struct {
 	SortOrder   int    `json:"sortOrder" gorm:"default:0"`
 }
 
-func (ScenarioDialogueScenario) TableName() string { return "scenario_dialogue_scenarios" }
+func (ScenarioDialogueScenario) TableName() string { return constants.TABLE_SCENARIO_DIALOGUE_SCENARIOS }
 
 // BuildScenarioSystemPrompt composes the full realtime system prompt for a scenario.
 func BuildScenarioSystemPrompt(s *ScenarioDialogueScenario) string {
@@ -93,7 +94,7 @@ type ScenarioDialogueSession struct {
 	Turns    []ScenarioDialogueTurn    `json:"turns,omitempty" gorm:"foreignKey:SessionID"`
 }
 
-func (ScenarioDialogueSession) TableName() string { return "scenario_dialogue_sessions" }
+func (ScenarioDialogueSession) TableName() string { return constants.TABLE_SCENARIO_DIALOGUE_SESSIONS }
 
 // ScenarioDialogueTurn 对话轮次记录
 type ScenarioDialogueTurn struct {
@@ -106,7 +107,7 @@ type ScenarioDialogueTurn struct {
 	TurnIndex        int    `json:"turnIndex" gorm:"default:0"`
 }
 
-func (ScenarioDialogueTurn) TableName() string { return "scenario_dialogue_turns" }
+func (ScenarioDialogueTurn) TableName() string { return constants.TABLE_SCENARIO_DIALOGUE_TURNS }
 
 // DefaultScenarios 内置场景（迁移后种子写入）
 var DefaultScenarios = []ScenarioDialogueScenario{

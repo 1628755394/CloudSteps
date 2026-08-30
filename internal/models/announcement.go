@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	common "github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
@@ -24,7 +25,7 @@ type Announcement struct {
 	Priority    int        `json:"priority" gorm:"default:0;comment:越大越优先弹出"`
 }
 
-func (Announcement) TableName() string { return "announcements" }
+func (Announcement) TableName() string { return constants.TABLE_ANNOUNCEMENTS }
 
 // AnnouncementRead 用户已读公告记录；有记录则不再主动弹窗。
 type AnnouncementRead struct {
@@ -34,7 +35,7 @@ type AnnouncementRead struct {
 	ReadAt         time.Time `json:"readAt" gorm:"not null"`
 }
 
-func (AnnouncementRead) TableName() string { return "announcement_reads" }
+func (AnnouncementRead) TableName() string { return constants.TABLE_ANNOUNCEMENT_READS }
 
 func CreateAnnouncement(db *gorm.DB, row *Announcement) error {
 	if db == nil || row == nil {

@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/ling-base/common"
 )
 
@@ -24,7 +25,7 @@ type ClozePassage struct {
 	SortOrder        int    `json:"sortOrder" gorm:"default:0;index;comment:排序"`
 }
 
-func (ClozePassage) TableName() string { return "cloze_passages" }
+func (ClozePassage) TableName() string { return constants.TABLE_CLOZE_PASSAGES }
 
 // ClozeBlank 完形填空空位题目
 type ClozeBlank struct {
@@ -36,7 +37,7 @@ type ClozeBlank struct {
 	Explanation string `json:"explanation" gorm:"type:text;comment:解析"`
 }
 
-func (ClozeBlank) TableName() string { return "cloze_blanks" }
+func (ClozeBlank) TableName() string { return constants.TABLE_CLOZE_BLANKS }
 
 // ClozeRecord 完形填空答题记录
 type ClozeRecord struct {
@@ -52,4 +53,4 @@ type ClozeRecord struct {
 	CompletedAt  *time.Time `json:"completedAt" gorm:"comment:完成时间"`
 }
 
-func (ClozeRecord) TableName() string { return "cloze_records" }
+func (ClozeRecord) TableName() string { return constants.TABLE_CLOZE_RECORDS }

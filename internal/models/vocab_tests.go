@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	common "github.com/LingByte/ling-base/common"
+	"github.com/LingByte/ling-base/common"
 )
 
 // VocabTestQuestion 词汇量测试题

@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	common "github.com/LingByte/ling-base/common"
 )
 
@@ -25,7 +26,7 @@ type GrammarLesson struct {
 	SortOrder        int    `json:"sortOrder" gorm:"default:0;index;comment:排序"`
 }
 
-func (GrammarLesson) TableName() string { return "grammar_lessons" }
+func (GrammarLesson) TableName() string { return constants.TABLE_GRAMMAR_LESSONS }
 
 // GrammarQuestion 语法练习题
 type GrammarQuestion struct {
@@ -38,7 +39,7 @@ type GrammarQuestion struct {
 	SortOrder   int    `json:"sortOrder" gorm:"default:0;index;comment:题序"`
 }
 
-func (GrammarQuestion) TableName() string { return "grammar_questions" }
+func (GrammarQuestion) TableName() string { return constants.TABLE_GRAMMAR_QUESTIONS }
 
 // GrammarRecord 语法练习答题记录
 type GrammarRecord struct {
@@ -54,4 +55,4 @@ type GrammarRecord struct {
 	CompletedAt   *time.Time `json:"completedAt" gorm:"comment:完成时间"`
 }
 
-func (GrammarRecord) TableName() string { return "grammar_records" }
+func (GrammarRecord) TableName() string { return constants.TABLE_GRAMMAR_RECORDS }
