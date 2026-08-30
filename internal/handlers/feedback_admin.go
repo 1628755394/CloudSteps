@@ -53,13 +53,13 @@ func (h *Handlers) handleAdminListFeedback(c *gin.Context) {
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	var rows []models.FeedbackTicket
 	if err := q.Order("updated_at DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -68,7 +68,7 @@ func (h *Handlers) handleAdminListFeedback(c *gin.Context) {
 	for i := range rows {
 		list = append(list, toAdminFeedbackDTO(&rows[i], nil, labels))
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -83,17 +83,17 @@ func (h *Handlers) handleAdminGetFeedback(c *gin.Context) {
 	}
 	replies, err := loadFeedbackReplies(h.db, ticket.ID)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	labels := loadFeedbackUserLabels(h.db, []models.FeedbackTicket{*ticket})
-	response.SuccessMsg(c, "ok", toAdminFeedbackDTO(ticket, replies, labels))
+	response.SuccessI18n(c, "common.ok", toAdminFeedbackDTO(ticket, replies, labels))
 }
 
 func (h *Handlers) handleAdminReplyFeedback(c *gin.Context) {
 	admin := auth.CurrentUser(c)
 	if admin == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	ticket, ok := h.findAdminFeedback(c)
@@ -102,12 +102,12 @@ func (h *Handlers) handleAdminReplyFeedback(c *gin.Context) {
 	}
 	var req feedbackReplyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数无效", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	reply, err := appendFeedbackReply(h.db, ticket, admin.ID, models.FeedbackRoleAdmin, req.Content, strconv.FormatUint(uint64(admin.ID), 10))
 	if err != nil {
-		response.Fail(c, feedbackErrMsg(err), err)
+		response.FailI18n(c, feedbackErrMsg(err), err)
 		return
 	}
 
@@ -118,17 +118,17 @@ func (h *Handlers) handleAdminReplyFeedback(c *gin.Context) {
 
 	replies, err := loadFeedbackReplies(h.db, ticket.ID)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	labels := loadFeedbackUserLabels(h.db, []models.FeedbackTicket{*ticket})
-	response.SuccessMsg(c, "已回复", toAdminFeedbackDTO(ticket, replies, labels))
+	response.SuccessI18n(c, "msg.4bea887d", toAdminFeedbackDTO(ticket, replies, labels))
 }
 
 func (h *Handlers) handleAdminCloseFeedback(c *gin.Context) {
 	admin := auth.CurrentUser(c)
 	if admin == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	ticket, ok := h.findAdminFeedback(c)
@@ -138,28 +138,28 @@ func (h *Handlers) handleAdminCloseFeedback(c *gin.Context) {
 	if ticket.Status == models.FeedbackStatusClosed {
 		replies, err := loadFeedbackReplies(h.db, ticket.ID)
 		if err != nil {
-			response.Fail(c, "查询失败", err)
+			response.FailI18n(c, "common.query_failed", err)
 			return
 		}
 		labels := loadFeedbackUserLabels(h.db, []models.FeedbackTicket{*ticket})
-		response.SuccessMsg(c, "已关闭", toAdminFeedbackDTO(ticket, replies, labels))
+		response.SuccessI18n(c, "common.closed", toAdminFeedbackDTO(ticket, replies, labels))
 		return
 	}
 	if err := h.db.Model(ticket).Updates(map[string]any{
 		"status":    models.FeedbackStatusClosed,
 		"update_by": strconv.FormatUint(uint64(admin.ID), 10),
 	}).Error; err != nil {
-		response.Fail(c, "关闭失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	ticket.Status = models.FeedbackStatusClosed
 	replies, err := loadFeedbackReplies(h.db, ticket.ID)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	labels := loadFeedbackUserLabels(h.db, []models.FeedbackTicket{*ticket})
-	response.SuccessMsg(c, "已关闭", toAdminFeedbackDTO(ticket, replies, labels))
+	response.SuccessI18n(c, "common.closed", toAdminFeedbackDTO(ticket, replies, labels))
 }
 
 func (h *Handlers) findAdminFeedback(c *gin.Context) (*models.FeedbackTicket, bool) {
@@ -169,7 +169,7 @@ func (h *Handlers) findAdminFeedback(c *gin.Context) (*models.FeedbackTicket, bo
 	}
 	var ticket models.FeedbackTicket
 	if err := h.db.Where("id = ?", id).First(&ticket).Error; err != nil {
-		response.Fail(c, "工单不存在", err)
+		response.FailI18n(c, "feedback.not_found", err)
 		return nil, false
 	}
 	return &ticket, true

@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
-	"net/http"
 	"strings"
 	"time"
 
@@ -18,7 +16,7 @@ func (h *Handlers) adminWordBookCoverDefaults(c *gin.Context) {
 	level := strings.TrimSpace(c.Query("level"))
 	description := strings.TrimSpace(c.Query("description"))
 	prompt := imagegen.BuildPrompt(imagegen.DefaultPromptTemplate, name, level, description)
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"promptTemplate": imagegen.DefaultPromptTemplate,
 		"prompt":         prompt,
 		"model":          cfg.Model,
@@ -32,7 +30,7 @@ func (h *Handlers) adminWordBookCoverDefaults(c *gin.Context) {
 func (h *Handlers) adminWordBookCoverTest(c *gin.Context) {
 	cfg := imagegen.FromGlobal()
 	if strings.TrimSpace(cfg.APIKey) == "" {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("未配置 IMAGE_GEN_API_KEY"))
+		response.FailI18n(c, "image.not_configured", nil)
 		return
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Minute)
@@ -42,10 +40,10 @@ func (h *Handlers) adminWordBookCoverTest(c *gin.Context) {
 		Size:   imagegen.DefaultCoverSize,
 	})
 	if err != nil {
-		response.Fail(c, "图片生成测试失败", err.Error())
+		response.FailI18n(c, "image.test_failed", err.Error())
 		return
 	}
-	response.SuccessMsg(c, "图片生成接口可用", gin.H{
+	response.SuccessI18n(c, "image.available", gin.H{
 		"bytes":  len(res.Data),
 		"format": strings.TrimPrefix(res.Ext, "."),
 		"model":  cfg.Model,

@@ -6,7 +6,6 @@ import (
 	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
 
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -24,7 +23,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -48,7 +47,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 	if dateStr != "" {
 		parsed, perr := time.ParseInLocation("2006-01-02", dateStr, loc)
 		if perr != nil {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("date 格式应为 YYYY-MM-DD"))
+			response.FailI18n(c, "coaching.invalid_date", nil)
 			return
 		}
 		dayStart = time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, loc)
@@ -77,7 +76,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 
 	var items []models.ReviewQueue
 	if err := q.Order("due_at ASC, id ASC").Limit(limit).Find(&items).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -111,7 +110,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 		}
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"total": len(sorted),
 		"words": sorted,
 		"date":  dayStart.Format("2006-01-02"),
@@ -123,7 +122,7 @@ func (h *Handlers) handleReviewBooks(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -145,10 +144,10 @@ func (h *Handlers) handleReviewBooks(c *gin.Context) {
 		GROUP BY rq.word_book_id, wb.name, wb.level
 	`, user.ID, now).Scan(&stats).Error
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "success", stats)
+	response.SuccessI18n(c, "common.success", stats)
 }
 
 // handleReviewBooksByDate GET /review/books-by-date?date=2006-01-02&timeZone=Asia/Shanghai
@@ -159,13 +158,13 @@ func (h *Handlers) handleReviewBooksByDate(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
 	dateStr := c.Query("date")
 	if dateStr == "" {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("date 必填，格式 YYYY-MM-DD"))
+		response.FailI18n(c, "coaching.date_required", nil)
 		return
 	}
 
@@ -177,7 +176,7 @@ func (h *Handlers) handleReviewBooksByDate(c *gin.Context) {
 
 	dayStart, err := time.ParseInLocation("2006-01-02", dateStr, loc)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("date 格式应为 YYYY-MM-DD"))
+		response.FailI18n(c, "coaching.invalid_date", nil)
 		return
 	}
 	dayStart = time.Date(dayStart.Year(), dayStart.Month(), dayStart.Day(), 0, 0, 0, 0, loc)
@@ -241,10 +240,10 @@ func (h *Handlers) handleReviewBooksByDate(c *gin.Context) {
 
 	err = db.Raw(q, args...).Scan(&stats).Error
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "success", stats)
+	response.SuccessI18n(c, "common.success", stats)
 }
 
 // handleReviewCurve GET /review/curve
@@ -252,7 +251,7 @@ func (h *Handlers) handleReviewCurve(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -286,7 +285,7 @@ func (h *Handlers) handleReviewCurve(c *gin.Context) {
 		})
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"stages":            stages,
 		"mastered":          mastered,
 		"reviewCurvePreset": models.NormalizeReviewCurvePreset(user.ReviewCurvePreset),
@@ -302,7 +301,7 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -375,12 +374,12 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 		}
 		return nil
 	}); err != nil {
-		response.Fail(c, "取题失败", err)
+		response.FailI18n(c, "reading.fetch_questions_failed", err)
 		return
 	}
 
 	if len(wordIDs) == 0 {
-		response.SuccessMsg(c, "今日无待复习单词", gin.H{"finished": true})
+		response.SuccessI18n(c, "study.no_review_today", gin.H{"finished": true})
 		return
 	}
 
@@ -397,7 +396,7 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 		WordCount:   len(wordIDs),
 	}
 	if err := db.Create(&session).Error; err != nil {
-		response.Fail(c, "创建复习会话失败", err)
+		response.FailI18n(c, "study.create_session_failed", err)
 		return
 	}
 
@@ -407,7 +406,7 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 	}
 	_ = db.Create(&sw).Error
 
-	response.SuccessMsg(c, "success", gin.H{"sessionId": session.ID, "words": words})
+	response.SuccessI18n(c, "common.success", gin.H{"sessionId": session.ID, "words": words})
 }
 
 // handleReviewSessionComplete POST /review/session/:id/complete
@@ -416,7 +415,7 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	sessionID, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -427,13 +426,13 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 		} `json:"results" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
 	var session models.StudySession
 	if err := db.Where("id = ? AND user_id = ?", sessionID, user.ID).First(&session).Error; err != nil {
-		response.Fail(c, "会话不存在", err)
+		response.FailI18n(c, "coaching.session_not_found", err)
 		return
 	}
 
@@ -545,7 +544,7 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		response.Fail(c, "提交失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 
@@ -573,7 +572,7 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 	_ = db.Model(&session).Updates(map[string]any{"status": "completed", "completed_at": &now, "correct_count": correct}).Error
 	invalidateLighthouseCacheForUser(user.ID)
 
-	response.SuccessMsg(c, "success", gin.H{"correctCount": correct, "totalCount": len(body.Results)})
+	response.SuccessI18n(c, "common.success", gin.H{"correctCount": correct, "totalCount": len(body.Results)})
 }
 
 // handleReviewSessionGet GET /review/session/:id
@@ -582,13 +581,13 @@ func (h *Handlers) handleReviewSessionGet(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	sessionID, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
 	var session models.StudySession
 	if err := db.Where("id = ? AND user_id = ?", sessionID, user.ID).First(&session).Error; err != nil {
-		response.Fail(c, "会话不存在", err)
+		response.FailI18n(c, "coaching.session_not_found", err)
 		return
 	}
 
@@ -605,5 +604,5 @@ func (h *Handlers) handleReviewSessionGet(c *gin.Context) {
 	}
 	models.OverlayWordLites(db, user.ID, words)
 
-	response.SuccessMsg(c, "success", gin.H{"session": session, "words": words})
+	response.SuccessI18n(c, "common.success", gin.H{"session": session, "words": words})
 }

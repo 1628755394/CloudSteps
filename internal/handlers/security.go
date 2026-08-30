@@ -67,18 +67,18 @@ func (h *Handlers) handleAdminListOperationLogs(c *gin.Context) {
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
 	var logs []middleware.OperationLog
 	offset := (page - 1) * pageSize
 	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&logs).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"logs":      logs,
 		"total":     total,
 		"page":      page,
@@ -91,16 +91,16 @@ func (h *Handlers) handleAdminGetOperationLog(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
-		response.Fail(c, "invalid id", err)
+		response.FailI18n(c, "coaching.invalid_id", err)
 		return
 	}
 
 	var log middleware.OperationLog
 	if err := db.First(&log, id).Error; err != nil {
-		response.Fail(c, "日志不存在", err)
+		response.FailI18n(c, "notification.log_not_found", err)
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{"log": log})
+	response.SuccessI18n(c, "common.ok", gin.H{"log": log})
 }
 
 // GET /auth/login-history
@@ -128,18 +128,18 @@ func (h *Handlers) handleAdminListLoginHistory(c *gin.Context) {
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
 	var histories []models.LoginHistory
 	offset := (page - 1) * pageSize
 	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&histories).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"histories": histories,
 		"total":     total,
 		"page":      page,
@@ -152,14 +152,14 @@ func (h *Handlers) handleAdminGetLoginHistory(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
-		response.Fail(c, "invalid id", err)
+		response.FailI18n(c, "coaching.invalid_id", err)
 		return
 	}
 
 	var history models.LoginHistory
 	if err := db.First(&history, id).Error; err != nil {
-		response.Fail(c, "记录不存在", err)
+		response.FailI18n(c, "common.record_not_found", err)
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{"history": history})
+	response.SuccessI18n(c, "common.ok", gin.H{"history": history})
 }

@@ -92,13 +92,13 @@ func announcementOperator(user *models.User) string {
 func (h *Handlers) handleAnnouncementPendingPopup(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "请先登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	list, err := models.ListUnreadPublishedAnnouncements(db, user.ID, 20)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	read := false
@@ -111,7 +111,7 @@ func (h *Handlers) handleAnnouncementPendingPopup(c *gin.Context) {
 		first = &items[0]
 	}
 	// announcements：全部未读；announcement：兼容旧客户端取首条
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"announcements": items,
 		"announcement":  first,
 	})
@@ -120,7 +120,7 @@ func (h *Handlers) handleAnnouncementPendingPopup(c *gin.Context) {
 func (h *Handlers) handleListPublishedAnnouncements(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "请先登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -128,7 +128,7 @@ func (h *Handlers) handleListPublishedAnnouncements(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	list, readMap, total, err := models.ListPublishedAnnouncementsForUser(db, user.ID, page, pageSize)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	out := make([]announcementDTO, 0, len(list))
@@ -136,7 +136,7 @@ func (h *Handlers) handleListPublishedAnnouncements(c *gin.Context) {
 		r := readMap[list[i].ID]
 		out = append(out, toAnnouncementDTO(&list[i], &r, nil))
 	}
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":     out,
 		"total":    total,
 		"page":     page,
@@ -147,18 +147,18 @@ func (h *Handlers) handleListPublishedAnnouncements(c *gin.Context) {
 func (h *Handlers) handleGetPublishedAnnouncement(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "请先登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		response.Fail(c, "参数无效", nil)
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	row, err := models.GetAnnouncementByID(db, uint(id))
 	if err != nil || row.Status != models.AnnouncementStatusPublished {
-		response.Fail(c, "公告不存在", err)
+		response.FailI18n(c, "announcement.not_found", err)
 		return
 	}
 	read := false
@@ -169,31 +169,31 @@ func (h *Handlers) handleGetPublishedAnnouncement(c *gin.Context) {
 	if n > 0 {
 		read = true
 	}
-	response.SuccessMsg(c, "success", toAnnouncementDTO(row, &read, nil))
+	response.SuccessI18n(c, "common.success", toAnnouncementDTO(row, &read, nil))
 }
 
 func (h *Handlers) handleMarkAnnouncementRead(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "请先登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		response.Fail(c, "参数无效", nil)
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	row, err := models.GetAnnouncementByID(db, uint(id))
 	if err != nil || row.Status != models.AnnouncementStatusPublished {
-		response.Fail(c, "公告不存在", err)
+		response.FailI18n(c, "announcement.not_found", err)
 		return
 	}
 	if err := models.MarkAnnouncementRead(db, row.ID, user.ID); err != nil {
-		response.Fail(c, "标记失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已读", nil)
+	response.SuccessI18n(c, "common.read", nil)
 }
 
 func (h *Handlers) handleAdminListAnnouncements(c *gin.Context) {
@@ -203,7 +203,7 @@ func (h *Handlers) handleAdminListAnnouncements(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	list, total, err := models.ListAnnouncementsAdmin(db, status, page, pageSize)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	out := make([]announcementDTO, 0, len(list))
@@ -216,7 +216,7 @@ func (h *Handlers) handleAdminListAnnouncements(c *gin.Context) {
 		cnt := counts[list[i].ID]
 		out = append(out, toAnnouncementDTO(&list[i], nil, &cnt))
 	}
-	response.SuccessMsg(c, "success", gin.H{"list": out, "total": total, "page": page, "pageSize": pageSize})
+	response.SuccessI18n(c, "common.success", gin.H{"list": out, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handlers) handleAdminCreateAnnouncement(c *gin.Context) {
@@ -228,7 +228,7 @@ func (h *Handlers) handleAdminCreateAnnouncement(c *gin.Context) {
 		Publish  bool   `json:"publish"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
@@ -241,12 +241,12 @@ func (h *Handlers) handleAdminCreateAnnouncement(c *gin.Context) {
 	}
 	row.CreateBy = op
 	if err := models.CreateAnnouncement(db, row); err != nil {
-		response.Fail(c, "创建失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	if body.Publish {
 		if err := models.PublishAnnouncement(db, row.ID, op); err != nil {
-			response.Fail(c, "发布失败", err)
+			response.FailI18n(c, "common.operation_failed", err)
 			return
 		}
 		fresh, _ := models.GetAnnouncementByID(db, row.ID)
@@ -254,7 +254,7 @@ func (h *Handlers) handleAdminCreateAnnouncement(c *gin.Context) {
 			row = fresh
 		}
 	}
-	response.SuccessMsg(c, "创建成功", toAnnouncementDTO(row, nil, nil))
+	response.SuccessI18n(c, "common.created", toAnnouncementDTO(row, nil, nil))
 }
 
 func (h *Handlers) handleAdminGetAnnouncement(c *gin.Context) {
@@ -262,30 +262,30 @@ func (h *Handlers) handleAdminGetAnnouncement(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	row, err := models.GetAnnouncementByID(db, uint(id))
 	if err != nil {
-		response.Fail(c, "公告不存在", err)
+		response.FailI18n(c, "announcement.not_found", err)
 		return
 	}
 	cntMap := models.CountAnnouncementReaders(db, []uint{row.ID})
 	cnt := cntMap[row.ID]
-	response.SuccessMsg(c, "success", toAnnouncementDTO(row, nil, &cnt))
+	response.SuccessI18n(c, "common.success", toAnnouncementDTO(row, nil, &cnt))
 }
 
 func (h *Handlers) handleAdminListAnnouncementReaders(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		response.Fail(c, "参数无效", nil)
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "50"))
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if _, err := models.GetAnnouncementByID(db, uint(id)); err != nil {
-		response.Fail(c, "公告不存在", err)
+		response.FailI18n(c, "announcement.not_found", err)
 		return
 	}
 	reads, total, err := models.ListAnnouncementReaders(db, uint(id), page, pageSize)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	userIDs := make([]uint, 0, len(reads))
@@ -319,7 +319,7 @@ func (h *Handlers) handleAdminListAnnouncementReaders(c *gin.Context) {
 			ReadAt:    r.ReadAt,
 		})
 	}
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":     out,
 		"total":    total,
 		"page":     page,
@@ -331,7 +331,7 @@ func (h *Handlers) handleAdminUpdateAnnouncement(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		response.Fail(c, "参数无效", nil)
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	var body struct {
@@ -340,14 +340,14 @@ func (h *Handlers) handleAdminUpdateAnnouncement(c *gin.Context) {
 		Priority *int    `json:"priority"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	vals := map[string]any{"update_by": announcementOperator(user)}
 	if body.Title != nil {
 		t := strings.TrimSpace(*body.Title)
 		if t == "" {
-			response.Fail(c, "标题不能为空", nil)
+			response.FailI18n(c, "common.title_required", nil)
 			return
 		}
 		vals["title"] = t
@@ -360,11 +360,11 @@ func (h *Handlers) handleAdminUpdateAnnouncement(c *gin.Context) {
 	}
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if err := models.UpdateAnnouncement(db, uint(id), vals); err != nil {
-		response.Fail(c, "更新失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	row, _ := models.GetAnnouncementByID(db, uint(id))
-	response.SuccessMsg(c, "更新成功", toAnnouncementDTO(row, nil, nil))
+	response.SuccessI18n(c, "common.updated", toAnnouncementDTO(row, nil, nil))
 }
 
 func (h *Handlers) handleAdminPublishAnnouncement(c *gin.Context) {
@@ -372,11 +372,11 @@ func (h *Handlers) handleAdminPublishAnnouncement(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if err := models.PublishAnnouncement(db, uint(id), announcementOperator(user)); err != nil {
-		response.Fail(c, "发布失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	row, _ := models.GetAnnouncementByID(db, uint(id))
-	response.SuccessMsg(c, "已发布", toAnnouncementDTO(row, nil, nil))
+	response.SuccessI18n(c, "common.published", toAnnouncementDTO(row, nil, nil))
 }
 
 func (h *Handlers) handleAdminUnpublishAnnouncement(c *gin.Context) {
@@ -384,11 +384,11 @@ func (h *Handlers) handleAdminUnpublishAnnouncement(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if err := models.UnpublishAnnouncement(db, uint(id), announcementOperator(user)); err != nil {
-		response.Fail(c, "取消发布失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	row, _ := models.GetAnnouncementByID(db, uint(id))
-	response.SuccessMsg(c, "已取消发布", toAnnouncementDTO(row, nil, nil))
+	response.SuccessI18n(c, "common.unpublished", toAnnouncementDTO(row, nil, nil))
 }
 
 func (h *Handlers) handleAdminDeleteAnnouncement(c *gin.Context) {
@@ -396,8 +396,8 @@ func (h *Handlers) handleAdminDeleteAnnouncement(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if err := models.DeleteAnnouncement(db, uint(id), announcementOperator(user)); err != nil {
-		response.Fail(c, "删除失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已删除", nil)
+	response.SuccessI18n(c, "common.deleted", nil)
 }

@@ -2,13 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 
 	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"github.com/LingByte/ling-base/apidocs/humax"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
 
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -94,7 +92,7 @@ func (h *Handlers) handleGrammarListLessons(c *gin.Context) {
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -102,7 +100,7 @@ func (h *Handlers) handleGrammarListLessons(c *gin.Context) {
 	if err := q.Order("sort_order ASC, id ASC").
 		Offset((page - 1) * pageSize).Limit(pageSize).
 		Find(&list).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -160,7 +158,7 @@ func (h *Handlers) handleGrammarListLessons(c *gin.Context) {
 		items = append(items, item)
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":     items,
 		"total":    total,
 		"page":     page,
@@ -173,7 +171,7 @@ func (h *Handlers) handleGrammarGetLesson(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效课程ID"))
+		response.FailI18n(c, "reading.invalid_lesson_id", nil)
 		return
 	}
 
@@ -181,7 +179,7 @@ func (h *Handlers) handleGrammarGetLesson(c *gin.Context) {
 	if err := db.Where("id = ? AND status = ?",
 		id, models.GrammarStatusPublished).
 		First(&lesson).Error; err != nil {
-		response.Fail(c, "课程不存在或未发布", nil)
+		response.FailI18n(c, "reading.lesson_not_found_or_unpublished", nil)
 		return
 	}
 
@@ -200,7 +198,7 @@ func (h *Handlers) handleGrammarGetLesson(c *gin.Context) {
 		})
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"id":               lesson.ID,
 		"title":            lesson.Title,
 		"topic":            lesson.Topic,
@@ -218,13 +216,13 @@ func (h *Handlers) handleGrammarSubmit(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效课程ID"))
+		response.FailI18n(c, "reading.invalid_lesson_id", nil)
 		return
 	}
 
@@ -236,11 +234,11 @@ func (h *Handlers) handleGrammarSubmit(c *gin.Context) {
 		DurationSec int `json:"durationSec"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if len(body.Answers) == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("答案不能为空"))
+		response.FailI18n(c, "msg.9be807ce", nil)
 		return
 	}
 
@@ -248,7 +246,7 @@ func (h *Handlers) handleGrammarSubmit(c *gin.Context) {
 	if err := db.Where("id = ? AND status = ?",
 		id, models.GrammarStatusPublished).
 		First(&lesson).Error; err != nil {
-		response.Fail(c, "课程不存在或未发布", nil)
+		response.FailI18n(c, "reading.lesson_not_found_or_unpublished", nil)
 		return
 	}
 
@@ -257,7 +255,7 @@ func (h *Handlers) handleGrammarSubmit(c *gin.Context) {
 		Order("sort_order ASC, id ASC").
 		Find(&questions)
 	if len(questions) == 0 {
-		response.Fail(c, "该课程暂无练习题", nil)
+		response.FailI18n(c, "reading.no_lesson_questions", nil)
 		return
 	}
 
@@ -315,11 +313,11 @@ func (h *Handlers) handleGrammarSubmit(c *gin.Context) {
 		return tx.Create(&record).Error
 	})
 	if err != nil {
-		response.Fail(c, "保存答题记录失败", err)
+		response.FailI18n(c, "reading.save_record_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"recordId":      record.ID,
 		"lessonId":      lesson.ID,
 		"title":         lesson.Title,
@@ -339,7 +337,7 @@ func (h *Handlers) handleGrammarListRecords(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 
@@ -395,7 +393,7 @@ func (h *Handlers) handleGrammarListRecords(c *gin.Context) {
 		})
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -408,20 +406,20 @@ func (h *Handlers) handleGrammarGetRecord(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效记录ID"))
+		response.FailI18n(c, "common.invalid_record_id", nil)
 		return
 	}
 
 	var record models.GrammarRecord
 	if err := db.Where("id = ? AND user_id = ?",
 		id, user.ID).First(&record).Error; err != nil {
-		response.Fail(c, "记录不存在", nil)
+		response.FailI18n(c, "common.record_not_found", nil)
 		return
 	}
 
@@ -431,7 +429,7 @@ func (h *Handlers) handleGrammarGetRecord(c *gin.Context) {
 	var details []grammarAnswerItem
 	_ = json.Unmarshal([]byte(record.Answers), &details)
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"id":            record.ID,
 		"lessonId":      record.LessonID,
 		"title":         lesson.Title,
@@ -468,7 +466,7 @@ func (h *Handlers) handleAdminGrammarListLessons(c *gin.Context) {
 	q.Count(&total)
 	var list []models.GrammarLesson
 	q.Order("sort_order ASC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list)
-	response.SuccessMsg(c, "success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
+	response.SuccessI18n(c, "common.success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handlers) handleAdminGrammarGetLesson(c *gin.Context) {
@@ -476,7 +474,7 @@ func (h *Handlers) handleAdminGrammarGetLesson(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	var lesson models.GrammarLesson
 	if err := db.Where("id = ?", id).First(&lesson).Error; err != nil {
-		response.Fail(c, "课程不存在", nil)
+		response.FailI18n(c, "reading.lesson_not_found", nil)
 		return
 	}
 	var questions []models.GrammarQuestion
@@ -494,7 +492,7 @@ func (h *Handlers) handleAdminGrammarGetLesson(c *gin.Context) {
 			"sortOrder":   q.SortOrder,
 		})
 	}
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"lesson":    lesson,
 		"examples":  parseGrammarExamples(lesson.Examples),
 		"questions": qs,
@@ -524,7 +522,7 @@ func (h *Handlers) handleAdminGrammarCreateLesson(c *gin.Context) {
 		} `json:"questions"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -585,10 +583,10 @@ func (h *Handlers) handleAdminGrammarCreateLesson(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		response.Fail(c, "创建失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "创建成功", gin.H{"id": lesson.ID})
+	response.SuccessI18n(c, "common.created", gin.H{"id": lesson.ID})
 }
 
 func (h *Handlers) handleAdminGrammarUpdateLesson(c *gin.Context) {
@@ -598,7 +596,7 @@ func (h *Handlers) handleAdminGrammarUpdateLesson(c *gin.Context) {
 
 	var lesson models.GrammarLesson
 	if err := db.Where("id = ?", id).First(&lesson).Error; err != nil {
-		response.Fail(c, "课程不存在", nil)
+		response.FailI18n(c, "reading.lesson_not_found", nil)
 		return
 	}
 
@@ -614,7 +612,7 @@ func (h *Handlers) handleAdminGrammarUpdateLesson(c *gin.Context) {
 		SortOrder        *int             `json:"sortOrder"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -650,10 +648,10 @@ func (h *Handlers) handleAdminGrammarUpdateLesson(c *gin.Context) {
 		lesson.SetUpdateInfo(user.Username)
 	}
 	if err := db.Save(&lesson).Error; err != nil {
-		response.Fail(c, "更新失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "更新成功", lesson)
+	response.SuccessI18n(c, "common.updated", lesson)
 }
 
 func (h *Handlers) handleAdminGrammarDeleteLesson(c *gin.Context) {
@@ -663,7 +661,7 @@ func (h *Handlers) handleAdminGrammarDeleteLesson(c *gin.Context) {
 
 	var lesson models.GrammarLesson
 	if err := db.Where("id = ?", id).First(&lesson).Error; err != nil {
-		response.Fail(c, "课程不存在", nil)
+		response.FailI18n(c, "reading.lesson_not_found", nil)
 		return
 	}
 	op := ""
@@ -672,12 +670,12 @@ func (h *Handlers) handleAdminGrammarDeleteLesson(c *gin.Context) {
 	}
 	lesson.SoftDelete(op)
 	if err := db.Save(&lesson).Error; err != nil {
-		response.Fail(c, "删除失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	if err := db.Unscoped().Where("lesson_id = ?", lesson.ID).Delete(&models.GrammarQuestion{}).Error; err != nil {
-		response.Fail(c, "删除失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "删除成功", nil)
+	response.SuccessI18n(c, "common.deleted", nil)
 }

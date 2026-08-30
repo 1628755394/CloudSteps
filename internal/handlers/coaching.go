@@ -85,7 +85,7 @@ func coachingIsTeacherRole(u *models.User) bool {
 func (h *Handlers) requireTeacherOrAdmin(c *gin.Context) {
 	u := auth.CurrentUser(c)
 	if u == nil || (!coachingIsTeacherRole(u) && !u.IsAdmin()) {
-		response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("需要老师或管理员权限"))
+		response.FailI18n(c, "coaching.teacher_or_admin_required", nil)
 		return
 	}
 	c.Next()
@@ -94,7 +94,7 @@ func (h *Handlers) requireTeacherOrAdmin(c *gin.Context) {
 func (h *Handlers) requireStudentOrAdmin(c *gin.Context) {
 	u := auth.CurrentUser(c)
 	if u == nil || (!u.IsStudent() && !u.IsAdmin()) {
-		response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("需要学员或管理员权限"))
+		response.FailI18n(c, "coaching.student_or_admin_required", nil)
 		return
 	}
 	c.Next()
@@ -198,17 +198,17 @@ func (h *Handlers) coachingAdminListAppointments(c *gin.Context) {
 	from := c.Query("from")
 	to := c.Query("to")
 	if from == "" || to == "" {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("需要 from、to（YYYY-MM-DD）"))
+		response.FailI18n(c, "coaching.need_range", nil)
 		return
 	}
 	tFrom, err := time.ParseInLocation("2006-01-02", from, time.Local)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("from 日期格式错误"))
+		response.FailI18n(c, "coaching.invalid_from_date", nil)
 		return
 	}
 	tTo, err := time.ParseInLocation("2006-01-02", to, time.Local)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("to 日期格式错误"))
+		response.FailI18n(c, "coaching.invalid_to_date", nil)
 		return
 	}
 
@@ -243,7 +243,7 @@ func (h *Handlers) coachingAdminListAppointments(c *gin.Context) {
 
 	var total int64
 	if err := base.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 	var list []models.CoachingAppointment
@@ -252,10 +252,10 @@ func (h *Handlers) coachingAdminListAppointments(c *gin.Context) {
 		Order("scheduled_date DESC, start_time DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).
 		Find(&list).Error; err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -267,17 +267,17 @@ func (h *Handlers) coachingAdminGetAppointment(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效 id"))
+		response.FailI18n(c, "coaching.invalid_id", nil)
 		return
 	}
 	var ap models.CoachingAppointment
 	if err := db.Where("id = ?", id).
 		Preload("Teacher").Preload("Student").Preload("Session").
 		First(&ap).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
+		response.FailI18n(c, "coaching.not_found", nil)
 		return
 	}
-	response.SuccessMsg(c, "ok", ap)
+	response.SuccessI18n(c, "common.ok", ap)
 }
 
 type coachingAdminApptBody struct {
@@ -294,17 +294,17 @@ func (h *Handlers) coachingAdminCreateAppointment(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var body coachingAdminApptBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	sd, err := time.ParseInLocation("2006-01-02", body.ScheduledDate, time.Local)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("scheduledDate 格式错误"))
+		response.FailI18n(c, "coaching.invalid_date", nil)
 		return
 	}
 	dur, err := models.CoachingDurationMinutes(body.StartTime, body.EndTime)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("开始/结束时间无效"))
+		response.FailI18n(c, "coaching.invalid_time", nil)
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.TeacherID, "teacher"); err != nil {
@@ -325,7 +325,7 @@ func (h *Handlers) coachingAdminCreateAppointment(c *gin.Context) {
 		return
 	}
 	if err := db.Create(&ap).Error; err != nil {
-		response.Fail(c, "创建失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Teacher").Preload("Student").First(&ap, ap.ID).Error
@@ -334,38 +334,38 @@ func (h *Handlers) coachingAdminCreateAppointment(c *gin.Context) {
 		"scheduledDate": ap.ScheduledDate.Format("2006-01-02"),
 		"startTime":     ap.StartTime, "endTime": ap.EndTime,
 	})
-	response.SuccessMsg(c, "ok", ap)
+	response.SuccessI18n(c, "common.ok", ap)
 }
 
 func (h *Handlers) coachingAdminUpdateAppointment(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效 id"))
+		response.FailI18n(c, "coaching.invalid_id", nil)
 		return
 	}
 	var ap models.CoachingAppointment
 	if err := db.Where("id = ?", id).First(&ap).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
+		response.FailI18n(c, "coaching.not_found", nil)
 		return
 	}
 	if ap.Status == models.CoachingStatusCompleted || ap.Status == models.CoachingStatusInProgress {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("进行中或已完成的排课不可修改时段"))
+		response.FailI18n(c, "coaching.cannot_edit_active", nil)
 		return
 	}
 	var body coachingAdminApptBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	sd, err := time.ParseInLocation("2006-01-02", body.ScheduledDate, time.Local)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("scheduledDate 格式错误"))
+		response.FailI18n(c, "coaching.invalid_date", nil)
 		return
 	}
 	dur, err := models.CoachingDurationMinutes(body.StartTime, body.EndTime)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("开始/结束时间无效"))
+		response.FailI18n(c, "coaching.invalid_time", nil)
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.TeacherID, "teacher"); err != nil {
@@ -389,7 +389,7 @@ func (h *Handlers) coachingAdminUpdateAppointment(c *gin.Context) {
 		return
 	}
 	if err := db.Save(&ap).Error; err != nil {
-		response.Fail(c, "更新失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Teacher").Preload("Student").Preload("Session").First(&ap, ap.ID).Error
@@ -398,19 +398,19 @@ func (h *Handlers) coachingAdminUpdateAppointment(c *gin.Context) {
 		"scheduledDate": ap.ScheduledDate.Format("2006-01-02"),
 		"startTime":     ap.StartTime, "endTime": ap.EndTime,
 	})
-	response.SuccessMsg(c, "ok", ap)
+	response.SuccessI18n(c, "common.ok", ap)
 }
 
 func (h *Handlers) coachingAdminDeleteAppointment(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if err := db.Delete(&models.CoachingAppointment{}, id).Error; err != nil {
-		response.Fail(c, "删除失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	uid := uint(id)
 	coachingWriteCoachingAudit(db, c, coachingAuditAppointmentDelete, "appointment", uid, uid, "删除排课", map[string]any{"appointmentId": id})
-	response.SuccessMsg(c, "ok", gin.H{"id": id})
+	response.SuccessI18n(c, "common.ok", gin.H{"id": id})
 }
 
 func (h *Handlers) coachingAdminListQuotas(c *gin.Context) {
@@ -429,10 +429,10 @@ func (h *Handlers) coachingAdminListQuotas(c *gin.Context) {
 		}
 	}
 	if err := tx.Find(&list).Error; err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
-	response.SuccessMsg(c, "ok", list)
+	response.SuccessI18n(c, "common.ok", list)
 }
 
 type coachingQuotaBody struct {
@@ -445,11 +445,11 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var body coachingQuotaBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if body.RemainingMinutes < 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("remainingMinutes 不能为负"))
+		response.FailI18n(c, "coaching.quota_negative", nil)
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.TeacherID, "teacher"); err != nil {
@@ -469,17 +469,17 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 			RemainingMinutes: body.RemainingMinutes, TotalAllocatedMinutes: body.RemainingMinutes, Version: 0,
 		}
 		if err := db.Create(&q).Error; err != nil {
-			response.Fail(c, "保存失败", err.Error())
+			response.FailI18n(c, "common.operation_failed", err.Error())
 			return
 		}
 		coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "新建师生额度", map[string]any{
 			"teacherId": body.TeacherID, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
 		})
-		response.SuccessMsg(c, "ok", q)
+		response.SuccessI18n(c, "common.ok", q)
 		return
 	}
 	if err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 	// 恢复可能被软删的额度行，避免唯一索引冲突
@@ -491,13 +491,13 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 	}
 	q.RemainingMinutes = body.RemainingMinutes
 	if err := db.Save(&q).Error; err != nil {
-		response.Fail(c, "保存失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "更新师生额度", map[string]any{
 		"teacherId": body.TeacherID, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
 	})
-	response.SuccessMsg(c, "ok", q)
+	response.SuccessI18n(c, "common.ok", q)
 }
 
 func (h *Handlers) coachingAdminListTeacherPools(c *gin.Context) {
@@ -510,10 +510,10 @@ func (h *Handlers) coachingAdminListTeacherPools(c *gin.Context) {
 	}
 	var list []models.TeacherTeachingPool
 	if err := tx.Find(&list).Error; err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
-	response.SuccessMsg(c, "ok", list)
+	response.SuccessI18n(c, "common.ok", list)
 }
 
 type coachingTeacherPoolBody struct {
@@ -525,11 +525,11 @@ func (h *Handlers) coachingAdminUpsertTeacherPool(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var body coachingTeacherPoolBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if body.RemainingMinutes < 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("remainingMinutes 不能为负"))
+		response.FailI18n(c, "coaching.quota_negative", nil)
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.TeacherID, "teacher"); err != nil {
@@ -539,7 +539,7 @@ func (h *Handlers) coachingAdminUpsertTeacherPool(c *gin.Context) {
 
 	row, err := models.EnsureTeacherTeachingPool(db, body.TeacherID)
 	if err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 	if body.RemainingMinutes > row.RemainingMinutes {
@@ -550,14 +550,14 @@ func (h *Handlers) coachingAdminUpsertTeacherPool(c *gin.Context) {
 		"remaining_minutes":       row.RemainingMinutes,
 		"total_allocated_minutes": row.TotalAllocatedMinutes,
 	}).Error; err != nil {
-		response.Fail(c, "保存失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Teacher").First(row, row.ID).Error
 	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "teacher_pool", row.ID, 0, "更新老师授课池", map[string]any{
 		"teacherId": body.TeacherID, "remainingMinutes": body.RemainingMinutes,
 	})
-	response.SuccessMsg(c, "ok", row)
+	response.SuccessI18n(c, "common.ok", row)
 }
 
 func (h *Handlers) coachingAdminListUsagePeriods(c *gin.Context) {
@@ -576,10 +576,10 @@ func (h *Handlers) coachingAdminListUsagePeriods(c *gin.Context) {
 	}
 	var rows []models.TeacherCoachingUsagePeriod
 	if err := tx.Limit(limit).Find(&rows).Error; err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
-	response.SuccessMsg(c, "ok", rows)
+	response.SuccessI18n(c, "common.ok", rows)
 }
 
 type coachingUsagePeriodBody struct {
@@ -593,21 +593,21 @@ func (h *Handlers) coachingAdminPutUsagePeriod(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var body coachingUsagePeriodBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	var coachUser models.User
 	if err := db.Select("id", "role").Where("id = ?", body.TeacherID).First(&coachUser).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("用户不存在"))
+		response.FailI18n(c, "auth.user_not_found", nil)
 		return
 	}
 	if !coachingIsTeacherRole(&coachUser) {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("用户不是老师/陪练角色"))
+		response.FailI18n(c, "coaching.not_teacher_role", nil)
 		return
 	}
 	t, err := time.ParseInLocation("2006-01", body.Month, time.Local)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("month 格式应为 YYYY-MM"))
+		response.FailI18n(c, "coaching.invalid_month", nil)
 		return
 	}
 	y, m, _ := t.Date()
@@ -628,51 +628,51 @@ func (h *Handlers) coachingAdminPutUsagePeriod(c *gin.Context) {
 			row.UsedMinutes = *body.UsedMinutes
 		}
 		if row.CapMinutes < 0 || row.UsedMinutes < 0 {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("分钟数不能为负"))
+			response.FailI18n(c, "coaching.minutes_negative", nil)
 			return
 		}
 		if err := db.Create(&row).Error; err != nil {
-			response.Fail(c, "创建失败", err.Error())
+			response.FailI18n(c, "common.operation_failed", err.Error())
 			return
 		}
 		coachingWriteCoachingAudit(db, c, coachingAuditUsagePeriodPut, "usage_period", row.ID, 0, "创建老师计量周期", map[string]any{
 			"teacherId": body.TeacherID, "month": body.Month, "capMinutes": row.CapMinutes, "usedMinutes": row.UsedMinutes,
 		})
-		response.SuccessMsg(c, "ok", row)
+		response.SuccessI18n(c, "common.ok", row)
 		return
 	}
 	if err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 	updates := map[string]any{}
 	if body.CapMinutes != nil {
 		if *body.CapMinutes < 0 {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("capMinutes 不能为负"))
+			response.FailI18n(c, "coaching.cap_negative", nil)
 			return
 		}
 		updates["cap_minutes"] = *body.CapMinutes
 	}
 	if body.UsedMinutes != nil {
 		if *body.UsedMinutes < 0 {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("usedMinutes 不能为负"))
+			response.FailI18n(c, "coaching.used_negative", nil)
 			return
 		}
 		updates["used_minutes"] = *body.UsedMinutes
 	}
 	if len(updates) == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("至少提供 capMinutes 或 usedMinutes"))
+		response.FailI18n(c, "coaching.need_cap_or_used", nil)
 		return
 	}
 	if err := db.Model(&row).Updates(updates).Error; err != nil {
-		response.Fail(c, "更新失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Teacher").First(&row, row.ID).Error
 	coachingWriteCoachingAudit(db, c, coachingAuditUsagePeriodPut, "usage_period", row.ID, 0, "更新老师计量周期", map[string]any{
 		"teacherId": body.TeacherID, "month": body.Month, "updates": updates,
 	})
-	response.SuccessMsg(c, "ok", row)
+	response.SuccessI18n(c, "common.ok", row)
 }
 
 // --- Teacher week / start / end ---
@@ -715,7 +715,7 @@ func (h *Handlers) coachingTeacherWeek(c *gin.Context) {
 			}
 		}
 		if tid == 0 {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("管理员查询周课表请传 teacherId"))
+			response.FailI18n(c, "coaching.admin_needs_teacher_id", nil)
 			return
 		}
 	} else {
@@ -723,17 +723,17 @@ func (h *Handlers) coachingTeacherWeek(c *gin.Context) {
 	}
 	list, err := coachingWeekItems(db, tid, 0, date)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("日期无效"))
+		response.FailI18n(c, "coaching.invalid_date", nil)
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{"schedules": coachingToWeekDTO(list)})
+	response.SuccessI18n(c, "common.ok", gin.H{"schedules": coachingToWeekDTO(list)})
 }
 
 func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	_ = models.RepairTeacherCoachingRelations(db, tid)
@@ -776,7 +776,7 @@ func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 		Order("student_teacher_coaching_quotas.id DESC").
 		Limit(limit + 1).
 		Find(&list).Error; err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 
@@ -791,10 +791,10 @@ func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 
 	items, err := coachingEnrichTeacherQuotaList(db, tid, list)
 	if err != nil {
-		response.Fail(c, "汇总测评数据失败", err.Error())
+		response.FailI18n(c, "coaching.summarize_test_failed", err.Error())
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list":       items,
 		"nextCursor": nextCursor,
 		"hasMore":    hasMore,
@@ -806,13 +806,13 @@ func (h *Handlers) coachingTeacherGetMyPool(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	_ = models.RepairTeacherCoachingRelations(db, tid)
 	pool, err := models.EnsureTeacherTeachingPool(db, tid)
 	if err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 	remaining, total := 0, 0
@@ -820,7 +820,7 @@ func (h *Handlers) coachingTeacherGetMyPool(c *gin.Context) {
 		remaining = pool.RemainingMinutes
 		total = pool.TotalAllocatedMinutes
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"remainingMinutes":      remaining,
 		"totalAllocatedMinutes": total,
 	})
@@ -841,7 +841,7 @@ func (h *Handlers) coachingStudentWeek(c *gin.Context) {
 			}
 		}
 		if sid == 0 {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("管理员查询周课表请传 studentId"))
+			response.FailI18n(c, "coaching.admin_needs_student_id", nil)
 			return
 		}
 	} else {
@@ -849,10 +849,10 @@ func (h *Handlers) coachingStudentWeek(c *gin.Context) {
 	}
 	list, err := coachingWeekItems(db, 0, sid, date)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("日期无效"))
+		response.FailI18n(c, "coaching.invalid_date", nil)
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{"schedules": coachingToWeekDTO(list)})
+	response.SuccessI18n(c, "common.ok", gin.H{"schedules": coachingToWeekDTO(list)})
 }
 
 type coachingWeekScheduleDTO struct {
@@ -988,28 +988,28 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	var body coachingTeacherCreateStudentBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	name := strings.TrimSpace(body.DisplayName)
 	if name == "" {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请填写学生姓名"))
+		response.FailI18n(c, "coaching.student_name_required", nil)
 		return
 	}
 	if body.StudyHours < 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学时不能为负"))
+		response.FailI18n(c, "coaching.hours_negative", nil)
 		return
 	}
 
 	remaining := body.StudyHours * 60
 	username, err := coachingUsernameFromDisplayName(db, name)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusInternalServerError, errors.New("生成账号失败，请重试"))
+		response.FailI18n(c, "auth.generate_account_failed", nil)
 		return
 	}
 
@@ -1018,7 +1018,7 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 		pwd = coachingDefaultStudentPassword
 	}
 	if len(pwd) < 6 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("密码至少 6 位"))
+		response.FailI18n(c, "common.password_too_short", nil)
 		return
 	}
 	student := models.User{
@@ -1050,7 +1050,7 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 		return tx.Create(&quota).Error
 	})
 	if err != nil {
-		response.Fail(c, "创建失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Student").First(&quota, quota.ID).Error
@@ -1058,7 +1058,7 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 		"teacherId": tid, "studentId": student.ID, "displayName": name,
 		"remainingMinutes": remaining, "username": username,
 	})
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"quota":           quota,
 		"student":         student,
 		"username":        username,
@@ -1070,12 +1070,12 @@ func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	sid, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
+		response.FailI18n(c, "coaching.invalid_student_id", nil)
 		return
 	}
 	var body coachingTeacherSetStudentPasswordBody
@@ -1084,16 +1084,16 @@ func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
 	var quota models.StudentTeacherCoachingQuota
 	if err := db.Where("teacher_id = ? AND student_id = ?", tid, sid).First(&quota).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("该学员不在你的名下"))
+			response.FailI18n(c, "coaching.student_not_yours", nil)
 			return
 		}
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 
 	var user models.User
 	if err := db.First(&user, sid).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("学员不存在"))
+		response.FailI18n(c, "coaching.student_not_found", nil)
 		return
 	}
 
@@ -1102,17 +1102,17 @@ func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
 		pwd = coachingDefaultStudentPassword
 	}
 	if len(pwd) < 6 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("密码至少 6 位"))
+		response.FailI18n(c, "common.password_too_short", nil)
 		return
 	}
 	if err := models.ResetPassword(db, &user, pwd); err != nil {
-		response.Fail(c, "设置密码失败", err.Error())
+		response.FailI18n(c, "auth.set_password_failed", err.Error())
 		return
 	}
 	coachingWriteCoachingAudit(db, c, "student_password_set", "student", user.ID, 0, "老师设置学员密码", map[string]any{
 		"teacherId": tid, "studentId": user.ID, "resetToDefault": strings.TrimSpace(body.Password) == "",
 	})
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"studentId": user.ID,
 		"username":  user.Username,
 		"password":  pwd,
@@ -1127,17 +1127,17 @@ func (h *Handlers) coachingTeacherSetStudentReviewCurve(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	sid, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
+		response.FailI18n(c, "coaching.invalid_student_id", nil)
 		return
 	}
 	var body coachingTeacherSetStudentReviewCurveBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数无效"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	preset := string(models.NormalizeReviewCurvePreset(body.ReviewCurvePreset))
@@ -1149,11 +1149,11 @@ func (h *Handlers) coachingTeacherSetStudentReviewCurve(c *gin.Context) {
 
 	var user models.User
 	if err := db.First(&user, sid).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("学员不存在"))
+		response.FailI18n(c, "coaching.student_not_found", nil)
 		return
 	}
 	if err := models.UpdateUser(db, &user, map[string]any{"review_curve_preset": preset}); err != nil {
-		response.Fail(c, "保存失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	user.ReviewCurvePreset = preset
@@ -1163,7 +1163,7 @@ func (h *Handlers) coachingTeacherSetStudentReviewCurve(c *gin.Context) {
 		"reviewCurvePreset": preset,
 		"reviewTimes":       models.ReviewTimesCount(preset),
 	})
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"studentId":         user.ID,
 		"reviewCurvePreset": preset,
 		"reviewTimes":       models.ReviewTimesCount(preset),
@@ -1175,16 +1175,16 @@ func (h *Handlers) coachingTeacherRemoveStudent(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	sid, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
+		response.FailI18n(c, "coaching.invalid_student_id", nil)
 		return
 	}
 	if models.IsSelfCoachingPair(tid, uint(sid)) {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无法移除自练额度"))
+		response.FailI18n(c, "coaching.cannot_remove_self_quota", nil)
 		return
 	}
 	if err := coachingTeacherHasStudentPair(db, tid, uint(sid)); err != nil {
@@ -1195,10 +1195,10 @@ func (h *Handlers) coachingTeacherRemoveStudent(c *gin.Context) {
 	var q models.StudentTeacherCoachingQuota
 	if err := db.Where("teacher_id = ? AND student_id = ?", tid, sid).First(&q).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("学员不在你的名下"))
+			response.FailI18n(c, "coaching.student_not_yours", nil)
 			return
 		}
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 
@@ -1208,21 +1208,21 @@ func (h *Handlers) coachingTeacherRemoveStudent(c *gin.Context) {
 	}
 	q.SoftDelete(op)
 	if err := db.Save(&q).Error; err != nil {
-		response.Fail(c, "移除失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 
 	coachingWriteCoachingAudit(db, c, coachingAuditQuotaRemove, "quota", q.ID, 0, "老师移除学员", map[string]any{
 		"teacherId": tid, "studentId": sid,
 	})
-	response.SuccessMsg(c, "ok", gin.H{"studentId": sid})
+	response.SuccessI18n(c, "common.ok", gin.H{"studentId": sid})
 }
 
 func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	from := c.Query("from")
@@ -1234,12 +1234,12 @@ func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
 	}
 	tFrom, err := time.ParseInLocation("2006-01-02", from, time.Local)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("from 日期格式错误"))
+		response.FailI18n(c, "coaching.invalid_from_date", nil)
 		return
 	}
 	tTo, err := time.ParseInLocation("2006-01-02", to, time.Local)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("to 日期格式错误"))
+		response.FailI18n(c, "coaching.invalid_to_date", nil)
 		return
 	}
 	page := 1
@@ -1261,7 +1261,7 @@ func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
 		Where("teacher_id = ? AND status = ?", tid, models.CoachingStatusCompleted).
 		Where("scheduled_date >= ? AND scheduled_date <= ?", coachingDateOnly(tFrom), coachingDateOnly(tTo))
 	if err := base.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 	var list []models.CoachingAppointment
@@ -1270,10 +1270,10 @@ func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
 		Order("scheduled_date DESC, start_time DESC").
 		Offset(offset).Limit(pageSize).
 		Find(&list).Error; err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"schedules": coachingToWeekDTO(list),
 		"total":     total,
 		"page":      page,
@@ -1285,7 +1285,7 @@ func (h *Handlers) coachingTeacherSearchStudents(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	q := strings.TrimSpace(c.Query("q"))
 	if len(q) < 2 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("搜索关键词至少 2 个字符"))
+		response.FailI18n(c, "coaching.search_keyword_short", nil)
 		return
 	}
 	like := "%" + q + "%"
@@ -1296,7 +1296,7 @@ func (h *Handlers) coachingTeacherSearchStudents(c *gin.Context) {
 		Order("display_name, username").
 		Limit(20).
 		Find(&users).Error; err != nil {
-		response.Fail(c, "搜索失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	items := make([]gin.H, 0, len(users))
@@ -1308,23 +1308,23 @@ func (h *Handlers) coachingTeacherSearchStudents(c *gin.Context) {
 			"phone":       u.Phone,
 		})
 	}
-	response.SuccessMsg(c, "ok", items)
+	response.SuccessI18n(c, "common.ok", items)
 }
 
 func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	var body coachingTeacherQuotaBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if body.RemainingMinutes < 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("remainingMinutes 不能为负"))
+		response.FailI18n(c, "coaching.quota_negative", nil)
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.StudentID, "student"); err != nil {
@@ -1340,18 +1340,18 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 			RemainingMinutes: body.RemainingMinutes, TotalAllocatedMinutes: body.RemainingMinutes, Version: 0,
 		}
 		if err := db.Create(&q).Error; err != nil {
-			response.Fail(c, "保存失败", err.Error())
+			response.FailI18n(c, "common.operation_failed", err.Error())
 			return
 		}
 		_ = db.Preload("Student").First(&q, q.ID).Error
 		coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "老师添加学员", map[string]any{
 			"teacherId": tid, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
 		})
-		response.SuccessMsg(c, "ok", q)
+		response.SuccessI18n(c, "common.ok", q)
 		return
 	}
 	if err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "common.query_failed", err.Error())
 		return
 	}
 	// 恢复可能被软删的额度行，避免唯一索引冲突
@@ -1363,40 +1363,40 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 	}
 	q.RemainingMinutes = body.RemainingMinutes
 	if err := db.Save(&q).Error; err != nil {
-		response.Fail(c, "保存失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Student").First(&q, q.ID).Error
 	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "老师更新学员额度", map[string]any{
 		"teacherId": tid, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
 	})
-	response.SuccessMsg(c, "ok", q)
+	response.SuccessI18n(c, "common.ok", q)
 }
 
 func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	var body coachingTeacherApptBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请先添加该学员后再排课"))
+		response.FailI18n(c, "coaching.add_student_first", nil)
 		return
 	}
 	sd, err := time.ParseInLocation("2006-01-02", body.ScheduledDate, time.Local)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("scheduledDate 格式错误"))
+		response.FailI18n(c, "coaching.invalid_date", nil)
 		return
 	}
 	dur, err := models.CoachingDurationMinutes(body.StartTime, body.EndTime)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("开始/结束时间无效"))
+		response.FailI18n(c, "coaching.invalid_time", nil)
 		return
 	}
 	ap := models.CoachingAppointment{
@@ -1409,7 +1409,7 @@ func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
 		return
 	}
 	if err := db.Create(&ap).Error; err != nil {
-		response.Fail(c, "创建失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Teacher").Preload("Student").First(&ap, ap.ID).Error
@@ -1418,47 +1418,47 @@ func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
 		"scheduledDate": ap.ScheduledDate.Format("2006-01-02"),
 		"startTime":     ap.StartTime, "endTime": ap.EndTime,
 	})
-	response.SuccessMsg(c, "ok", ap)
+	response.SuccessI18n(c, "common.ok", ap)
 }
 
 func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效 id"))
+		response.FailI18n(c, "coaching.invalid_id", nil)
 		return
 	}
 	var ap models.CoachingAppointment
 	if err := db.Where("id = ? AND teacher_id = ?", id, tid).First(&ap).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
+		response.FailI18n(c, "coaching.not_found", nil)
 		return
 	}
 	if ap.Status == models.CoachingStatusCompleted || ap.Status == models.CoachingStatusInProgress {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("进行中或已完成的排课不可修改"))
+		response.FailI18n(c, "coaching.cannot_edit_active", nil)
 		return
 	}
 	var body coachingTeacherApptBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请先添加该学员后再排课"))
+		response.FailI18n(c, "coaching.add_student_first", nil)
 		return
 	}
 	sd, err := time.ParseInLocation("2006-01-02", body.ScheduledDate, time.Local)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("scheduledDate 格式错误"))
+		response.FailI18n(c, "coaching.invalid_date", nil)
 		return
 	}
 	dur, err := models.CoachingDurationMinutes(body.StartTime, body.EndTime)
 	if err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("开始/结束时间无效"))
+		response.FailI18n(c, "coaching.invalid_time", nil)
 		return
 	}
 	ap.StudentID = body.StudentID
@@ -1473,7 +1473,7 @@ func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
 		return
 	}
 	if err := db.Save(&ap).Error; err != nil {
-		response.Fail(c, "更新失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Teacher").Preload("Student").Preload("Session").First(&ap, ap.ID).Error
@@ -1482,33 +1482,33 @@ func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
 		"scheduledDate": ap.ScheduledDate.Format("2006-01-02"),
 		"startTime":     ap.StartTime, "endTime": ap.EndTime,
 	})
-	response.SuccessMsg(c, "ok", ap)
+	response.SuccessI18n(c, "common.ok", ap)
 }
 
 func (h *Handlers) coachingTeacherDeleteAppointment(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
 	var ap models.CoachingAppointment
 	if err := db.Where("id = ? AND teacher_id = ?", id, tid).First(&ap).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
+		response.FailI18n(c, "coaching.not_found", nil)
 		return
 	}
 	if ap.Status == models.CoachingStatusInProgress {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("上课中的排课不可删除"))
+		response.FailI18n(c, "coaching.cannot_delete_active", nil)
 		return
 	}
 	if err := db.Delete(&ap).Error; err != nil {
-		response.Fail(c, "删除失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	uid := uint(id)
 	coachingWriteCoachingAudit(db, c, coachingAuditAppointmentDelete, "appointment", uid, uid, "老师删除排课", map[string]any{"appointmentId": id})
-	response.SuccessMsg(c, "ok", gin.H{"id": id})
+	response.SuccessI18n(c, "common.ok", gin.H{"id": id})
 }
 
 func (h *Handlers) coachingTeacherStart(c *gin.Context) {
@@ -1517,28 +1517,28 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var ap models.CoachingAppointment
 	if err := db.Where("id = ?", id).First(&ap).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
+		response.FailI18n(c, "coaching.not_found", nil)
 		return
 	}
 	if coachingIsTeacherRole(user) && !user.IsAdmin() && ap.TeacherID != user.ID {
-		response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("无权操作此排课"))
+		response.FailI18n(c, "coaching.no_appointment_access", nil)
 		return
 	}
 	if ap.Status != models.CoachingStatusScheduled {
 		if ap.Status == models.CoachingStatusInProgress {
-			response.SuccessMsg(c, "ok", gin.H{"appointment": ap, "message": "已在上课中"})
+			response.SuccessI18n(c, "common.ok", gin.H{"appointment": ap, "message": "已在上课中"})
 			return
 		}
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("当前状态不可开始"))
+		response.FailI18n(c, "coaching.cannot_start", nil)
 		return
 	}
 	q, err := coachingGetQuota(db, ap.TeacherID, ap.StudentID)
 	if errors.Is(err, gorm.ErrRecordNotFound) || q.RemainingMinutes <= 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("陪练剩余时长不足，无法开始上课"))
+		response.FailI18n(c, "coaching.quota_insufficient", nil)
 		return
 	}
 	if err != nil {
-		response.Fail(c, "查询额度失败", err.Error())
+		response.FailI18n(c, "coaching.query_quota_failed", err.Error())
 		return
 	}
 	now := time.Now()
@@ -1551,7 +1551,7 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 			response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 			return
 		}
-		response.Fail(c, "查询老师计量失败", err.Error())
+		response.FailI18n(c, "coaching.query_teacher_metrics_failed", err.Error())
 		return
 	}
 	ap.Status = models.CoachingStatusInProgress
@@ -1559,14 +1559,14 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 	if err := db.Model(&ap).Updates(map[string]any{
 		"status": models.CoachingStatusInProgress, "actual_started_at": now,
 	}).Error; err != nil {
-		response.Fail(c, "开始失败", err.Error())
+		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.First(&ap, ap.ID).Error
 	coachingWriteCoachingAudit(db, c, coachingAuditSessionStart, "appointment", uint(id), uint(id), "开始上课", map[string]any{
 		"teacherId": ap.TeacherID, "studentId": ap.StudentID,
 	})
-	response.SuccessMsg(c, "ok", ap)
+	response.SuccessI18n(c, "common.ok", ap)
 }
 
 func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
@@ -1576,11 +1576,11 @@ func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 
 	var ap models.CoachingAppointment
 	if err := db.Where("id = ?", id).First(&ap).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
+		response.FailI18n(c, "coaching.not_found", nil)
 		return
 	}
 	if coachingIsTeacherRole(user) && !user.IsAdmin() && ap.TeacherID != user.ID {
-		response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("无权操作此排课"))
+		response.FailI18n(c, "coaching.no_appointment_access", nil)
 		return
 	}
 
@@ -1589,7 +1589,7 @@ func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{"session": rec, "appointment": apCompleted})
+	response.SuccessI18n(c, "common.ok", gin.H{"session": rec, "appointment": apCompleted})
 }
 
 type coachingPracticeStartBody struct {
@@ -1602,12 +1602,12 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	var body coachingPracticeStartBody
 	if err := c.ShouldBindJSON(&body); err != nil || body.StudentID == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请选择学员"))
+		response.FailI18n(c, "coaching.select_student", nil)
 		return
 	}
 	planned := body.PlannedMinutes
@@ -1619,16 +1619,16 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	}
 
 	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请先添加该学员后再练习"))
+		response.FailI18n(c, "coaching.add_student_first", nil)
 		return
 	}
 	q, err := coachingGetQuota(db, tid, body.StudentID)
 	if errors.Is(err, gorm.ErrRecordNotFound) || q.RemainingMinutes <= 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("陪练剩余时长不足，无法开始练习"))
+		response.FailI18n(c, "coaching.quota_insufficient", nil)
 		return
 	}
 	if err != nil {
-		response.Fail(c, "查询额度失败", err.Error())
+		response.FailI18n(c, "coaching.query_quota_failed", err.Error())
 		return
 	}
 
@@ -1638,7 +1638,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 			response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 			return
 		}
-		response.Fail(c, "查询老师计量失败", err.Error())
+		response.FailI18n(c, "coaching.query_teacher_metrics_failed", err.Error())
 		return
 	}
 
@@ -1646,7 +1646,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	var inProgress []models.CoachingAppointment
 	if err := db.Where("teacher_id = ? AND status = ?", tid, models.CoachingStatusInProgress).
 		Find(&inProgress).Error; err != nil {
-		response.Fail(c, "查询上课中课次失败", err.Error())
+		response.FailI18n(c, "coaching.query_active_session_failed", err.Error())
 		return
 	}
 	for i := range inProgress {
@@ -1660,7 +1660,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 			} else {
 				out = ap
 			}
-			response.SuccessMsg(c, "ok", gin.H{
+			response.SuccessI18n(c, "common.ok", gin.H{
 				"appointment":   out,
 				"appointmentId": ap.ID,
 				"studentId":     ap.StudentID,
@@ -1669,7 +1669,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 			})
 			return
 		}
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("当前已有其他学员的上课中课次，请先结束后再开始练习"))
+		response.FailI18n(c, "coaching.session_busy", nil)
 		return
 	}
 
@@ -1681,7 +1681,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	}
 	dur, err := models.CoachingDurationMinutes(startHm, endHm)
 	if err != nil || dur < 1 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("练习时段无效"))
+		response.FailI18n(c, "coaching.invalid_time", nil)
 		return
 	}
 
@@ -1700,7 +1700,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	// 练习课次不与已有「已排定」课表做冲突拦截（否则临近有排课就无法练习），
 	// 仅上面已拦截「上课中」冲突。
 	if err := db.Create(&ap).Error; err != nil {
-		response.Fail(c, "创建练习课次失败", err.Error())
+		response.FailI18n(c, "coaching.create_session_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Teacher").Preload("Student").First(&ap, ap.ID).Error
@@ -1715,7 +1715,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	} else {
 		out = ap
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"appointment":   out,
 		"appointmentId": ap.ID,
 		"studentId":     ap.StudentID,

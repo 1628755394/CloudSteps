@@ -46,7 +46,7 @@ func (h *Handlers) registerStorageAdminRoutes(r *humax.Group) {
 func requireStorageManager(c *gin.Context) stores.ObjectStorageManager {
 	m := stores.DefaultManager()
 	if m == nil {
-		response.Fail(c, "当前对象存储后端不支持管理接口", "")
+		response.FailI18n(c, "storage.no_admin_api", "")
 		return nil
 	}
 	return m
@@ -54,7 +54,7 @@ func requireStorageManager(c *gin.Context) stores.ObjectStorageManager {
 
 func (h *Handlers) handleStorageInfo(c *gin.Context) {
 	s := stores.Default()
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"kind":               stores.DefaultStoreKind,
 		"supportsManagement": stores.SupportsManagement(s),
 		"supportsMultipart":  lbstores.SupportsMultipart(s),
@@ -78,7 +78,7 @@ func (h *Handlers) handleStorageListBuckets(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", resp)
+	response.SuccessI18n(c, "common.ok", resp)
 }
 
 func (h *Handlers) handleStorageListFiles(c *gin.Context) {
@@ -105,7 +105,7 @@ func (h *Handlers) handleStorageListFiles(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", resp)
+	response.SuccessI18n(c, "common.ok", resp)
 }
 
 const maxStorageUploadBytes int64 = 64 << 20 // 64 MiB
@@ -118,13 +118,13 @@ func (h *Handlers) handleStorageUploadFile(c *gin.Context) {
 
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		response.Fail(c, "请选择要上传的文件", err.Error())
+		response.FailI18n(c, "storage.select_file", err.Error())
 		return
 	}
 	defer file.Close()
 
 	if header.Size > maxStorageUploadBytes {
-		response.Fail(c, fmt.Sprintf("文件过大，请选择不超过 %dMB 的文件", maxStorageUploadBytes>>20), "")
+		response.FailI18n(c, "storage.file_too_large", nil, maxStorageUploadBytes>>20)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (h *Handlers) handleStorageUploadFile(c *gin.Context) {
 	if key == "" {
 		name := path.Base(strings.ReplaceAll(header.Filename, "\\", "/"))
 		if name == "" || name == "." || name == "/" {
-			response.Fail(c, "缺少 key，且无法从文件名推断", "")
+			response.FailI18n(c, "storage.key_infer_failed", "")
 			return
 		}
 		prefix := strings.TrimSpace(c.PostForm("prefix"))
@@ -144,7 +144,7 @@ func (h *Handlers) handleStorageUploadFile(c *gin.Context) {
 	}
 	key = strings.TrimLeft(key, "/")
 	if key == "" || strings.Contains(key, "..") {
-		response.Fail(c, "非法的对象 key", "")
+		response.FailI18n(c, "storage.invalid_key", "")
 		return
 	}
 
@@ -158,7 +158,7 @@ func (h *Handlers) handleStorageUploadFile(c *gin.Context) {
 		return
 	}
 
-	response.SuccessMsg(c, "uploaded", gin.H{
+	response.SuccessI18n(c, "storage.uploaded", gin.H{
 		"bucket": bucket,
 		"key":    key,
 		"size":   header.Size,
@@ -173,19 +173,19 @@ func (h *Handlers) handleStorageFileInfo(c *gin.Context) {
 	}
 	key := strings.TrimSpace(c.Query("key"))
 	if key == "" {
-		response.Fail(c, "缺少 key", "")
+		response.FailI18n(c, "storage.key_required", "")
 		return
 	}
 	info, err := m.GetFileInfo(strings.TrimSpace(c.Query("bucket")), key)
 	if err != nil {
 		if errors.Is(err, stores.ErrAttachmentNotExist) {
-			response.Fail(c, "对象不存在", err.Error())
+			response.FailI18n(c, "cloze.not_found", err.Error())
 			return
 		}
 		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", info)
+	response.SuccessI18n(c, "common.ok", info)
 }
 
 func (h *Handlers) handleStorageFileURL(c *gin.Context) {
@@ -195,7 +195,7 @@ func (h *Handlers) handleStorageFileURL(c *gin.Context) {
 	}
 	key := strings.TrimSpace(c.Query("key"))
 	if key == "" {
-		response.Fail(c, "缺少 key", "")
+		response.FailI18n(c, "storage.key_required", "")
 		return
 	}
 	sec := queryInt(c, "expires", 3600)
@@ -210,7 +210,7 @@ func (h *Handlers) handleStorageFileURL(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{"url": url, "expires": sec})
+	response.SuccessI18n(c, "common.ok", gin.H{"url": url, "expires": sec})
 }
 
 func (h *Handlers) handleStorageFileRaw(c *gin.Context) {
@@ -220,7 +220,7 @@ func (h *Handlers) handleStorageFileRaw(c *gin.Context) {
 	}
 	key := strings.TrimSpace(c.Query("key"))
 	if key == "" {
-		response.Fail(c, "缺少 key", "")
+		response.FailI18n(c, "storage.key_required", "")
 		return
 	}
 	bucket := strings.TrimSpace(c.Query("bucket"))
@@ -240,7 +240,7 @@ func (h *Handlers) handleStorageFileRaw(c *gin.Context) {
 		}
 	}
 	if !download && size > maxPreviewBytes {
-		response.Fail(c, "文件过大，无法在线预览", "")
+		response.FailI18n(c, "common.file_too_large", "")
 		return
 	}
 
@@ -254,7 +254,7 @@ func (h *Handlers) handleStorageFileRaw(c *gin.Context) {
 		size = n
 	}
 	if !download && size > maxPreviewBytes {
-		response.Fail(c, "文件过大，无法在线预览", "")
+		response.FailI18n(c, "common.file_too_large", "")
 		return
 	}
 
@@ -303,14 +303,14 @@ func (h *Handlers) handleStorageDeleteFile(c *gin.Context) {
 	}
 	key := strings.TrimSpace(c.Query("key"))
 	if key == "" {
-		response.Fail(c, "缺少 key", "")
+		response.FailI18n(c, "storage.key_required", "")
 		return
 	}
 	if err := m.DeleteFile(strings.TrimSpace(c.Query("bucket")), key); err != nil {
 		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
 		return
 	}
-	response.SuccessMsg(c, "deleted", gin.H{"key": key})
+	response.SuccessI18n(c, "common.deleted", gin.H{"key": key})
 }
 
 type storageBatchDeleteReq struct {
@@ -326,12 +326,12 @@ func (h *Handlers) handleStorageBatchDelete(c *gin.Context) {
 	}
 	var req storageBatchDeleteReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err.Error())
+		response.FailI18n(c, "common.invalid_params", err.Error())
 		return
 	}
 	bucket := strings.TrimSpace(req.Bucket)
 	if len(req.Keys) == 0 && len(req.Prefixes) == 0 {
-		response.Fail(c, "缺少 keys 或 prefixes", "")
+		response.FailI18n(c, "storage.keys_or_prefixes_required", "")
 		return
 	}
 
@@ -361,7 +361,7 @@ func (h *Handlers) handleStorageBatchDelete(c *gin.Context) {
 	}
 
 	if len(keySet) == 0 {
-		response.SuccessMsg(c, "deleted", gin.H{"deleted": 0, "failed": 0})
+		response.SuccessI18n(c, "common.deleted", gin.H{"deleted": 0, "failed": 0})
 		return
 	}
 
@@ -373,7 +373,7 @@ func (h *Handlers) handleStorageBatchDelete(c *gin.Context) {
 		}
 		deleted++
 	}
-	response.SuccessMsg(c, "deleted", gin.H{"deleted": deleted, "failed": failed})
+	response.SuccessI18n(c, "common.deleted", gin.H{"deleted": deleted, "failed": failed})
 }
 
 func normalizeStoragePrefixes(prefixes []string) []string {
@@ -446,7 +446,7 @@ func queryInt(c *gin.Context, name string, fallback int) int {
 func requireStatsProvider(c *gin.Context) stores.StorageStatsProvider {
 	p := stores.DefaultStatsProvider()
 	if p == nil {
-		response.Fail(c, "当前对象存储后端不支持统计接口", "")
+		response.FailI18n(c, "storage.no_stats_api", "")
 		return nil
 	}
 	return p
@@ -549,7 +549,7 @@ func (h *Handlers) handleStorageBucketStats(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", stats)
+	response.SuccessI18n(c, "common.ok", stats)
 }
 
 // handleStorageCDNStats GET /admin/storage/stats/cdn?bucket=&domains=&start=&end=&granularity=
@@ -560,7 +560,7 @@ func (h *Handlers) handleStorageCDNStats(c *gin.Context) {
 	}
 	tr, err := parseTimeRange(c)
 	if err != nil {
-		response.Fail(c, "参数错误", err.Error())
+		response.FailI18n(c, "common.invalid_params", err.Error())
 		return
 	}
 	domainList := resolveDomains(c)
@@ -574,7 +574,7 @@ func (h *Handlers) handleStorageCDNStats(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", resp)
+	response.SuccessI18n(c, "common.ok", resp)
 }
 
 // handleStorageAPIStats GET /admin/storage/stats/api?bucket=&start=&end=&granularity=
@@ -585,7 +585,7 @@ func (h *Handlers) handleStorageAPIStats(c *gin.Context) {
 	}
 	tr, err := parseTimeRange(c)
 	if err != nil {
-		response.Fail(c, "参数错误", err.Error())
+		response.FailI18n(c, "common.invalid_params", err.Error())
 		return
 	}
 	resp, err := p.GetAPIRequestStats(&lbstores.APIStatsRequest{
@@ -597,7 +597,7 @@ func (h *Handlers) handleStorageAPIStats(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", resp)
+	response.SuccessI18n(c, "common.ok", resp)
 }
 
 // handleStorageOriginStats GET /admin/storage/stats/origin?bucket=&domains=&start=&end=&granularity=
@@ -608,7 +608,7 @@ func (h *Handlers) handleStorageOriginStats(c *gin.Context) {
 	}
 	tr, err := parseTimeRange(c)
 	if err != nil {
-		response.Fail(c, "参数错误", err.Error())
+		response.FailI18n(c, "common.invalid_params", err.Error())
 		return
 	}
 	domainList := resolveDomains(c)
@@ -622,5 +622,5 @@ func (h *Handlers) handleStorageOriginStats(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusBadGateway, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", resp)
+	response.SuccessI18n(c, "common.ok", resp)
 }

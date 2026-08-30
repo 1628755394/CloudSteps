@@ -111,7 +111,7 @@ func (h *Handlers) handleUserLogout(c *gin.Context) {
 		c.Redirect(http.StatusFound, next)
 		return
 	}
-	response.SuccessMsg(c, "Logout Success", nil)
+	response.SuccessI18n(c, "auth.logout_success", nil)
 }
 
 // handleUserDeactivateAccount POST /auth/deactivate — 用户自助注销账号。
@@ -119,11 +119,11 @@ func (h *Handlers) handleUserDeactivateAccount(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "未登录", errors.New("unauthorized"))
+		response.FailI18n(c, "common.login_required", errors.New("unauthorized"))
 		return
 	}
 	if user.IsAdmin() {
-		response.Fail(c, "管理员账号请在后台操作", errors.New("admin cannot self-deactivate"))
+		response.FailI18n(c, "auth.admin_cannot_deactivate", errors.New("admin cannot self-deactivate"))
 		return
 	}
 
@@ -135,12 +135,12 @@ func (h *Handlers) handleUserDeactivateAccount(c *gin.Context) {
 		errDelete = models.SoftDeleteUser(db, user.ID, operator)
 	}
 	if errDelete != nil {
-		response.Fail(c, "注销失败", errDelete)
+		response.FailI18n(c, "common.deactivate_failed", errDelete)
 		return
 	}
 
 	models.Logout(c, user)
-	response.SuccessMsg(c, "账号已注销", nil)
+	response.SuccessI18n(c, "common.deactivated", nil)
 }
 
 // handleUserInfo handle user info
@@ -161,7 +161,7 @@ func (h *Handlers) handleUserInfo(c *gin.Context) {
 		}
 	}
 	models.FillProfileComplete(user)
-	response.SuccessMsg(c, "success", user)
+	response.SuccessI18n(c, "common.success", user)
 }
 
 // handleUserSigninByUsername handle user signin by username
@@ -175,7 +175,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 		form.Username = form.Email
 	}
 	if err := utils.PrepareEmailCodeLogin(&form); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(utils.AbortMessage(err)))
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	clientIP := c.ClientIP()
@@ -185,13 +185,13 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	// 1. 图形验证码验证
 	if captcha.GlobalManager != nil {
 		if form.CaptchaID == "" || form.CaptchaType == "" {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
+			response.FailI18n(c, "common.captcha_required", nil)
 			return
 		}
 
 		err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
 		if err != nil {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
+			response.FailI18n(c, "common.captcha_invalid", nil)
 			return
 		}
 	}
@@ -199,7 +199,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	// 2. 获取用户
 	user, err := models.GetUserByUsername(db, form.Username)
 	if err != nil {
-		response.Fail(c, "user not exists", errors.New("user not exists"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not exists"))
 		return
 	}
 
@@ -207,7 +207,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	// 从缓存中获取验证码
 	cachedCode, errCache := h.cache.Get(context.Background(), form.Username)
 	if errCache != nil || cachedCode != form.Code {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("invalid verification code"))
+		response.FailI18n(c, "common.captcha_invalid", nil)
 		return
 	}
 
@@ -287,7 +287,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 		},
 	}
 
-	response.SuccessMsg(c, "login success", responseData)
+	response.SuccessI18n(c, "auth.login_success", responseData)
 }
 
 // handleUserSigninByEmail 邮箱验证码登录（账号即 users.username，通常为邮箱）。
@@ -300,7 +300,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	var form models.LoginForm
 	if err := c.BindJSON(&form); err != nil {
 		logger.Error("Failed to bind login form", zap.Error(err))
-		response.Fail(c, "login failed", err)
+		response.FailI18n(c, "auth.login_failed", err)
 		return
 	}
 	if form.Username == "" && form.Email != "" {
@@ -308,7 +308,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	}
 	if form.AuthToken == "" {
 		if err := utils.PreparePasswordLogin(&form); err != nil {
-			response.Fail(c, utils.AbortMessage(err), err)
+			response.FailI18n(c, "common.operation_failed", err)
 			return
 		}
 	}
@@ -324,7 +324,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 		user, err = models.GetUserByLoginAccount(db, form.Username)
 		if err != nil {
 			logger.Warn("Login attempt with non-existent account", zap.String("account", form.Username), zap.String("ip", clientIP), zap.Error(err))
-			response.Fail(c, "用户不存在，请检查用户名或邮箱", nil)
+			response.FailI18n(c, "auth.user_not_found", nil)
 			return
 		}
 
@@ -332,14 +332,14 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 		if captcha.GlobalManager != nil {
 			if form.CaptchaID == "" || form.CaptchaType == "" {
 				logger.Warn("Login failed: captcha is required", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
-				response.Fail(c, "请输入图形验证码", nil)
+				response.FailI18n(c, "common.captcha_required", nil)
 				return
 			}
 
 			err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
 			if err != nil {
 				logger.Warn("Login failed: invalid captcha code", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP), zap.String("captchaID", form.CaptchaID), zap.Error(err))
-				response.Fail(c, "验证码错误，请重新输入", nil)
+				response.FailI18n(c, "common.captcha_invalid", nil)
 				return
 			}
 		}
@@ -362,14 +362,14 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 
 		if !passwordValid {
 			logger.Warn("Login failed: incorrect password", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
-			response.Fail(c, "密码错误，请检查后重试", nil)
+			response.FailI18n(c, "common.password_incorrect", nil)
 			return
 		}
 	} else {
 		user, err = models.DecodeHashToken(db, form.AuthToken, false)
 		if err != nil {
 			logger.Warn("Login failed: invalid auth token", zap.String("ip", clientIP), zap.Error(err))
-			response.Fail(c, "login failed", err)
+			response.FailI18n(c, "auth.login_failed", err)
 			return
 		}
 	}
@@ -377,7 +377,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	err = models.CheckUserAllowLogin(db, user)
 	if err != nil {
 		logger.Warn("Login failed: user not allowed to login", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP), zap.Error(err))
-		response.Fail(c, "user no authorization to login", err)
+		response.FailI18n(c, "auth.no_login_authorization", err)
 		return
 	}
 
@@ -447,7 +447,7 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	}
 
 	logger.Info("Login successful", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
-	response.SuccessMsg(c, "login successful", responseData)
+	response.SuccessI18n(c, "auth.login_success", responseData)
 }
 
 // handleUserSignup handle user signup
@@ -461,7 +461,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	clientIP := c.ClientIP()
 
 	if err := utils.PreparePasswordRegister(&form); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(utils.AbortMessage(err)))
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 
@@ -471,7 +471,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "captcha required")
 			}
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
+			response.FailI18n(c, "common.captcha_required", nil)
 			return
 		}
 
@@ -480,7 +480,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid captcha")
 			}
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
+			response.FailI18n(c, "common.captcha_invalid", nil)
 			return
 		}
 	}
@@ -503,7 +503,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "username already exists")
 		}
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("username has exists"))
+		response.FailI18n(c, "auth.username_exists", nil)
 		return
 	}
 
@@ -568,7 +568,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 		return
 	}
 	models.Login(c, user)
-	response.SuccessMsg(c, "signup success", gin.H{
+	response.SuccessI18n(c, "auth.register_success", gin.H{
 		"username": user.Username,
 		"email":    user.Email,
 	})
@@ -585,7 +585,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	clientIP := c.ClientIP()
 
 	if err := utils.PrepareEmailRegister(&form); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(utils.AbortMessage(err)))
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 
@@ -595,7 +595,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "captcha required")
 			}
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
+			response.FailI18n(c, "common.captcha_required", nil)
 			return
 		}
 
@@ -604,7 +604,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid captcha")
 			}
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
+			response.FailI18n(c, "common.captcha_invalid", nil)
 			return
 		}
 	}
@@ -627,7 +627,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "username already exists")
 		}
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("username has exists"))
+		response.FailI18n(c, "auth.username_exists", nil)
 		return
 	}
 	// 从缓存中获取验证码（假设你使用的是 util.GlobalCache）
@@ -637,7 +637,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid verification code")
 		}
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("invalid verification code"))
+		response.FailI18n(c, "common.captcha_invalid", nil)
 		return
 	}
 
@@ -692,14 +692,14 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	}
 	common.Sig().Emit(constants.SigUserCreate, user, db)
 	sendHashMail(db, user, constants.SigUserVerifyEmail, constants.KEY_VERIFY_EMAIL_EXPIRED, "180d", c.ClientIP(), c.Request.UserAgent(), h.configStore)
-	response.SuccessMsg(c, "signup success", user)
+	response.SuccessI18n(c, "auth.register_success", user)
 }
 
 // handleUserUpdate Update User Info
 func (h *Handlers) handleUserUpdate(c *gin.Context) {
 	var req models.UpdateUserRequest
 	if err := c.ShouldBind(&req); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 
@@ -715,7 +715,7 @@ func (h *Handlers) handleUserUpdate(c *gin.Context) {
 	if req.Email != "" {
 		email := strings.ToLower(strings.TrimSpace(req.Email))
 		if email != "" && models.IsExistsByEmail(h.db, email, user.ID) {
-			response.Fail(c, "该邮箱已被其他账号绑定", errors.New("email already bound"))
+			response.FailI18n(c, "auth.email_already_bound_other", errors.New("email already bound"))
 			return
 		}
 		vals["email"] = email
@@ -750,14 +750,14 @@ func (h *Handlers) handleUserUpdate(c *gin.Context) {
 
 	err := models.UpdateUser(h.db, user, vals)
 	if err != nil {
-		response.Fail(c, "update user failed", err)
+		response.FailI18n(c, "auth.update_user_failed", err)
 		return
 	}
 
 	// 重新获取更新后的用户信息
 	updatedUser, err := models.GetUserByUID(h.db, user.ID)
 	if err != nil {
-		response.Fail(c, "failed to get updated user", err)
+		response.FailI18n(c, "auth.get_updated_user_failed", err)
 		return
 	}
 
@@ -765,14 +765,14 @@ func (h *Handlers) handleUserUpdate(c *gin.Context) {
 	if err := models.UpdateProfileComplete(h.db, updatedUser); err != nil {
 		logger.Warn("Failed to update profile complete", zap.Error(err))
 	}
-	response.SuccessMsg(c, "update user success", updatedUser)
+	response.SuccessI18n(c, "auth.update_user_success", updatedUser)
 }
 
 // handleUserUpdate Update User Info
 func (h *Handlers) handleUserUpdateBasicInfo(c *gin.Context) {
 	var req models.UserBasicInfoUpdate
 	if err := c.ShouldBind(&req); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 	user := middleware.CurrentUser(c)
@@ -792,10 +792,10 @@ func (h *Handlers) handleUserUpdateBasicInfo(c *gin.Context) {
 	}
 	err := models.UpdateUser(h.db, user, vals)
 	if err != nil {
-		response.Fail(c, "update user failed", err)
+		response.FailI18n(c, "auth.update_user_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "handle update user success", nil)
+	response.SuccessI18n(c, "auth.update_user_success", nil)
 }
 
 func (h *Handlers) handleUserUpdatePreferences(c *gin.Context) {
@@ -805,7 +805,7 @@ func (h *Handlers) handleUserUpdatePreferences(c *gin.Context) {
 		ReviewCurvePreset     *string `json:"reviewCurvePreset"`
 	}
 	if err := c.ShouldBindJSON(&preferences); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 
@@ -820,16 +820,16 @@ func (h *Handlers) handleUserUpdatePreferences(c *gin.Context) {
 		vals["review_curve_preset"] = string(models.NormalizeReviewCurvePreset(*preferences.ReviewCurvePreset))
 	}
 	if len(vals) == 0 {
-		response.SuccessMsg(c, "No preferences changed", nil)
+		response.SuccessI18n(c, "auth.no_preferences_changed", nil)
 		return
 	}
 
 	user := middleware.CurrentUser(c)
 	if err := models.UpdateUser(h.db, user, vals); err != nil {
-		response.Fail(c, "update user failed", err)
+		response.FailI18n(c, "auth.update_user_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "Update user preferences successfully", nil)
+	response.SuccessI18n(c, "auth.preferences_updated", nil)
 }
 
 // handleChangePassword 修改密码
@@ -844,7 +844,7 @@ func (h *Handlers) handleChangePassword(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&form); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 
@@ -856,36 +856,36 @@ func (h *Handlers) handleChangePassword(c *gin.Context) {
 
 	// 校验必填与确认密码一致
 	if oldPassword == "" {
-		response.Fail(c, "Old password is required", errors.New("old password is required"))
+		response.FailI18n(c, "auth.old_password_required", errors.New("old password is required"))
 		return
 	}
 	if form.NewPassword == "" {
-		response.Fail(c, "New password is required", errors.New("new password is required"))
+		response.FailI18n(c, "auth.new_password_required", errors.New("new password is required"))
 		return
 	}
 	if len(form.NewPassword) < 6 {
-		response.Fail(c, "New password must be at least 6 characters", errors.New("password too short"))
+		response.FailI18n(c, "auth.password_too_short", errors.New("password too short"))
 		return
 	}
 	if form.ConfirmPassword != "" && form.ConfirmPassword != form.NewPassword {
-		response.Fail(c, "Confirm password does not match", errors.New("confirm password mismatch"))
+		response.FailI18n(c, "auth.confirm_password_mismatch", errors.New("confirm password mismatch"))
 		return
 	}
 
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
 	if err := models.ChangePassword(h.db, user, oldPassword, form.NewPassword); err != nil {
-		response.Fail(c, "Change password failed", err)
+		response.FailI18n(c, "auth.password_change_failed", err)
 		return
 	}
 
 	// 修改密码成功后强制下线，要求重新登录
 	models.Logout(c, user)
-	response.SuccessMsg(c, "Password changed successfully", map[string]any{"logout": true})
+	response.SuccessI18n(c, "auth.password_changed", map[string]any{"logout": true})
 }
 
 // handleChangePasswordByUsername 通过用户名验证码修改密码
@@ -897,33 +897,33 @@ func (h *Handlers) handleChangePasswordByEmail(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&form); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 
 	// 校验必填与确认密码一致
 	if form.NewPassword == "" {
-		response.Fail(c, "新密码不能为空", errors.New("new password is required"))
+		response.FailI18n(c, "common.new_password_required", errors.New("new password is required"))
 		return
 	}
 	if len(form.NewPassword) < 6 {
-		response.Fail(c, "新密码至少需要6个字符", errors.New("password too short"))
+		response.FailI18n(c, "common.password_too_short", errors.New("password too short"))
 		return
 	}
 	if form.ConfirmPassword != "" && form.ConfirmPassword != form.NewPassword {
-		response.Fail(c, "确认密码不匹配", errors.New("confirm password mismatch"))
+		response.FailI18n(c, "common.confirm_password_mismatch", errors.New("confirm password mismatch"))
 		return
 	}
 
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "用户未找到", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
 	// 验证用户名验证码
 	if form.UsernameCode == "" {
-		response.Fail(c, "用户名验证码不能为空", errors.New("username code is required"))
+		response.FailI18n(c, "auth.username_code_required", errors.New("username code is required"))
 		return
 	}
 
@@ -931,7 +931,7 @@ func (h *Handlers) handleChangePasswordByEmail(c *gin.Context) {
 	cachedCode, errCache := h.cache.Get(context.Background(), user.Username)
 	ok := errCache == nil
 	if !ok || cachedCode != form.UsernameCode {
-		response.Fail(c, "用户名验证码无效或已过期", errors.New("invalid or expired username code"))
+		response.FailI18n(c, "auth.username_code_invalid", errors.New("invalid or expired username code"))
 		return
 	}
 
@@ -941,7 +941,7 @@ func (h *Handlers) handleChangePasswordByEmail(c *gin.Context) {
 	// 设置新密码（不验证旧密码）
 	err := models.SetPassword(h.db, user, form.NewPassword)
 	if err != nil {
-		response.Fail(c, "密码修改失败", err)
+		response.FailI18n(c, "common.password_change_failed", err)
 		return
 	}
 
@@ -951,7 +951,7 @@ func (h *Handlers) handleChangePasswordByEmail(c *gin.Context) {
 		"LastPasswordChange": &now,
 	})
 	if err != nil {
-		response.Fail(c, "更新密码修改时间失败", err)
+		response.FailI18n(c, "auth.password_time_update_failed", err)
 		return
 	}
 
@@ -959,7 +959,7 @@ func (h *Handlers) handleChangePasswordByEmail(c *gin.Context) {
 
 	// 修改密码成功后强制下线，要求重新登录
 	models.Logout(c, user)
-	response.SuccessMsg(c, "密码修改成功", map[string]any{"logout": true})
+	response.SuccessI18n(c, "common.password_changed", map[string]any{"logout": true})
 }
 
 // handleResetPassword 重置密码请求
@@ -969,26 +969,26 @@ func (h *Handlers) handleResetPassword(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&form); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 
 	user, err := models.GetUserByUsername(h.db, form.Username)
 	if err != nil {
-		response.SuccessMsg(c, "If the username exists, a reset link has been sent", nil)
+		response.SuccessI18n(c, "auth.reset_link_sent", nil)
 		return
 	}
 
 	token, err := models.GeneratePasswordResetToken(h.db, user)
 	if err != nil {
-		response.Fail(c, "Failed to generate reset token", err)
+		response.FailI18n(c, "auth.generate_reset_token_failed", err)
 		return
 	}
 
 	// 发射密码重置信号
 	common.Sig().Emit(constants.SigUserResetPassword, user, token, c.ClientIP(), c.Request.UserAgent(), h.db)
 
-	response.SuccessMsg(c, "If the email exists, a reset link has been sent", nil)
+	response.SuccessI18n(c, "auth.reset_link_sent", nil)
 }
 
 // handleResetPasswordConfirm 确认重置密码
@@ -999,35 +999,35 @@ func (h *Handlers) handleResetPasswordConfirm(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&form); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 
 	user, err := models.VerifyPasswordResetToken(h.db, form.Token)
 	if err != nil {
-		response.Fail(c, "Invalid or expired token", err)
+		response.FailI18n(c, "auth.invalid_token", err)
 		return
 	}
 
 	err = models.ResetPassword(h.db, user, form.Password)
 	if err != nil {
-		response.Fail(c, "Reset password failed", err)
+		response.FailI18n(c, "auth.password_reset_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "Password reset successfully", nil)
+	response.SuccessI18n(c, "auth.password_reset", nil)
 }
 
 // handleVerifyEmail 验证邮箱 - 已移除邮箱功能
 func (h *Handlers) handleVerifyEmail(c *gin.Context) {
-	response.Fail(c, "Email verification has been disabled", errors.New("email verification is no longer supported"))
+	response.FailI18n(c, "auth.email_verification_disabled", errors.New("email verification is no longer supported"))
 }
 
 // handleSendEmailVerification 发送邮箱验证邮件 - 已移除邮箱功能
 func (h *Handlers) handleSendEmailVerification(c *gin.Context) {
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
@@ -1035,7 +1035,7 @@ func (h *Handlers) handleSendEmailVerification(c *gin.Context) {
 		zap.Uint("userId", user.ID),
 		zap.String("username", user.Username))
 
-	response.Fail(c, "Email verification has been disabled", errors.New("email verification is no longer supported"))
+	response.FailI18n(c, "auth.email_verification_disabled", errors.New("email verification is no longer supported"))
 }
 
 // handleSendBindEmailCode 发送绑定邮箱验证码（6 位数字，缓存 5 分钟）。
@@ -1045,24 +1045,24 @@ func (h *Handlers) handleSendBindEmailCode(c *gin.Context) {
 		Email string `json:"email" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	if err := utils.PrepareSendEmailCode(&models.SendEmailVerifyEmail{Email: email}); err != nil {
-		response.Fail(c, utils.AbortMessage(err), err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
 	// 同一邮箱不能被其他用户绑定
 	if models.IsExistsByEmail(h.db, email, user.ID) {
-		response.Fail(c, "该邮箱已被其他账号绑定", errors.New("email already bound"))
+		response.FailI18n(c, "auth.email_already_bound_other", errors.New("email already bound"))
 		return
 	}
 
@@ -1076,7 +1076,7 @@ func (h *Handlers) handleSendBindEmailCode(c *gin.Context) {
 			logger.Warn("send bind-email code failed", zap.String("email", email), zap.Error(err))
 		}
 	}()
-	response.SuccessMsg(c, "success", "验证码已发送，请在 5 分钟内完成验证")
+	response.SuccessI18n(c, "common.success", "验证码已发送，请在 5 分钟内完成验证")
 }
 
 // handleBindEmail 绑定/换绑邮箱（验证码校验通过后写入 user.email）。
@@ -1086,29 +1086,29 @@ func (h *Handlers) handleBindEmail(c *gin.Context) {
 		Code  string `json:"code" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&form); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 	email := strings.ToLower(strings.TrimSpace(form.Email))
 	code := strings.TrimSpace(form.Code)
 	if err := utils.PrepareSendEmailCode(&models.SendEmailVerifyEmail{Email: email}); err != nil {
-		response.Fail(c, utils.AbortMessage(err), err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	if code == "" {
-		response.Fail(c, "请输入验证码", errors.New("code is required"))
+		response.FailI18n(c, "common.captcha_required", errors.New("code is required"))
 		return
 	}
 
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
 	// 唯一性：一个邮箱只能绑定一个用户
 	if models.IsExistsByEmail(h.db, email, user.ID) {
-		response.Fail(c, "该邮箱已被其他账号绑定", errors.New("email already bound"))
+		response.FailI18n(c, "auth.email_already_bound_other", errors.New("email already bound"))
 		return
 	}
 
@@ -1116,14 +1116,14 @@ func (h *Handlers) handleBindEmail(c *gin.Context) {
 	cacheKey := "bind-email:" + email
 	cachedCode, errCache := h.cache.Get(context.Background(), cacheKey)
 	if errCache != nil || cachedCode != code {
-		response.Fail(c, "验证码无效或已过期", errors.New("invalid or expired code"))
+		response.FailI18n(c, "common.captcha_invalid", errors.New("invalid or expired code"))
 		return
 	}
 	h.cache.Delete(context.Background(), cacheKey)
 
 	oldEmail := user.Email
 	if err := models.SetEmail(h.db, user, email); err != nil {
-		response.Fail(c, "绑定邮箱失败", err)
+		response.FailI18n(c, "common.bind_email_failed", err)
 		return
 	}
 
@@ -1132,7 +1132,7 @@ func (h *Handlers) handleBindEmail(c *gin.Context) {
 		common.Sig().Emit(constants.SigUserChangeEmailDone, user, oldEmail, email)
 	}
 
-	response.SuccessMsg(c, "绑定成功", gin.H{"email": user.Email})
+	response.SuccessI18n(c, "common.bind_success", gin.H{"email": user.Email})
 }
 
 // handleGetSalt 获取随机盐（用于密码加密）
@@ -1148,7 +1148,7 @@ func (h *Handlers) handleGetSalt(c *gin.Context) {
 		h.cache.Set(context.Background(), key, timestamp, 0)
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"salt":      salt,
 		"timestamp": timestamp,
 		"expiresIn": expiresIn,
@@ -1160,23 +1160,23 @@ func (h *Handlers) handleUpdateNotificationSettings(c *gin.Context) {
 	var settings map[string]bool
 
 	if err := c.ShouldBindJSON(&settings); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
 	err := models.UpdateNotificationSettings(h.db, user, settings)
 	if err != nil {
-		response.Fail(c, "Update notification settings failed", err)
+		response.FailI18n(c, "auth.notification_settings_update_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "Notification settings updated successfully", nil)
+	response.SuccessI18n(c, "auth.notification_settings_updated", nil)
 }
 
 // handleUpdateUserPreferences 更新用户偏好设置
@@ -1184,19 +1184,19 @@ func (h *Handlers) handleUpdateUserPreferences(c *gin.Context) {
 	var preferences map[string]string
 
 	if err := c.ShouldBindJSON(&preferences); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
 	err := models.UpdatePreferences(h.db, user, preferences)
 	if err != nil {
-		response.Fail(c, "Update preferences failed", err)
+		response.FailI18n(c, "auth.preferences_update_failed", err)
 		return
 	}
 
@@ -1206,14 +1206,14 @@ func (h *Handlers) handleUpdateUserPreferences(c *gin.Context) {
 		logger.Warn("Failed to update profile complete", zap.Error(err))
 	}
 
-	response.SuccessMsg(c, "Preferences updated successfully", nil)
+	response.SuccessI18n(c, "auth.preferences_updated", nil)
 }
 
 // handleGetUserStats 获取用户统计信息
 func (h *Handlers) handleGetUserStats(c *gin.Context) {
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
@@ -1225,33 +1225,33 @@ func (h *Handlers) handleGetUserStats(c *gin.Context) {
 		"createdAt":          user.CreatedAt,
 	}
 
-	response.SuccessMsg(c, "User stats retrieved successfully", stats)
+	response.SuccessI18n(c, "auth.stats_retrieved", stats)
 }
 
 // handleUploadAvatar 处理用户头像上传（服务端校验大小并统一压缩为 JPEG）
 func (h *Handlers) handleUploadAvatar(c *gin.Context) {
 	user := middleware.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
 	file, header, err := c.Request.FormFile("avatar")
 	if err != nil {
-		response.Fail(c, "请选择要上传的图片", err)
+		response.FailI18n(c, "storage.select_image", err)
 		return
 	}
 	defer file.Close()
 
 	// 先按声明大小快速拒绝（实际还会 LimitReader 再验一次）
 	if header.Size > utils.AvatarMaxUploadBytes {
-		response.Fail(c, fmt.Sprintf("图片过大，请选择不超过 %dMB 的图片", utils.AvatarMaxUploadBytes>>20), errors.New("file too large"))
+		response.FailI18n(c, "auth.avatar_too_large", nil, utils.AvatarMaxUploadBytes>>20)
 		return
 	}
 
 	processed, err := utils.ProcessAvatarImage(file, header.Size)
 	if err != nil {
-		response.Fail(c, err.Error(), err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 
@@ -1263,7 +1263,7 @@ func (h *Handlers) handleUploadAvatar(c *gin.Context) {
 			zap.String("kind", stores.DefaultStoreKind),
 			zap.Error(err),
 		)
-		response.Fail(c, "头像上传失败，请稍后重试", err.Error())
+		response.FailI18n(c, "auth.avatar_upload_failed", err.Error())
 		return
 	}
 
@@ -1282,7 +1282,7 @@ func (h *Handlers) handleUploadAvatar(c *gin.Context) {
 		"avatar": avatarURL,
 	})
 	if err != nil {
-		response.Fail(c, "更新头像失败", err)
+		response.FailI18n(c, "auth.avatar_update_failed", err)
 		return
 	}
 
@@ -1291,7 +1291,7 @@ func (h *Handlers) handleUploadAvatar(c *gin.Context) {
 		logger.Warn("Failed to update profile complete", zap.Error(err))
 	}
 
-	response.SuccessMsg(c, "头像上传成功", gin.H{
+	response.SuccessI18n(c, "auth.avatar_upload_success", gin.H{
 		"avatar": avatarRelativePath,
 		"width":  processed.Width,
 		"height": processed.Height,
@@ -1334,7 +1334,7 @@ func (h *Handlers) handleSendEmailCode(c *gin.Context) {
 		return
 	}
 	if err := utils.PrepareSendEmailCode(&req); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(utils.AbortMessage(err)))
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	req.UserAgent = c.Request.UserAgent()
@@ -1347,7 +1347,7 @@ func (h *Handlers) handleSendEmailCode(c *gin.Context) {
 			logger.Warn("send email code failed", zap.String("email", req.Email), zap.Error(err))
 		}
 	}()
-	response.SuccessMsg(c, "success", "Send Email Successful, Must be verified within the valid time [5 minutes]")
+	response.SuccessI18n(c, "common.success", "Send Email Successful, Must be verified within the valid time [5 minutes]")
 }
 
 // handleGetCaptcha 获取验证码（随机类型）
@@ -1355,10 +1355,10 @@ func (h *Handlers) handleGetCaptcha(c *gin.Context) {
 	mgr := captcha.EnsureGlobalManager()
 	capt, err := mgr.GenerateRandom()
 	if err != nil {
-		response.Fail(c, "Failed to generate captcha", err)
+		response.FailI18n(c, "auth.generate_captcha_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "Captcha generated", gin.H{
+	response.SuccessI18n(c, "common.captcha_generated", gin.H{
 		"id":   capt.ID,
 		"type": capt.Type,
 		"data": capt.Data,
@@ -1369,22 +1369,22 @@ func (h *Handlers) handleGetCaptcha(c *gin.Context) {
 func (h *Handlers) handleVerifyCaptcha(c *gin.Context) {
 	var req captcha.Payload
 	if err := c.BindJSON(&req); err != nil {
-		response.Fail(c, "Invalid request", err)
+		response.FailI18n(c, "msg.446b416d", err)
 		return
 	}
 
 	if err := captcha.ValidatePayload(req.ID, string(req.Type), req.Value); err != nil {
-		response.Fail(c, "Invalid captcha", err)
+		response.FailI18n(c, "msg.f08c2d84", err)
 		return
 	}
-	response.SuccessMsg(c, "Captcha verified", gin.H{"valid": true})
+	response.SuccessI18n(c, "common.captcha_verified", gin.H{"valid": true})
 }
 
 // handleGetUserActivity 获取用户活动记录
 func (h *Handlers) handleGetUserActivity(c *gin.Context) {
 	user, exists := c.Get(constants.UserField)
 	if !exists {
-		response.Fail(c, "User not found", errors.New("user not found"))
+		response.FailI18n(c, "auth.user_not_found", errors.New("user not found"))
 		return
 	}
 
@@ -1417,14 +1417,14 @@ func (h *Handlers) handleGetUserActivity(c *gin.Context) {
 	// 获取总数
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		response.Fail(c, "Failed to count activities", err)
+		response.FailI18n(c, "auth.count_activities_failed", err)
 		return
 	}
 
 	// 获取活动记录
 	var activities []middleware.OperationLog
 	if err := query.Order("created_at DESC").Limit(limitInt).Offset(offset).Find(&activities).Error; err != nil {
-		response.Fail(c, "Failed to get activities", err)
+		response.FailI18n(c, "auth.get_activities_failed", err)
 		return
 	}
 
@@ -1449,7 +1449,7 @@ func (h *Handlers) handleGetUserActivity(c *gin.Context) {
 		}
 	}
 
-	response.SuccessMsg(c, "Activities retrieved", gin.H{
+	response.SuccessI18n(c, "auth.activities_retrieved", gin.H{
 		"activities": activityList,
 		"pagination": gin.H{
 			"page":       pageInt,
@@ -1509,7 +1509,7 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 	var users []models.User
 	offset := (page - 1) * pageSize
 	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -1518,7 +1518,7 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 		items = append(items, serializeUser(&u))
 	}
 
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"users":    items,
 		"total":    total,
 		"page":     page,
@@ -1531,17 +1531,17 @@ func (h *Handlers) handleAdminGetUser(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		response.Fail(c, "invalid id", err)
+		response.FailI18n(c, "coaching.invalid_id", err)
 		return
 	}
 
 	var user models.User
 	// 允许查看已注销用户（详情面板需要展示已注销状态）
 	if err := db.Where("id = ?", id).First(&user).Error; err != nil {
-		response.Fail(c, "用户不存在", err)
+		response.FailI18n(c, "auth.user_not_found", err)
 		return
 	}
-	response.SuccessMsg(c, "ok", serializeUser(&user))
+	response.SuccessI18n(c, "common.ok", serializeUser(&user))
 }
 
 // POST /users
@@ -1559,19 +1559,19 @@ func (h *Handlers) handleAdminCreateUser(c *gin.Context) {
 		Email       string  `json:"email"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 
 	if models.IsExistsByUsername(db, req.Username) {
-		response.Fail(c, "用户名已存在", errors.New("username already exists"))
+		response.FailI18n(c, "auth.username_exists", errors.New("username already exists"))
 		return
 	}
 
 	// 邮箱唯一性校验
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	if email != "" && models.IsExistsByEmail(db, email) {
-		response.Fail(c, "该邮箱已被绑定", errors.New("email already bound"))
+		response.FailI18n(c, "auth.email_already_bound", errors.New("email already bound"))
 		return
 	}
 
@@ -1602,10 +1602,10 @@ func (h *Handlers) handleAdminCreateUser(c *gin.Context) {
 	}
 
 	if err := db.Create(&user).Error; err != nil {
-		response.Fail(c, "创建失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "创建成功", serializeUser(&user))
+	response.SuccessI18n(c, "common.created", serializeUser(&user))
 }
 
 // PUT /users/:id
@@ -1613,13 +1613,13 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		response.Fail(c, "invalid id", err)
+		response.FailI18n(c, "coaching.invalid_id", err)
 		return
 	}
 
 	var user models.User
 	if err := db.Where("id = ?", id).First(&user).Error; err != nil {
-		response.Fail(c, "用户不存在", err)
+		response.FailI18n(c, "auth.user_not_found", err)
 		return
 	}
 
@@ -1634,7 +1634,7 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 		Email       *string `json:"email"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 
@@ -1663,24 +1663,24 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 	if req.Email != nil {
 		email := strings.ToLower(strings.TrimSpace(*req.Email))
 		if email != "" && models.IsExistsByEmail(db, email, user.ID) {
-			response.Fail(c, "该邮箱已被其他账号绑定", errors.New("email already bound"))
+			response.FailI18n(c, "auth.email_already_bound_other", errors.New("email already bound"))
 			return
 		}
 		updates["email"] = email
 	}
 
 	if len(updates) == 0 {
-		response.SuccessMsg(c, "无变更", serializeUser(&user))
+		response.SuccessI18n(c, "common.no_changes", serializeUser(&user))
 		return
 	}
 
 	if err := db.Model(&user).Updates(updates).Error; err != nil {
-		response.Fail(c, "更新失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 
 	db.First(&user, id)
-	response.SuccessMsg(c, "更新成功", serializeUser(&user))
+	response.SuccessI18n(c, "common.updated", serializeUser(&user))
 }
 
 // DELETE /users/:id
@@ -1688,19 +1688,19 @@ func (h *Handlers) handleAdminDeleteUser(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		response.Fail(c, "invalid id", err)
+		response.FailI18n(c, "coaching.invalid_id", err)
 		return
 	}
 
 	currentUser := middleware.CurrentUser(c)
 	if currentUser != nil && uint(id) == currentUser.ID {
-		response.Fail(c, "不能删除自己", errors.New("cannot delete yourself"))
+		response.FailI18n(c, "auth.cannot_delete_self", errors.New("cannot delete yourself"))
 		return
 	}
 
 	var user models.User
 	if err := db.Where("id = ?", id).First(&user).Error; err != nil {
-		response.Fail(c, "用户不存在", err)
+		response.FailI18n(c, "auth.user_not_found", err)
 		return
 	}
 
@@ -1715,10 +1715,10 @@ func (h *Handlers) handleAdminDeleteUser(c *gin.Context) {
 		errDelete = models.SoftDeleteUser(db, user.ID, operator)
 	}
 	if errDelete != nil {
-		response.Fail(c, "注销失败", errDelete)
+		response.FailI18n(c, "common.deactivate_failed", errDelete)
 		return
 	}
-	response.SuccessMsg(c, "注销成功", nil)
+	response.SuccessI18n(c, "common.deactivated", nil)
 }
 
 // firstNonEmpty returns the first trimmed non-empty string.

@@ -133,13 +133,13 @@ func (h *Handlers) adminPurgeWordBookAudio(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	bookID, err := parseBookIDParam(c)
 	if err != nil || bookID == 0 {
-		response.Fail(c, "无效词库 ID", nil)
+		response.FailI18n(c, "wordbook.invalid_id", nil)
 		return
 	}
 	job := getWordBookPurgeJob(bookID)
 
 	if snap := job.snapshot(); snap["status"] == wordBookPurgeRunning || snap["status"] == wordBookPurgeQueued {
-		response.SuccessMsg(c, "任务进行中", snap)
+		response.SuccessI18n(c, "wordbook.job_running", snap)
 		return
 	}
 
@@ -147,11 +147,11 @@ func (h *Handlers) adminPurgeWordBookAudio(c *gin.Context) {
 	if err := db.Model(&models.Word{}).
 		Where("word_book_id = ? AND audio_url IS NOT NULL AND audio_url <> ''", bookID).
 		Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	if total == 0 {
-		response.SuccessMsg(c, "没有需要清除的音频", gin.H{
+		response.SuccessI18n(c, "wordbook.purge_empty", gin.H{
 			"bookId":  bookID,
 			"status":  wordBookPurgeDone,
 			"total":   0,
@@ -164,20 +164,20 @@ func (h *Handlers) adminPurgeWordBookAudio(c *gin.Context) {
 	out, err := enqueueWordBookPurgeAudio(bookID, int(total))
 	if err != nil {
 		if out != nil {
-			response.SuccessMsg(c, "任务进行中", out)
+			response.SuccessI18n(c, "wordbook.job_running", out)
 			return
 		}
-		response.Fail(c, err.Error(), nil)
+		response.FailI18n(c, "common.operation_failed", nil)
 		return
 	}
-	response.SuccessMsg(c, "已加入清除队列", out)
+	response.SuccessI18n(c, "wordbook.purge_queued", out)
 }
 
 // adminPurgeWordBookAudioStatus GET /wordbooks/:id/words/purge-all-audio
 func (h *Handlers) adminPurgeWordBookAudioStatus(c *gin.Context) {
 	bookID, err := parseBookIDParam(c)
 	if err != nil || bookID == 0 {
-		response.Fail(c, "无效词库 ID", nil)
+		response.FailI18n(c, "wordbook.invalid_id", nil)
 		return
 	}
 	job := getWordBookPurgeJob(bookID)
@@ -200,7 +200,7 @@ func (h *Handlers) adminPurgeWordBookAudioStatus(c *gin.Context) {
 			}
 		}
 	}
-	response.SuccessMsg(c, "success", out)
+	response.SuccessI18n(c, "common.success", out)
 }
 
 func runWordBookPurgeAudioJob(db *gorm.DB, bookID uint, job *wordBookPurgeAudioJob) {

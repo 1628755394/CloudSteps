@@ -57,30 +57,30 @@ func (h *Handlers) registerFeedbackRoutes(r *humax.Group) {
 func (h *Handlers) handleCreateFeedback(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	var req feedbackCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数无效", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	ticket, err := models.NewFeedbackTicket(user.ID, req.Content, req.Contact, strconv.FormatUint(uint64(user.ID), 10))
 	if err != nil {
-		response.Fail(c, feedbackErrMsg(err), err)
+		response.FailI18n(c, feedbackErrMsg(err), err)
 		return
 	}
 	if err := h.db.Create(ticket).Error; err != nil {
-		response.Fail(c, "提交失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已提交", toFeedbackTicketDTO(ticket, nil))
+	response.SuccessI18n(c, "common.submitted", toFeedbackTicketDTO(ticket, nil))
 }
 
 func (h *Handlers) handleListMyFeedback(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	page, pageSize := parsePageParams(c)
@@ -89,19 +89,19 @@ func (h *Handlers) handleListMyFeedback(c *gin.Context) {
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	var rows []models.FeedbackTicket
 	if err := q.Order("updated_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	list := make([]feedbackTicketDTO, 0, len(rows))
 	for i := range rows {
 		list = append(list, toFeedbackTicketDTO(&rows[i], nil))
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -112,7 +112,7 @@ func (h *Handlers) handleListMyFeedback(c *gin.Context) {
 func (h *Handlers) handleGetMyFeedback(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	ticket, ok := h.findOwnedFeedback(c, user.ID)
@@ -121,16 +121,16 @@ func (h *Handlers) handleGetMyFeedback(c *gin.Context) {
 	}
 	replies, err := loadFeedbackReplies(h.db, ticket.ID)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "ok", toFeedbackTicketDTO(ticket, replies))
+	response.SuccessI18n(c, "common.ok", toFeedbackTicketDTO(ticket, replies))
 }
 
 func (h *Handlers) handleReplyMyFeedback(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	ticket, ok := h.findOwnedFeedback(c, user.ID)
@@ -139,31 +139,31 @@ func (h *Handlers) handleReplyMyFeedback(c *gin.Context) {
 	}
 	var req feedbackReplyReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数无效", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	if _, err := appendFeedbackReply(h.db, ticket, user.ID, models.FeedbackRoleUser, req.Content, strconv.FormatUint(uint64(user.ID), 10)); err != nil {
-		response.Fail(c, feedbackErrMsg(err), err)
+		response.FailI18n(c, feedbackErrMsg(err), err)
 		return
 	}
 	replies, err := loadFeedbackReplies(h.db, ticket.ID)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已回复", toFeedbackTicketDTO(ticket, replies))
+	response.SuccessI18n(c, "msg.4bea887d", toFeedbackTicketDTO(ticket, replies))
 }
 
 func (h *Handlers) findOwnedFeedback(c *gin.Context, userID uint) (*models.FeedbackTicket, bool) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		response.Fail(c, "工单不存在", err)
+		response.FailI18n(c, "feedback.not_found", err)
 		return nil, false
 	}
 	var ticket models.FeedbackTicket
 	if err := h.db.Where("id = ? AND user_id = ?", id, userID).
 		First(&ticket).Error; err != nil {
-		response.Fail(c, "工单不存在", err)
+		response.FailI18n(c, "feedback.not_found", err)
 		return nil, false
 	}
 	return &ticket, true
@@ -238,20 +238,20 @@ func toFeedbackTicketDTO(ticket *models.FeedbackTicket, replies []models.Feedbac
 func feedbackErrMsg(err error) string {
 	switch {
 	case errors.Is(err, models.ErrFeedbackClosed):
-		return "工单已关闭，无法继续回复"
+		return "feedback.closed"
 	case errors.Is(err, models.ErrFeedbackContentInvalid):
-		return "请填写 4～2000 字的内容"
+		return "feedback.content_invalid"
 	case errors.Is(err, models.ErrFeedbackContactInvalid):
-		return "联系方式过长"
+		return "feedback.contact_invalid"
 	default:
-		return "操作失败"
+		return "common.operation_failed"
 	}
 }
 
 func parseFeedbackID(c *gin.Context) (uint, bool) {
 	id, err := strconv.ParseUint(strings.TrimSpace(c.Param("id")), 10, 64)
 	if err != nil || id == 0 {
-		response.Fail(c, "工单不存在", err)
+		response.FailI18n(c, "feedback.not_found", err)
 		return 0, false
 	}
 	return uint(id), true

@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"errors"
 	"fmt"
 
 	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"github.com/LingByte/ling-base/apidocs/humax"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
 
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -71,23 +69,23 @@ func (h *Handlers) handleScenarioVoiceWS(c *gin.Context) {
 	}
 	userID, sessionID, ok := voice.ParseDeviceSessionID(deviceID)
 	if !ok {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效的 device-id"))
+		response.FailI18n(c, "msg.78bbeb34", nil)
 		return
 	}
 
 	var sess models.ScenarioDialogueSession
 	if err := h.db.Where("id = ? AND user_id = ?", sessionID, userID).First(&sess).Error; err != nil {
-		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("会话不存在"))
+		response.FailI18n(c, "coaching.session_not_found", nil)
 		return
 	}
 	if sess.Status == models.ScenarioSessionStatusCompleted {
-		response.AbortWithStatusJSON(c, http.StatusGone, errors.New("会话已结束"))
+		response.FailI18n(c, "coaching.session_ended", nil)
 		return
 	}
 
 	ready := voice.CheckReady()
 	if !ready.Ready {
-		response.AbortWithStatusJSON(c, http.StatusServiceUnavailable, errors.New(ready.Hint))
+		response.FailI18n(c, "scenario.unavailable", gin.H{"hint": ready.Hint})
 		return
 	}
 
@@ -102,17 +100,17 @@ func (h *Handlers) handleVoiceReady(c *gin.Context) {
 	if voice.GetLastInitError() != "" && !status.Ready {
 		status.Hint = voice.GetLastInitError()
 	}
-	response.SuccessMsg(c, "ok", status)
+	response.SuccessI18n(c, "common.ok", status)
 }
 
 func (h *Handlers) handleListScenarios(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var scenarios []models.ScenarioDialogueScenario
 	if err := db.Where("enabled = ?", true).Order("sort_order asc, id asc").Find(&scenarios).Error; err != nil {
-		response.Fail(c, "获取场景列表失败", nil)
+		response.FailI18n(c, "scenario.list_failed", nil)
 		return
 	}
-	response.SuccessMsg(c, "ok", scenarios)
+	response.SuccessI18n(c, "common.ok", scenarios)
 }
 
 type startSessionReq struct {
@@ -123,19 +121,19 @@ func (h *Handlers) handleStartScenarioSession(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
 	var req startSessionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", nil)
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
 	var scenario models.ScenarioDialogueScenario
 	if err := db.Where("id = ? AND enabled = ?", req.ScenarioID, true).First(&scenario).Error; err != nil {
-		response.Fail(c, "场景不存在", nil)
+		response.FailI18n(c, "scenario.not_found", nil)
 		return
 	}
 
@@ -145,7 +143,7 @@ func (h *Handlers) handleStartScenarioSession(c *gin.Context) {
 		Status:     models.ScenarioSessionStatusPending,
 	}
 	if err := db.Create(&sess).Error; err != nil {
-		response.Fail(c, "创建会话失败", nil)
+		response.FailI18n(c, "coaching.create_session_failed", nil)
 		return
 	}
 
@@ -168,7 +166,7 @@ func (h *Handlers) handleStartScenarioSession(c *gin.Context) {
 	wsPath := fmt.Sprintf("%s/voice/realtime/?device-id=%s", apiPrefix, deviceID)
 
 	voiceReady := voice.CheckReady()
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"sessionId":  sess.ID,
 		"deviceId":   deviceID,
 		"wsPath":     wsPath,
@@ -181,7 +179,7 @@ func (h *Handlers) handleGetScenarioSession(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -190,18 +188,18 @@ func (h *Handlers) handleGetScenarioSession(c *gin.Context) {
 	if err := db.Preload("Scenario").Preload("Turns", func(tx *gorm.DB) *gorm.DB {
 		return tx.Order("turn_index asc")
 	}).Where("id = ? AND user_id = ?", id, user.ID).First(&sess).Error; err != nil {
-		response.Fail(c, "会话不存在", nil)
+		response.FailI18n(c, "coaching.session_not_found", nil)
 		return
 	}
 	sess.Turns = voice.DedupeTurns(sess.Turns)
-	response.SuccessMsg(c, "ok", sessionWithDetail(sess))
+	response.SuccessI18n(c, "common.ok", sessionWithDetail(sess))
 }
 
 func (h *Handlers) handleCompleteScenarioSession(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -209,11 +207,11 @@ func (h *Handlers) handleCompleteScenarioSession(c *gin.Context) {
 	var sess models.ScenarioDialogueSession
 	if err := db.Preload("Scenario").Preload("Turns").
 		Where("id = ? AND user_id = ?", id, user.ID).First(&sess).Error; err != nil {
-		response.Fail(c, "会话不存在", nil)
+		response.FailI18n(c, "coaching.session_not_found", nil)
 		return
 	}
 	if sess.Status == models.ScenarioSessionStatusCompleted {
-		response.SuccessMsg(c, "ok", sessionWithDetail(sess))
+		response.SuccessI18n(c, "common.ok", sessionWithDetail(sess))
 		return
 	}
 
@@ -252,13 +250,13 @@ func (h *Handlers) handleCompleteScenarioSession(c *gin.Context) {
 	sess.ReviewDetail = voice.MarshalReviewDetail(metrics.Detail)
 
 	if err := db.Save(&sess).Error; err != nil {
-		response.Fail(c, "保存复盘数据失败", nil)
+		response.FailI18n(c, "coaching.save_review_failed", nil)
 		return
 	}
 
 	h.ensureRealtimeFactory().UnregisterSession(sess.ID)
 	resp := sessionWithDetail(sess)
-	response.SuccessMsg(c, "ok", resp)
+	response.SuccessI18n(c, "common.ok", resp)
 }
 
 func sessionWithDetail(sess models.ScenarioDialogueSession) gin.H {
@@ -292,7 +290,7 @@ func (h *Handlers) handleScenarioDialogueStats(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -328,7 +326,7 @@ func (h *Handlers) handleScenarioDialogueStats(c *gin.Context) {
 		result.AvgAccuracyScore /= n
 		result.AvgPronunciation /= n
 	}
-	response.SuccessMsg(c, "ok", result)
+	response.SuccessI18n(c, "common.ok", result)
 }
 
 func replaceSessionTurns(db *gorm.DB, sessionID uint, turns []models.ScenarioDialogueTurn) {
@@ -359,57 +357,57 @@ func (h *Handlers) handleActivateScenarioSession(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
 	var sess models.ScenarioDialogueSession
 	if err := db.Where("id = ? AND user_id = ?", id, user.ID).First(&sess).Error; err != nil {
-		response.Fail(c, "会话不存在", nil)
+		response.FailI18n(c, "coaching.session_not_found", nil)
 		return
 	}
 	if sess.Status == models.ScenarioSessionStatusCompleted {
-		response.Fail(c, "会话已结束", nil)
+		response.FailI18n(c, "coaching.session_ended", nil)
 		return
 	}
 	markScenarioSessionActive(db, uint(id))
 	_ = db.Where("id = ?", id).First(&sess)
-	response.SuccessMsg(c, "ok", sess)
+	response.SuccessI18n(c, "common.ok", sess)
 }
 
 func (h *Handlers) handleAppendScenarioTurn(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
 	var sess models.ScenarioDialogueSession
 	if err := db.Where("id = ? AND user_id = ?", id, user.ID).First(&sess).Error; err != nil {
-		response.Fail(c, "会话不存在", nil)
+		response.FailI18n(c, "coaching.session_not_found", nil)
 		return
 	}
 	if sess.Status == models.ScenarioSessionStatusCompleted {
-		response.Fail(c, "会话已结束", nil)
+		response.FailI18n(c, "coaching.session_ended", nil)
 		return
 	}
 	var req appendTurnReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", nil)
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	role := strings.TrimSpace(req.Role)
 	if role != "user" && role != "assistant" {
-		response.Fail(c, "无效角色", nil)
+		response.FailI18n(c, "msg.e401d7b0", nil)
 		return
 	}
 	markScenarioSessionActive(db, uint(id))
 	if err := appendScenarioTurn(db, uint(id), role, req.Content); err != nil {
-		response.Fail(c, "记录对话失败", nil)
+		response.FailI18n(c, "coaching.record_dialogue_failed", nil)
 		return
 	}
-	response.SuccessMsg(c, "ok", nil)
+	response.SuccessI18n(c, "common.ok", nil)
 }
 
 func markScenarioSessionActive(db *gorm.DB, sessionID uint) {
@@ -508,10 +506,10 @@ func (h *Handlers) handleAdminListScenarios(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var scenarios []models.ScenarioDialogueScenario
 	if err := db.Order("sort_order asc, id asc").Find(&scenarios).Error; err != nil {
-		response.Fail(c, "获取场景列表失败", nil)
+		response.FailI18n(c, "scenario.list_failed", nil)
 		return
 	}
-	response.SuccessMsg(c, "ok", scenarios)
+	response.SuccessI18n(c, "common.ok", scenarios)
 }
 
 type adminCreateScenarioReq struct {
@@ -530,7 +528,7 @@ func (h *Handlers) handleAdminCreateScenario(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var req adminCreateScenarioReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", nil)
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -547,30 +545,30 @@ func (h *Handlers) handleAdminCreateScenario(c *gin.Context) {
 	}
 
 	if err := db.Create(&scenario).Error; err != nil {
-		response.Fail(c, "创建场景失败", nil)
+		response.FailI18n(c, "scenario.create_failed", nil)
 		return
 	}
 
-	response.SuccessMsg(c, "创建成功", scenario)
+	response.SuccessI18n(c, "common.created", scenario)
 }
 
 func (h *Handlers) handleAdminUpdateScenario(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id == 0 {
-		response.Fail(c, "无效的场景ID", nil)
+		response.FailI18n(c, "coaching.invalid_scenario_id", nil)
 		return
 	}
 
 	var req adminCreateScenarioReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", nil)
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
 	var scenario models.ScenarioDialogueScenario
 	if err := db.Where("id = ?", id).First(&scenario).Error; err != nil {
-		response.Fail(c, "场景不存在", nil)
+		response.FailI18n(c, "scenario.not_found", nil)
 		return
 	}
 
@@ -585,48 +583,48 @@ func (h *Handlers) handleAdminUpdateScenario(c *gin.Context) {
 	scenario.SortOrder = req.SortOrder
 
 	if err := db.Save(&scenario).Error; err != nil {
-		response.Fail(c, "更新场景失败", nil)
+		response.FailI18n(c, "scenario.update_failed", nil)
 		return
 	}
 
-	response.SuccessMsg(c, "更新成功", scenario)
+	response.SuccessI18n(c, "common.updated", scenario)
 }
 
 func (h *Handlers) handleAdminDeleteScenario(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id == 0 {
-		response.Fail(c, "无效的场景ID", nil)
+		response.FailI18n(c, "coaching.invalid_scenario_id", nil)
 		return
 	}
 
 	if err := db.Unscoped().Delete(&models.ScenarioDialogueScenario{}, id).Error; err != nil {
-		response.Fail(c, "删除场景失败", nil)
+		response.FailI18n(c, "scenario.delete_failed", nil)
 		return
 	}
 
-	response.SuccessMsg(c, "删除成功", nil)
+	response.SuccessI18n(c, "common.deleted", nil)
 }
 
 func (h *Handlers) handleAdminToggleScenario(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id == 0 {
-		response.Fail(c, "无效的场景ID", nil)
+		response.FailI18n(c, "coaching.invalid_scenario_id", nil)
 		return
 	}
 
 	var scenario models.ScenarioDialogueScenario
 	if err := db.Where("id = ?", id).First(&scenario).Error; err != nil {
-		response.Fail(c, "场景不存在", nil)
+		response.FailI18n(c, "scenario.not_found", nil)
 		return
 	}
 
 	scenario.Enabled = !scenario.Enabled
 	if err := db.Save(&scenario).Error; err != nil {
-		response.Fail(c, "更新场景失败", nil)
+		response.FailI18n(c, "scenario.update_failed", nil)
 		return
 	}
 
-	response.SuccessMsg(c, "更新成功", scenario)
+	response.SuccessI18n(c, "common.updated", scenario)
 }

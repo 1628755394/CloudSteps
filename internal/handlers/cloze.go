@@ -2,13 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 
 	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"github.com/LingByte/ling-base/apidocs/humax"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
 
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -90,7 +88,7 @@ func (h *Handlers) handleClozeListPassages(c *gin.Context) {
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -98,7 +96,7 @@ func (h *Handlers) handleClozeListPassages(c *gin.Context) {
 	if err := q.Order("sort_order ASC, id ASC").
 		Offset((page - 1) * pageSize).Limit(pageSize).
 		Find(&list).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -138,7 +136,7 @@ func (h *Handlers) handleClozeListPassages(c *gin.Context) {
 		items = append(items, item)
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":     items,
 		"total":    total,
 		"page":     page,
@@ -151,7 +149,7 @@ func (h *Handlers) handleClozeGetPassage(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效文章ID"))
+		response.FailI18n(c, "reading.invalid_id", nil)
 		return
 	}
 
@@ -159,7 +157,7 @@ func (h *Handlers) handleClozeGetPassage(c *gin.Context) {
 	if err := db.Where("id = ? AND status = ?",
 		id, models.ClozeStatusPublished).
 		First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在或未发布", nil)
+		response.FailI18n(c, "reading.not_found_or_unpublished", nil)
 		return
 	}
 
@@ -177,7 +175,7 @@ func (h *Handlers) handleClozeGetPassage(c *gin.Context) {
 		})
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"id":               passage.ID,
 		"title":            passage.Title,
 		"level":            passage.Level,
@@ -194,13 +192,13 @@ func (h *Handlers) handleClozeSubmit(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效文章ID"))
+		response.FailI18n(c, "reading.invalid_id", nil)
 		return
 	}
 
@@ -212,11 +210,11 @@ func (h *Handlers) handleClozeSubmit(c *gin.Context) {
 		DurationSec int `json:"durationSec"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if len(body.Answers) == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("答案不能为空"))
+		response.FailI18n(c, "msg.9be807ce", nil)
 		return
 	}
 
@@ -224,7 +222,7 @@ func (h *Handlers) handleClozeSubmit(c *gin.Context) {
 	if err := db.Where("id = ? AND status = ?",
 		id, models.ClozeStatusPublished).
 		First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在或未发布", nil)
+		response.FailI18n(c, "reading.not_found_or_unpublished", nil)
 		return
 	}
 
@@ -233,7 +231,7 @@ func (h *Handlers) handleClozeSubmit(c *gin.Context) {
 		Order("blank_no ASC, id ASC").
 		Find(&blanks)
 	if len(blanks) == 0 {
-		response.Fail(c, "该文章暂无空位题目", nil)
+		response.FailI18n(c, "reading.no_cloze_questions", nil)
 		return
 	}
 
@@ -291,11 +289,11 @@ func (h *Handlers) handleClozeSubmit(c *gin.Context) {
 		return tx.Create(&record).Error
 	})
 	if err != nil {
-		response.Fail(c, "保存答题记录失败", err)
+		response.FailI18n(c, "reading.save_record_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"recordId":     record.ID,
 		"passageId":    passage.ID,
 		"title":        passage.Title,
@@ -314,7 +312,7 @@ func (h *Handlers) handleClozeListRecords(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 
@@ -367,7 +365,7 @@ func (h *Handlers) handleClozeListRecords(c *gin.Context) {
 		})
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -380,20 +378,20 @@ func (h *Handlers) handleClozeGetRecord(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效记录ID"))
+		response.FailI18n(c, "common.invalid_record_id", nil)
 		return
 	}
 
 	var record models.ClozeRecord
 	if err := db.Where("id = ? AND user_id = ?",
 		id, user.ID).First(&record).Error; err != nil {
-		response.Fail(c, "记录不存在", nil)
+		response.FailI18n(c, "common.record_not_found", nil)
 		return
 	}
 
@@ -403,7 +401,7 @@ func (h *Handlers) handleClozeGetRecord(c *gin.Context) {
 	var details []clozeAnswerItem
 	_ = json.Unmarshal([]byte(record.Answers), &details)
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"id":           record.ID,
 		"passageId":    record.PassageID,
 		"title":        passage.Title,
@@ -440,7 +438,7 @@ func (h *Handlers) handleAdminClozeListPassages(c *gin.Context) {
 	q.Count(&total)
 	var list []models.ClozePassage
 	q.Order("sort_order ASC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list)
-	response.SuccessMsg(c, "success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
+	response.SuccessI18n(c, "common.success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handlers) handleAdminClozeGetPassage(c *gin.Context) {
@@ -448,7 +446,7 @@ func (h *Handlers) handleAdminClozeGetPassage(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	var passage models.ClozePassage
 	if err := db.Where("id = ?", id).First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在", nil)
+		response.FailI18n(c, "reading.not_found", nil)
 		return
 	}
 	var blanks []models.ClozeBlank
@@ -465,7 +463,7 @@ func (h *Handlers) handleAdminClozeGetPassage(c *gin.Context) {
 			"explanation": b.Explanation,
 		})
 	}
-	response.SuccessMsg(c, "success", gin.H{"passage": passage, "blanks": bs})
+	response.SuccessI18n(c, "common.success", gin.H{"passage": passage, "blanks": bs})
 }
 
 func (h *Handlers) handleAdminClozeCreatePassage(c *gin.Context) {
@@ -488,7 +486,7 @@ func (h *Handlers) handleAdminClozeCreatePassage(c *gin.Context) {
 		} `json:"blanks"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -545,10 +543,10 @@ func (h *Handlers) handleAdminClozeCreatePassage(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		response.Fail(c, "创建失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "创建成功", gin.H{"id": passage.ID})
+	response.SuccessI18n(c, "common.created", gin.H{"id": passage.ID})
 }
 
 func (h *Handlers) handleAdminClozeUpdatePassage(c *gin.Context) {
@@ -558,7 +556,7 @@ func (h *Handlers) handleAdminClozeUpdatePassage(c *gin.Context) {
 
 	var passage models.ClozePassage
 	if err := db.Where("id = ?", id).First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在", nil)
+		response.FailI18n(c, "reading.not_found", nil)
 		return
 	}
 
@@ -572,7 +570,7 @@ func (h *Handlers) handleAdminClozeUpdatePassage(c *gin.Context) {
 		SortOrder        *int    `json:"sortOrder"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -602,10 +600,10 @@ func (h *Handlers) handleAdminClozeUpdatePassage(c *gin.Context) {
 		passage.SetUpdateInfo(user.Username)
 	}
 	if err := db.Save(&passage).Error; err != nil {
-		response.Fail(c, "更新失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "更新成功", passage)
+	response.SuccessI18n(c, "common.updated", passage)
 }
 
 func (h *Handlers) handleAdminClozeDeletePassage(c *gin.Context) {
@@ -615,7 +613,7 @@ func (h *Handlers) handleAdminClozeDeletePassage(c *gin.Context) {
 
 	var passage models.ClozePassage
 	if err := db.Where("id = ?", id).First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在", nil)
+		response.FailI18n(c, "reading.not_found", nil)
 		return
 	}
 	op := ""
@@ -624,12 +622,12 @@ func (h *Handlers) handleAdminClozeDeletePassage(c *gin.Context) {
 	}
 	passage.SoftDelete(op)
 	if err := db.Save(&passage).Error; err != nil {
-		response.Fail(c, "删除失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	if err := db.Unscoped().Where("passage_id = ?", passage.ID).Delete(&models.ClozeBlank{}).Error; err != nil {
-		response.Fail(c, "删除失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "删除成功", nil)
+	response.SuccessI18n(c, "common.deleted", nil)
 }

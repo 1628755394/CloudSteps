@@ -41,21 +41,21 @@ type customEnrichBody struct {
 func (h *Handlers) handleEnrichCustomWordBook(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "请先登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	var body customEnrichBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	items := models.MergeDedup(body.Words)
 	if len(items) == 0 {
-		response.Fail(c, "词表为空", nil)
+		response.FailI18n(c, "wordbook.words_empty", nil)
 		return
 	}
 	items = enrichParsedWords(items)
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":  items,
 		"total": len(items),
 	})
@@ -64,26 +64,26 @@ func (h *Handlers) handleEnrichCustomWordBook(c *gin.Context) {
 func (h *Handlers) handleCreateCustomWordBook(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "请先登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	var body customCreateBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	name := strings.TrimSpace(body.Name)
 	if name == "" {
-		response.Fail(c, "请填写词书名称", nil)
+		response.FailI18n(c, "wordbook.name_required", nil)
 		return
 	}
 	if utf8.RuneCountInString(name) > 64 {
-		response.Fail(c, "词书名称过长", nil)
+		response.FailI18n(c, "wordbook.name_too_long", nil)
 		return
 	}
 	words := models.MergeDedup(body.Words)
 	if len(words) == 0 {
-		response.Fail(c, "词表为空，请先导入单词", nil)
+		response.FailI18n(c, "wordbook.words_empty", nil)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (h *Handlers) handleCreateCustomWordBook(c *gin.Context) {
 		return tx.Create(&uwb).Error
 	})
 	if err != nil {
-		response.Fail(c, "创建词书失败", err)
+		response.FailI18n(c, "wordbook.create_failed", err)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (h *Handlers) handleCreateCustomWordBook(c *gin.Context) {
 		book = *fresh
 	}
 
-	response.SuccessMsg(c, "创建成功", book)
+	response.SuccessI18n(c, "common.created", book)
 }
 
 func enrichParsedWords(items []models.ParsedWord) []models.ParsedWord {

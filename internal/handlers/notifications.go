@@ -84,14 +84,14 @@ func (h *Handlers) handleUnReadNotificationCount(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "success", count)
+	response.SuccessI18n(c, "common.success", count)
 }
 
 // ListNotifications list user notifications
 func (h *Handlers) handleListNotifications(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User is not logged in.", nil)
+		response.FailI18n(c, "auth.user_not_logged_in", nil)
 	}
 	page := c.DefaultQuery("page", "1")
 	size := c.DefaultQuery("size", "10")
@@ -130,7 +130,7 @@ func (h *Handlers) handleListNotifications(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":        toAPINotifications(res.List),
 		"total":       res.Total,
 		"totalUnread": res.TotalUnread,
@@ -144,21 +144,21 @@ func (h *Handlers) handleListNotifications(c *gin.Context) {
 func (h *Handlers) handleAllNotifications(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User is not logged in.", nil)
+		response.FailI18n(c, "auth.user_not_logged_in", nil)
 	}
 	store := inbox.NewGormStore(h.db)
 	if err := store.MarkAllRead(uintToStr(user.ID)); err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "already mark all notifications", nil)
+	response.SuccessI18n(c, "auth.all_marked_read", nil)
 }
 
 // handleMarkNotificationAsRead marks specified notification as read
 func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User is not logged in.", nil)
+		response.FailI18n(c, "auth.user_not_logged_in", nil)
 		return
 	}
 
@@ -174,7 +174,7 @@ func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
 	store := inbox.NewGormStore(h.db)
 	userID := uintToStr(user.ID)
 	if _, err := store.GetByID(userID, uintToStr(notificationID)); err != nil {
-		response.Fail(c, "You don't have permission to flag this message.", nil)
+		response.FailI18n(c, "auth.no_permission_flag", nil)
 		return
 	}
 
@@ -183,13 +183,13 @@ func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
 		return
 	}
 
-	response.SuccessMsg(c, "Notification marked as read", nil)
+	response.SuccessI18n(c, "auth.notification_marked_read", nil)
 }
 
 func (h *Handlers) handleDeleteNotification(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User is not logged in.", nil)
+		response.FailI18n(c, "auth.user_not_logged_in", nil)
 		return
 	}
 	var notificationID uint
@@ -203,14 +203,14 @@ func (h *Handlers) handleDeleteNotification(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "Notification deleted", nil)
+	response.SuccessI18n(c, "auth.notification_deleted", nil)
 }
 
 // handleBatchDeleteNotifications batch deletes notifications
 func (h *Handlers) handleBatchDeleteNotifications(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User is not logged in.", nil)
+		response.FailI18n(c, "auth.user_not_logged_in", nil)
 		return
 	}
 
@@ -219,12 +219,12 @@ func (h *Handlers) handleBatchDeleteNotifications(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		response.Fail(c, "Invalid request format", err)
+		response.FailI18n(c, "msg.e0f9a39f", err)
 		return
 	}
 
 	if len(request.IDs) == 0 {
-		response.Fail(c, "No notification IDs provided", nil)
+		response.FailI18n(c, "auth.no_notification_ids", nil)
 		return
 	}
 
@@ -239,7 +239,7 @@ func (h *Handlers) handleBatchDeleteNotifications(c *gin.Context) {
 		return
 	}
 
-	response.SuccessMsg(c, "Notifications deleted successfully", gin.H{
+	response.SuccessI18n(c, "auth.notifications_deleted", gin.H{
 		"deletedCount":   deletedCount,
 		"totalRequested": len(request.IDs),
 	})
@@ -249,7 +249,7 @@ func (h *Handlers) handleBatchDeleteNotifications(c *gin.Context) {
 func (h *Handlers) handleGetAllNotificationIds(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "User is not logged in.", nil)
+		response.FailI18n(c, "auth.user_not_logged_in", nil)
 		return
 	}
 
@@ -292,7 +292,7 @@ func (h *Handlers) handleGetAllNotificationIds(c *gin.Context) {
 		ids = append(ids, uint(id))
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"ids": ids,
 	})
 }

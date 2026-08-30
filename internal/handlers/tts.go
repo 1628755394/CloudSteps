@@ -85,7 +85,7 @@ func (h *Handlers) registerTTSRoutes(r *humax.Group) {
 func (h *Handlers) handleAdminTTS(c *gin.Context) {
 	var req ttsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err.Error())
+		response.FailI18n(c, "common.invalid_params", err.Error())
 		return
 	}
 
@@ -94,9 +94,9 @@ func (h *Handlers) handleAdminTTS(c *gin.Context) {
 
 	url, err := synthesizeTextToURL(ctx, req.Text, req.Voice, req.Lang)
 	if err != nil {
-		response.Fail(c, "语音合成失败", err.Error())
+		response.FailI18n(c, "tts.failed", err.Error())
 		return
 	}
 
-	response.SuccessMsg(c, "ok", gin.H{"url": url})
+	response.SuccessI18n(c, "common.ok", gin.H{"url": url})
 }

@@ -1,13 +1,10 @@
 package handlers
 
 import (
-	"errors"
-
 	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"github.com/LingByte/ling-base/apidocs/humax"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
 
-	"net/http"
 	"strconv"
 	"time"
 
@@ -60,7 +57,7 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -69,11 +66,11 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 		WordIDs    []uint `json:"wordIds" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if len(body.WordIDs) == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("wordIds 不能为空"))
+		response.FailI18n(c, "vocab.word_ids_required", nil)
 		return
 	}
 
@@ -113,7 +110,7 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "word_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "learn_status", "review_stage", "first_learned_at", "next_review_at", "deleted_at"}),
 	}).Create(&states).Error; err != nil {
-		response.Fail(c, "保存学习状态失败", err)
+		response.FailI18n(c, "study.save_state_failed", err)
 		return
 	}
 
@@ -121,11 +118,11 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "word_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "due_at", "stage", "status", "deleted_at"}),
 	}).Create(&queueItems).Error; err != nil {
-		response.Fail(c, "写入复习队列失败", err)
+		response.FailI18n(c, "study.write_queue_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "success", gin.H{"queued": len(body.WordIDs)})
+	response.SuccessI18n(c, "common.success", gin.H{"queued": len(body.WordIDs)})
 }
 
 // handleReviewDue GET /review/due?wordBookId=1&limit=20
@@ -133,7 +130,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -155,7 +152,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 
 	var items []models.ReviewQueue
 	if err := q.Order("due_at ASC, id ASC").Limit(limit).Find(&items).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -169,7 +166,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 	var words []models.WordLite
 	if len(wordIDs) > 0 {
 		if err := db.Where("id IN ?", wordIDs).Find(&words).Error; err != nil {
-			response.Fail(c, "查询单词失败", err)
+			response.FailI18n(c, "wordbook.query_word_failed", err)
 			return
 		}
 	}
@@ -193,7 +190,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 		}
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"total": len(sorted),
 		"words": sorted,
 	})
@@ -205,7 +202,7 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -216,7 +213,7 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 		} `json:"results" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || len(body.Results) == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -300,10 +297,10 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 	})
 
 	if err != nil {
-		response.Fail(c, "提交失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 
 	invalidateLighthouseCacheForUser(user.ID)
-	response.SuccessMsg(c, "success", gin.H{"submitted": len(body.Results)})
+	response.SuccessI18n(c, "common.success", gin.H{"submitted": len(body.Results)})
 }

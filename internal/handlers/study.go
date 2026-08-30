@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"errors"
-
 	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
 
@@ -22,20 +20,20 @@ func (h *Handlers) handleStudyLighthouse(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
 	wordBookID, _ := strconv.Atoi(c.Query("wordBookId"))
 	cacheKey := lighthouseCacheKey(user.ID, wordBookID)
 	if cached, ok := getCachedLighthouse(cacheKey); ok {
-		response.SuccessMsg(c, "success", cached)
+		response.SuccessI18n(c, "common.success", cached)
 		return
 	}
 
 	payload := computeStudyLighthouse(db, user.ID, wordBookID)
 	setCachedLighthouse(cacheKey, payload)
-	response.SuccessMsg(c, "success", payload)
+	response.SuccessI18n(c, "common.success", payload)
 }
 
 // handleStudyLighthouseWords GET /study/lighthouse/words?wordBookId=N&step=01|pending|mastered
@@ -43,7 +41,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -74,7 +72,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 		var total int64
 		_ = db.Raw("SELECT COUNT(*) "+joinClause+" WHERE "+whereClause, queryArgs...).Scan(&total).Error
 		if total == 0 {
-			response.SuccessMsg(c, "success", gin.H{"words": []models.WordLite{}, "total": 0})
+			response.SuccessI18n(c, "common.success", gin.H{"words": []models.WordLite{}, "total": 0})
 			return
 		}
 
@@ -87,12 +85,12 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 
 		var words []models.WordLite
 		if err := db.Raw(dataSQL, dataArgs...).Scan(&words).Error; err != nil {
-			response.Fail(c, "查询失败", err)
+			response.FailI18n(c, "common.query_failed", err)
 			return
 		}
 		models.OverlayWordLites(db, user.ID, words)
 
-		response.SuccessMsg(c, "success", gin.H{"words": words, "total": total})
+		response.SuccessI18n(c, "common.success", gin.H{"words": words, "total": total})
 		return
 	}
 
@@ -108,7 +106,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	default:
 		stage, err := strconv.Atoi(step)
 		if err != nil || stage < 1 || stage > 7 {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("step 参数无效，应为 today、01-07、pending 或 mastered"))
+			response.FailI18n(c, "study.invalid_step", nil)
 			return
 		}
 		stateWhere = "uws.user_id = ? AND uws.learn_status IN ? AND uws.review_stage = ?"
@@ -124,7 +122,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	countSQL := "SELECT COUNT(*) FROM user_word_states uws WHERE " + stateWhere
 	_ = db.Raw(countSQL, stateArgs...).Scan(&total).Error
 	if total == 0 {
-		response.SuccessMsg(c, "success", gin.H{"words": []models.WordLite{}, "total": 0})
+		response.SuccessI18n(c, "common.success", gin.H{"words": []models.WordLite{}, "total": 0})
 		return
 	}
 
@@ -141,12 +139,12 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 
 	var words []models.WordLite
 	if err := db.Raw(dataSQL, dataArgs...).Scan(&words).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	models.OverlayWordLites(db, user.ID, words)
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"words": words,
 		"total": total,
 	})
@@ -171,11 +169,11 @@ func (h *Handlers) handleStudyWords(c *gin.Context) {
 	seed, _ := strconv.ParseInt(c.DefaultQuery("seed", "0"), 10, 64)
 
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 	if wordBookID == 0 {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("wordBookId 必填"))
+		response.FailI18n(c, "wordbook.id_required", nil)
 		return
 	}
 
@@ -192,12 +190,12 @@ func (h *Handlers) handleStudyWords(c *gin.Context) {
 
 	words, total, err := models.ListStudyWordsLite(db, uint(wordBookID), user.ID, page, pageSize, shuffle, seed)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	models.OverlayWordLites(db, user.ID, words)
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"total":    total,
 		"page":     page,
 		"pageSize": pageSize,
@@ -213,7 +211,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -224,7 +222,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 		WordIDs    []uint `json:"wordIds"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -247,7 +245,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 	if err := db.Where(models.UserWordBook{UserID: user.ID, WordBookID: body.WordBookID}).
 		Attrs(models.UserWordBook{Status: "active", StartedAt: &now}).
 		FirstOrCreate(&uwb).Error; err != nil {
-		response.Fail(c, "未选择该词库", err)
+		response.FailI18n(c, "wordbook.not_selected", err)
 		return
 	}
 
@@ -319,7 +317,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 				Where("user_id = ? AND word_id IN ?", user.ID, ids).
 				Update("learn_status", "learning").Error
 		}); err != nil {
-			response.Fail(c, "取题失败", err)
+			response.FailI18n(c, "reading.fetch_questions_failed", err)
 			return
 		}
 		for _, s := range picked {
@@ -328,7 +326,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 	}
 
 	if len(selectedIDs) == 0 {
-		response.SuccessMsg(c, "今日无待背单词", gin.H{"finished": true})
+		response.SuccessI18n(c, "study.no_study_today", gin.H{"finished": true})
 		return
 	}
 
@@ -342,7 +340,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 		WordCount:   len(selectedIDs),
 	}
 	if err := db.Create(&session).Error; err != nil {
-		response.Fail(c, "创建会话失败", err)
+		response.FailI18n(c, "coaching.create_session_failed", err)
 		return
 	}
 
@@ -364,7 +362,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 	_ = db.Where("id IN ?", selectedIDs).Find(&words).Error
 	models.OverlayWordLites(db, user.ID, words)
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"sessionId": session.ID,
 		"words":     words,
 	})
@@ -377,7 +375,7 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	sessionID, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -388,13 +386,13 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 		} `json:"results" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
 	var session models.StudySession
 	if err := db.Where("id = ? AND user_id = ?", sessionID, user.ID).First(&session).Error; err != nil {
-		response.Fail(c, "会话不存在", err)
+		response.FailI18n(c, "coaching.session_not_found", err)
 		return
 	}
 
@@ -442,7 +440,7 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "word_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "source_session_id", "due_at", "stage", "status", "deleted_at"}),
 		}).Create(&queueItems).Error; err != nil {
-			response.Fail(c, "写入复习队列失败", err)
+			response.FailI18n(c, "study.write_queue_failed", err)
 			return
 		}
 
@@ -450,7 +448,7 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 		if err := db.Model(&models.UserWordState{}).
 			Where("user_id = ? AND word_id IN ?", user.ID, rememberedIDs).
 			Updates(map[string]any{"learn_status": "learned", "first_learned_at": &now, "review_stage": 0, "next_review_at": &due}).Error; err != nil {
-			response.Fail(c, "更新学习状态失败", err)
+			response.FailI18n(c, "study.update_state_failed", err)
 			return
 		}
 	}
@@ -471,7 +469,7 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 		Where("user_id = ? AND word_book_id = ? AND screen_result = ? AND learn_status = ?", user.ID, session.WordBookID, "unknown", "pending").
 		Count(&remainCount).Error
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"correctCount": correctCount,
 		"totalCount":   len(body.Results),
 		"hasMore":      remainCount > 0,
@@ -485,13 +483,13 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	user := auth.CurrentUser(c)
 	sessionID, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
 	var session models.StudySession
 	if err := db.Where("id = ?", sessionID).First(&session).Error; err != nil {
-		response.Fail(c, "会话不存在", err)
+		response.FailI18n(c, "coaching.session_not_found", err)
 		return
 	}
 
@@ -499,7 +497,7 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	if session.UserID != user.ID {
 		tid := coachingCoachingTeacherID(c)
 		if tid == 0 || coachingTeacherHasStudentPair(db, tid, session.UserID) != nil {
-			response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("无权查看该会话"))
+			response.FailI18n(c, "coaching.no_session_access", nil)
 			return
 		}
 	}
@@ -517,7 +515,7 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	}
 	models.OverlayWordLites(db, session.UserID, words)
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"session": session,
 		"words":   words,
 	})
@@ -531,7 +529,7 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -552,13 +550,13 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 	if sidStr := strings.TrimSpace(c.Query("studentId")); sidStr != "" {
 		sid64, err := strconv.ParseUint(sidStr, 10, 64)
 		if err != nil || sid64 == 0 {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
+			response.FailI18n(c, "coaching.invalid_student_id", nil)
 			return
 		}
 		sid := uint(sid64)
 		tid := coachingCoachingTeacherID(c)
 		if tid == 0 {
-			response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("仅老师可查看学员记录"))
+			response.FailI18n(c, "coaching.teacher_only_records", nil)
 			return
 		}
 		if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
@@ -630,7 +628,7 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 			Offset((page - 1) * pageSize).
 			Limit(pageSize).
 			Scan(&rows).Error; err != nil {
-			response.Fail(c, "查询失败", err)
+			response.FailI18n(c, "common.query_failed", err)
 			return
 		}
 
@@ -679,7 +677,7 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 			})
 		}
 
-		response.SuccessMsg(c, "success", gin.H{
+		response.SuccessI18n(c, "common.success", gin.H{
 			"list":     list,
 			"total":    total,
 			"page":     page,
@@ -694,7 +692,7 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 
 	var sessions []models.StudySession
 	if err := q.Order("created_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&sessions).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -730,7 +728,7 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 		})
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -744,7 +742,7 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -756,13 +754,13 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 	if sidStr := strings.TrimSpace(c.Query("studentId")); sidStr != "" {
 		sid64, err := strconv.ParseUint(sidStr, 10, 64)
 		if err != nil || sid64 == 0 {
-			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
+			response.FailI18n(c, "coaching.invalid_student_id", nil)
 			return
 		}
 		sid := uint(sid64)
 		tid := coachingCoachingTeacherID(c)
 		if tid == 0 {
-			response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("仅老师可查看学员记录"))
+			response.FailI18n(c, "coaching.teacher_only_records", nil)
 			return
 		}
 		if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
@@ -804,11 +802,11 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 
 	var sessionIDs []uint
 	if err := q.Order("id DESC").Limit(500).Pluck("id", &sessionIDs).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	if len(sessionIDs) == 0 {
-		response.SuccessMsg(c, "success", gin.H{"words": []any{}, "total": 0})
+		response.SuccessI18n(c, "common.success", gin.H{"words": []any{}, "total": 0})
 		return
 	}
 
@@ -833,7 +831,7 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 		ORDER BY w.word ASC
 	`, sessionIDs).Scan(&rows).Error
 	if err != nil {
-		response.Fail(c, "导出查询失败", err)
+		response.FailI18n(c, "common.export_failed", err)
 		return
 	}
 	if len(rows) > 0 {
@@ -861,7 +859,7 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 		}
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"words": rows,
 		"total": len(rows),
 	})
