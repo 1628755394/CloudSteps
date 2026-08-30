@@ -183,7 +183,7 @@ make backend-all-zip
 make docker
 ```
 
-构建产物统一输出到 `dist/`，版本信息通过 `-ldflags` 注入（`main.Version` / `main.Commit` / `main.BuildDate`）。
+构建产物统一输出到 `dist/`，版本信息通过 `-ldflags` 注入（`main.Version` / `main.GitCommit` / `main.BuildTime`）。
 
 ## 测试
 

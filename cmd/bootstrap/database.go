@@ -5,10 +5,10 @@ import (
 	"io"
 	"strings"
 
-	"github.com/LingByte/CloudStepsGo/internal/listeners"
+	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/middleware"
+	middleware "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	notify2 "github.com/LingByte/CloudStepsGo/pkg/notify"
 	"github.com/LingByte/ling-base/common"
 	lbconfig "github.com/LingByte/ling-base/common/config"
 	"github.com/LingByte/ling-base/common/logger"
@@ -55,8 +55,8 @@ func SetupDatabase(logWriter io.Writer, opts *Options) (*gorm.DB, error) {
 			return nil, err
 		}
 		logger.Info("migration success",
-			zap.String("database", config.GlobalConfig.Database.Driver),
-			zap.String("dsn", config.GlobalConfig.Database.DSN),
+			zap.String("database", configs.Global.Database.Driver),
+			zap.String("dsn", configs.Global.Database.DSN),
 		)
 	}
 
@@ -73,9 +73,6 @@ func SetupDatabase(logWriter io.Writer, opts *Options) (*gorm.DB, error) {
 		logger.Error("notification seed failed", zap.Error(err))
 		return nil, err
 	}
-	listeners.InitAuthMailListeners(db)
-	listeners.InitFeedbackListeners(db)
-
 	// 4) Non-production: demo users, content, etc.
 	if opts.SeedNonProd {
 		service := SeedService{
@@ -93,8 +90,8 @@ func SetupDatabase(logWriter io.Writer, opts *Options) (*gorm.DB, error) {
 
 // initDBConn creates *gorm.DB based on global configuration
 func initDBConn(logWriter io.Writer) (*gorm.DB, error) {
-	dbDriver := config.GlobalConfig.Database.Driver
-	dsn := config.GlobalConfig.Database.DSN
+	dbDriver := configs.Global.Database.Driver
+	dsn := configs.Global.Database.DSN
 	return common.InitDatabase(logWriter, dbDriver, dsn)
 }
 
@@ -129,12 +126,12 @@ func RunMigrations(db *gorm.DB) error {
 		&models.GrammarLesson{},
 		&models.GrammarQuestion{},
 		&models.GrammarRecord{},
-		&models.InternalNotification{},
+		&notify2.InternalNotification{},
 		&models.Announcement{},
 		&models.AnnouncementRead{},
-		&models.NotificationChannel{},
-		&models.MailTemplate{},
-		&models.MailLog{},
+		&notify2.NotificationChannel{},
+		&notify2.MailTemplate{},
+		&notify2.MailLog{},
 		&models.StudentTeacherCoachingQuota{},
 		&models.TeacherTeachingPool{},
 		&models.TeacherCheckIn{},
@@ -162,11 +159,11 @@ func RunMigrations(db *gorm.DB) error {
 
 // ensureUsersEmailColumn 确保 users 表有 email 列（GORM AutoMigrate 对已有表加带索引的列时可能不生效，这里做兜底）。
 func ensureUsersEmailColumn(db *gorm.DB) error {
-	if config.GlobalConfig.Database.Driver != "mysql" && config.GlobalConfig.Database.Driver != "sqlite" {
+	if configs.Global.Database.Driver != "mysql" && configs.Global.Database.Driver != "sqlite" {
 		return nil
 	}
 	// 检查 email 列是否已存在
-	if config.GlobalConfig.Database.Driver == "mysql" {
+	if configs.Global.Database.Driver == "mysql" {
 		var colCount int64
 		row := db.Raw("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'email'").Row()
 		if err := row.Scan(&colCount); err != nil {
@@ -210,7 +207,7 @@ func ensureUsersEmailColumn(db *gorm.DB) error {
 
 // dropUsersUsernameUniqueIndex allows re-registering with the same username after soft-delete.
 func dropUsersUsernameUniqueIndex(db *gorm.DB) error {
-	driver := config.GlobalConfig.Database.Driver
+	driver := configs.Global.Database.Driver
 	if driver == "mysql" {
 		type indexRow struct {
 			IndexName  string
@@ -250,7 +247,7 @@ func dropUsersUsernameUniqueIndex(db *gorm.DB) error {
 
 // fixScenarioDialogueCharset ensures emoji/special chars work on MySQL (CynosDB defaults to utf8mb3).
 func fixScenarioDialogueCharset(db *gorm.DB) error {
-	if config.GlobalConfig.Database.Driver != "mysql" {
+	if configs.Global.Database.Driver != "mysql" {
 		return nil
 	}
 	tables := []string{

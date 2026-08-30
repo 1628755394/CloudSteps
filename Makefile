@@ -17,8 +17,8 @@ DIST_DIR := dist
 # Go 编译参数
 LDFLAGS  := -s -w \
   -X main.Version=$(VERSION) \
-  -X main.Commit=$(COMMIT) \
-  -X main.BuildDate=$(BUILD_DT)
+  -X main.GitCommit=$(COMMIT) \
+  -X main.BuildTime=$(BUILD_DT)
 
 GCFLAGS  :=
 

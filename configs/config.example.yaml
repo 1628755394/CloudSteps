@@ -1,0 +1,161 @@
+# CloudSteps 配置模板（复制为 configs/config.yaml 后填写密钥）
+# cp configs/config.example.yaml configs/config.yaml
+
+machineId: 1
+
+app:
+  name: CloudSteps
+  environment: dev  # dev | test | prod
+
+server:
+  name: CloudSteps
+  desc: CloudSteps
+  url: ""
+  logo: ""
+  termsUrl: ""
+  port: 7072
+  addr: ":7072"
+  readTimeout: 300s
+  writeTimeout: 300s
+  idleTimeout: 120s
+  docsPrefix: /api/docs
+  apiPrefix: /api
+  adminPrefix: /admin
+  authPrefix: /auth
+  sslEnabled: false
+  sslCertFile: ""
+  sslKeyFile: ""
+
+database:
+  driver: sqlite  # sqlite | mysql
+  dsn: "file:cloudsteps.db?cache=shared&_fk=1"
+  maxOpenConns: 25
+  maxIdleConns: 10
+  connMaxLifetime: 5m
+
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+
+logging:
+  level: info
+  filename: logs/app.log
+  maxSize: 100
+  maxAge: 30
+  maxBackups: 10
+  daily: true
+  sensitiveFields: ""
+
+auth:
+  header: Authorization
+  sessionSecret: change-me
+  sessionExpireDays: 7
+  tokenExpired: 168h
+  apiSecretKey: ""
+
+services:
+  llm:
+    apiKey: ""
+    baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model: qwen-plus
+  imageGen:
+    apiKey: ""
+    baseUrl: https://ai.lingecho.com
+    model: gpt-image-2-1k
+  mail:
+    provider: smtp
+    host: ""
+    port: 587
+    username: ""
+    password: ""
+    from: ""
+
+features:
+  languageEnabled: true
+  backupEnabled: false
+  backupPath: ./backups
+  backupSchedule: "0 2 * * *"
+
+middleware:
+  enableRateLimit: true
+  enableTimeout: true
+  enableCircuitBreaker: false
+  enableOperationLog: true
+  rateLimit:
+    globalRPS: 10000
+    globalBurst: 20000
+    globalWindow: 1m
+    userRPS: 1000
+    userBurst: 2000
+    userWindow: 1m
+    ipRPS: 500
+    ipBurst: 1000
+    ipWindow: 1m
+  timeout:
+    defaultTimeout: 60s
+  circuitBreaker:
+    failureThreshold: 10
+    successThreshold: 5
+    timeout: 60s
+    openTimeout: 60s
+    maxConcurrentRequests: 1000
+
+rateLimit:
+  enabled: true
+  rps: 200
+  burst: 400
+
+circuitBreaker:
+  enabled: true
+  failureThreshold: 5
+  minRequests: 10
+  recoveryTimeout: 30s
+
+docs:
+  enabled: true
+  path: /docs
+  darkMode: false
+
+jwt:
+  enabled: false
+  secret: change-me-in-prod-cloudsteps-32b
+  issuer: cloudsteps
+  accessTTL: 15m
+  refreshTTL: 168h
+
+i18n:
+  enabled: true
+  defaultLocale: zh-CN
+  supportedLocales:
+    - zh-CN
+    - en
+  fallbackLocale: en
+  translationsPath: i18n/translations
+
+storage:
+  kind: ""  # qiniu | cos | oss | local | ...
+  qiniuAccessKey: ""
+  qiniuSecretKey: ""
+  qiniuBucket: ""
+  qiniuDomain: ""
+  qiniuPrivate: false
+  qiniuRegion: ""
+
+tts:
+  provider: qcloud
+  qcloudAccountsJSON: '[]'
+  wordBookBatchPerAccount: 9
+  maxRetries: 2
+  retryBaseMs: 800
+  dashScopeApiKey: ""
+
+realtime:
+  provider: ""
+  apiKey: ""
+  model: ""
+
+cache:
+  type: local
+  localMaxSize: 1000
+  localDefaultTTL: 5m
