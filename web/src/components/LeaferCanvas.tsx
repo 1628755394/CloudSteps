@@ -363,13 +363,11 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       if (t === "select") return;
 
       if (t === "text") {
-        // Add text at center of visible canvas area
-        const cw = containerRef.current!.clientWidth;
-        const ch = containerRef.current!.clientHeight;
+        // Add text at top-left of visible canvas area, empty for direct typing
         const text = new Text({
-          text: "双击编辑文字",
-          x: cw / 2 - 80,
-          y: ch / 2 - fontSizeRef.current / 2,
+          text: "",
+          x: 52,
+          y: 12,
           fill: colorRef.current,
           fontSize: fontSizeRef.current,
           editable: true,
@@ -717,10 +715,9 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     addTextAtCenter: () => {
       const app = appRef.current;
       const layer = drawLayerRef.current;
-      const container = containerRef.current;
-      if (!app || !layer || !container) return;
+      if (!app || !layer) return;
       const text = new Text({
-        text: "双击编辑文字",
+        text: "",
         x: 52,
         y: 12,
         fill: colorRef.current,
