@@ -218,6 +218,15 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
             >
               <PanelLeft size={14} />
             </button>
+            <button
+              type="button"
+              className="flex h-6 w-6 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#c45c78]"
+              onClick={onClose}
+              title="关闭"
+              aria-label="关闭"
+            >
+              <X size={14} />
+            </button>
           </div>
 
           {/* Toolbar */}
@@ -514,7 +523,6 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 <div className="contents">
                   <button className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title={sidePos === "right" ? "移到左侧" : "移到右侧"} aria-label={sidePos === "right" ? "移到左侧" : "移到右侧"}>{sidePos === "right" ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}</button>
                   <button className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { closePopups(); clearCanvas(); }} title="清空 一键清空全部" aria-label="清空"><Trash2 size={14} /></button>
-                  <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-7 w-7 text-[#25344a]" aria-label="关闭"><X size={14} /></CloudButton>
                 </div>
               </div>
             )}
