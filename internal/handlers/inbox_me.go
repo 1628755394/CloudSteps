@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	response "github.com/LingByte/ling-base/common/response/gin"
+	response "github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/LingByte/ling-base/notification/inbox"
 	"github.com/gin-gonic/gin"
 )

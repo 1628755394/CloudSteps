@@ -13,7 +13,7 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/CloudStepsGo/pkg/synthesizer"
-	response "github.com/LingByte/ling-base/common/response/gin"
+	response "github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/gin-gonic/gin"
 )
 

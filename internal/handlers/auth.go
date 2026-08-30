@@ -29,7 +29,7 @@ import (
 	"github.com/LingByte/ling-base/common/geoip"
 	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/common/random"
-	response "github.com/LingByte/ling-base/common/response/gin"
+	response "github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

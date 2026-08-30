@@ -14,7 +14,7 @@ import (
 	lbconstants "github.com/LingByte/ling-base/common/constants"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	response "github.com/LingByte/ling-base/common/response/gin"
+	response "github.com/LingByte/CloudStepsGo/pkg/response"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
