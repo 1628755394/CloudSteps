@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/LingByte/CloudStepsGo/internal/app"
 	"github.com/LingByte/CloudStepsGo/internal/configs"
-	"github.com/LingByte/CloudStepsGo/internal/database"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 )
 
@@ -27,7 +27,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := database.Connect(os.Stdout)
+	db, err := app.Connect(os.Stdout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "database connect failed: %v\n", err)
 		os.Exit(1)

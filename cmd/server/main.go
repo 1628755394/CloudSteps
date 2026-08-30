@@ -9,9 +9,9 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/app"
 	"github.com/LingByte/CloudStepsGo/internal/configs"
-	"github.com/LingByte/CloudStepsGo/internal/database"
+
 	"github.com/LingByte/CloudStepsGo/internal/handlers"
-	"github.com/LingByte/CloudStepsGo/internal/seeds"
+
 	"github.com/LingByte/ling-base/bootstrap"
 	"github.com/LingByte/ling-base/common"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
@@ -89,7 +89,7 @@ func main() {
 	)
 
 	// 连接数据库（在创建 Application 之前，因为 WithAutoMigrate 需要已连接的 *gorm.DB）
-	db, err := database.Connect(os.Stdout)
+	db, err := app.Connect(os.Stdout)
 	if err != nil {
 		logger.Error("init database failed", zap.Error(err))
 		os.Exit(1)
@@ -112,12 +112,12 @@ func main() {
 	// 迁移：使用 ling-base bootstrap 的 WithAutoMigrate
 	if *initDB {
 		lbApp.AddInitHook("auto-migrate", func(ctx context.Context) error {
-			models := database.Models()
+			models := app.Models()
 			logger.Info("running auto-migrate", zap.Int("models", len(models)))
 			if err := db.AutoMigrate(models...); err != nil {
 				return fmt.Errorf("auto-migrate failed: %w", err)
 			}
-			if err := database.PostMigrate(db); err != nil {
+			if err := app.PostMigrate(db); err != nil {
 				return fmt.Errorf("post-migrate failed: %w", err)
 			}
 			logger.Info("migration success",
@@ -129,20 +129,20 @@ func main() {
 	} else {
 		// 即使不执行 AutoMigrate，也做后置修复（ensureUsersEmailColumn 等）
 		lbApp.AddInitHook("post-migrate", func(ctx context.Context) error {
-			return database.PostMigrate(db)
+			return app.PostMigrate(db)
 		})
 	}
 
 	// 通知模板种子（始终执行，确保基线行存在）
 	lbApp.AddInitHook("seed-notification-defaults", func(ctx context.Context) error {
-		seedSvc := &seeds.SeedService{DB: db}
+		seedSvc := &app.SeedService{DB: db}
 		return seedSvc.SeedNotificationDefaults()
 	})
 
 	// 非生产环境种子数据
 	if *seed {
 		lbApp.AddInitHook("seed-all", func(ctx context.Context) error {
-			seedSvc := &seeds.SeedService{DB: db}
+			seedSvc := &app.SeedService{DB: db}
 			return seedSvc.SeedAll()
 		})
 	}

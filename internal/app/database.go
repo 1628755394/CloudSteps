@@ -1,5 +1,5 @@
 // Package database 负责数据库连接、迁移模型注册与后置修复。
-package database
+package app
 
 import (
 	"io"
