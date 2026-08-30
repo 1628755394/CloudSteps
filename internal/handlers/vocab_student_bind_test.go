@@ -11,6 +11,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/gin-gonic/gin"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -55,8 +56,16 @@ func TestVocabSubmit_rejectsStudentWithoutCoachingPair(t *testing.T) {
 	q := mustCreateVocabQuestion(t, db)
 
 	w := submitVocabRaw(t, db, teacher, q, stranger.ID, q.CorrectAnswer)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status %d body %s, want 403", w.Code, w.Body.String())
+	// ling-base response 层始终返回 HTTP 200，业务错误码在 envelope.code 中
+	var envelope struct {
+		Code  int    `json:"code"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope.Error != "FORBIDDEN" {
+		t.Fatalf("status %d body %s, want FORBIDDEN business error", w.Code, w.Body.String())
 	}
 }
 

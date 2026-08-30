@@ -1489,8 +1489,9 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 	}
 
 	query := db.Model(&models.User{})
-	if !includeDeleted {
-		query = query
+	if includeDeleted {
+		// 管理员需要查看软删用户时，使用 Unscoped 绕过 GORM 的 deleted_at 自动过滤
+		query = query.Unscoped()
 	}
 
 	if search != "" {

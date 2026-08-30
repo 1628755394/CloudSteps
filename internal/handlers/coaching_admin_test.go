@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/gin-gonic/gin"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -50,7 +50,7 @@ func TestCoachingAdminGetAppointment_returnsNamesAndSession(t *testing.T) {
 	var envelope struct {
 		Code int `json:"code"`
 		Data struct {
-			ID      uint   `json:"id"`
+			ID      string `json:"id"`
 			Title   string `json:"title"`
 			Teacher *struct {
 				Username string `json:"username"`

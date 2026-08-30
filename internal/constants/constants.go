@@ -10,26 +10,11 @@ const (
 	SYS_METRIC_TABLE_NAME       = "sys_metrics"
 )
 
-// DefaultUploadDir 本地存储默认上传目录
-const DefaultUploadDir = "./data/uploads"
-
-// Default Value: 1024
-const ENV_CONFIG_CACHE_SIZE = "CONFIG_CACHE_SIZE"
-
-// Default Value: 10s
-const ENV_CONFIG_CACHE_EXPIRED = "CONFIG_CACHE_EXPIRED"
-
 // Gin session field name
 const ENV_SESSION_FIELD = "SESSION_FIELD"
 
 // Session
 const ENV_SESSION_SECRET = "SESSION_SECRET"
-const ENV_SESSION_EXPIRE_DAYS = "SESSION_EXPIRE_DAYS"
-
-// DB
-const ENV_DB_DRIVER = "DB_DRIVER"
-const ENV_DSN = "DSN"
-
 const ConfigField = "_CloudStepsGo_config"
 const UserField = "_CloudStepsGo_uid"
 const GroupField = "_CloudStepsGo_gid"

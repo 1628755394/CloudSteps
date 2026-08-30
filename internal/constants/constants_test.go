@@ -3,23 +3,17 @@ package constants
 import (
 	"testing"
 
+	lbconstants "github.com/LingByte/ling-base/common/constants"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConstants(t *testing.T) {
-	// Test cache related constants
-	assert.Equal(t, "CONFIG_CACHE_SIZE", ENV_CONFIG_CACHE_SIZE, "ENV_CONFIG_CACHE_SIZE should be 'CONFIG_CACHE_SIZE'")
-	assert.Equal(t, "CONFIG_CACHE_EXPIRED", ENV_CONFIG_CACHE_EXPIRED, "ENV_CONFIG_CACHE_EXPIRED should be 'CONFIG_CACHE_EXPIRED'")
-
 	// Test session related constants
 	assert.Equal(t, "SESSION_FIELD", ENV_SESSION_FIELD, "ENV_SESSION_FIELD should be 'SESSION_FIELD'")
 	assert.Equal(t, "SESSION_SECRET", ENV_SESSION_SECRET, "ENV_SESSION_SECRET should be 'SESSION_SECRET'")
-	assert.Equal(t, "SESSION_EXPIRE_DAYS", ENV_SESSION_EXPIRE_DAYS, "ENV_SESSION_EXPIRE_DAYS should be 'SESSION_EXPIRE_DAYS'")
 
-	// Test database related constants
-	assert.Equal(t, "DB_DRIVER", ENV_DB_DRIVER, "ENV_DB_DRIVER should be 'DB_DRIVER'")
-	assert.Equal(t, "DSN", ENV_DSN, "ENV_DSN should be 'DSN'")
-	assert.Equal(t, "_ling_db", DbField, "DbField should match ling-base common/lbconstants.DbField")
+	// Test context field constants
+	assert.Equal(t, lbconstants.DbField, "_ling_db", "DbField should match ling-base common/constants.DbField")
 	assert.Equal(t, "_CloudStepsGo_uid", UserField, "UserField should be '_CloudStepsGo_uid'")
 	assert.Equal(t, "_CloudStepsGo_gid", GroupField, "GroupField should be '_CloudStepsGo_gid'")
 	assert.Equal(t, "_CloudStepsGo_tz", TzField, "TzField should be '_CloudStepsGo_tz'")
