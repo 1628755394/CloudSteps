@@ -1,9 +1,9 @@
-package middleware
+package middlewares
 
 import (
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/config"
+	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/ling-base/common/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -11,12 +11,12 @@ import (
 
 // MiddlewareManager 中间件管理器（CloudSteps 配置面 + ling-base 超时熔断）。
 type MiddlewareManager struct {
-	config      config.MiddlewareConfig
+	config      configs.MiddlewareConfig
 	rateLimiter *RateLimiter
 }
 
 // NewMiddlewareManager 创建中间件管理器
-func NewMiddlewareManager(cfg config.MiddlewareConfig) *MiddlewareManager {
+func NewMiddlewareManager(cfg configs.MiddlewareConfig) *MiddlewareManager {
 	mgr := &MiddlewareManager{
 		config: cfg,
 	}
@@ -64,6 +64,7 @@ func NewMiddlewareManager(cfg config.MiddlewareConfig) *MiddlewareManager {
 		if circuitBreakerConfig.FailureThreshold <= 0 {
 			circuitBreakerConfig = DefaultCircuitBreakerConfig()
 		}
+		// sync.Once：若 app 层已 Init，此处为 no-op，保留先置入的 enable 标志。
 		InitTimeoutCircuitManager(timeoutConfig, circuitBreakerConfig, cfg.EnableTimeout, cfg.EnableCircuitBreaker)
 		logger.Info("Timeout and circuit breaker manager initialized",
 			zap.Duration("defaultTimeout", timeoutConfig.DefaultTimeout),
@@ -126,8 +127,10 @@ func (mgr *MiddlewareManager) ApplyMiddlewares(r *gin.RouterGroup) {
 		zap.Bool("operationLog", mgr.config.EnableOperationLog))
 
 	if mgr.config.EnableRateLimit && mgr.rateLimiter != nil {
+		// 全局限流已迁至 engine 层 pkg/middlewares.RateLimit（tokenbucket）。
+		// 此处保留细粒度 endpoint / IP / 用户限流作为补充。
 		r.Use(RateLimitMiddleware())
-		logger.Info("Rate limit middleware applied")
+		logger.Info("Endpoint rate limit middleware applied (legacy supplement)")
 	}
 
 	if mgr.config.EnableTimeout || mgr.config.EnableCircuitBreaker {
@@ -154,7 +157,7 @@ func (mgr *MiddlewareManager) GetStats() map[string]interface{} {
 }
 
 // UpdateRateLimitConfig 动态更新限流配置
-func (mgr *MiddlewareManager) UpdateRateLimitConfig(cfg config.RateLimiterConfig) {
+func (mgr *MiddlewareManager) UpdateRateLimitConfig(cfg configs.RateLimiterDetailConfig) {
 	if mgr.rateLimiter == nil {
 		return
 	}
@@ -180,14 +183,14 @@ func (mgr *MiddlewareManager) UpdateRateLimitConfig(cfg config.RateLimiterConfig
 
 // UpdateTimeoutConfig 动态更新超时配置。
 // ling-base 的超时管理器仅支持进程启动时 Init 一次，运行时变更需重启生效。
-func (mgr *MiddlewareManager) UpdateTimeoutConfig(cfg config.TimeoutConfig) {
+func (mgr *MiddlewareManager) UpdateTimeoutConfig(cfg configs.TimeoutDetailConfig) {
 	mgr.config.Timeout = cfg
 	logger.Warn("Timeout configuration stored; restart required for ling-base timeout manager to apply changes",
 		zap.Duration("defaultTimeout", cfg.DefaultTimeout))
 }
 
 // UpdateCircuitBreakerConfig 动态更新熔断器配置（同超时：需重启生效）。
-func (mgr *MiddlewareManager) UpdateCircuitBreakerConfig(cfg config.CircuitBreakerConfig) {
+func (mgr *MiddlewareManager) UpdateCircuitBreakerConfig(cfg configs.CircuitBreakerDetailConfig) {
 	mgr.config.CircuitBreaker = cfg
 	logger.Warn("Circuit breaker configuration stored; restart required to apply changes",
 		zap.Int("failureThreshold", cfg.FailureThreshold))
@@ -196,7 +199,7 @@ func (mgr *MiddlewareManager) UpdateCircuitBreakerConfig(cfg config.CircuitBreak
 var globalMiddlewareManager *MiddlewareManager
 
 // InitGlobalMiddlewareManager 初始化全局中间件管理器
-func InitGlobalMiddlewareManager(cfg config.MiddlewareConfig) {
+func InitGlobalMiddlewareManager(cfg configs.MiddlewareConfig) {
 	globalMiddlewareManager = NewMiddlewareManager(cfg)
 	logger.Info("Global middleware manager initialized")
 }
@@ -204,11 +207,11 @@ func InitGlobalMiddlewareManager(cfg config.MiddlewareConfig) {
 // GetGlobalMiddlewareManager 获取全局中间件管理器
 func GetGlobalMiddlewareManager() *MiddlewareManager {
 	if globalMiddlewareManager == nil {
-		if config.GlobalConfig != nil {
-			globalMiddlewareManager = NewMiddlewareManager(config.GlobalConfig.Middleware)
+		if configs.Global != nil {
+			globalMiddlewareManager = NewMiddlewareManager(configs.Global.Middleware)
 		} else {
-			defaultConfig := config.MiddlewareConfig{
-				RateLimit: config.RateLimiterConfig{
+			defaultConfig := configs.MiddlewareConfig{
+				RateLimit: configs.RateLimiterDetailConfig{
 					GlobalRPS:    1000,
 					GlobalBurst:  2000,
 					GlobalWindow: time.Minute,
@@ -219,15 +222,15 @@ func GetGlobalMiddlewareManager() *MiddlewareManager {
 					IPBurst:      100,
 					IPWindow:     time.Minute,
 				},
-				Timeout: config.TimeoutConfig{
+				Timeout: configs.TimeoutDetailConfig{
 					DefaultTimeout: 30 * time.Second,
-					FallbackResponse: map[string]interface{}{
+					FallbackResponse: map[string]any{
 						"error":   "service_unavailable",
 						"message": "服务暂时不可用，请稍后重试",
 						"code":    503,
 					},
 				},
-				CircuitBreaker: config.CircuitBreakerConfig{
+				CircuitBreaker: configs.CircuitBreakerDetailConfig{
 					FailureThreshold:      5,
 					SuccessThreshold:      3,
 					Timeout:               30 * time.Second,

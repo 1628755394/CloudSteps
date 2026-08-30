@@ -1,4 +1,4 @@
-package middleware
+package middlewares
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/ling-base/common/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -221,10 +220,7 @@ func (rl *RateLimiter) getEndpointBucket(endpoint string, userID uint) *TokenBuc
 
 // Allow 检查是否允许请求
 func (rl *RateLimiter) Allow(userID uint, ip, endpoint string) (bool, string) {
-	// 1. 检查全局限流
-	if rl.globalBucket != nil && !rl.globalBucket.Allow() {
-		return false, "global_rate_limit_exceeded"
-	}
+	// 1. 全局限流由 engine 层 tokenbucket（middlewares.RateLimit）负责，此处跳过以免双重限流。
 
 	// 2. 检查IP限流
 	if rl.config.IPRPS > 0 {
@@ -307,7 +303,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		var userID uint = 0
 
 		// 尝试获取用户ID
-		if user := models.CurrentUser(c); user != nil {
+		if user := CurrentUser(c); user != nil {
 			userID = user.ID
 		}
 

@@ -1,11 +1,12 @@
-package middleware
+package middlewares
 
 import (
 	"log"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
 	"github.com/LingByte/ling-base/common/geoip"
 	"github.com/gin-gonic/gin"
 	"github.com/mssola/user_agent"
@@ -18,7 +19,7 @@ var operationLogConfig = DefaultOperationLogConfig()
 // OperationLogMiddleware 记录操作日志
 func OperationLogMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		db := c.MustGet(constants.DbField).(*gorm.DB)
+		db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
 		// 先执行后续处理，确保用户信息已经设置
 		c.Next()

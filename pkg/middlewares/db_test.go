@@ -1,11 +1,11 @@
-package middleware
+package middlewares
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
@@ -23,7 +23,7 @@ func TestInjectDB(t *testing.T) {
 	router := gin.New()
 	router.Use(InjectDB(db))
 	router.GET("/test", func(c *gin.Context) {
-		dbFromCtx := c.MustGet(constants.DbField).(*gorm.DB)
+		dbFromCtx := c.MustGet(lbconstants.DbField).(*gorm.DB)
 		assert.NotNil(t, dbFromCtx)
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
@@ -41,7 +41,7 @@ func TestInjectDB_NilDB(t *testing.T) {
 	router := gin.New()
 	router.Use(InjectDB(nil))
 	router.GET("/test", func(c *gin.Context) {
-		dbFromCtx, exists := c.Get(constants.DbField)
+		dbFromCtx, exists := c.Get(lbconstants.DbField)
 		if exists {
 			assert.Nil(t, dbFromCtx)
 		}

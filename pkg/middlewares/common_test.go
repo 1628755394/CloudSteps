@@ -1,4 +1,4 @@
-package middleware
+package middlewares
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -81,7 +81,7 @@ func TestInjectDB_SetsDBInContext(t *testing.T) {
 	db := &gorm.DB{} // 仅需非空指针
 	r.Use(InjectDB(db))
 	r.GET("/check-db", func(c *gin.Context) {
-		v, exists := c.Get(constants.DbField)
+		v, exists := c.Get(lbconstants.DbField)
 		if !exists || v == nil {
 			c.Status(http.StatusInternalServerError)
 			return
@@ -98,9 +98,9 @@ func TestInjectDB_SetsDBInContext(t *testing.T) {
 	}
 }
 
-// ===== GetCarrotSessionField =====
+// ===== SessionField =====
 
-func TestGetCarrotSessionField_DefaultWhenEnvEmpty(t *testing.T) {
+func TestSessionField_DefaultWhenEnvEmpty(t *testing.T) {
 	// 清理后备份
 	key := constants.ENV_SESSION_FIELD
 	old := os.Getenv(key)
@@ -108,12 +108,12 @@ func TestGetCarrotSessionField_DefaultWhenEnvEmpty(t *testing.T) {
 
 	_ = os.Unsetenv(key)
 
-	if got := GetCarrotSessionField(); got != "CloudStepsGo" {
+	if got := SessionField(); got != "CloudStepsGo" {
 		t.Fatalf("expected default session field 'CloudStepsGo', got %q", got)
 	}
 }
 
-func TestGetCarrotSessionField_FromEnv(t *testing.T) {
+func TestSessionField_FromEnv(t *testing.T) {
 	key := constants.ENV_SESSION_FIELD
 	old := os.Getenv(key)
 	t.Cleanup(func() { _ = os.Setenv(key, old) })
@@ -121,7 +121,7 @@ func TestGetCarrotSessionField_FromEnv(t *testing.T) {
 	want := "sess_field_from_env"
 	_ = os.Setenv(key, want)
 
-	if got := GetCarrotSessionField(); got != want {
+	if got := SessionField(); got != want {
 		t.Fatalf("expected session field %q from env, got %q", want, got)
 	}
 }
