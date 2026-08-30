@@ -200,9 +200,16 @@ export default function VocabularyTestTesting() {
           byLevel[lv].push(q);
         }
         setPoolByLevel(byLevel);
-        // 取第一题（从 A1 开始）
+        // 取第一题（从 A1 开始）—— 直接用局部变量 byLevel，不依赖 state（state 更新是异步的）
         levelIndexRef.current = 0;
-        const first = pickQuestionFromLevel("A1") || pickQuestionFromLevel("A2") || pickQuestionFromLevel("B1");
+        const pickFirst = (lv: string): ApiQuestion | null => {
+          const pool = byLevel[lv];
+          if (!pool || pool.length === 0) return null;
+          const q = pool[0];
+          usedIdsRef.current.add(q.id);
+          return q;
+        };
+        const first = pickFirst("A1") || pickFirst("A2") || pickFirst("B1") || pickFirst("B2") || pickFirst("C1");
         if (first) {
           setCurrentQuestion(first);
         } else {
