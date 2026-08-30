@@ -256,15 +256,16 @@ export default function FlashReview() {
     ? "错词快闪重练"
     : `第 ${batchIdx + 1} 组快闪`;
 
+  const totalBatches = Number(sessionStorage.getItem("lb_study_total_batches") || 1);
+
   const proceedLabel = isRetryMode
     ? "完成重练"
     : mode === "study" &&
-        !shouldEnterPostTrainingCheck(
-          batchIdx,
-          Number(sessionStorage.getItem("lb_study_total_batches") || 1)
-        )
+        !shouldEnterPostTrainingCheck(batchIdx, totalBatches)
       ? "继续下一组"
-      : "进入组内复习";
+      : totalBatches <= 1
+        ? "训后检测"
+        : "进入组内复习";
 
   const uncutCount = words.filter((w) => w.scissorCount === 0).length;
   const visibleWords = words.filter((w) => w.scissorCount === 0);
