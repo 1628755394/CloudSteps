@@ -629,7 +629,7 @@ export default function PostTrainingCheck() {
             </div>
             <div className="flex items-center gap-2 w-full md:w-auto min-w-0 shrink-0">
               <CloudButton
-                variant="mintOutline"
+                variant="mint"
                 size="pill"
                 className="shrink-0 max-sm:px-3"
                 onClick={() => markNextFive("correct")}
