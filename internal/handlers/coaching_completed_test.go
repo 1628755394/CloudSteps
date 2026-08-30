@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -60,7 +61,7 @@ func completedForTeacher(t *testing.T, db *gorm.DB, teacher *models.User) comple
 	c, _ := gin.CreateTestContext(w)
 	req := httptest.NewRequest(http.MethodGet, "/teacher/coaching/completed?from=2026-08-01&to=2026-08-31&page=1&pageSize=20", nil)
 	c.Request = req
-	c.Set(constants.DbField, db)
+	c.Set(lbconstants.DbField, db)
 	c.Set(constants.UserField, teacher)
 
 	h := &Handlers{}
@@ -178,7 +179,7 @@ func TestCoachingTeacherListQuotas_excludesSelfPair(t *testing.T) {
 			url += "&includeSelf=1"
 		}
 		c.Request = httptest.NewRequest(http.MethodGet, url, nil)
-		c.Set(constants.DbField, db)
+		c.Set(lbconstants.DbField, db)
 		c.Set(constants.UserField, teacher)
 
 		h := &Handlers{}

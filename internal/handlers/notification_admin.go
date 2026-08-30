@@ -9,8 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/internal/notify"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	notify2 "github.com/LingByte/CloudStepsGo/pkg/notify"
+	"github.com/LingByte/ling-base/apidocs/humax"
+
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -36,17 +38,17 @@ type notificationChannelUpsertReq struct {
 
 func buildChannelConfig(req notificationChannelUpsertReq) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(req.ChannelType)) {
-	case models.NotificationChannelTypeEmail:
+	case notify2.NotificationChannelTypeEmail:
 		switch strings.ToLower(strings.TrimSpace(req.Driver)) {
-		case notify.ProviderSMTP:
-			return models.BuildEmailChannelConfigJSON(
-				notify.ProviderSMTP, req.Name,
+		case notify2.ProviderSMTP:
+			return notify2.BuildEmailChannelConfigJSON(
+				notify2.ProviderSMTP, req.Name,
 				req.SMTPHost, req.SMTPPort, req.SMTPUsername, req.SMTPPassword, req.SMTPFrom, req.FromDisplayName,
 				"", "", "",
 			)
-		case notify.ProviderSendCloud:
-			return models.BuildEmailChannelConfigJSON(
-				notify.ProviderSendCloud, req.Name,
+		case notify2.ProviderSendCloud:
+			return notify2.BuildEmailChannelConfigJSON(
+				notify2.ProviderSendCloud, req.Name,
 				"", 0, "", "", "", req.FromDisplayName,
 				req.SendcloudAPIUser, req.SendcloudAPIKey, req.SendcloudFrom,
 			)
@@ -63,12 +65,12 @@ func buildChannelConfigForUpdate(req notificationChannelUpsertReq, oldConfigJSON
 		return buildChannelConfig(req)
 	}
 	patched := req
-	var oldC notify.MailConfig
+	var oldC notify2.MailConfig
 	if err := json.Unmarshal([]byte(oldConfigJSON), &oldC); err != nil {
 		return buildChannelConfig(req)
 	}
 	driver := strings.ToLower(strings.TrimSpace(req.Driver))
-	if driver == notify.ProviderSendCloud {
+	if driver == notify2.ProviderSendCloud {
 		if strings.TrimSpace(patched.SendcloudAPIKey) == "" && oldC.APIKey != "" {
 			patched.SendcloudAPIKey = oldC.APIKey
 		}
@@ -79,7 +81,7 @@ func buildChannelConfigForUpdate(req notificationChannelUpsertReq, oldConfigJSON
 			patched.SendcloudAPIUser = oldC.APIUser
 		}
 	}
-	if driver == notify.ProviderSMTP {
+	if driver == notify2.ProviderSMTP {
 		if patched.SMTPPassword == "" && oldC.Password != "" {
 			patched.SMTPPassword = oldC.Password
 		}
@@ -99,9 +101,9 @@ func buildChannelConfigForUpdate(req notificationChannelUpsertReq, oldConfigJSON
 	return buildChannelConfig(patched)
 }
 
-func (h *Handlers) registerNotificationAdminRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerNotificationAdminRoutes(r *humax.Group) {
 	admin := r.Group("admin")
-	admin.Use(models.AuthRequired, adminOnly())
+	admin.Use(auth.Required, auth.AdminRequired)
 	channels := admin.Group("notification-channels")
 	{
 		channels.GET("", h.handleListNotificationChannels)
@@ -140,12 +142,12 @@ func (h *Handlers) registerNotificationAdminRoutes(r *gin.RouterGroup) {
 func (h *Handlers) handleListNotificationChannels(c *gin.Context) {
 	page, pageSize := parsePageParams(c)
 	t := strings.TrimSpace(c.Query("type"))
-	list, total, err := models.ListNotificationChannels(h.db, t, page, pageSize)
+	list, total, err := notify2.ListNotificationChannels(h.db, t, page, pageSize)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list": list, "total": total, "page": page, "pageSize": pageSize,
 	})
 }
@@ -155,37 +157,37 @@ func (h *Handlers) handleGetNotificationChannel(c *gin.Context) {
 	if !ok {
 		return
 	}
-	row, err := models.GetNotificationChannel(h.db, id)
+	row, err := notify2.GetNotificationChannel(h.db, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, "not found", err)
+			response.FailI18n(c, "common.not_found", err)
 			return
 		}
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
 	out := gin.H{"channel": row}
-	if row.Type == models.NotificationChannelTypeEmail && strings.TrimSpace(row.ConfigJSON) != "" {
-		if vf, err := models.DecodeEmailChannelForm(row.ConfigJSON); err == nil {
+	if row.Type == notify2.NotificationChannelTypeEmail && strings.TrimSpace(row.ConfigJSON) != "" {
+		if vf, err := notify2.DecodeEmailChannelForm(row.ConfigJSON); err == nil {
 			out["emailForm"] = vf
 		}
 	}
-	response.SuccessMsg(c, "ok", out)
+	response.SuccessI18n(c, "common.ok", out)
 }
 
 func (h *Handlers) handleCreateNotificationChannel(c *gin.Context) {
 	var req notificationChannelUpsertReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	cfgJSON, err := buildChannelConfig(req)
 	if err != nil {
-		response.Fail(c, err.Error(), err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	channelType := strings.ToLower(strings.TrimSpace(req.ChannelType))
-	row := models.NotificationChannel{
+	row := notify2.NotificationChannel{
 		Type:       channelType,
 		Code:       fmt.Sprintf("%s-%d", strings.ToUpper(channelType[:1]), time.Now().UnixNano()),
 		Name:       strings.TrimSpace(req.Name),
@@ -197,14 +199,14 @@ func (h *Handlers) handleCreateNotificationChannel(c *gin.Context) {
 	if req.Enabled != nil {
 		row.Enabled = *req.Enabled
 	}
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		row.SetCreateInfo(u.Username)
 	}
 	if err := h.db.Create(&row).Error; err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "created", row)
+	response.SuccessI18n(c, "common.created", row)
 }
 
 func (h *Handlers) handleUpdateNotificationChannel(c *gin.Context) {
@@ -214,13 +216,13 @@ func (h *Handlers) handleUpdateNotificationChannel(c *gin.Context) {
 	}
 	var req notificationChannelUpsertReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
-	row, err := models.GetNotificationChannel(h.db, id)
+	row, err := notify2.GetNotificationChannel(h.db, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, "not found", err)
+			response.FailI18n(c, "common.not_found", err)
 			return
 		}
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
@@ -228,15 +230,15 @@ func (h *Handlers) handleUpdateNotificationChannel(c *gin.Context) {
 	}
 	channelType := strings.ToLower(strings.TrimSpace(req.ChannelType))
 	if channelType != strings.ToLower(strings.TrimSpace(row.Type)) {
-		response.Fail(c, "channelType 不匹配", nil)
+		response.FailI18n(c, "notification.channel_type_mismatch", nil)
 		return
 	}
 	cfgJSON, err := buildChannelConfigForUpdate(req, row.ConfigJSON)
 	if err != nil {
-		response.Fail(c, err.Error(), err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	if merged, err := models.MergeEmailSecretsOnUpdate(row.ConfigJSON, cfgJSON); err == nil {
+	if merged, err := notify2.MergeEmailSecretsOnUpdate(row.ConfigJSON, cfgJSON); err == nil {
 		row.ConfigJSON = merged
 	} else {
 		row.ConfigJSON = cfgJSON
@@ -247,14 +249,14 @@ func (h *Handlers) handleUpdateNotificationChannel(c *gin.Context) {
 		row.Enabled = *req.Enabled
 	}
 	row.Remark = strings.TrimSpace(req.Remark)
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		row.SetUpdateInfo(u.Username)
 	}
 	if err := h.db.Save(row).Error; err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "updated", row)
+	response.SuccessI18n(c, "common.updated", row)
 }
 
 func (h *Handlers) handleDeleteNotificationChannel(c *gin.Context) {
@@ -262,17 +264,17 @@ func (h *Handlers) handleDeleteNotificationChannel(c *gin.Context) {
 	if !ok {
 		return
 	}
-	row, err := models.GetNotificationChannel(h.db, id)
+	row, err := notify2.GetNotificationChannel(h.db, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, "not found", err)
+			response.FailI18n(c, "common.not_found", err)
 			return
 		}
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
 	operator := ""
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		operator = u.Username
 	}
 	row.SoftDelete(operator)
@@ -280,7 +282,7 @@ func (h *Handlers) handleDeleteNotificationChannel(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "deleted", gin.H{"id": id})
+	response.SuccessI18n(c, "common.deleted", gin.H{"id": id})
 }
 
 type mailTemplateCreateReq struct {
@@ -309,25 +311,25 @@ type mailTemplateUpdateReq struct {
 	Enabled     *bool  `json:"enabled"`
 }
 
-func applyMailTemplateUpsert(tpl *models.MailTemplate, htmlBody, variables string) error {
-	switch models.NormalizeNotificationTemplateType(tpl.ChannelType) {
-	case models.NotificationTemplateTypeEmail:
-		models.ApplyMailTemplateHTMLDerivedFields(tpl, htmlBody, variables)
-	case models.NotificationTemplateTypeInbox:
-		models.ApplyInboxTemplateDerivedFields(tpl, variables)
+func applyMailTemplateUpsert(tpl *notify2.MailTemplate, htmlBody, variables string) error {
+	switch notify2.NormalizeNotificationTemplateType(tpl.ChannelType) {
+	case notify2.NotificationTemplateTypeEmail:
+		notify2.ApplyMailTemplateHTMLDerivedFields(tpl, htmlBody, variables)
+	case notify2.NotificationTemplateTypeInbox:
+		notify2.ApplyInboxTemplateDerivedFields(tpl, variables)
 	}
-	return models.ValidateNotificationTemplate(tpl)
+	return notify2.ValidateNotificationTemplate(tpl)
 }
 
 func (h *Handlers) handleListMailTemplates(c *gin.Context) {
 	page, pageSize := parsePageParams(c)
 	channelType := strings.TrimSpace(c.Query("channelType"))
-	list, total, err := models.ListMailTemplatesPage(h.db, page, pageSize, channelType)
+	list, total, err := notify2.ListMailTemplatesPage(h.db, page, pageSize, channelType)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list": list, "total": total, "page": page, "pageSize": pageSize,
 	})
 }
@@ -337,28 +339,28 @@ func (h *Handlers) handleGetMailTemplate(c *gin.Context) {
 	if !ok {
 		return
 	}
-	tpl, err := models.GetMailTemplateByID(h.db, id)
+	tpl, err := notify2.GetMailTemplateByID(h.db, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, "not found", err)
+			response.FailI18n(c, "common.not_found", err)
 			return
 		}
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", tpl)
+	response.SuccessI18n(c, "common.ok", tpl)
 }
 
 func (h *Handlers) handleCreateMailTemplate(c *gin.Context) {
 	var req mailTemplateCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
-	tpl := models.MailTemplate{
+	tpl := notify2.MailTemplate{
 		Code:        req.Code,
 		Name:        req.Name,
-		ChannelType: models.NormalizeNotificationTemplateType(req.ChannelType),
+		ChannelType: notify2.NormalizeNotificationTemplateType(req.ChannelType),
 		Subject:     req.Subject,
 		InboxTitle:  req.InboxTitle,
 		InboxBody:   req.InboxBody,
@@ -367,20 +369,20 @@ func (h *Handlers) handleCreateMailTemplate(c *gin.Context) {
 		Enabled:     true,
 	}
 	if err := applyMailTemplateUpsert(&tpl, req.HTMLBody, req.Variables); err != nil {
-		response.Fail(c, err.Error(), err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	if req.Enabled != nil {
 		tpl.Enabled = *req.Enabled
 	}
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		tpl.SetCreateInfo(u.Username)
 	}
-	if err := models.CreateMailTemplate(h.db, &tpl); err != nil {
+	if err := notify2.CreateMailTemplate(h.db, &tpl); err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "created", tpl)
+	response.SuccessI18n(c, "common.created", tpl)
 }
 
 func (h *Handlers) handleUpdateMailTemplate(c *gin.Context) {
@@ -390,13 +392,13 @@ func (h *Handlers) handleUpdateMailTemplate(c *gin.Context) {
 	}
 	var req mailTemplateUpdateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
-	tpl, err := models.GetMailTemplateByID(h.db, id)
+	tpl, err := notify2.GetMailTemplateByID(h.db, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, "not found", err)
+			response.FailI18n(c, "common.not_found", err)
 			return
 		}
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
@@ -409,20 +411,20 @@ func (h *Handlers) handleUpdateMailTemplate(c *gin.Context) {
 	tpl.Description = req.Description
 	tpl.Locale = req.Locale
 	if err := applyMailTemplateUpsert(tpl, req.HTMLBody, req.Variables); err != nil {
-		response.Fail(c, err.Error(), err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	if req.Enabled != nil {
 		tpl.Enabled = *req.Enabled
 	}
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		tpl.SetUpdateInfo(u.Username)
 	}
-	if err := models.SaveMailTemplate(h.db, tpl); err != nil {
+	if err := notify2.SaveMailTemplate(h.db, tpl); err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "updated", tpl)
+	response.SuccessI18n(c, "common.updated", tpl)
 }
 
 func (h *Handlers) handleDeleteMailTemplate(c *gin.Context) {
@@ -430,21 +432,21 @@ func (h *Handlers) handleDeleteMailTemplate(c *gin.Context) {
 	if !ok {
 		return
 	}
-	n, err := models.DeleteMailTemplateByID(h.db, id)
+	n, err := notify2.DeleteMailTemplateByID(h.db, id)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
 	if n == 0 {
-		response.Fail(c, "not found", nil)
+		response.FailI18n(c, "common.not_found", nil)
 		return
 	}
-	response.SuccessMsg(c, "deleted", gin.H{"id": id})
+	response.SuccessI18n(c, "common.deleted", gin.H{"id": id})
 }
 
 func (h *Handlers) handleListMailLogs(c *gin.Context) {
 	page, pageSize := parsePageParams(c)
-	q := h.db.Model(&models.MailLog{})
+	q := h.db.Model(&notify2.MailLog{})
 	if s := strings.TrimSpace(c.Query("status")); s != "" && s != "all" {
 		q = q.Where("status = ?", s)
 	}
@@ -463,12 +465,12 @@ func (h *Handlers) handleListMailLogs(c *gin.Context) {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	var list []models.MailLog
+	var list []notify2.MailLog
 	if err := q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list).Error; err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list": list, "total": total, "page": page, "pageSize": pageSize,
 	})
 }
@@ -478,16 +480,16 @@ func (h *Handlers) handleGetMailLogDetail(c *gin.Context) {
 	if !ok {
 		return
 	}
-	row, err := models.GetMailLogByID(h.db, id)
+	row, err := notify2.GetMailLogByID(h.db, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Fail(c, "Mail log not found", nil)
+			response.FailI18n(c, "auth.mail_log_not_found", nil)
 			return
 		}
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.SuccessMsg(c, "ok", row)
+	response.SuccessI18n(c, "common.ok", row)
 }
 
 func (h *Handlers) handleGetMailLogStats(c *gin.Context) {
@@ -496,7 +498,7 @@ func (h *Handlers) handleGetMailLogStats(c *gin.Context) {
 		Cnt    int64
 	}
 	var rows []row
-	if err := h.db.Model(&models.MailLog{}).Select("status, count(*) as cnt").Group("status").Scan(&rows).Error; err != nil {
+	if err := h.db.Model(&notify2.MailLog{}).Select("status, count(*) as cnt").Group("status").Scan(&rows).Error; err != nil {
 		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -505,13 +507,13 @@ func (h *Handlers) handleGetMailLogStats(c *gin.Context) {
 		out[r.Status] = r.Cnt
 		out["total"] += r.Cnt
 	}
-	response.SuccessMsg(c, "ok", out)
+	response.SuccessI18n(c, "common.ok", out)
 }
 
 func parseUintParam(c *gin.Context, name string) (uint, bool) {
 	id, err := strconv.ParseUint(c.Param(name), 10, 64)
 	if err != nil || id == 0 {
-		response.Fail(c, "invalid id", err)
+		response.FailI18n(c, "coaching.invalid_id", err)
 		return 0, false
 	}
 	return uint(id), true
@@ -529,10 +531,10 @@ type mailTestReq struct {
 func (h *Handlers) handleTestSendMail(c *gin.Context) {
 	var req mailTestReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
-	mail := notify.TestMail{
+	mail := notify2.TestMail{
 		To:      req.To,
 		Mode:    req.Mode,
 		Code:    req.Code,
@@ -541,17 +543,17 @@ func (h *Handlers) handleTestSendMail(c *gin.Context) {
 		Body:    req.Body,
 	}.Normalize()
 	if err := mail.Validate(); err != nil {
-		response.Fail(c, err.Error(), err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	userID := uint(0)
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		userID = u.ID
 	}
-	mailer := notify.NewMailer(h.db, userID, c.ClientIP())
+	mailer := notify2.NewMailer(h.db, userID, c.ClientIP())
 	if err := mail.Send(c.Request.Context(), mailer); err != nil {
-		response.Fail(c, err.Error(), err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "sent", gin.H{"to": mail.To, "mode": mail.Mode})
+	response.SuccessI18n(c, "common.sent", gin.H{"to": mail.To, "mode": mail.Mode})
 }

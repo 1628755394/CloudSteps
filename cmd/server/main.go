@@ -3,277 +3,167 @@ package main
 import (
 	"context"
 	"flag"
-	"net/http"
+	"fmt"
 	"os"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/cmd/bootstrap"
+	"github.com/LingByte/CloudStepsGo/internal/app"
+	"github.com/LingByte/CloudStepsGo/internal/configs"
+
 	"github.com/LingByte/CloudStepsGo/internal/handlers"
-	"github.com/LingByte/CloudStepsGo/internal/listeners"
-	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/internal/sysmetrics"
-	"github.com/LingByte/CloudStepsGo/internal/task"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/middleware"
-	"github.com/LingByte/CloudStepsGo/pkg/utils"
-	lbbootstrap "github.com/LingByte/ling-base/bootstrap"
-	"github.com/LingByte/ling-base/cache/lru"
-	"github.com/LingByte/ling-base/captcha"
+
+	"github.com/LingByte/ling-base/bootstrap"
 	"github.com/LingByte/ling-base/common"
-	lbconfig "github.com/LingByte/ling-base/common/config"
-	"github.com/LingByte/ling-base/logger"
-	"github.com/gin-gonic/gin"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+	"github.com/LingByte/ling-base/common/logger"
+	"github.com/LingByte/ling-base/common/response"
+	respgin "github.com/LingByte/ling-base/common/response/gin"
+	"github.com/LingByte/ling-base/i18n"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-type CloudStepsGoApp struct {
-	db       *gorm.DB
-	handlers *handlers.Handlers
-}
-
-func NewCloudStepsGoApp(db *gorm.DB, cache *lru.Cache[string, any], configStore *lbconfig.Store, metrics *sysmetrics.Service) *CloudStepsGoApp {
-	return &CloudStepsGoApp{
-		db:       db,
-		handlers: handlers.NewHandlers(db, cache, configStore, metrics),
-	}
-}
-
-func (app *CloudStepsGoApp) RegisterRoutes(r *gin.Engine) {
-	// Register system routes (with /api prefix)
-	app.handlers.Register(r)
-}
+// Version / BuildTime / GitCommit 可由 ldflags 注入。
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
+	GitCommit = "none"
+)
 
 func main() {
-	// 1. Parse Command Line Parameters
-	init := flag.Bool("init", false, "initialize database")
+	initDB := flag.Bool("init", false, "initialize database (auto-migrate)")
 	seed := flag.Bool("seed", false, "seed database")
-	mode := flag.String("mode", "", "running environment (development, test, production)")
+	mode := flag.String("mode", "", "running environment (development, test, production / dev, test, prod)")
 	initSQL := flag.String("init-sql", "", "path to database init .sql script (optional)")
+	configPath := flag.String("config", "configs/config.yaml", "path to YAML config")
 	flag.Parse()
 
-	// 2. Set Environment Variables
 	if *mode != "" {
-		os.Setenv("APP_ENV", *mode)
+		_ = os.Setenv("APP_ENV", *mode)
 	}
 
-	// 3. Load Global Configuration
-	if err := config.Load(); err != nil {
-		panic("config load failed: " + err.Error())
+	cfg, err := configs.Load(*configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "加载配置失败: %v\n", err)
+		os.Exit(1)
 	}
 
-	// 4. Load Log Configuration
-	if err := logger.Init(&config.GlobalConfig.Log, config.GlobalConfig.Server.Mode); err != nil {
-		panic(err)
+	info := handlers.AppInfo{
+		Name:      cfg.App.Name,
+		Version:   Version,
+		BuildTime: BuildTime,
+		GitCommit: GitCommit,
+	}
+	if info.Name == "" {
+		info.Name = "CloudSteps"
+	}
+	handlers.EnrichAppInfo(&info)
+
+	logger.InitTimezone(lbconstants.TimezoneShanghai)
+	if err := logger.Init(cfg.LogConfig(), cfg.Mode()); err != nil {
+		fmt.Fprintf(os.Stderr, "初始化日志失败: %v\n", err)
+		os.Exit(1)
 	}
 
-	// 5. Create ling-base Application (banner + profile + lifecycle + shutdown)
-	app := lbbootstrap.New(config.GlobalConfig.Server.Name,
-		lbbootstrap.WithProfile(config.GlobalConfig.Server.Mode),
-		lbbootstrap.WithBannerFile("banner.txt"),
-		lbbootstrap.WithShutdownTimeout(30*time.Second),
+	var i18nManager *i18n.Manager
+	if cfg.I18n.Enabled {
+		supportedLocales := make([]i18n.Locale, len(cfg.I18n.SupportedLocales))
+		for i, loc := range cfg.I18n.SupportedLocales {
+			supportedLocales[i] = i18n.Locale(loc)
+		}
+		i18nManager = i18n.NewManager(&i18n.Config{
+			DefaultLocale:    i18n.Locale(cfg.I18n.DefaultLocale),
+			SupportedLocales: supportedLocales,
+			FallbackLocale:   i18n.Locale(cfg.I18n.FallbackLocale),
+			TranslationsPath: cfg.I18n.TranslationsPath,
+		})
+		respgin.Resolver = response.ResolverFunc(func(key string, args ...any) string {
+			return i18nManager.T(i18nManager.GetDefaultLocale(), key, args...)
+		})
+	}
+
+	logger.Info("checked config",
+		zap.String("addr", cfg.ListenAddr()),
+		zap.String("db-driver", cfg.Database.Driver),
+		zap.String("env", cfg.App.Environment),
 	)
 
-	// 7. Load Data Source
-	db, err := bootstrap.SetupDatabase(os.Stdout, &bootstrap.Options{
-		InitSQLPath: *initSQL, // Can be specified via --init-sql
-		AutoMigrate: *init,    // Whether to migrate entities
-		SeedNonProd: *seed,    // Non-production default configuration
-	})
+	// 连接数据库（在创建 Application 之前，因为 WithAutoMigrate 需要已连接的 *gorm.DB）
+	db, err := app.Connect(os.Stdout)
 	if err != nil {
-		logger.Error("database setup failed", zap.Error(err))
-		return
+		logger.Error("init database failed", zap.Error(err))
+		os.Exit(1)
 	}
 
-	// 7.5. Initialize global config store (DB-backed)
-	configStore, err := lbconfig.NewStoreWithDB(db)
-	if err != nil {
-		logger.Error("config store init failed", zap.Error(err))
-		return
-	}
-
-	// 8. Load Base Configs
-	addr := config.GlobalConfig.Server.Addr
-	if addr == "" {
-		addr = ":7072"
-	}
-
-	DBDriver := config.GlobalConfig.Database.Driver
-	if DBDriver == "" {
-		DBDriver = "sqlite"
-	}
-
-	DSN := config.GlobalConfig.Database.DSN
-	if DSN == "" {
-		DSN = "file::memory:?cache=shared"
-	}
-
-	logger.Info("checked config -- addr: ", zap.String("addr", addr))
-	logger.Info("checked config -- db-driver: ", zap.String("db-driver", DBDriver), zap.String("dsn", DSN))
-	logger.Info("checked config -- mode: ", zap.String("mode", config.GlobalConfig.Server.Mode))
-
-	// Initialize global LRU cache
-	globalCache, err := lru.New[string, any](1024, lru.WithDefaultTTL(5*time.Minute))
-	if err != nil {
-		logger.Error("cache init failed", zap.Error(err))
-		return
-	}
-
-	// Initialize global registration guard
-	utils.InitGlobalRegistrationGuard(logger.Lg, globalCache)
-
-	// Initialize global captcha manager
-	captcha.InitGlobalManager(captcha.DefaultConfig()) // Use memory storage, can be replaced with Redis storage
-
-	metrics := sysmetrics.New(db)
-	app.AddShutdownHook("sys-metrics", func(ctx context.Context) error {
-		logger.Info("flushing sys metrics...")
-		return metrics.Close()
-	})
-
-	// 11. New App
-	cloudApp := NewCloudStepsGoApp(db, globalCache, configStore, metrics)
-
-	// 12. Initialize Global Middleware Manager
-	middleware.InitGlobalMiddlewareManager(config.GlobalConfig.Middleware)
-	logger.Info("Global middleware manager initialized with config",
-		zap.Bool("rateLimit", config.GlobalConfig.Middleware.EnableRateLimit),
-		zap.Bool("timeout", config.GlobalConfig.Middleware.EnableTimeout),
-		zap.Bool("circuitBreaker", config.GlobalConfig.Middleware.EnableCircuitBreaker),
-		zap.Bool("operationLog", config.GlobalConfig.Middleware.EnableOperationLog))
-
-	// 15. Start Timed task
-	task.StartEmailCleaner(db)
-	task.StartCoachingAutoEnd(db)
-
-	// 15.5 Wordbook batch-audio queue（并发 = QCloud 账号数 × 9）
-	if err := handlers.StartWordBookBatchAudioQueue(db); err != nil {
-		logger.Error("wordbook batch-audio queue start failed", zap.Error(err))
-		return
-	}
-	app.AddShutdownHook("wordbook-batch-audio-queue", func(ctx context.Context) error {
-		logger.Info("stopping wordbook batch-audio queue...")
-		return handlers.StopWordBookBatchAudioQueue()
-	})
-
-	// 15.6 Wordbook purge-audio queue（默认 16 并发，与 TTS 独立）
-	if err := handlers.StartWordBookPurgeAudioQueue(db); err != nil {
-		logger.Error("wordbook purge-audio queue start failed", zap.Error(err))
-		return
-	}
-	app.AddShutdownHook("wordbook-purge-audio-queue", func(ctx context.Context) error {
-		logger.Info("stopping wordbook purge-audio queue...")
-		return handlers.StopWordBookPurgeAudioQueue()
-	})
-
-	// 15. Initialize Gin Routing
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()        // Use gin.New() instead of gin.Default() to avoid automatic redirects
-	r.Use(gin.Recovery()) // Manually add Recovery middleware
-	r.LoadHTMLGlob("templates/**/**")
-
-	// Disable automatic redirects to avoid CORS issues caused by 307 redirects
-	r.RedirectTrailingSlash = false
-	r.RedirectFixedPath = false
-
-	// Set maximum memory limit for multipart forms (32MB)
-	r.MaxMultipartMemory = 32 << 20 // 32 MB
-
-	// 16. use middleware
-	// Cookie Register
-	secret := common.GetEnv(constants.ENV_SESSION_SECRET)
-	if secret != "" {
-		expireDays := common.GetIntEnv(constants.ENV_SESSION_EXPIRE_DAYS)
-		if expireDays <= 0 {
-			expireDays = 7
+	// 可选：执行初始化 SQL
+	if *initSQL != "" {
+		if err := runInitSQL(db, *initSQL); err != nil {
+			logger.Error("run init sql failed", zap.String("path", *initSQL), zap.Error(err))
+			os.Exit(1)
 		}
-		r.Use(middleware.WithCookieSession(secret, int(expireDays)*24*3600))
+	}
+
+	lbApp := bootstrap.New(info.Name,
+		bootstrap.WithProfile(cfg.Mode()),
+		bootstrap.WithBannerFile("banner.txt"),
+		bootstrap.WithShutdownTimeout(30*time.Second),
+	)
+
+	// 迁移：使用 ling-base bootstrap 的 WithAutoMigrate
+	if *initDB {
+		lbApp.AddInitHook("auto-migrate", func(ctx context.Context) error {
+			models := app.Models()
+			logger.Info("running auto-migrate", zap.Int("models", len(models)))
+			if err := db.AutoMigrate(models...); err != nil {
+				return fmt.Errorf("auto-migrate failed: %w", err)
+			}
+			if err := app.PostMigrate(db); err != nil {
+				return fmt.Errorf("post-migrate failed: %w", err)
+			}
+			logger.Info("migration success",
+				zap.String("database", cfg.Database.Driver),
+				zap.String("dsn", cfg.Database.DSN),
+			)
+			return nil
+		})
 	} else {
-		r.Use(middleware.WithMemSession(utils.RandText(32)))
+		// 即使不执行 AutoMigrate，也做后置修复（ensureUsersEmailColumn 等）
+		lbApp.AddInitHook("post-migrate", func(ctx context.Context) error {
+			return app.PostMigrate(db)
+		})
 	}
 
-	// Cors Handle Middleware
-	r.Use(middleware.CorsMiddleware())
-
-	// Logger Handle Middleware
-	r.Use(middleware.LoggerMiddleware(zap.L()))
-
-	// Static service for uploaded files
-	uploadDir := common.GetEnv("UPLOAD_DIR")
-	if uploadDir == "" {
-		uploadDir = "./uploads"
-	}
-	// 注册 /uploads（主路径）并保留 /media 兼容历史
-	r.Static("/uploads", uploadDir)
-	r.Static("/media", uploadDir)
-
-	// 18. Register Routes
-	cloudApp.RegisterRoutes(r)
-
-	// 19. Initialize System Listener
-	listeners.InitSystemListeners()
-	listeners.InitAuthMailListeners(db)
-
-	// 20. Start Search Indexer (if enabled)
-	searchEnabled := configStore.GetBoolValue(constants.KEY_SEARCH_ENABLED)
-	if !searchEnabled && config.GlobalConfig != nil {
-		searchEnabled = config.GlobalConfig.Features.SearchEnabled
-	}
-	// 21. Emit system initialization signal
-	common.Sig().Emit(models.SigInitSystemConfig, nil)
-
-	// 22. Start HTTP/HTTPS Server
-	httpServer := &http.Server{
-		Addr:           addr,
-		Handler:        r,
-		ReadTimeout:    300 * time.Second,
-		WriteTimeout:   30 * time.Second,
-		IdleTimeout:    120 * time.Second,
-		MaxHeaderBytes: 1 << 20, // 1MB
-	}
-
-	// Register graceful shutdown hook for HTTP server
-	app.AddShutdownHook("http-server", func(ctx context.Context) error {
-		logger.Info("shutting down HTTP server...")
-		if err := httpServer.Shutdown(ctx); err != nil {
-			logger.Error("HTTP server shutdown error", zap.Error(err))
-			return err
-		}
-		logger.Info("HTTP server stopped gracefully")
-		return nil
+	// 通知模板种子（始终执行，确保基线行存在）
+	lbApp.AddInitHook("seed-notification-defaults", func(ctx context.Context) error {
+		seedSvc := &app.SeedService{DB: db}
+		return seedSvc.SeedNotificationDefaults()
 	})
 
-	// Start HTTP server in background
-	go func() {
-		if config.GlobalConfig.Server.SSLEnabled && listeners.IsSSLEnabled() {
-			tlsConfig, err := listeners.GetTLSConfig()
-			if err != nil {
-				logger.Error("failed to get TLS config", zap.Error(err))
-				return
-			}
-			if tlsConfig != nil {
-				httpServer.TLSConfig = tlsConfig
-				logger.Info("Starting HTTPS server", zap.String("addr", addr))
-				if err := httpServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-					logger.Error("HTTPS server run failed", zap.Error(err))
-				}
-			} else {
-				logger.Warn("SSL enabled but TLS config is nil, falling back to HTTP")
-				if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-					logger.Error("HTTP server run failed", zap.Error(err))
-				}
-			}
-		} else {
-			logger.Info("Starting HTTP server", zap.String("addr", addr))
-			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				logger.Error("HTTP server run failed", zap.Error(err))
-			}
-		}
-	}()
-
-	// 23. Run application (blocks until shutdown signal)
-	if err := app.Run(); err != nil {
-		logger.Error("application run failed", zap.Error(err))
+	// 非生产环境种子数据
+	if *seed {
+		lbApp.AddInitHook("seed-all", func(ctx context.Context) error {
+			seedSvc := &app.SeedService{DB: db}
+			return seedSvc.SeedAll()
+		})
 	}
+
+	if err := lbApp.Register("http-server", &app.HTTPServer{
+		Cfg:  cfg,
+		DB:   db,
+		Info: info,
+		I18n: i18nManager,
+	}); err != nil {
+		logger.Error("注册 HTTP 组件失败", zap.Error(err))
+		os.Exit(1)
+	}
+
+	if err := lbApp.Run(); err != nil {
+		logger.Error("应用启动失败", zap.Error(err))
+		os.Exit(1)
+	}
+}
+
+// runInitSQL 执行初始化 SQL 脚本（按分号分段）。
+func runInitSQL(db *gorm.DB, path string) error {
+	return common.RunInitSQL(db, path)
 }

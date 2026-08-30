@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#05070a" />
+    <title>系统维护中 · 解忧</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Syne:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #05070a;
+        --fg: #f2f5f7;
+        --muted: #8b96a3;
+        --line: rgba(242, 245, 247, 0.12);
+        --accent: #3ec8d0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: "DM Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+          sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+        display: grid;
+        place-items: center;
+        padding: 48px 24px;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: absolute;
+        inset: -20% -10% auto;
+        height: 55vh;
+        background: linear-gradient(
+          180deg,
+          rgba(62, 200, 208, 0.14) 0%,
+          rgba(62, 200, 208, 0.04) 42%,
+          transparent 100%
+        );
+        pointer-events: none;
+      }
+
+      main {
+        position: relative;
+        width: min(420px, 100%);
+        text-align: center;
+        animation: rise 0.7s ease-out both;
+      }
+
+      .logo {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 22px;
+        display: block;
+        object-fit: contain;
+        animation: fade-in 0.9s ease-out 0.08s both;
+      }
+
+      .brand {
+        margin: 0;
+        font-family: Syne, "DM Sans", sans-serif;
+        font-size: clamp(1.9rem, 5vw, 2.35rem);
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1;
+        animation: fade-in 0.8s ease-out 0.16s both;
+      }
+
+      .rule {
+        width: 40px;
+        height: 1px;
+        margin: 24px auto;
+        background: var(--line);
+        border: 0;
+        animation: fade-in 0.8s ease-out 0.22s both;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-family: Syne, "DM Sans", sans-serif;
+        font-size: 1.2rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        animation: fade-in 0.8s ease-out 0.26s both;
+      }
+
+      .desc {
+        margin: 0 auto;
+        max-width: 28em;
+        color: var(--muted);
+        font-size: 0.94rem;
+        line-height: 1.7;
+        animation: fade-in 0.8s ease-out 0.3s both;
+      }
+
+      .contact {
+        margin-top: 32px;
+        padding-top: 28px;
+        border-top: 1px solid var(--line);
+        animation: fade-in 0.8s ease-out 0.38s both;
+      }
+
+      .contact-label {
+        margin: 0 0 16px;
+        color: var(--muted);
+        font-size: 0.82rem;
+        letter-spacing: 0.06em;
+      }
+
+      .qr {
+        width: 168px;
+        height: 168px;
+        margin: 0 auto;
+        display: block;
+        object-fit: contain;
+        border-radius: 8px;
+        background: #fff;
+        padding: 8px;
+      }
+
+      .contact-hint {
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+
+      .actions {
+        margin-top: 28px;
+        animation: fade-in 0.8s ease-out 0.46s both;
+      }
+
+      button {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--fg);
+        border-radius: 999px;
+        padding: 11px 22px;
+        font: 500 0.875rem/1 "DM Sans", sans-serif;
+        cursor: pointer;
+        transition: border-color 0.2s ease, color 0.2s ease;
+      }
+
+      button:hover {
+        border-color: rgba(62, 200, 208, 0.55);
+        color: var(--accent);
+      }
+
+      button:active {
+        transform: translateY(1px);
+      }
+
+      .note {
+        margin-top: 36px;
+        color: rgba(139, 150, 163, 0.8);
+        font-size: 0.72rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        animation: fade-in 0.8s ease-out 0.52s both;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img
+        class="logo"
+        src="/logo.png"
+        width="80"
+        height="80"
+        alt="解忧"
+      />
+      <p class="brand">解忧</p>
+      <hr class="rule" />
+      <h1>系统维护中</h1>
+      <p class="desc">
+        服务正在升级，暂时无法访问。<br />
+        账号与数据会保留，稍后即可继续使用。
+      </p>
+
+      <section class="contact" aria-label="联系客服">
+        <p class="contact-label">遇到问题？扫码联系客服</p>
+        <img
+          class="qr"
+          src="/wechat-biz-qr.png"
+          width="168"
+          height="168"
+          alt="解忧微信客服二维码"
+        />
+        <p class="contact-hint">微信扫一扫，添加企业微信客服</p>
+      </section>
+
+      <div class="actions">
+        <button type="button" onclick="location.reload()">刷新页面</button>
+      </div>
+      <p class="note">Lingecho · CloudSteps</p>
+    </main>
+  </body>
+</html>

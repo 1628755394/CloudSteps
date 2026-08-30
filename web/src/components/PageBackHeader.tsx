@@ -23,7 +23,7 @@ export function PageBackHeader({
   subtitle,
   onBack,
   fallbackTo = "/",
-  maxWidthClass = "max-w-3xl",
+  maxWidthClass = "max-w-none",
   extra,
 }: PageBackHeaderProps) {
   const navigate = useNavigate();
@@ -43,7 +43,7 @@ export function PageBackHeader({
       aria-label={title}
     >
       <div
-        className={`${maxWidthClass} mx-auto w-full px-3 sm:px-4 flex items-center gap-1 h-11 min-h-11 pt-[env(safe-area-inset-top,0px)]`}
+        className={`${maxWidthClass} mx-auto w-full px-2 sm:px-3 flex items-center gap-1 h-11 min-h-11 pt-[env(safe-area-inset-top,0px)]`}
       >
         <CloudButton
           type="button"

@@ -43,12 +43,8 @@ function loginAccount(row: TeacherCoachingQuotaRow) {
 }
 
 function minsLabel(n: number) {
-  if (n >= 60) {
-    const h = Math.floor(n / 60)
-    const m = n % 60
-    return m ? `${h}小时${m}分` : `${h}小时`
-  }
-  return `${n}分钟`
+  if (!Number.isFinite(n)) return '—'
+  return `${Math.max(0, Math.round(n))}分钟`
 }
 
 export default function MyStudents() {

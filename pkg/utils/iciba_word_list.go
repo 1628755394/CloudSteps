@@ -175,11 +175,11 @@ type IcibaWordEntry struct {
 
 // IcibaWordPage 一页课程解析结果
 type IcibaWordPage struct {
-	SourceURL   string            `json:"sourceUrl"`
-	ClassID     int               `json:"classId"`
-	CourseID    int               `json:"courseId"`
-	LessonTitle string            `json:"lessonTitle"` // 如「四级必备词汇 第3课」
-	Words       []IcibaWordEntry  `json:"words"`
+	SourceURL   string           `json:"sourceUrl"`
+	ClassID     int              `json:"classId"`
+	CourseID    int              `json:"courseId"`
+	LessonTitle string           `json:"lessonTitle"` // 如「四级必备词汇 第3课」
+	Words       []IcibaWordEntry `json:"words"`
 }
 
 // IcibaWordsCourseURL 构造爱词吧「按课单词表」链接

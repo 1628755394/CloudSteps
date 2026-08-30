@@ -13,6 +13,7 @@ import {
 import { Header } from "./header";
 import { NavMenu } from "./NavMenu";
 import { AnimatedOutlet } from "./PageTransition";
+import { AnnouncementPopupHost } from "./AnnouncementPopupHost";
 import { CloudImageWithFallback } from "./cloudsteps";
 import { useAuthStore } from "../stores/authStore";
 import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
@@ -231,9 +232,7 @@ export function Layout() {
   // 侧栏布局：移动端用抽屉；底栏布局不需要汉堡；顶栏布局不需要汉堡
   const showMobileDrawer = layout === "sidebar";
   const showHeaderMenu = layout === "sidebar";
-  const isLessonPrep =
-    location.pathname === "/lesson-prep" ||
-    location.pathname.startsWith("/lesson-prep/");
+  const isLessonPrep = location.pathname === "/lesson-prep";
 
   const mainPadBottom =
     showBottomNav
@@ -339,7 +338,7 @@ export function Layout() {
             <main
               className={`flex-1 ${mainMarginLeft} ${mainPadBottom} flex flex-col min-h-0 overflow-x-hidden min-h-[calc(100dvh-2.75rem-env(safe-area-inset-top,0px))]`}
             >
-              <div className="flex-1 flex flex-col max-w-[1200px] w-full mx-auto min-h-0 px-4 py-3 lg:py-4">
+              <div className="flex-1 flex flex-col max-w-[1200px] w-full min-w-0 mx-auto min-h-0 px-3 sm:px-4 py-3 lg:py-4">
                 <AnimatedOutlet />
               </div>
             </main>
@@ -353,6 +352,8 @@ export function Layout() {
           <BottomNav items={filteredNavItems} pathname={location.pathname} />
         </div>
       )}
+
+      <AnnouncementPopupHost />
     </div>
   );
 }

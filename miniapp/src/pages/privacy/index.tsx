@@ -10,61 +10,69 @@ export default function Privacy() {
     <ScrollView className="doc" scrollY enableFlex>
       <View className="doc__card">
         <Text className="doc__intro">
-          我们非常重视你的个人信息保护。本隐私政策旨在说明我们如何收集、使用、存储、共享与保护你的个人信息，以及你如何行使相关权利。
-          你在使用解忧（CloudSteps）服务前，请仔细阅读并理解本政策。
+          解忧（CloudSteps，以下称「我们」）深知个人信息对你的重要性。本政策说明我们如何收集、使用、存储、共享与保护你的个人信息，以及你如何行使权利。
+          请在使用前仔细阅读。涉及敏感信息或需单独同意的事项，我们将依法另行征得同意。
         </Text>
 
         <View className="doc__section">
           <Text className="doc__h2">1. 我们收集的信息</Text>
-          <Text className="doc__p">为提供服务，我们可能收集以下信息：</Text>
+          <Text className="doc__p">为实现学习、陪练与账户安全等目的，我们可能收集：</Text>
           <View className="doc__list">
-            <Text className="doc__list-item">• 账户信息：邮箱、昵称、头像（如你提供）。</Text>
-            <Text className="doc__list-item">• 可选信息：手机号、地区、时区等（用于完善资料或提升体验）。</Text>
-            <Text className="doc__list-item">• 日志信息：设备信息、浏览/操作日志、IP 地址、登录时间等（用于安全与风控）。</Text>
+            <Text className="doc__list-item">• 账户信息：邮箱、手机号（如绑定）、昵称、头像、角色、登录凭证；</Text>
+            <Text className="doc__list-item">• 学习数据：词库选择、识记/复习进度、测试结果、训练记录、口语相关数据；</Text>
+            <Text className="doc__list-item">• 教练业务数据：学员档案、课时、预约与备注（仅授权角色可见）；</Text>
+            <Text className="doc__list-item">• 设备与日志：设备型号、系统、IP、操作与崩溃日志（用于安全与排障）；</Text>
+            <Text className="doc__list-item">• 你主动提供的反馈、联系方式及自定义内容；本地缓存的偏好与登录状态。</Text>
           </View>
         </View>
 
         <View className="doc__section">
-          <Text className="doc__h2">2. 信息的使用目的</Text>
+          <Text className="doc__h2">2. 使用目的</Text>
           <Text className="doc__p">
-            我们使用个人信息可能用于：提供与改进服务、账号安全与身份验证、故障排查与性能优化、合规要求等。
+            用于账户维护、提供学习与教练功能、展示学习进度、语音相关处理、服务通知、安全风控、产品改进，以及履行法定义务。我们不会强制收集与服务无关的信息。
           </Text>
         </View>
 
         <View className="doc__section">
-          <Text className="doc__h2">3. 信息的存储与保护</Text>
+          <Text className="doc__h2">3. 存储与保护</Text>
           <Text className="doc__p">
-            我们采取合理可行的技术与管理措施保护你的信息安全，包括访问控制、加密传输、审计与权限管理等。
-            但互联网环境并非绝对安全，我们将尽最大努力降低风险。
+            我们在中华人民共和国境内存储个人信息，仅在实现目的所必需的期限内保留，到期删除或匿名化（法律另有规定除外）。
+            我们采取访问控制、加密、权限分级等措施；互联网并非绝对安全，请妥善保管账户。
           </Text>
         </View>
 
         <View className="doc__section">
-          <Text className="doc__h2">4. 信息共享、转让与公开披露</Text>
+          <Text className="doc__h2">4. 共享与第三方</Text>
           <Text className="doc__p">
-            我们不会向第三方出售你的个人信息。
-            仅在以下情形可能共享、转让或公开披露：获得你的明确同意；法律法规要求；为维护你或公众的重大合法权益；与必要的服务提供方在最小范围内共享以实现产品功能。
+            我们不会出售个人信息。仅在你同意、履行法律义务、保护重大合法权益，或为登录/存储/语音等必要服务在最小范围内委托处理时共享，并要求对方保密。
+            接入的第三方 SDK 可能按其自身政策处理信息，请一并阅读。
           </Text>
         </View>
 
         <View className="doc__section">
-          <Text className="doc__h2">5. 你的权利</Text>
+          <Text className="doc__h2">5. 未成年人保护</Text>
           <Text className="doc__p">
-            你有权访问、更正或删除你的个人信息，并可通过产品内的设置/个人资料页面修改部分信息。
-            在适用法律允许范围内，你也可以撤回同意或注销账户。
+            未成年人请在监护人指导下使用。我们仅在法律允许、监护人同意或保护未成年人必要情形下处理相关信息。如有疑问请通过反馈渠道联系我们。
           </Text>
         </View>
 
         <View className="doc__section">
-          <Text className="doc__h2">6. 政策更新</Text>
+          <Text className="doc__h2">6. 你的权利</Text>
           <Text className="doc__p">
-            我们可能适时更新本政策。若变更对你的权利义务造成重大影响，我们将以弹窗、站内信或其他合理方式提示。
+            你有权查阅、更正、删除个人信息，撤回同意或申请注销账户（法律要求保留的除外）。可通过设置、个人中心或「意见反馈」提出请求，我们将在核实后合理期限内答复。
+          </Text>
+        </View>
+
+        <View className="doc__section">
+          <Text className="doc__h2">7. 政策更新与联系</Text>
+          <Text className="doc__p">
+            我们可能更新本政策，重大变更将以合理方式提示。疑问、投诉或建议请通过产品内「意见反馈」联系我们。
           </Text>
         </View>
       </View>
 
       <View className="doc__footer">
-        <Text className="doc__footer-text">更新日期：2026-03-26</Text>
+        <Text className="doc__footer-text">更新日期：2026-08-29</Text>
       </View>
     </ScrollView>
   )

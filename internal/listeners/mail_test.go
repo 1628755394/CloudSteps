@@ -3,7 +3,7 @@ package listeners
 import (
 	"testing"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
+	notify2 "github.com/LingByte/CloudStepsGo/pkg/notify"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -13,7 +13,7 @@ func TestEnabledMailConfigs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.NotificationChannel{}); err != nil {
+	if err := db.AutoMigrate(&notify2.NotificationChannel{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := EnabledMailConfigs(nil); err == nil {
@@ -22,12 +22,12 @@ func TestEnabledMailConfigs(t *testing.T) {
 	if _, err := EnabledMailConfigs(db); err == nil {
 		t.Fatal("expected no channels error")
 	}
-	raw, err := models.BuildEmailChannelConfigJSON("smtp", "primary", "smtp.example.com", 587, "u", "p", "from@example.com", "From", "", "", "")
+	raw, err := notify2.BuildEmailChannelConfigJSON("smtp", "primary", "smtp.example.com", 587, "u", "p", "from@example.com", "From", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := models.NotificationChannel{
-		Type: models.NotificationChannelTypeEmail, Code: "E-1", Name: "primary",
+	row := notify2.NotificationChannel{
+		Type: notify2.NotificationChannelTypeEmail, Code: "E-1", Name: "primary",
 		Enabled: true, ConfigJSON: raw,
 	}
 	if err := db.Create(&row).Error; err != nil {
@@ -44,14 +44,14 @@ func TestLoadEmailTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.MailTemplate{}); err != nil {
+	if err := db.AutoMigrate(&notify2.MailTemplate{}); err != nil {
 		t.Fatal(err)
 	}
-	tpl := &models.MailTemplate{
-		Code: "welcome", Name: "欢迎", ChannelType: models.NotificationTemplateTypeEmail,
+	tpl := &notify2.MailTemplate{
+		Code: "welcome", Name: "欢迎", ChannelType: notify2.NotificationTemplateTypeEmail,
 		Subject: "Hi {{.Username}}", Enabled: true,
 	}
-	models.ApplyMailTemplateHTMLDerivedFields(tpl, "<p>{{.Username}}</p>", "")
+	notify2.ApplyMailTemplateHTMLDerivedFields(tpl, "<p>{{.Username}}</p>", "")
 	if err := db.Create(tpl).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -66,14 +66,14 @@ func TestLoadInboxTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.MailTemplate{}); err != nil {
+	if err := db.AutoMigrate(&notify2.MailTemplate{}); err != nil {
 		t.Fatal(err)
 	}
-	tpl := &models.MailTemplate{
-		Code: "welcome", Name: "欢迎", ChannelType: models.NotificationTemplateTypeInbox,
+	tpl := &notify2.MailTemplate{
+		Code: "welcome", Name: "欢迎", ChannelType: notify2.NotificationTemplateTypeInbox,
 		InboxTitle: "欢迎注册", InboxBody: "欢迎加入，{{.Username}}", Enabled: true,
 	}
-	models.ApplyInboxTemplateDerivedFields(tpl, "")
+	notify2.ApplyInboxTemplateDerivedFields(tpl, "")
 	if err := db.Create(tpl).Error; err != nil {
 		t.Fatal(err)
 	}

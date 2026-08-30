@@ -370,6 +370,7 @@ export const createTeacherCoachingAppointment = async (body: {
   startTime: string
   endTime: string
   title?: string
+  notes?: string
 }): Promise<ApiResponse<CoachingWeekSchedule>> => {
   return post<CoachingWeekSchedule>('/teacher/coaching/appointments', body)
 }

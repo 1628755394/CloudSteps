@@ -90,10 +90,10 @@ export default function CreateStudent() {
 
   return (
     <div className="min-h-0 flex flex-col flex-1 bg-background">
-      <PageBackHeader title="新建学生" fallbackTo="/my-students" maxWidthClass="w-full" />
+      <PageBackHeader title="新建学生" fallbackTo="/my-students" maxWidthClass="max-w-none" />
 
-      <div className="flex-1 max-w-2xl w-full mx-auto px-4 py-4 space-y-3">
-        <section className="bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="flex-1 w-full py-3 space-y-3">
+        <section className="bg-card border-y border-border overflow-hidden sm:border sm:rounded-2xl">
           <div className="px-4 py-2.5 border-b border-border">
             <h2 className="text-sm font-semibold text-foreground">基本信息</h2>
           </div>
@@ -126,14 +126,14 @@ export default function CreateStudent() {
 
         <button
           type="button"
-          className="w-full flex items-center justify-between px-1 py-2 text-sm text-muted-foreground hover:text-primary"
+          className="w-full flex items-center justify-between px-3 py-2 text-sm text-muted-foreground hover:text-primary"
           onClick={() => navigate("/my-students?link=1")}
         >
           <span>已有账号？去关联添加</span>
           <ChevronRight size={16} />
         </button>
 
-        <div className="pt-1 pb-4">
+        <div className="px-3 pt-1 pb-4">
           <CloudButton
             variant="brand"
             size="pillLg"

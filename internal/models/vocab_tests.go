@@ -1,10 +1,14 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/LingByte/ling-base/common"
+)
 
 // VocabTestQuestion 词汇量测试题
 type VocabTestQuestion struct {
-	BaseModel
+	common.BaseModel
 	Word            string `json:"word" gorm:"size:128;not null;index;comment:测试单词"`
 	Options         string `json:"options" gorm:"type:text;comment:选项 JSON数组（4个中文释义）"`
 	CorrectAnswer   string `json:"correctAnswer" gorm:"size:256;not null;comment:正确答案"`
@@ -17,7 +21,7 @@ func (VocabTestQuestion) TableName() string { return "vocab_test_questions" }
 
 // VocabTestRecord 词汇量测试记录
 type VocabTestRecord struct {
-	BaseModel
+	common.BaseModel
 	UserID         uint       `json:"userId" gorm:"index;not null;comment:提交人（老师代测时为老师）"`
 	StudentID      uint       `json:"studentId" gorm:"index;comment:绑定学员；0 表示提交人自己"`
 	EstimatedLevel string     `json:"estimatedLevel" gorm:"size:10;comment:测出等级 A1-C1"`

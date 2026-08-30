@@ -6,10 +6,11 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
 	"strings"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/CloudStepsGo/pkg/synthesizer"
 	response "github.com/LingByte/ling-base/common/response/gin"
@@ -71,9 +72,9 @@ func synthesizeTextToURL(ctx context.Context, text, voice, lang string) (string,
 	return store.PublicURL(key), nil
 }
 
-func (h *Handlers) registerTTSRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerTTSRoutes(r *humax.Group) {
 	admin := r.Group("/admin")
-	admin.Use(models.AuthRequired, staffRequired)
+	admin.Use(auth.Required, auth.AdminRequired)
 	{
 		admin.POST("/tts", h.handleAdminTTS)
 	}
@@ -84,7 +85,7 @@ func (h *Handlers) registerTTSRoutes(r *gin.RouterGroup) {
 func (h *Handlers) handleAdminTTS(c *gin.Context) {
 	var req ttsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数错误", err.Error())
+		response.FailI18n(c, "common.invalid_params", err.Error())
 		return
 	}
 
@@ -93,9 +94,9 @@ func (h *Handlers) handleAdminTTS(c *gin.Context) {
 
 	url, err := synthesizeTextToURL(ctx, req.Text, req.Voice, req.Lang)
 	if err != nil {
-		response.Fail(c, "语音合成失败", err.Error())
+		response.FailI18n(c, "tts.failed", err.Error())
 		return
 	}
 
-	response.SuccessMsg(c, "ok", gin.H{"url": url})
+	response.SuccessI18n(c, "common.ok", gin.H{"url": url})
 }

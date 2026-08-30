@@ -5,7 +5,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
+	common "github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
 
@@ -31,51 +32,51 @@ var (
 // UserWord is a per-user overlay of a Word. Display prefers these fields
 // when present; the canonical Word row is not mutated until an admin adopts it.
 type UserWord struct {
-	BaseModel
-	UserID          uint   `json:"userId" gorm:"uniqueIndex:uidx_user_word_overlay;not null"`
-	WordID          uint   `json:"wordId" gorm:"uniqueIndex:uidx_user_word_overlay;index;not null"`
-	WordBookID      uint   `json:"wordBookId" gorm:"index;not null"`
-	Word            string `json:"word" gorm:"size:128"`
-	Phonetic        string `json:"phonetic" gorm:"size:128"`
-	PhoneticUS      string `json:"phoneticUs" gorm:"size:128"`
-	PhoneticUK      string `json:"phoneticUk" gorm:"size:128"`
+	common.BaseModel
+	UserID           uint   `json:"userId" gorm:"uniqueIndex:uidx_user_word_overlay;not null"`
+	WordID           uint   `json:"wordId" gorm:"uniqueIndex:uidx_user_word_overlay;index;not null"`
+	WordBookID       uint   `json:"wordBookId" gorm:"index;not null"`
+	Word             string `json:"word" gorm:"size:128"`
+	Phonetic         string `json:"phonetic" gorm:"size:128"`
+	PhoneticUS       string `json:"phoneticUs" gorm:"size:128"`
+	PhoneticUK       string `json:"phoneticUk" gorm:"size:128"`
 	Translation      string `json:"translation" gorm:"type:text"`
 	TranslationShort string `json:"translationShort" gorm:"type:text"`
-	PartOfSpeech    string `json:"partOfSpeech" gorm:"size:50"`
-	Definition      string `json:"definition" gorm:"type:text"`
-	ExampleSentence string `json:"exampleSentence" gorm:"type:text"`
-	Notes           string `json:"notes" gorm:"type:text"`
-	Status          string `json:"status" gorm:"size:16;index;not null;default:pending"`
+	PartOfSpeech     string `json:"partOfSpeech" gorm:"size:50"`
+	Definition       string `json:"definition" gorm:"type:text"`
+	ExampleSentence  string `json:"exampleSentence" gorm:"type:text"`
+	Notes            string `json:"notes" gorm:"type:text"`
+	Status           string `json:"status" gorm:"size:16;index;not null;default:pending"`
 }
 
 func (UserWord) TableName() string { return constants.TABLE_USER_WORDS }
 
 // UserWordFields is the editable overlay snapshot sent by the learner.
 type UserWordFields struct {
-	Word            string `json:"word"`
-	Phonetic        string `json:"phonetic"`
-	PhoneticUS      string `json:"phoneticUs"`
-	PhoneticUK      string `json:"phoneticUk"`
+	Word             string `json:"word"`
+	Phonetic         string `json:"phonetic"`
+	PhoneticUS       string `json:"phoneticUs"`
+	PhoneticUK       string `json:"phoneticUk"`
 	Translation      string `json:"translation"`
 	TranslationShort string `json:"translationShort"`
-	PartOfSpeech    string `json:"partOfSpeech"`
-	Definition      string `json:"definition"`
-	ExampleSentence string `json:"exampleSentence"`
-	Notes           string `json:"notes"`
+	PartOfSpeech     string `json:"partOfSpeech"`
+	Definition       string `json:"definition"`
+	ExampleSentence  string `json:"exampleSentence"`
+	Notes            string `json:"notes"`
 }
 
 func NormalizeUserWordFields(in UserWordFields) (UserWordFields, error) {
 	out := UserWordFields{
-		Word:            strings.TrimSpace(in.Word),
-		Phonetic:        strings.TrimSpace(in.Phonetic),
-		PhoneticUS:      strings.TrimSpace(in.PhoneticUS),
-		PhoneticUK:      strings.TrimSpace(in.PhoneticUK),
+		Word:             strings.TrimSpace(in.Word),
+		Phonetic:         strings.TrimSpace(in.Phonetic),
+		PhoneticUS:       strings.TrimSpace(in.PhoneticUS),
+		PhoneticUK:       strings.TrimSpace(in.PhoneticUK),
 		Translation:      strings.TrimSpace(in.Translation),
 		TranslationShort: strings.TrimSpace(in.TranslationShort),
-		PartOfSpeech:    strings.TrimSpace(in.PartOfSpeech),
-		Definition:      strings.TrimSpace(in.Definition),
-		ExampleSentence: strings.TrimSpace(in.ExampleSentence),
-		Notes:           strings.TrimSpace(in.Notes),
+		PartOfSpeech:     strings.TrimSpace(in.PartOfSpeech),
+		Definition:       strings.TrimSpace(in.Definition),
+		ExampleSentence:  strings.TrimSpace(in.ExampleSentence),
+		Notes:            strings.TrimSpace(in.Notes),
 	}
 	if err := checkRuneLen(out.Word, UserWordWordMaxRunes); err != nil {
 		return UserWordFields{}, err
@@ -259,7 +260,7 @@ func OverlayWordLites(db *gorm.DB, userID uint, words []WordLite) {
 		return
 	}
 	var rows []UserWord
-	if err := db.Where("user_id = ? AND word_id IN ? AND is_deleted = ?", userID, ids, SoftDeleteStatusActive).
+	if err := db.Where("user_id = ? AND word_id IN ?", userID, ids).
 		Find(&rows).Error; err != nil || len(rows) == 0 {
 		return
 	}
@@ -279,7 +280,7 @@ func OverlayWord(db *gorm.DB, userID uint, w *Word) {
 		return
 	}
 	var row UserWord
-	if err := db.Where("user_id = ? AND word_id = ? AND is_deleted = ?", userID, w.ID, SoftDeleteStatusActive).
+	if err := db.Where("user_id = ? AND word_id = ?", userID, w.ID).
 		First(&row).Error; err != nil {
 		return
 	}
@@ -288,7 +289,7 @@ func OverlayWord(db *gorm.DB, userID uint, w *Word) {
 
 func GetUserWord(db *gorm.DB, userID, wordID uint) (*UserWord, error) {
 	var row UserWord
-	if err := db.Where("user_id = ? AND word_id = ? AND is_deleted = ?", userID, wordID, SoftDeleteStatusActive).
+	if err := db.Where("user_id = ? AND word_id = ?", userID, wordID).
 		First(&row).Error; err != nil {
 		return nil, err
 	}
@@ -322,7 +323,7 @@ func UpsertUserWord(db *gorm.DB, userID uint, word *Word, fields UserWordFields,
 	if err != nil {
 		return nil, err
 	}
-	row.IsDeleted = SoftDeleteStatusActive
+	row.Restore(operator)
 	row.WordBookID = word.WordBookID
 	row.Status = UserWordStatusPending
 	row.applyFields(normalized)
@@ -335,14 +336,12 @@ func UpsertUserWord(db *gorm.DB, userID uint, word *Word, fields UserWordFields,
 
 func DeleteUserWord(db *gorm.DB, userID, wordID uint, operator string) error {
 	var row UserWord
-	if err := db.Where("user_id = ? AND word_id = ? AND is_deleted = ?", userID, wordID, SoftDeleteStatusActive).
+	if err := db.Where("user_id = ? AND word_id = ?", userID, wordID).
 		First(&row).Error; err != nil {
 		return err
 	}
-	return db.Model(&row).Updates(map[string]any{
-		"is_deleted": SoftDeleteStatusDeleted,
-		"update_by":  operator,
-	}).Error
+	row.SoftDelete(operator)
+	return db.Save(&row).Error
 }
 
 func AdoptUserWord(db *gorm.DB, row *UserWord, operator string) error {

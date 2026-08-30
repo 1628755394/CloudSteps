@@ -6,8 +6,8 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
+	"github.com/LingByte/ling-base/common/logger"
 	response "github.com/LingByte/ling-base/common/response/gin"
-	"github.com/LingByte/ling-base/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -107,7 +107,7 @@ func (j *purgeAllAudioJob) markFailed(errMsg string) {
 func (h *Handlers) handlePurgeAllAudio(c *gin.Context) {
 	snap := vocabPurgeAllAudioJob.snapshot()
 	if snap["status"] == purgeAllAudioRunning {
-		response.SuccessMsg(c, "任务进行中", snap)
+		response.SuccessI18n(c, "wordbook.job_running", snap)
 		return
 	}
 
@@ -115,11 +115,11 @@ func (h *Handlers) handlePurgeAllAudio(c *gin.Context) {
 	if err := h.db.Model(&models.VocabTestQuestion{}).
 		Where("audio_url IS NOT NULL AND audio_url <> ''").
 		Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	if total == 0 {
-		response.SuccessMsg(c, "无需清除", gin.H{
+		response.SuccessI18n(c, "wordbook.purge_empty", gin.H{
 			"status":  purgeAllAudioDone,
 			"total":   0,
 			"cleared": 0,
@@ -129,7 +129,7 @@ func (h *Handlers) handlePurgeAllAudio(c *gin.Context) {
 	}
 
 	if !vocabPurgeAllAudioJob.tryStart(int(total)) {
-		response.SuccessMsg(c, "任务进行中", vocabPurgeAllAudioJob.snapshot())
+		response.SuccessI18n(c, "wordbook.job_running", vocabPurgeAllAudioJob.snapshot())
 		return
 	}
 
@@ -138,12 +138,12 @@ func (h *Handlers) handlePurgeAllAudio(c *gin.Context) {
 
 	out := vocabPurgeAllAudioJob.snapshot()
 	out["started"] = true
-	response.SuccessMsg(c, "已在后台开始清除", out)
+	response.SuccessI18n(c, "wordbook.audio_purge_started", out)
 }
 
 // handlePurgeAllAudioStatus GET /vocab/questions/purge-all-audio
 func (h *Handlers) handlePurgeAllAudioStatus(c *gin.Context) {
-	response.SuccessMsg(c, "success", vocabPurgeAllAudioJob.snapshot())
+	response.SuccessI18n(c, "common.success", vocabPurgeAllAudioJob.snapshot())
 }
 
 func runPurgeAllAudioJob(db *gorm.DB) {

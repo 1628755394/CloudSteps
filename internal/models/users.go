@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	CloudStepsGo "github.com/LingByte/CloudStepsGo"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/ling-base/captcha"
-	common "github.com/LingByte/ling-base/common"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+	"github.com/LingByte/ling-base/common/logger"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -110,7 +110,7 @@ type UpdateUserRequest struct {
 }
 
 type User struct {
-	BaseModel
+	common.BaseModel
 	Username              string     `json:"username" gorm:"size:128;index"`
 	Password              string     `json:"-" gorm:"size:128"`
 	Email                 string     `json:"email,omitempty" gorm:"size:128;index:idx_users_email"` // 绑定邮箱（一个邮箱只能绑定一个用户，唯一性由 IsExistsByEmail 在应用层保证）
@@ -147,7 +147,7 @@ func (u *User) TableName() string {
 
 // Login Handle-User-Login
 func Login(c *gin.Context, user *User) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	firstLoginToday := true
 	if user.LastLogin != nil {
 		now := time.Now()
@@ -158,7 +158,7 @@ func Login(c *gin.Context, user *User) {
 	err := SetLastLogin(db, user, c.ClientIP())
 	if err != nil {
 		logger.Error("user.login", zap.Error(err))
-		CloudStepsGo.AbortWithJSONError(c, http.StatusInternalServerError, err)
+		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -166,7 +166,7 @@ func Login(c *gin.Context, user *User) {
 	err = IncrementLoginCount(db, user)
 	if err != nil {
 		logger.Error("user.login", zap.Error(err))
-		CloudStepsGo.AbortWithJSONError(c, http.StatusInternalServerError, err)
+		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -174,7 +174,7 @@ func Login(c *gin.Context, user *User) {
 	err = UpdateProfileComplete(db, user)
 	if err != nil {
 		logger.Error("user.login", zap.Error(err))
-		CloudStepsGo.AbortWithJSONError(c, http.StatusInternalServerError, err)
+		response.AbortWithStatusJSON(c, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -190,60 +190,6 @@ func Logout(c *gin.Context, user *User) {
 	session.Delete(constants.UserField)
 	session.Save()
 	common.Sig().Emit(constants.SigUserLogout, user, c)
-}
-
-func AuthRequired(c *gin.Context) {
-	if CurrentUser(c) != nil {
-		c.Next()
-		return
-	}
-
-	// 检查配置是否存在
-	if config.GlobalConfig == nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusInternalServerError, errors.New("server configuration not initialized"))
-		return
-	}
-
-	token := c.GetHeader(config.GlobalConfig.Auth.Header)
-	if token == "" {
-		token = c.Query("token")
-	}
-
-	if token == "" {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusUnauthorized, errors.New("authorization required"))
-		return
-	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	token = strings.TrimPrefix(token, constants.AUTHORIZATION_PREFIX)
-	user, err := DecodeHashToken(db, token, false)
-	if err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusUnauthorized, err)
-		return
-	}
-	if err := CheckUserAllowLogin(db, user); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusUnauthorized, err)
-		return
-	}
-	c.Set(constants.UserField, user)
-	c.Next()
-}
-
-func CurrentUser(c *gin.Context) *User {
-	if cachedObj, exists := c.Get(constants.UserField); exists && cachedObj != nil {
-		return cachedObj.(*User)
-	}
-	session := sessions.Default(c)
-	userId := session.Get(constants.UserField)
-	if userId == nil {
-		return nil
-	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user, err := GetUserByUID(db, userId.(uint))
-	if err != nil {
-		return nil
-	}
-	c.Set(constants.UserField, user)
-	return user
 }
 
 func CheckPassword(user *User, password string) bool {
@@ -344,8 +290,8 @@ func VerifyEncryptedPassword(encryptedPassword, storedPasswordHash string) bool 
 
 func GetUserByUID(db *gorm.DB, userID uint) (*User, error) {
 	var val User
-	// users 表无 enabled 列，使用 is_deleted 与主键查询（与全库软删约定一致）
-	result := db.Where("id = ? AND is_deleted = ?", userID, SoftDeleteStatusActive).Take(&val)
+	// users 表无 enabled 列；GORM DeletedAt 自动排除已软删用户
+	result := db.Where("id = ?", userID).Take(&val)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -354,9 +300,7 @@ func GetUserByUID(db *gorm.DB, userID uint) (*User, error) {
 
 func GetUserByUsername(db *gorm.DB, username string) (user *User, err error) {
 	var val User
-	result := db.Table(constants.USER_TABLE_NAME).
-		Where("username = ? AND is_deleted = ?", username, SoftDeleteStatusActive).
-		Take(&val)
+	result := db.Where("username = ?", username).Take(&val)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -366,7 +310,7 @@ func GetUserByUsername(db *gorm.DB, username string) (user *User, err error) {
 // GetUserByUsernameAny returns a user by username regardless of soft-delete status (admin/detail).
 func GetUserByUsernameAny(db *gorm.DB, username string) (user *User, err error) {
 	var val User
-	result := db.Table(constants.USER_TABLE_NAME).Where("username = ?", username).Take(&val)
+	result := db.Unscoped().Where("username = ?", username).Take(&val)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -374,7 +318,7 @@ func GetUserByUsernameAny(db *gorm.DB, username string) (user *User, err error) 
 }
 
 func UserIsActive(user *User) bool {
-	return user != nil && user.IsDeleted == SoftDeleteStatusActive
+	return user != nil && !user.DeletedAt.Valid
 }
 
 // GetUserByLoginAccount resolves password-login identity: username first,
@@ -396,9 +340,7 @@ func GetUserByLoginAccount(db *gorm.DB, account string) (user *User, err error) 
 
 func IsExistsByUsername(db *gorm.DB, username string) bool {
 	var n int64
-	db.Table(constants.USER_TABLE_NAME).
-		Where("username = ? AND is_deleted = ?", username, SoftDeleteStatusActive).
-		Count(&n)
+	db.Model(&User{}).Where("username = ?", username).Count(&n)
 	return n > 0
 }
 
@@ -409,9 +351,7 @@ func GetUserByEmail(db *gorm.DB, email string) (user *User, err error) {
 		return nil, gorm.ErrRecordNotFound
 	}
 	var val User
-	result := db.Table(constants.USER_TABLE_NAME).
-		Where("email = ? AND is_deleted = ?", email, SoftDeleteStatusActive).
-		Take(&val)
+	result := db.Where("email = ?", email).Take(&val)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -424,8 +364,7 @@ func IsExistsByEmail(db *gorm.DB, email string, excludeUserID ...uint) bool {
 	if email == "" {
 		return false
 	}
-	q := db.Table(constants.USER_TABLE_NAME).
-		Where("email = ? AND is_deleted = ?", email, SoftDeleteStatusActive)
+	q := db.Model(&User{}).Where("email = ?", email)
 	if len(excludeUserID) > 0 && excludeUserID[0] > 0 {
 		q = q.Where("id <> ?", excludeUserID[0])
 	}
@@ -485,10 +424,7 @@ func CreateUser(db *gorm.DB, username, password string) (*User, error) {
 		if err := tx.Create(&user).Error; err != nil {
 			return err
 		}
-		if err := GrantSignupTeacherTeachingPool(tx, user.ID); err != nil {
-			return err
-		}
-		return GrantSignupUserQuota(tx, user.ID)
+		return GrantSignupTeacherTeachingPool(tx, user.ID)
 	})
 	return &user, err
 }
@@ -570,31 +506,19 @@ func SoftDeleteUser(db *gorm.DB, userID uint, operator string) error {
 }
 
 func softDeleteUserInTx(tx *gorm.DB, userID uint, operator string) error {
-	res := tx.Model(&User{}).
-		Where("id = ? AND is_deleted = ?", userID, SoftDeleteStatusActive).
-		Updates(map[string]any{
-			"is_deleted": SoftDeleteStatusDeleted,
-			"update_by":  operator,
-		})
-	if res.Error != nil {
-		return res.Error
+	var user User
+	if err := tx.Where("id = ?", userID).First(&user).Error; err != nil {
+		return err
 	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+	user.SoftDelete(operator)
+	if err := tx.Save(&user).Error; err != nil {
+		return err
 	}
 	if err := clearCoachingBalancesInTx(tx, userID, operator); err != nil {
 		return err
 	}
-	quotaUpdates := map[string]any{
-		"is_deleted": SoftDeleteStatusDeleted,
-		"update_by":  operator,
-	}
-	if err := tx.Model(&StudentTeacherCoachingQuota{}).
-		Where("(teacher_id = ? OR student_id = ?) AND is_deleted = ?", userID, userID, SoftDeleteStatusActive).
-		Updates(quotaUpdates).Error; err != nil {
-		return err
-	}
-	return nil
+	return tx.Where("(teacher_id = ? OR student_id = ?)", userID, userID).
+		Delete(&StudentTeacherCoachingQuota{}).Error
 }
 
 // SoftDeleteTeacherWithStudents soft-deletes a teacher and all students linked via coaching quotas.
@@ -602,7 +526,7 @@ func SoftDeleteTeacherWithStudents(db *gorm.DB, teacherID uint, operator string)
 	return db.Transaction(func(tx *gorm.DB) error {
 		var studentIDs []uint
 		if err := tx.Model(&StudentTeacherCoachingQuota{}).
-			Where("teacher_id = ? AND student_id != ? AND is_deleted = ?", teacherID, teacherID, SoftDeleteStatusActive).
+			Where("teacher_id = ? AND student_id != ?", teacherID, teacherID).
 			Pluck("student_id", &studentIDs).Error; err != nil {
 			return err
 		}
@@ -711,16 +635,6 @@ func GeneratePasswordResetToken(db *gorm.DB, user *User) (string, error) {
 // VerifyPasswordResetToken 验证密码重置令牌 - 已移除密码重置功能
 func VerifyPasswordResetToken(db *gorm.DB, token string) (*User, error) {
 	return nil, errors.New("password reset functionality has been disabled")
-}
-
-// GeneratePhoneVerifyToken 生成手机验证令牌 - 已移除手机验证令牌功能
-func GeneratePhoneVerifyToken(db *gorm.DB, user *User) (string, error) {
-	return "", errors.New("phone verify token functionality has been disabled")
-}
-
-// VerifyPhone 验证手机 - 已移除手机验证令牌功能
-func VerifyPhone(db *gorm.DB, user *User, token string) error {
-	return errors.New("phone verify functionality has been disabled")
 }
 
 // UpdateNotificationSettings 更新通知设置 - 已移除通知设置功能
@@ -846,7 +760,6 @@ func CountNewUsersByDay(db *gorm.DB, from, to string) (map[string]int64, error) 
 	dayExpr := sqlCalendarDayExpr(db, "created_at")
 	err = db.Model(&User{}).
 		Select(dayExpr+" AS day, COUNT(*) AS count").
-		Where("is_deleted = ?", SoftDeleteStatusActive).
 		Where("created_at >= ? AND created_at < ?", start, endExclusive).
 		Where("LOWER(TRIM(IFNULL(source, ''))) NOT IN ?", []string{"teacher_create", "seed", "admin"}).
 		Group("day").

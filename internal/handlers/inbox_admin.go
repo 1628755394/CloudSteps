@@ -5,6 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/pkg/notify"
+	"github.com/LingByte/ling-base/apidocs/humax"
+
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/notification/inbox"
@@ -42,7 +45,7 @@ type inboxMessageUpdateReq struct {
 	Read        *bool  `json:"read"`
 }
 
-func (h *Handlers) registerInboxAdminRoutes(admin *gin.RouterGroup) {
+func (h *Handlers) registerInboxAdminRoutes(admin *humax.Group) {
 	g := admin.Group("inbox-messages")
 	{
 		g.GET("", h.handleAdminListInboxMessages)
@@ -64,7 +67,7 @@ func (h *Handlers) handleAdminListInboxMessages(c *gin.Context) {
 	title := strings.TrimSpace(c.Query("title"))
 	content := strings.TrimSpace(c.Query("content"))
 
-	q := h.db.Model(&models.InternalNotification{})
+	q := h.db.Model(&notify.InternalNotification{})
 	if userID != "" {
 		q = q.Where("user_id = ?", userID)
 	}
@@ -83,14 +86,14 @@ func (h *Handlers) handleAdminListInboxMessages(c *gin.Context) {
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
-	var rows []models.InternalNotification
+	var rows []notify.InternalNotification
 	offset := (page - 1) * pageSize
 	if err := q.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&rows).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -113,7 +116,7 @@ func (h *Handlers) handleAdminListInboxMessages(c *gin.Context) {
 		})
 	}
 
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -125,12 +128,12 @@ func (h *Handlers) handleAdminListInboxMessages(c *gin.Context) {
 func (h *Handlers) handleAdminCreateInboxMessage(c *gin.Context) {
 	var req inboxMessageCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数无效", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	user, err := models.GetUserByUID(h.db, req.UserID)
 	if err != nil {
-		response.Fail(c, "用户不存在", err)
+		response.FailI18n(c, "auth.user_not_found", err)
 		return
 	}
 
@@ -143,11 +146,11 @@ func (h *Handlers) handleAdminCreateInboxMessage(c *gin.Context) {
 		ActionLabel: strings.TrimSpace(req.ActionLabel),
 		Read:        false,
 	}); err != nil {
-		response.Fail(c, "发送站内信失败", err)
+		response.FailI18n(c, "feedback.send_inbox_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "已发送", nil)
+	response.SuccessI18n(c, "common.sent", nil)
 }
 
 // GET /admin/inbox-messages/:id
@@ -156,7 +159,7 @@ func (h *Handlers) handleAdminGetInboxMessage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	response.SuccessMsg(c, "ok", toAdminInboxRow(h.db, row))
+	response.SuccessI18n(c, "common.ok", toAdminInboxRow(h.db, row))
 }
 
 // PUT /admin/inbox-messages/:id
@@ -167,7 +170,7 @@ func (h *Handlers) handleAdminUpdateInboxMessage(c *gin.Context) {
 	}
 	var req inboxMessageUpdateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数无效", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 
@@ -184,19 +187,19 @@ func (h *Handlers) handleAdminUpdateInboxMessage(c *gin.Context) {
 		updates["read"] = *req.Read
 	}
 	if len(updates) == 0 {
-		response.Fail(c, "没有可更新的字段", nil)
+		response.FailI18n(c, "common.no_updatable_fields", nil)
 		return
 	}
-	if err := h.db.Model(&models.InternalNotification{}).Where("id = ?", row.ID).Updates(updates).Error; err != nil {
-		response.Fail(c, "更新失败", err)
+	if err := h.db.Model(&notify.InternalNotification{}).Where("id = ?", row.ID).Updates(updates).Error; err != nil {
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	var updated models.InternalNotification
+	var updated notify.InternalNotification
 	if err := h.db.First(&updated, row.ID).Error; err != nil {
-		response.Fail(c, "读取失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已更新", toAdminInboxRow(h.db, &updated))
+	response.SuccessI18n(c, "common.updated", toAdminInboxRow(h.db, &updated))
 }
 
 // DELETE /admin/inbox-messages/:id
@@ -205,22 +208,22 @@ func (h *Handlers) handleAdminDeleteInboxMessage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.db.Delete(&models.InternalNotification{}, row.ID).Error; err != nil {
-		response.Fail(c, "删除失败", err)
+	if err := h.db.Delete(&notify.InternalNotification{}, row.ID).Error; err != nil {
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已删除", nil)
+	response.SuccessI18n(c, "common.deleted", nil)
 }
 
-func (h *Handlers) findInboxMessage(c *gin.Context) (*models.InternalNotification, bool) {
+func (h *Handlers) findInboxMessage(c *gin.Context) (*notify.InternalNotification, bool) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		response.Fail(c, "无效 ID", err)
+		response.FailI18n(c, "wordbook.invalid_id", err)
 		return nil, false
 	}
-	var row models.InternalNotification
+	var row notify.InternalNotification
 	if err := h.db.First(&row, id).Error; err != nil {
-		response.Fail(c, "站内信不存在", err)
+		response.FailI18n(c, "notification.not_found", err)
 		return nil, false
 	}
 	return &row, true
@@ -231,7 +234,7 @@ type inboxUserLabel struct {
 	Email string
 }
 
-func loadInboxUserLabels(db *gorm.DB, rows []models.InternalNotification) map[string]inboxUserLabel {
+func loadInboxUserLabels(db *gorm.DB, rows []notify.InternalNotification) map[string]inboxUserLabel {
 	out := map[string]inboxUserLabel{}
 	if len(rows) == 0 {
 		return out
@@ -270,8 +273,8 @@ func loadInboxUserLabels(db *gorm.DB, rows []models.InternalNotification) map[st
 	return out
 }
 
-func toAdminInboxRow(db *gorm.DB, row *models.InternalNotification) adminInboxMessageRow {
-	labels := loadInboxUserLabels(db, []models.InternalNotification{*row})
+func toAdminInboxRow(db *gorm.DB, row *notify.InternalNotification) adminInboxMessageRow {
+	labels := loadInboxUserLabels(db, []notify.InternalNotification{*row})
 	label := labels[row.UserID]
 	return adminInboxMessageRow{
 		ID:          row.ID,

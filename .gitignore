@@ -75,3 +75,6 @@ go.work.sum
 # Word audio dedupe checkpoint
 .dedupe-word-audio/
 .idea/
+
+# Local secrets (use configs/config.example.yaml as template)
+configs/config.yaml

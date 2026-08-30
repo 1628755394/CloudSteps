@@ -13,6 +13,7 @@ import {
   markCoachOnboardingDone,
   measureCoachTarget,
   scrollCoachTargetIntoView,
+  setCoachOnboardingUiActive,
   type CoachOnboardingIcon,
   type CoachTargetRect,
 } from "../utils/coachOnboarding";
@@ -181,16 +182,21 @@ export function CoachOnboarding({ open, userId, onDone }: Props) {
     if (open) setStep(0);
   }, [open]);
 
-  // 一旦展示过就写入浏览器缓存，避免下次进入重复弹出
+  // 一旦展示过就写入浏览器缓存，避免下次进入重复弹出；并占用全局弹层闸门
   useEffect(() => {
     if (!open || !userId) return;
+    setCoachOnboardingUiActive(true);
     markCoachOnboardingDone(userId);
+    return () => {
+      setCoachOnboardingUiActive(false);
+    };
   }, [open, userId]);
 
   if (!open || !current) return null;
 
   const finish = (goAddStudent: boolean) => {
     markCoachOnboardingDone(userId);
+    setCoachOnboardingUiActive(false);
     onDone();
     if (goAddStudent) navigate("/my-students/new");
   };

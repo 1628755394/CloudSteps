@@ -1,32 +1,99 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import { ChevronLeft, ChevronRight, Search, Volume2, Loader2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Loader2,
+  Pencil,
+  Search,
+  Settings2,
+  Shuffle,
+  Trash2,
+  Volume2,
+} from "lucide-react";
+import { PageBackHeader } from "../components/PageBackHeader";
 import { CloudButton } from "../components/cloudsteps";
-import { getWordBook, listWordBookWords, type WordBookWord } from "../api/wordbooks";
-import { resolveMediaUrl } from "../utils/mediaUrl";
-import { WordEditHost, WordEditTrigger } from "../components/WordEditControls";
+import { CloudInput } from "../components/cloudsteps/arco";
+import { Textarea } from "../components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import { WordDetailDialog } from "../components/WordDetailDialog";
+import {
+  deleteWordBookWord,
+  getWordBook,
+  listWordBookWords,
+  updateWordBookWord,
+  type WordBookWord,
+} from "../api/wordbooks";
+import { playWordAudio } from "../utils/audioPlayer";
+import { displayTranslationFull, formatTranslation } from "../utils/wordFormat";
+import { showToast } from "../utils/toast";
+import { cn } from "../utils/cn";
 
-function formatPhonetic(w: WordBookWord): string {
-  const parts = [w.phonetic, w.phoneticUs, w.phoneticUk].filter((x) => x && String(x).trim());
-  if (parts.length === 0) return "";
-  return Array.from(new Set(parts.map((p) => String(p).trim()))).join(" · ");
+type MaskMode = "none" | "meaning" | "word";
+
+const MASK_OPTIONS: { key: MaskMode; label: string }[] = [
+  { key: "none", label: "不遮挡" },
+  { key: "meaning", label: "遮挡释义" },
+  { key: "word", label: "遮挡单词" },
+];
+
+const MASK_STORAGE_KEY = "wb_detail_mask_mode";
+
+function formatPhoneticBracket(w: WordBookWord): string {
+  const parts = [w.phonetic, w.phoneticUs, w.phoneticUk]
+    .map((x) => String(x || "").trim())
+    .filter(Boolean)
+    .map((p) => p.replace(/^\[|\]$/g, "").replace(/^\//, "").replace(/\/$/, ""));
+  const uniq = Array.from(new Set(parts));
+  if (!uniq.length) return "";
+  return uniq.map((p) => `[${p}]`).join(" / ");
 }
 
-function formatMeaning(w: WordBookWord): string {
-  const def = w.definition?.trim();
-  if (def) return def;
-  const raw = w.translation?.trim();
-  if (!raw) return "—";
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed.map(String).filter(Boolean).join("；");
-    }
-    if (typeof parsed === "string") return parsed;
-  } catch {
-    /* not JSON */
+function meaningLines(w: WordBookWord): string[] {
+  const short = (w.translationShort || "").trim();
+  if (short) {
+    return short
+      .split(/\n|；|;/)
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
-  return raw;
+  const full = displayTranslationFull(w.translation) || formatTranslation(w.translation);
+  if (full) {
+    return full
+      .split(/\n|；/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  const def = (w.definition || "").trim();
+  if (def) return [def];
+  if (w.partOfSpeech) return [`${w.partOfSpeech}`];
+  return [];
+}
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const next = [...arr];
+  for (let i = next.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
+
+function readMaskMode(): MaskMode {
+  try {
+    const v = localStorage.getItem(MASK_STORAGE_KEY);
+    if (v === "none" || v === "meaning" || v === "word") return v;
+  } catch {
+    /* ignore */
+  }
+  return "none";
 }
 
 export default function WordBookWords() {
@@ -34,6 +101,7 @@ export default function WordBookWords() {
   const bookId = Number(idParam);
 
   const [bookName, setBookName] = useState("");
+  const [isCustom, setIsCustom] = useState(false);
   const [keyword, setKeyword] = useState("");
   const [debouncedKw, setDebouncedKw] = useState("");
   const [list, setList] = useState<WordBookWord[]>([]);
@@ -43,6 +111,14 @@ export default function WordBookWords() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<number | null>(null);
+  const [maskMode, setMaskMode] = useState<MaskMode>(readMaskMode);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const [detailWord, setDetailWord] = useState<WordBookWord | null>(null);
+  const [editWord, setEditWord] = useState<WordBookWord | null>(null);
+  const [editForm, setEditForm] = useState({ word: "", phonetic: "", translation: "" });
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedKw(keyword.trim()), 350);
@@ -53,6 +129,14 @@ export default function WordBookWords() {
     setPage(1);
   }, [debouncedKw]);
 
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!settingsRef.current?.contains(e.target as Node)) setSettingsOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
   const load = useCallback(async () => {
     if (!Number.isFinite(bookId) || bookId <= 0) return;
     setLoading(true);
@@ -62,8 +146,9 @@ export default function WordBookWords() {
         getWordBook(bookId),
         listWordBookWords(bookId, { page, pageSize, keyword: debouncedKw || undefined }),
       ]);
-      if (bookRes.code === 200 && bookRes.data?.name) {
-        setBookName(bookRes.data.name);
+      if (bookRes.code === 200 && bookRes.data) {
+        setBookName(bookRes.data.name || "");
+        setIsCustom(Number(bookRes.data.ownerUserId || 0) > 0 || bookRes.data.category === "custom");
       }
       if (wordsRes.code !== 200) {
         setErr(wordsRes.msg || "加载单词失败");
@@ -88,72 +173,133 @@ export default function WordBookWords() {
   }, [load]);
 
   const play = (w: WordBookWord) => {
-    if (!w.audioUrl) {
-      alert("暂无发音音频");
+    if (!w.audioUrl?.trim()) {
+      showToast.info("暂无发音音频");
       return;
     }
-
-    // 拆分音频URL
-    const audioUrls = w.audioUrl.split(';').map(url => url.trim()).filter(url => url);
-    if (audioUrls.length === 0) {
-      alert("暂无有效的发音音频");
-      return;
-    }
-
     setPlayingId(w.id);
-    
-    // 递归播放函数
-    const playSequentially = (urls: string[], index: number = 0) => {
-      if (index >= urls.length) {
-        setPlayingId(null);
-        return;
-      }
+    playWordAudio(w.audioUrl, 300, () => setPlayingId(null));
+  };
 
-      const src = resolveMediaUrl(urls[index]);
-      if (!src) {
-        // 如果当前URL无效，播放下一个
-        playSequentially(urls, index + 1);
-        return;
-      }
+  const changeMask = (mode: MaskMode) => {
+    setMaskMode(mode);
+    setSettingsOpen(false);
+    try {
+      localStorage.setItem(MASK_STORAGE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
+  };
 
-      const audio = new Audio(src);
-      
-      audio.onended = () => {
-        // 播放下一个音频，间隔0.6秒
-        setTimeout(() => {
-          playSequentially(urls, index + 1);
-        }, 600);
-      };
-      
-      audio.onerror = () => {
-        // 播放失败时，尝试播放下一个
-        console.warn(`音频播放失败: ${urls[index]}`);
-        setTimeout(() => {
-          playSequentially(urls, index + 1);
-        }, 600);
-      };
+  const handleShuffle = () => {
+    setList((prev) => shuffleArray(prev));
+    showToast.success("已打乱当前页顺序");
+  };
 
-      // 开始播放
-      audio.play().catch((error) => {
-        console.warn(`音频播放失败: ${urls[index]}`, error);
-        // 播放失败时，尝试播放下一个
-        setTimeout(() => {
-          playSequentially(urls, index + 1);
-        }, 600);
+  const handleExport = () => {
+    if (!list.length) {
+      showToast.info("当前没有可导出的单词");
+      return;
+    }
+    const lines = list.map((w) => {
+      const ipa = formatPhoneticBracket(w);
+      const mean = meaningLines(w).join("；");
+      return [w.word, ipa, mean].filter(Boolean).join("\t");
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${bookName || "词书"}-p${page}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast.success("已导出当前页");
+  };
+
+  const openEdit = (w: WordBookWord) => {
+    setEditWord(w);
+    setEditForm({
+      word: w.word,
+      phonetic: w.phonetic || w.phoneticUs || w.phoneticUk || "",
+      translation: meaningLines(w).join("；") || w.translation || "",
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editWord) return;
+    const word = editForm.word.trim();
+    if (!word) {
+      showToast.info("请填写单词");
+      return;
+    }
+    setSaving(true);
+    try {
+      const trans = editForm.translation.trim();
+      const res = await updateWordBookWord(bookId, editWord.id, {
+        word,
+        phonetic: editForm.phonetic.trim(),
+        translation: trans,
+        translationShort: trans,
       });
-    };
+      if (res.code !== 200) {
+        showToast.error(res.msg || "保存失败");
+        return;
+      }
+      showToast.success("已保存");
+      setEditWord(null);
+      void load();
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "保存失败";
+      showToast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    // 开始播放序列
-    playSequentially(audioUrls);
+  const handleDelete = async (w: WordBookWord) => {
+    if (!window.confirm(`确定删除单词「${w.word}」？`)) return;
+    setDeletingId(w.id);
+    try {
+      const res = await deleteWordBookWord(bookId, w.id);
+      if (res.code !== 200) {
+        showToast.error(res.msg || "删除失败");
+        return;
+      }
+      showToast.success("已删除");
+      void load();
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "删除失败";
+      showToast.error(msg);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const title = bookName || (Number.isFinite(bookId) ? `词库 #${bookId}` : "词库");
+
+  const [tappedReveal, setTappedReveal] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    setTappedReveal(new Set());
+  }, [maskMode, page, debouncedKw]);
+
+  const toggleReveal = (id: number) => {
+    if (maskMode === "none") return;
+    setTappedReveal((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   if (!Number.isFinite(bookId) || bookId <= 0) {
     return (
-      <div className="text-[#718096]">
+      <div className="px-4 py-8 text-muted-foreground">
         无效词库{" "}
-        <Link to="/word-books" className="text-[#4ECDC4] underline">
+        <Link to="/" className="text-primary underline">
           返回
         </Link>
       </div>
@@ -161,153 +307,297 @@ export default function WordBookWords() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Link to="/word-books">
-          <CloudButton
-            type="button"
-            className="inline-flex items-center gap-1 px-3 py-2 rounded-full text-sm border border-[#E2E8F0] text-[#4A5568] bg-white"
-          >
-            <ChevronLeft size={18} />
-            词库列表
-          </CloudButton>
-        </Link>
-      </div>
+    <div className="min-h-full flex flex-col bg-muted/40">
+      <PageBackHeader title={title} fallbackTo="/" maxWidthClass="max-w-none" />
 
-      <div className="bg-white rounded-xl border border-[#E2E8F0] px-5 py-3.5">
-        <h1 className="text-lg font-medium text-[#2D3748]">{bookName || `词库 #${bookId}`}</h1>
-        <p className="text-sm font-medium text-[#4A5568] mt-0.5">共 {total} 个单词{debouncedKw ? "（已筛选）" : ""}</p>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0AEC0]" size={20} />
-        <input
-          type="search"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          placeholder="搜索单词、释义…"
-          className="w-full pl-10 pr-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-[#2D3748] placeholder:text-[#A0AEC0] focus:outline-none focus:border-[#4ECDC4]"
-        />
-      </div>
-
-      {err && (
-        <div className="bg-white rounded-xl p-4 border border-[#FF6B6B]/30 text-[#FF6B6B] text-sm">{err}</div>
-      )}
-
-      {loading ? (
-        <div className="bg-white rounded-xl p-8 text-center text-[#718096] border border-[#E2E8F0]">加载中…</div>
-      ) : list.length === 0 ? (
-        <div className="bg-white rounded-xl p-8 text-center text-[#718096] border border-[#E2E8F0]">暂无单词</div>
-      ) : (
-        <div className="space-y-3">
-          {list.map((w) => {
-            const ipa = formatPhonetic(w);
-            const mean = formatMeaning(w);
-            const hasAudio = Boolean(w.audioUrl && w.audioUrl.split(';').some(url => resolveMediaUrl(url.trim())));
-            return (
-              <div
-                key={w.id}
-                className="bg-white rounded-xl border border-[#E2E8F0] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4"
+      <div className="sticky top-11 z-40 bg-card border-b border-border -mx-3 sm:-mx-4 px-3 sm:px-4">
+        <div className="flex items-center gap-2 py-2.5">
+          <p className="min-w-0 flex-1 text-sm text-muted-foreground truncate">
+            共{" "}
+            <span className="text-base font-semibold text-primary tabular-nums">{total}</span>{" "}
+            个单词
+            {debouncedKw ? <span className="text-xs">（已筛选）</span> : null}
+          </p>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              type="button"
+              aria-label="导出"
+              onClick={handleExport}
+              className="size-9 inline-flex items-center justify-center rounded-lg text-primary hover:bg-primary-soft"
+            >
+              <Download size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="打乱顺序"
+              onClick={handleShuffle}
+              className="size-9 inline-flex items-center justify-center rounded-lg text-primary hover:bg-primary-soft"
+            >
+              <Shuffle size={18} />
+            </button>
+            <div className="relative" ref={settingsRef}>
+              <button
+                type="button"
+                aria-label="显示设置"
+                onClick={() => setSettingsOpen((o) => !o)}
+                className={cn(
+                  "size-9 inline-flex items-center justify-center rounded-lg text-primary hover:bg-primary-soft",
+                  settingsOpen && "bg-primary-soft",
+                )}
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="text-xl font-semibold text-[#2D3748]">{w.word}</span>
-                    {w.partOfSpeech ? (
-                      <span className="text-xs text-[#718096] bg-[#F7F9FC] px-2 py-0.5 rounded">{w.partOfSpeech}</span>
-                    ) : null}
-                    {w.overridden ? (
-                      <span className="text-xs text-[#2C7A7B] bg-[#4ECDC4]/15 px-2 py-0.5 rounded">已修正</span>
-                    ) : null}
-                  </div>
-                  {ipa ? <div className="text-sm text-[#55A3FF] font-mono mt-1">{ipa}</div> : null}
-                  <div className="text-sm text-[#4A5568] mt-2 leading-relaxed">{mean}</div>
-                  {w.exampleSentence ? (
-                    <div className="text-xs text-[#718096] mt-2 italic border-l-2 border-[#4ECDC4]/40 pl-3">
-                      {w.exampleSentence}
-                    </div>
-                  ) : null}
+                <Settings2 size={18} />
+              </button>
+              {settingsOpen ? (
+                <div className="absolute right-0 top-full mt-1 z-50 min-w-[8.5rem] rounded-xl border border-border bg-card py-1 shadow-lg">
+                  {MASK_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => changeMask(opt.key)}
+                      className={cn(
+                        "w-full px-3 py-2 text-left text-sm transition-colors",
+                        maskMode === opt.key
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground hover:bg-muted",
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
-                <div className="shrink-0 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                  <WordEditTrigger wordId={w.id} />
-                  <CloudButton
-                    type="button"
-                    disabled={!hasAudio}
-                    onClick={() => play(w)}
-                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm ${
-                      hasAudio
-                        ? playingId === w.id
-                          ? "bg-[#4ECDC4] text-white"
-                          : "bg-[#4ECDC4]/15 text-[#2C7A7B] hover:bg-[#4ECDC4]/25"
-                        : "bg-[#E2E8F0] text-[#A0AEC0] cursor-not-allowed"
-                    }`}
-                  >
-                    <Volume2 size={18} />
-                    {hasAudio ? (playingId === w.id ? "播放中…" : "播放") : "无音频"}
-                  </CloudButton>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {total > pageSize && (
-        <div className="flex items-center justify-between bg-white rounded-xl p-4 border border-[#E2E8F0] text-sm text-[#718096]">
-          <span>
-            第 {page} / {totalPages} 页
-          </span>
-          <div className="flex items-center gap-2">
-            <CloudButton
-              type="button"
-              disabled={loading || page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-[#2D3748] disabled:opacity-50 transition-all duration-200 hover:bg-[#F7F9FC] hover:border-[#4ECDC4] hover:shadow-sm active:scale-95"
-            >
-              <div className="flex items-center gap-1">
-                {loading && page > 1 ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <ChevronLeft size={16} />
-                )}
-                <span>上一页</span>
-              </div>
-            </CloudButton>
-            
-            <div className="px-3 py-1.5 text-sm text-[#718096] bg-[#F7F9FC] rounded-lg border border-[#E2E8F0] min-w-[80px] text-center">
-              {loading ? (
-                <div className="flex items-center justify-center gap-1">
-                  <Loader2 size={14} className="animate-spin" />
-                  <span>加载中</span>
-                </div>
-              ) : (
-                <span>{page} / {totalPages}</span>
-              )}
+              ) : null}
             </div>
-            
-            <CloudButton
-              type="button"
-              disabled={loading || page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-[#2D3748] disabled:opacity-50 transition-all duration-200 hover:bg-[#F7F9FC] hover:border-[#4ECDC4] hover:shadow-sm active:scale-95"
-            >
-              <div className="flex items-center gap-1">
-                <span>下一页</span>
-                {loading && page < totalPages ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <ChevronRight size={16} />
-                )}
-              </div>
-            </CloudButton>
           </div>
         </div>
-      )}
+        <div className="pb-2.5">
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+              size={16}
+            />
+            <input
+              type="search"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="搜索单词、释义…"
+              className="w-full h-9 pl-9 pr-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/20"
+            />
+          </div>
+        </div>
+      </div>
 
-      <WordEditHost
-        onSaved={() => {
-          void load();
+      <div className="flex-1 py-3 space-y-3 pb-8">
+        {err ? (
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            {err}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div className="rounded-xl bg-card border border-border px-4 py-10 text-center text-sm text-muted-foreground">
+            加载中…
+          </div>
+        ) : list.length === 0 ? (
+          <div className="rounded-xl bg-card border border-border px-4 py-10 text-center text-sm text-muted-foreground">
+            暂无单词
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {list.map((w) => {
+              const ipa = formatPhoneticBracket(w);
+              const lines = meaningLines(w);
+              const revealedCard = maskMode === "none" || tappedReveal.has(w.id);
+              const hideWord = maskMode === "word" && !revealedCard;
+              const hideMeaning = maskMode === "meaning" && !revealedCard;
+              const hasAudio = Boolean(w.audioUrl?.trim());
+
+              return (
+                <li
+                  key={w.id}
+                  className="rounded-2xl bg-card border border-border overflow-hidden"
+                >
+                  <div
+                    className="p-4"
+                    onClick={() => toggleReveal(w.id)}
+                    role={maskMode === "none" ? undefined : "button"}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <span
+                            className={cn(
+                              "text-lg font-semibold text-foreground leading-snug",
+                              hideWord && "select-none rounded-md bg-muted text-transparent",
+                            )}
+                          >
+                            {hideWord ? "████" : w.word}
+                          </span>
+                          {ipa && !hideWord ? (
+                            <span className="text-sm text-muted-foreground font-normal">{ipa}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="播放发音"
+                        disabled={!hasAudio}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          play(w);
+                        }}
+                        className={cn(
+                          "shrink-0 size-8 inline-flex items-center justify-center rounded-lg",
+                          hasAudio
+                            ? playingId === w.id
+                              ? "text-primary bg-primary-soft"
+                              : "text-primary hover:bg-primary-soft"
+                            : "text-muted-soft cursor-not-allowed",
+                        )}
+                      >
+                        <Volume2 size={18} />
+                      </button>
+                    </div>
+
+                    <div className="mt-3">
+                      {hideMeaning ? (
+                        <div className="h-14 rounded-lg bg-muted" />
+                      ) : lines.length ? (
+                        <div className="space-y-1 text-sm text-muted-foreground leading-relaxed">
+                          {lines.map((line, i) => (
+                            <p key={i}>{line}</p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-soft">暂无释义</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border px-4 py-2 flex items-center justify-end gap-1">
+                    {isCustom ? (
+                      <>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 px-2 py-1.5 text-xs text-muted-foreground hover:text-primary"
+                          onClick={() => openEdit(w)}
+                        >
+                          <Pencil size={13} />
+                          编辑
+                        </button>
+                        <button
+                          type="button"
+                          disabled={deletingId === w.id}
+                          className="inline-flex items-center gap-1 px-2 py-1.5 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
+                          onClick={() => void handleDelete(w)}
+                        >
+                          <Trash2 size={13} />
+                          {deletingId === w.id ? "删除中…" : "删除"}
+                        </button>
+                      </>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-0.5 px-2 py-1.5 text-xs font-medium text-primary"
+                      onClick={() => setDetailWord(w)}
+                    >
+                      单词详情
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {total > pageSize ? (
+          <div className="flex items-center justify-between gap-2 pt-1 text-sm text-muted-foreground">
+            <CloudButton
+              type="button"
+              variant="outline"
+              disabled={loading || page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="gap-1"
+            >
+              {loading && page > 1 ? <Loader2 size={16} className="animate-spin" /> : <ChevronLeft size={16} />}
+              上一页
+            </CloudButton>
+            <span className="tabular-nums">
+              {page} / {totalPages}
+            </span>
+            <CloudButton
+              type="button"
+              variant="outline"
+              disabled={loading || page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              className="gap-1"
+            >
+              下一页
+              {loading && page < totalPages ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <ChevronRight size={16} />
+              )}
+            </CloudButton>
+          </div>
+        ) : null}
+      </div>
+
+      <WordDetailDialog
+        wordId={detailWord?.id ?? null}
+        wordText={detailWord?.word}
+        open={detailWord != null}
+        onOpenChange={(open) => {
+          if (!open) setDetailWord(null);
         }}
       />
+
+      <Dialog
+        open={editWord != null}
+        onOpenChange={(open) => {
+          if (!open) setEditWord(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>编辑单词</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">单词</label>
+              <CloudInput
+                value={editForm.word}
+                onChange={(v: string) => setEditForm((f) => ({ ...f, word: v }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">音标</label>
+              <CloudInput
+                value={editForm.phonetic}
+                onChange={(v: string) => setEditForm((f) => ({ ...f, phonetic: v }))}
+                placeholder="/ˈæpl/"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">释义</label>
+              <Textarea
+                value={editForm.translation}
+                onChange={(e) => setEditForm((f) => ({ ...f, translation: e.target.value }))}
+                className="min-h-24 text-sm resize-none"
+                placeholder="中文释义"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <CloudButton type="button" variant="ghost" onClick={() => setEditWord(null)}>
+              取消
+            </CloudButton>
+            <CloudButton type="button" disabled={saving} onClick={() => void saveEdit()}>
+              {saving ? "保存中…" : "保存"}
+            </CloudButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

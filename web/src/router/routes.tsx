@@ -4,6 +4,7 @@ import Home from "../pages/Home";
 import AntiForgetting from "../pages/AntiForgetting";
 import CoachCenter from "../pages/CoachCenter";
 import CoachCompletedSessions from "../pages/CoachCompletedSessions";
+import CheckIn from "../pages/CheckIn";
 import VocabularyTest from "../pages/VocabularyTest";
 import VocabularyTestTesting from "../pages/VocabularyTestTesting";
 import VocabularyTestResult from "../pages/VocabularyTestResult";
@@ -38,9 +39,11 @@ import { RouteErrorBoundary } from "../components/RouteErrorBoundary";
 import { PublicOnly, RequireAuth, RequireRole } from "../components/AuthGuard";
 import MyStudents from "../pages/MyStudents";
 import CreateStudent from "../pages/CreateStudent";
+import CreateCoachingAppointment from "../pages/CreateCoachingAppointment";
 import StudentDetail from "../pages/StudentDetail";
 import WordBooks from "../pages/WordBooks";
 import WordBookWords from "../pages/WordBookWords";
+import CreateCustomWordBook from "../pages/CreateCustomWordBook";
 import LighthouseWords from "../pages/LighthouseWords";
 import TrainingRecords from "../pages/TrainingRecords";
 import LessonPrep from "../pages/LessonPrep";
@@ -82,11 +85,28 @@ export const router = createBrowserRouter(
         ),
       },
       { path: "lesson-prep", element: <Home /> },
+      {
+        path: "lesson-prep/new",
+        element: (
+          <RequireRole roles={["user", "teacher", "admin"]}>
+            <CreateCoachingAppointment />
+          </RequireRole>
+        ),
+      },
       { path: "word-books", element: <LessonPrep /> },
+      { path: "word-books/custom/new", element: <CreateCustomWordBook /> },
       { path: "word-books/:id", element: <WordBookWords /> },
       { path: "training-records", element: <TrainingRecords /> },
       { path: "anti-forgetting", element: <AntiForgetting /> },
       { path: "coach-center", element: <CoachCenter /> },
+      {
+        path: "coach-center/checkin",
+        element: (
+          <RequireRole roles={["user", "teacher", "admin"]}>
+            <CheckIn />
+          </RequireRole>
+        ),
+      },
       {
         path: "coach-center/completed",
         element: (

@@ -21,6 +21,9 @@ jobs:
       - name: go vet
         run: go vet ./...
 
+      - name: go build
+        run: go build ./...
+
       - name: go test
         run: go test ./... -count=1
 
@@ -53,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: admin-v1
+        working-directory: admin
     steps:
       - uses: actions/checkout@v4
 
@@ -65,7 +68,7 @@ jobs:
         with:
           node-version: "20"
           cache: pnpm
-          cache-dependency-path: admin-v1/pnpm-lock.yaml
+          cache-dependency-path: admin/pnpm-lock.yaml
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile

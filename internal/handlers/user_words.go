@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"strconv"
 	"strings"
 
@@ -22,9 +23,9 @@ type userWordViewDTO struct {
 }
 
 func (h *Handlers) handleGetMyUserWord(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	word, ok := h.loadActiveWord(c)
@@ -33,16 +34,16 @@ func (h *Handlers) handleGetMyUserWord(c *gin.Context) {
 	}
 	overlay, err := models.GetUserWord(h.db, user.ID, word.ID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "ok", toUserWordViewDTO(word, overlay))
+	response.SuccessI18n(c, "common.ok", toUserWordViewDTO(word, overlay))
 }
 
 func (h *Handlers) handleUpsertMyUserWord(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	word, ok := h.loadActiveWord(c)
@@ -51,21 +52,21 @@ func (h *Handlers) handleUpsertMyUserWord(c *gin.Context) {
 	}
 	var req models.UserWordFields
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数无效", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	row, err := models.UpsertUserWord(h.db, user.ID, word, req, strconv.FormatUint(uint64(user.ID), 10))
 	if err != nil {
-		response.Fail(c, userWordErrMsg(err), err)
+		response.FailI18n(c, userWordErrMsg(err), err)
 		return
 	}
-	response.SuccessMsg(c, "已保存", toUserWordViewDTO(word, row))
+	response.SuccessI18n(c, "common.saved", toUserWordViewDTO(word, row))
 }
 
 func (h *Handlers) handleDeleteMyUserWord(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	word, ok := h.loadActiveWord(c)
@@ -74,24 +75,24 @@ func (h *Handlers) handleDeleteMyUserWord(c *gin.Context) {
 	}
 	if err := models.DeleteUserWord(h.db, user.ID, word.ID, strconv.FormatUint(uint64(user.ID), 10)); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.SuccessMsg(c, "已恢复", toUserWordViewDTO(word, nil))
+			response.SuccessI18n(c, "common.restored", toUserWordViewDTO(word, nil))
 			return
 		}
-		response.Fail(c, "删除失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已恢复词库原文", toUserWordViewDTO(word, nil))
+	response.SuccessI18n(c, "msg.cdaa5383", toUserWordViewDTO(word, nil))
 }
 
 func (h *Handlers) loadActiveWord(c *gin.Context) (*models.Word, bool) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
-		response.Fail(c, "单词 ID 无效", nil)
+		response.FailI18n(c, "wordbook.word_id_invalid", nil)
 		return nil, false
 	}
 	word, err := models.GetWordByID(h.db, uint(id))
 	if err != nil {
-		response.Fail(c, "单词不存在", err)
+		response.FailI18n(c, "wordbook.word_not_found", err)
 		return nil, false
 	}
 	return word, true
@@ -123,15 +124,15 @@ func wordToFields(w *models.Word) models.UserWordFields {
 		return models.UserWordFields{}
 	}
 	return models.UserWordFields{
-		Word:            w.Word,
-		Phonetic:        w.Phonetic,
-		PhoneticUS:      w.PhoneticUS,
-		PhoneticUK:      w.PhoneticUK,
+		Word:             w.Word,
+		Phonetic:         w.Phonetic,
+		PhoneticUS:       w.PhoneticUS,
+		PhoneticUK:       w.PhoneticUK,
 		Translation:      w.Translation,
 		TranslationShort: w.TranslationShort,
-		PartOfSpeech:    w.PartOfSpeech,
-		Definition:      w.Definition,
-		ExampleSentence: w.ExampleSentence,
+		PartOfSpeech:     w.PartOfSpeech,
+		Definition:       w.Definition,
+		ExampleSentence:  w.ExampleSentence,
 	}
 }
 
@@ -140,40 +141,40 @@ func overlayToFields(u *models.UserWord) models.UserWordFields {
 		return models.UserWordFields{}
 	}
 	return models.UserWordFields{
-		Word:            u.Word,
-		Phonetic:        u.Phonetic,
-		PhoneticUS:      u.PhoneticUS,
-		PhoneticUK:      u.PhoneticUK,
+		Word:             u.Word,
+		Phonetic:         u.Phonetic,
+		PhoneticUS:       u.PhoneticUS,
+		PhoneticUK:       u.PhoneticUK,
 		Translation:      u.Translation,
 		TranslationShort: u.TranslationShort,
-		PartOfSpeech:    u.PartOfSpeech,
-		Definition:      u.Definition,
-		ExampleSentence: u.ExampleSentence,
-		Notes:           u.Notes,
+		PartOfSpeech:     u.PartOfSpeech,
+		Definition:       u.Definition,
+		ExampleSentence:  u.ExampleSentence,
+		Notes:            u.Notes,
 	}
 }
 
 func userWordErrMsg(err error) string {
 	if errors.Is(err, models.ErrUserWordEmpty) {
-		return "请至少填写一项要修正的内容"
+		return "user_word.empty"
 	}
 	if errors.Is(err, models.ErrUserWordTooLong) {
-		return "内容过长"
+		return "user_word.too_long"
 	}
 	if errors.Is(err, models.ErrUserWordMissing) {
-		return "单词不存在"
+		return "user_word.not_found"
 	}
-	return "保存失败"
+	return "common.operation_failed"
 }
 
 func overlayCurrentUserWord(c *gin.Context, db *gorm.DB, w *models.Word) {
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		models.OverlayWord(db, u.ID, w)
 	}
 }
 
 func overlayCurrentUserWordLites(c *gin.Context, db *gorm.DB, words []models.WordLite) {
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		models.OverlayWordLites(db, u.ID, words)
 	}
 }

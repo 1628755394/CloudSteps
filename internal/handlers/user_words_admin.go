@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
 	"strconv"
 	"strings"
 	"time"
@@ -27,9 +29,9 @@ type adminUserWordDTO struct {
 	UpdatedAt    time.Time             `json:"updatedAt"`
 }
 
-func (h *Handlers) registerUserWordAdminRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerUserWordAdminRoutes(r *humax.Group) {
 	admin := r.Group("admin")
-	admin.Use(models.AuthRequired, adminOnly())
+	admin.Use(auth.Required, auth.AdminRequired)
 	g := admin.Group("user-words")
 	{
 		g.GET("", h.handleAdminListUserWords)
@@ -45,7 +47,7 @@ func (h *Handlers) handleAdminListUserWords(c *gin.Context) {
 	userID := strings.TrimSpace(c.Query("userId"))
 	keyword := strings.TrimSpace(c.Query("keyword"))
 
-	q := h.db.Model(&models.UserWord{}).Where("is_deleted = ?", models.SoftDeleteStatusActive)
+	q := h.db.Model(&models.UserWord{})
 	if status == models.UserWordStatusPending || status == models.UserWordStatusAdopted || status == models.UserWordStatusDismissed {
 		q = q.Where("status = ?", status)
 	}
@@ -59,17 +61,17 @@ func (h *Handlers) handleAdminListUserWords(c *gin.Context) {
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	var rows []models.UserWord
 	if err := q.Order("updated_at DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	list := h.toAdminUserWordDTOs(rows)
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -84,16 +86,16 @@ func (h *Handlers) handleAdminGetUserWord(c *gin.Context) {
 	}
 	list := h.toAdminUserWordDTOs([]models.UserWord{*row})
 	if len(list) == 0 {
-		response.Fail(c, "记录不存在", nil)
+		response.FailI18n(c, "common.record_not_found", nil)
 		return
 	}
-	response.SuccessMsg(c, "ok", list[0])
+	response.SuccessI18n(c, "common.ok", list[0])
 }
 
 func (h *Handlers) handleAdminAdoptUserWord(c *gin.Context) {
-	admin := models.CurrentUser(c)
+	admin := auth.CurrentUser(c)
 	if admin == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	row, ok := h.findAdminUserWord(c)
@@ -101,18 +103,18 @@ func (h *Handlers) handleAdminAdoptUserWord(c *gin.Context) {
 		return
 	}
 	if err := models.AdoptUserWord(h.db, row, strconv.FormatUint(uint64(admin.ID), 10)); err != nil {
-		response.Fail(c, userWordErrMsg(err), err)
+		response.FailI18n(c, userWordErrMsg(err), err)
 		return
 	}
 	row.Status = models.UserWordStatusAdopted
 	list := h.toAdminUserWordDTOs([]models.UserWord{*row})
-	response.SuccessMsg(c, "已写入词库", list[0])
+	response.SuccessI18n(c, "msg.aff643b5", list[0])
 }
 
 func (h *Handlers) handleAdminDismissUserWord(c *gin.Context) {
-	admin := models.CurrentUser(c)
+	admin := auth.CurrentUser(c)
 	if admin == nil {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	row, ok := h.findAdminUserWord(c)
@@ -123,23 +125,23 @@ func (h *Handlers) handleAdminDismissUserWord(c *gin.Context) {
 		"status":    models.UserWordStatusDismissed,
 		"update_by": strconv.FormatUint(uint64(admin.ID), 10),
 	}).Error; err != nil {
-		response.Fail(c, "操作失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 	row.Status = models.UserWordStatusDismissed
 	list := h.toAdminUserWordDTOs([]models.UserWord{*row})
-	response.SuccessMsg(c, "已忽略", list[0])
+	response.SuccessI18n(c, "common.dismissed", list[0])
 }
 
 func (h *Handlers) findAdminUserWord(c *gin.Context) (*models.UserWord, bool) {
 	id, ok := parsePositiveID(c.Param("id"))
 	if !ok {
-		response.Fail(c, "记录 ID 无效", nil)
+		response.FailI18n(c, "common.invalid_record_id", nil)
 		return nil, false
 	}
 	var row models.UserWord
-	if err := h.db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&row).Error; err != nil {
-		response.Fail(c, "记录不存在", err)
+	if err := h.db.Where("id = ?", id).First(&row).Error; err != nil {
+		response.FailI18n(c, "common.record_not_found", err)
 		return nil, false
 	}
 	return &row, true

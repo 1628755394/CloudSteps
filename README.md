@@ -76,8 +76,8 @@ CloudSteps/
 │  ├─ constants/              # 常量
 │  └─ utils/                  # 工具
 ├─ web/                       # 学员端 H5 前端（React + Vite）
-├─ admin-v1/                  # 运营后台前端（React + shadcn/ui）
-├─ templates/                 # 邮件模板 / favicon
+├─ admin/                     # 运营后台前端（React + shadcn/ui）
+├─ templates/                 # 邮件 HTML 模板（embed）
 ├─ i18n/                      # 国际化翻译
 ├─ docs/                      # 设计 / 实现文档
 ├─ .github/workflows/         # CI（ci.yml + deploy-pages.yml）
@@ -132,7 +132,7 @@ go mod download
 
 # 前端（web + admin）
 cd web && pnpm install
-cd ../admin-v1 && pnpm install
+cd ../admin && pnpm install
 ```
 
 或一键：
@@ -183,7 +183,7 @@ make backend-all-zip
 make docker
 ```
 
-构建产物统一输出到 `dist/`，版本信息通过 `-ldflags` 注入（`main.Version` / `main.Commit` / `main.BuildDate`）。
+构建产物统一输出到 `dist/`，版本信息通过 `-ldflags` 注入（`main.Version` / `main.GitCommit` / `main.BuildTime`）。
 
 ## 测试
 
@@ -199,7 +199,7 @@ go vet ./...         # 静态检查（CI 同款）
 
 - **go-test**：`go vet ./...` + `go test ./... -count=1`
 - **web-build**：`pnpm install --frozen-lockfile` + `pnpm run build`
-- **admin-ci**：`admin-v1` 的 lint / format / test / build
+- **admin-ci**：`admin` 的 lint / format / test / build
 
 [`deploy-pages.yml`](./.github/workflows/deploy-pages.yml) 在 `web/**` 变更时把学员端部署到 GitHub Pages。
 

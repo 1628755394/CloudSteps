@@ -23,7 +23,7 @@ func TestCreateUser_grantsSignupTeacherPool(t *testing.T) {
 
 	var selfN int64
 	if err := db.Model(&StudentTeacherCoachingQuota{}).
-		Where("teacher_id = ? AND student_id = ? AND is_deleted = ?", user.ID, user.ID, SoftDeleteStatusActive).
+		Where("teacher_id = ? AND student_id = ?", user.ID, user.ID).
 		Count(&selfN).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestGrantSignupTeacherTeachingPool_cleansLegacySelfPair(t *testing.T) {
 	}
 	var activeSelf int64
 	if err := db.Model(&StudentTeacherCoachingQuota{}).
-		Where("teacher_id = ? AND student_id = ? AND is_deleted = ?", teacherID, teacherID, SoftDeleteStatusActive).
+		Where("teacher_id = ? AND student_id = ?", teacherID, teacherID).
 		Count(&activeSelf).Error; err != nil {
 		t.Fatal(err)
 	}

@@ -191,7 +191,7 @@ export default function Notifications() {
                     <Text className="notif__item-title">{n.title}</Text>
                   </View>
                   <Text className="notif__item-content">{n.content}</Text>
-                  <Text className="notif__item-time">{formatTime(n.created_at)}</Text>
+                  <Text className="notif__item-time">{formatTime(n.createdAt)}</Text>
                 </View>
                 {!n.read && <View className="notif__item-badge">未读</View>}
               </View>

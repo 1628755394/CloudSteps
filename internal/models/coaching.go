@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
+	common "github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
 
@@ -24,12 +26,12 @@ const (
 const (
 	CoachingSessionStatusCompleted = "completed"
 	// SignupTeachingPoolMinutes 新老师注册赠送的可授课总时长（分钟，跨学员合计）。
-	SignupTeachingPoolMinutes = 1000
+	SignupTeachingPoolMinutes = 180
 )
 
 // StudentTeacherCoachingQuota 学员在某老师名下的陪练剩余时长（分钟）
 type StudentTeacherCoachingQuota struct {
-	BaseModel
+	common.BaseModel
 	TeacherID             uint  `json:"teacherId" gorm:"uniqueIndex:idx_coach_quota_pair;not null;index"`
 	StudentID             uint  `json:"studentId" gorm:"uniqueIndex:idx_coach_quota_pair;not null;index"`
 	RemainingMinutes      int   `json:"remainingMinutes" gorm:"not null;default:0"`
@@ -39,7 +41,9 @@ type StudentTeacherCoachingQuota struct {
 	Student               *User `json:"student,omitempty" gorm:"foreignKey:StudentID"`
 }
 
-func (StudentTeacherCoachingQuota) TableName() string { return "student_teacher_coaching_quotas" }
+func (StudentTeacherCoachingQuota) TableName() string {
+	return constants.TABLE_STUDENT_TEACHER_COACHING_QUOTAS
+}
 
 // IsSelfCoachingPair 历史误建的自关联额度（teacher_id = student_id），不应出现在学员列表。
 func IsSelfCoachingPair(teacherID, studentID uint) bool {
@@ -47,10 +51,8 @@ func IsSelfCoachingPair(teacherID, studentID uint) bool {
 }
 
 func cleanupSelfPairCoachingQuota(db *gorm.DB, teacherID uint) error {
-	res := db.Model(&StudentTeacherCoachingQuota{}).
-		Where("teacher_id = ? AND student_id = ? AND is_deleted = ?", teacherID, teacherID, SoftDeleteStatusActive).
-		Updates(map[string]any{"is_deleted": SoftDeleteStatusDeleted})
-	return res.Error
+	return db.Where("teacher_id = ? AND student_id = ?", teacherID, teacherID).
+		Delete(&StudentTeacherCoachingQuota{}).Error
 }
 
 // clearCoachingBalancesInTx zeros remaining coaching minutes/pool for a user before soft-delete.
@@ -64,7 +66,7 @@ func clearCoachingBalancesInTx(tx *gorm.DB, userID uint, operator string) error 
 		"update_by":               operator,
 	}
 	if err := tx.Model(&StudentTeacherCoachingQuota{}).
-		Where("(teacher_id = ? OR student_id = ?) AND is_deleted = ?", userID, userID, SoftDeleteStatusActive).
+		Where("(teacher_id = ? OR student_id = ?)", userID, userID).
 		Updates(quotaZero).Error; err != nil {
 		return err
 	}
@@ -74,13 +76,13 @@ func clearCoachingBalancesInTx(tx *gorm.DB, userID uint, operator string) error 
 		"update_by":               operator,
 	}
 	return tx.Model(&TeacherTeachingPool{}).
-		Where("teacher_id = ? AND is_deleted = ?", userID, SoftDeleteStatusActive).
+		Where("teacher_id = ?", userID).
 		Updates(poolZero).Error
 }
 
 // TeacherTeachingPool 老师可授课总池（跨学员合计扣减，非按月）。
 type TeacherTeachingPool struct {
-	BaseModel
+	common.BaseModel
 	TeacherID             uint  `json:"teacherId" gorm:"uniqueIndex:idx_teacher_pool_teacher;not null"`
 	RemainingMinutes      int   `json:"remainingMinutes" gorm:"not null;default:0"`
 	TotalAllocatedMinutes int   `json:"totalAllocatedMinutes" gorm:"not null;default:0"`
@@ -88,7 +90,7 @@ type TeacherTeachingPool struct {
 	Teacher               *User `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
 }
 
-func (TeacherTeachingPool) TableName() string { return "teacher_teaching_pools" }
+func (TeacherTeachingPool) TableName() string { return constants.TABLE_TEACHER_TEACHING_POOLS }
 
 // EnsureTeacherTeachingPool 确保老师授课池行存在（默认 0，不自动赠送）。
 func EnsureTeacherTeachingPool(db *gorm.DB, teacherID uint) (*TeacherTeachingPool, error) {
@@ -96,7 +98,7 @@ func EnsureTeacherTeachingPool(db *gorm.DB, teacherID uint) (*TeacherTeachingPoo
 		return nil, nil
 	}
 	var row TeacherTeachingPool
-	err := db.Where("teacher_id = ? AND is_deleted = ?", teacherID, SoftDeleteStatusActive).First(&row).Error
+	err := db.Where("teacher_id = ?", teacherID).First(&row).Error
 	if err == nil {
 		return &row, nil
 	}
@@ -163,7 +165,7 @@ func GrantSignupCoachingQuota(db *gorm.DB, userID uint) error {
 
 // TeacherCoachingUsagePeriod 老师按周期的已上分钟数（计费计量，仅统计）
 type TeacherCoachingUsagePeriod struct {
-	BaseModel
+	common.BaseModel
 	TeacherID   uint      `json:"teacherId" gorm:"uniqueIndex:idx_coach_usage_period;not null;index"`
 	PeriodStart time.Time `json:"periodStart" gorm:"uniqueIndex:idx_coach_usage_period;type:date;not null"`
 	PeriodEnd   time.Time `json:"periodEnd" gorm:"type:date;not null"` // 周期结束日（不含当日或文档约定）
@@ -172,44 +174,46 @@ type TeacherCoachingUsagePeriod struct {
 	Teacher     *User     `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
 }
 
-func (TeacherCoachingUsagePeriod) TableName() string { return "teacher_coaching_usage_periods" }
+func (TeacherCoachingUsagePeriod) TableName() string {
+	return constants.TABLE_TEACHER_COACHING_USAGE_PERIODS
+}
 
 // CoachingAppointment 一对一排课
 type CoachingAppointment struct {
-	BaseModel
-	TeacherID       uint       `json:"teacherId" gorm:"index;not null"`
-	StudentID       uint       `json:"studentId" gorm:"index;not null"`
-	ScheduledDate   time.Time  `json:"scheduledDate" gorm:"index;not null;type:date"`
-	StartTime       string     `json:"startTime" gorm:"size:8;not null"` // HH:MM
-	EndTime         string     `json:"endTime" gorm:"size:8;not null"`
-	DurationMinutes int        `json:"durationMinutes" gorm:"not null;default:0"`
-	Status          string     `json:"status" gorm:"size:32;not null;index;default:'scheduled'"`
-	Title           string     `json:"title" gorm:"size:256"`
-	Notes           string     `json:"notes" gorm:"type:text"`
-	ActualStartedAt *time.Time `json:"actualStartedAt,omitempty"` // 老师点击「开始上课」
-	Teacher         *User      `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
-	Student         *User      `json:"student,omitempty" gorm:"foreignKey:StudentID"`
+	common.BaseModel
+	TeacherID       uint                   `json:"teacherId" gorm:"index;not null"`
+	StudentID       uint                   `json:"studentId" gorm:"index;not null"`
+	ScheduledDate   time.Time              `json:"scheduledDate" gorm:"index;not null;type:date"`
+	StartTime       string                 `json:"startTime" gorm:"size:8;not null"` // HH:MM
+	EndTime         string                 `json:"endTime" gorm:"size:8;not null"`
+	DurationMinutes int                    `json:"durationMinutes" gorm:"not null;default:0"`
+	Status          string                 `json:"status" gorm:"size:32;not null;index;default:'scheduled'"`
+	Title           string                 `json:"title" gorm:"size:256"`
+	Notes           string                 `json:"notes" gorm:"type:text"`
+	ActualStartedAt *time.Time             `json:"actualStartedAt,omitempty"` // 老师点击「开始上课」
+	Teacher         *User                  `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
+	Student         *User                  `json:"student,omitempty" gorm:"foreignKey:StudentID"`
 	Session         *CoachingSessionRecord `json:"session,omitempty" gorm:"foreignKey:AppointmentID"`
 }
 
-func (CoachingAppointment) TableName() string { return "coaching_appointments" }
+func (CoachingAppointment) TableName() string { return constants.TABLE_COACHING_APPOINTMENTS }
 
 // CoachingSessionRecord 完课记录（actual / billed 分钟）
 type CoachingSessionRecord struct {
-	BaseModel
-	AppointmentID  uint      `json:"appointmentId" gorm:"uniqueIndex;not null"`
-	TeacherID      uint      `json:"teacherId" gorm:"index;not null"`
-	StudentID      uint      `json:"studentId" gorm:"index;not null"`
-	StartedAt      time.Time `json:"startedAt" gorm:"not null"`
-	EndedAt        time.Time `json:"endedAt" gorm:"not null"`
-	ActualMinutes           int `json:"actualMinutes" gorm:"not null"`
-	BilledMinutes           int `json:"billedMinutes" gorm:"not null"` // 从学员剩余中扣减的分钟
-	TeacherCreditedMinutes  int `json:"teacherCreditedMinutes" gorm:"not null;default:0"` // 计入老师周期用量的分钟（受 cap 截断时可能 < BilledMinutes）
-	Status                  string `json:"status" gorm:"size:32;not null;default:'completed'"`
-	Appointment    *CoachingAppointment `json:"appointment,omitempty" gorm:"foreignKey:AppointmentID"`
+	common.BaseModel
+	AppointmentID          uint                 `json:"appointmentId" gorm:"uniqueIndex;not null"`
+	TeacherID              uint                 `json:"teacherId" gorm:"index;not null"`
+	StudentID              uint                 `json:"studentId" gorm:"index;not null"`
+	StartedAt              time.Time            `json:"startedAt" gorm:"not null"`
+	EndedAt                time.Time            `json:"endedAt" gorm:"not null"`
+	ActualMinutes          int                  `json:"actualMinutes" gorm:"not null"`
+	BilledMinutes          int                  `json:"billedMinutes" gorm:"not null"`                    // 从学员剩余中扣减的分钟
+	TeacherCreditedMinutes int                  `json:"teacherCreditedMinutes" gorm:"not null;default:0"` // 计入老师周期用量的分钟（受 cap 截断时可能 < BilledMinutes）
+	Status                 string               `json:"status" gorm:"size:32;not null;default:'completed'"`
+	Appointment            *CoachingAppointment `json:"appointment,omitempty" gorm:"foreignKey:AppointmentID"`
 }
 
-func (CoachingSessionRecord) TableName() string { return "coaching_session_records" }
+func (CoachingSessionRecord) TableName() string { return constants.TABLE_COACHING_SESSION_RECORDS }
 
 // CoachingAuditLog 陪练模块操作审计（追加写入）
 type CoachingAuditLog struct {
@@ -227,7 +231,7 @@ type CoachingAuditLog struct {
 	IP            string    `json:"ip,omitempty" gorm:"size:64"`
 }
 
-func (CoachingAuditLog) TableName() string { return "coaching_audit_logs" }
+func (CoachingAuditLog) TableName() string { return constants.TABLE_COACHING_AUDIT_LOGS }
 
 // ParseCoachingHM 解析 HH:MM 为当日从 00:00 起的分钟数
 func ParseCoachingHM(s string) (int, error) {

@@ -2,7 +2,7 @@ package task
 
 import (
 	"github.com/LingByte/CloudStepsGo/internal/handlers"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

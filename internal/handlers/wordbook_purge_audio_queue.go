@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/queue"
 	memoryqueue "github.com/LingByte/ling-base/queue/memory"
 	"go.uber.org/zap"
@@ -25,11 +25,11 @@ type wordBookPurgeAudioPayload struct {
 }
 
 var (
-	wordBookPurgeAudioQueueMu sync.Mutex
-	wordBookPurgeAudioQ       queue.Queue
-	wordBookPurgeAudioSched   *queue.Scheduler
-	wordBookPurgeAudioDB      *gorm.DB
-	wordBookPurgeAudioWorkers int
+	wordBookPurgeAudioQueueMu    sync.Mutex
+	wordBookPurgeAudioQ          queue.Queue
+	wordBookPurgeAudioSched      *queue.Scheduler
+	wordBookPurgeAudioDB         *gorm.DB
+	wordBookPurgeAudioWorkers    int
 	wordBookPurgeAudioRootCancel context.CancelFunc
 )
 

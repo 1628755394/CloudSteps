@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/pkg/synthesizer"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/queue"
 	memoryqueue "github.com/LingByte/ling-base/queue/memory"
 	"go.uber.org/zap"
@@ -27,11 +27,11 @@ type wordBookBatchAudioPayload struct {
 }
 
 var (
-	wordBookBatchAudioQueueMu sync.Mutex
-	wordBookBatchAudioQ       queue.Queue
-	wordBookBatchAudioSched   *queue.Scheduler
-	wordBookBatchAudioDB      *gorm.DB
-	wordBookBatchAudioWorkers int
+	wordBookBatchAudioQueueMu    sync.Mutex
+	wordBookBatchAudioQ          queue.Queue
+	wordBookBatchAudioSched      *queue.Scheduler
+	wordBookBatchAudioDB         *gorm.DB
+	wordBookBatchAudioWorkers    int
 	wordBookBatchAudioRootCancel context.CancelFunc
 )
 

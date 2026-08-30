@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/ling-base/common/logger"
 	response "github.com/LingByte/ling-base/common/response/gin"
-	"github.com/LingByte/ling-base/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -30,17 +30,17 @@ type batchAudioFilters struct {
 }
 
 type batchAudioJob struct {
-	mu        sync.Mutex
-	Status    string            `json:"status"`
-	Total     int               `json:"total"`
-	Processed int               `json:"processed"`
-	Success   int               `json:"success"`
-	Failed    int               `json:"failed"`
-	Error     string            `json:"error,omitempty"`
-	Filters   batchAudioFilters `json:"filters,omitempty"`
-	StartedAt time.Time         `json:"startedAt,omitempty"`
-	FinishedAt time.Time        `json:"finishedAt,omitempty"`
-	cancel    context.CancelFunc
+	mu         sync.Mutex
+	Status     string            `json:"status"`
+	Total      int               `json:"total"`
+	Processed  int               `json:"processed"`
+	Success    int               `json:"success"`
+	Failed     int               `json:"failed"`
+	Error      string            `json:"error,omitempty"`
+	Filters    batchAudioFilters `json:"filters,omitempty"`
+	StartedAt  time.Time         `json:"startedAt,omitempty"`
+	FinishedAt time.Time         `json:"finishedAt,omitempty"`
+	cancel     context.CancelFunc
 }
 
 var vocabBatchAudioJob = &batchAudioJob{Status: batchAudioIdle}
@@ -135,7 +135,7 @@ func (j *batchAudioJob) finish(status string, errMsg string) {
 func (h *Handlers) handleBatchAudio(c *gin.Context) {
 	snap := vocabBatchAudioJob.snapshot()
 	if snap["status"] == batchAudioRunning {
-		response.SuccessMsg(c, "任务进行中", snap)
+		response.SuccessI18n(c, "wordbook.job_running", snap)
 		return
 	}
 
@@ -153,11 +153,11 @@ func (h *Handlers) handleBatchAudio(c *gin.Context) {
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	if total == 0 {
-		response.SuccessMsg(c, "所有题目已有音频", gin.H{
+		response.SuccessI18n(c, "wordbook.all_audio_exists", gin.H{
 			"status":  batchAudioDone,
 			"total":   0,
 			"success": 0,
@@ -168,7 +168,7 @@ func (h *Handlers) handleBatchAudio(c *gin.Context) {
 
 	ctx, ok := vocabBatchAudioJob.tryStart(int(total), filters)
 	if !ok {
-		response.SuccessMsg(c, "任务进行中", vocabBatchAudioJob.snapshot())
+		response.SuccessI18n(c, "wordbook.job_running", vocabBatchAudioJob.snapshot())
 		return
 	}
 
@@ -177,21 +177,21 @@ func (h *Handlers) handleBatchAudio(c *gin.Context) {
 
 	out := vocabBatchAudioJob.snapshot()
 	out["started"] = true
-	response.SuccessMsg(c, "已在后台开始生成", out)
+	response.SuccessI18n(c, "wordbook.audio_generation_started", out)
 }
 
 // handleBatchAudioStatus GET /vocab/questions/batch-audio
 func (h *Handlers) handleBatchAudioStatus(c *gin.Context) {
-	response.SuccessMsg(c, "success", vocabBatchAudioJob.snapshot())
+	response.SuccessI18n(c, "common.success", vocabBatchAudioJob.snapshot())
 }
 
 // handleBatchAudioStop POST /vocab/questions/batch-audio/stop
 func (h *Handlers) handleBatchAudioStop(c *gin.Context) {
 	if !vocabBatchAudioJob.requestStop() {
-		response.SuccessMsg(c, "当前没有进行中的任务", vocabBatchAudioJob.snapshot())
+		response.SuccessI18n(c, "wordbook.no_running_job", vocabBatchAudioJob.snapshot())
 		return
 	}
-	response.SuccessMsg(c, "已请求停止", vocabBatchAudioJob.snapshot())
+	response.SuccessI18n(c, "wordbook.audio_stop_requested", vocabBatchAudioJob.snapshot())
 }
 
 func runBatchAudioJob(ctx context.Context, db *gorm.DB, filters batchAudioFilters) {

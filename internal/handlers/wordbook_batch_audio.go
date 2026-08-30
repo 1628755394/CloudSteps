@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/audio"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+	"github.com/LingByte/ling-base/common/logger"
 	response "github.com/LingByte/ling-base/common/response/gin"
-	"github.com/LingByte/ling-base/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -306,7 +306,7 @@ func (h *Handlers) adminListWordBookBatchAudioJobs(c *gin.Context) {
 			out["queueRunning"] = stats.Running
 		}
 	}
-	response.SuccessMsg(c, "success", out)
+	response.SuccessI18n(c, "common.success", out)
 }
 
 type wordBookBatchAudioReq struct {
@@ -315,15 +315,15 @@ type wordBookBatchAudioReq struct {
 
 // adminBatchWordBookAudio POST /wordbooks/:id/words/batch-audio
 func (h *Handlers) adminBatchWordBookAudio(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	bookID, err := parseBookIDParam(c)
 	if err != nil || bookID == 0 {
-		response.Fail(c, "无效词库 ID", nil)
+		response.FailI18n(c, "wordbook.invalid_id", nil)
 		return
 	}
 	job := getWordBookBatchAudioJob(bookID)
 	if snap := job.snapshot(); snap["status"] == batchAudioRunning || snap["status"] == batchAudioQueued {
-		response.SuccessMsg(c, "任务进行中", snap)
+		response.SuccessI18n(c, "wordbook.job_running", snap)
 		return
 	}
 
@@ -339,11 +339,11 @@ func (h *Handlers) adminBatchWordBookAudio(c *gin.Context) {
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 	if total == 0 {
-		response.SuccessMsg(c, "所有单词已有音频", gin.H{
+		response.SuccessI18n(c, "wordbook.all_audio_exists", gin.H{
 			"bookId":  bookID,
 			"status":  batchAudioDone,
 			"total":   0,
@@ -356,20 +356,20 @@ func (h *Handlers) adminBatchWordBookAudio(c *gin.Context) {
 	out, err := enqueueWordBookBatchAudio(bookID, keyword, int(total))
 	if err != nil {
 		if out != nil {
-			response.SuccessMsg(c, "任务进行中", out)
+			response.SuccessI18n(c, "wordbook.job_running", out)
 			return
 		}
-		response.Fail(c, err.Error(), nil)
+		response.FailI18n(c, "common.operation_failed", nil)
 		return
 	}
-	response.SuccessMsg(c, "已加入生成队列", out)
+	response.SuccessI18n(c, "wordbook.audio_queued", out)
 }
 
 // adminBatchWordBookAudioStatus GET /wordbooks/:id/words/batch-audio
 func (h *Handlers) adminBatchWordBookAudioStatus(c *gin.Context) {
 	bookID, err := parseBookIDParam(c)
 	if err != nil || bookID == 0 {
-		response.Fail(c, "无效词库 ID", nil)
+		response.FailI18n(c, "wordbook.invalid_id", nil)
 		return
 	}
 	job := getWordBookBatchAudioJob(bookID)
@@ -392,22 +392,22 @@ func (h *Handlers) adminBatchWordBookAudioStatus(c *gin.Context) {
 			}
 		}
 	}
-	response.SuccessMsg(c, "success", out)
+	response.SuccessI18n(c, "common.success", out)
 }
 
 // adminBatchWordBookAudioStop POST /wordbooks/:id/words/batch-audio/stop
 func (h *Handlers) adminBatchWordBookAudioStop(c *gin.Context) {
 	bookID, err := parseBookIDParam(c)
 	if err != nil || bookID == 0 {
-		response.Fail(c, "无效词库 ID", nil)
+		response.FailI18n(c, "wordbook.invalid_id", nil)
 		return
 	}
 	job := getWordBookBatchAudioJob(bookID)
 	if !job.requestStop() {
-		response.SuccessMsg(c, "当前没有进行中的任务", job.snapshot())
+		response.SuccessI18n(c, "wordbook.no_running_job", job.snapshot())
 		return
 	}
-	response.SuccessMsg(c, "已请求停止", job.snapshot())
+	response.SuccessI18n(c, "wordbook.audio_stop_requested", job.snapshot())
 }
 
 func runWordBookBatchAudioJob(ctx context.Context, db *gorm.DB, bookID uint, keyword string, job *wordBookBatchAudioJob) {
@@ -461,7 +461,7 @@ func runWordBookBatchAudioJob(ctx context.Context, db *gorm.DB, bookID uint, key
 				zap.Error(err),
 			)
 		} else {
-			cleaned := audio.DeduplicateSlots(audioURL)
+			cleaned := utils.DeduplicateSlots(audioURL)
 			if err := db.Model(&models.Word{}).
 				Where("id = ?", w.ID).
 				Update("audio_url", cleaned).Error; err != nil {

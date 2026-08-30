@@ -319,16 +319,6 @@ export const changePassword = async (data: ChangePasswordRequest): Promise<ApiRe
   return post<{ logout?: boolean }>('/auth/change-password', data)
 }
 
-// 发送手机验证码（手机号需已在个人资料中填写）
-export const sendPhoneVerification = async (): Promise<ApiResponse<null>> => {
-  return post<null>('/auth/send-phone-verification')
-}
-
-// 验证手机验证码
-export const verifyPhone = async (code: string): Promise<ApiResponse<null>> => {
-  return post<null>('/auth/verify-phone', { code })
-}
-
 // 更新通知设置
 export const updateNotificationSettings = async (settings: NotificationSettings): Promise<ApiResponse<null>> => {
   return put<null>('/auth/notification-settings', settings)

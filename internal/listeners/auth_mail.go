@@ -3,15 +3,14 @@ package listeners
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/configs"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/internal/notify"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/pkg/notify"
 	common "github.com/LingByte/ling-base/common"
-	"github.com/LingByte/ling-base/logger"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -22,16 +21,6 @@ func InitAuthMailListeners(db *gorm.DB) {
 	if db == nil {
 		return
 	}
-	authMailListenersOnce.Do(func() {
-		initAuthMailListeners(db)
-	})
-}
-
-var authMailListenersOnce sync.Once
-
-func initAuthMailListeners(db *gorm.DB) {
-	_ = db.AutoMigrate(&models.MailTemplate{})
-	_ = models.SplitLegacyMailTemplates(db)
 
 	connectAsync := func(event string, fn func(*gorm.DB, ...any)) {
 		common.Sig().Connect(event, func(_ any, params ...any) {
@@ -83,7 +72,7 @@ func initAuthMailListeners(db *gorm.DB) {
 	connectAsync(constants.SigUserChangeEmail, deliverChangeEmailInbox)
 	connectAsync(constants.SigUserChangeEmailDone, deliverChangeEmailDoneEmail)
 	connectAsync(constants.SigUserChangeEmailDone, deliverChangeEmailDoneInbox)
-	logger.Info("auth mail Sig listeners registered")
+	logger.Info("auth mail module listener is already")
 }
 
 func deliverWelcomeEmail(db *gorm.DB, params ...any) {
@@ -442,10 +431,10 @@ func notifyFormatLoginDeviceLabel(deviceType, os, browser string) string {
 }
 
 func siteURL() string {
-	if config.GlobalConfig == nil {
+	if configs.Global == nil {
 		return ""
 	}
-	return strings.TrimRight(config.GlobalConfig.Server.URL, "/")
+	return strings.TrimRight(configs.Global.Server.URL, "/")
 }
 
 func actionURL(path, queryKey, queryVal string) string {

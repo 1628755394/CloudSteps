@@ -3,13 +3,14 @@ package models
 import (
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
+	common "github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
 
 // UserDevice 用户设备表
 type UserDevice struct {
-	BaseModel
+	common.BaseModel
 	UserID     uint      `gorm:"index;not null" json:"userId"`
 	DeviceID   string    `gorm:"size:128;index;not null" json:"deviceId"`
 	DeviceName string    `gorm:"size:128" json:"deviceName"`
@@ -30,7 +31,7 @@ func (UserDevice) TableName() string {
 
 // LoginHistory 登录历史记录表（用于异地登录检测）
 type LoginHistory struct {
-	BaseModel
+	common.BaseModel
 	UserID        uint   `gorm:"index;not null" json:"userId"`
 	Email         string `gorm:"size:128;index" json:"email"`
 	IPAddress     string `gorm:"size:128;index" json:"ipAddress"`
@@ -51,16 +52,16 @@ func (LoginHistory) TableName() string {
 
 // AccountLock 账号锁定记录
 type AccountLock struct {
-	BaseModel
+	common.BaseModel
 	UserID         uint      `gorm:"index;not null" json:"userId"`
-	Email          string    `gorm:"size:128;index" json:"email"`           // 邮箱（用于未登录时的锁定）
-	Username       string    `gorm:"size:128;index" json:"username"`       // 用户名（用于未登录时的锁定）
-	IPAddress      string    `gorm:"size:128;index" json:"ipAddress"`      // 锁定IP
-	LockedAt       time.Time `gorm:"index" json:"lockedAt"`                // 锁定时间
-	UnlockAt       time.Time `gorm:"index" json:"unlockAt"`                // 解锁时间
-	Reason         string    `gorm:"size:256" json:"reason"`               // 锁定原因
-	FailedAttempts int       `gorm:"default:0" json:"failedAttempts"`      // 失败次数
-	IsActive       bool      `gorm:"default:true;index" json:"isActive"`   // 是否激活
+	Email          string    `gorm:"size:128;index" json:"email"`        // 邮箱（用于未登录时的锁定）
+	Username       string    `gorm:"size:128;index" json:"username"`     // 用户名（用于未登录时的锁定）
+	IPAddress      string    `gorm:"size:128;index" json:"ipAddress"`    // 锁定IP
+	LockedAt       time.Time `gorm:"index" json:"lockedAt"`              // 锁定时间
+	UnlockAt       time.Time `gorm:"index" json:"unlockAt"`              // 解锁时间
+	Reason         string    `gorm:"size:256" json:"reason"`             // 锁定原因
+	FailedAttempts int       `gorm:"default:0" json:"failedAttempts"`    // 失败次数
+	IsActive       bool      `gorm:"default:true;index" json:"isActive"` // 是否激活
 }
 
 func (AccountLock) TableName() string {

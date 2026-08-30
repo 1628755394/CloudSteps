@@ -182,7 +182,7 @@ export default function Feedback() {
           )
         }
       />
-      <div className="flex-1 max-w-3xl w-full mx-auto px-4 py-5 space-y-4">
+      <div className="flex-1 w-full py-5 space-y-4">
         {activeId ? (
           <div className="space-y-4">
             <CloudButton variant="ghost" size="sm" onClick={() => { setActiveId(null); setActive(null); }}>

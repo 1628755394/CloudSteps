@@ -10,11 +10,11 @@ import (
 
 func TestMetricDayKey(t *testing.T) {
 	cases := map[string]string{
-		"2026-08-27":                          "2026-08-27",
-		"2026-08-27 00:00:00":                 "2026-08-27",
-		"2026-08-27 00:00:00 +0000 UTC":       "2026-08-27",
-		"2026-08-27T00:00:00Z":                "2026-08-27",
-		" 2026-08-27T16:00:00+08:00 ":         "2026-08-27",
+		"2026-08-27":                    "2026-08-27",
+		"2026-08-27 00:00:00":           "2026-08-27",
+		"2026-08-27 00:00:00 +0000 UTC": "2026-08-27",
+		"2026-08-27T00:00:00Z":          "2026-08-27",
+		" 2026-08-27T16:00:00+08:00 ":   "2026-08-27",
 	}
 	for in, want := range cases {
 		if got := metricDayKey(in); got != want {
@@ -82,7 +82,6 @@ func mustCreateUserAt(t *testing.T, db *gorm.DB, username string, at time.Time, 
 	u := User{Username: username, Role: role, Source: source}
 	u.CreatedAt = at
 	u.UpdatedAt = at
-	u.IsDeleted = SoftDeleteStatusActive
 	if err := db.Create(&u).Error; err != nil {
 		t.Fatal(err)
 	}

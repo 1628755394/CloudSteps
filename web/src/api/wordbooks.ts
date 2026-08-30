@@ -1,4 +1,4 @@
-import { get, put, del, ApiResponse } from '../utils/request'
+import { get, post, put, del, ApiResponse } from '../utils/request'
 
 export interface WordBookItem {
   id: number
@@ -8,6 +8,7 @@ export interface WordBookItem {
   category?: string
   description?: string
   coverUrl?: string
+  ownerUserId?: number
 }
 
 export interface WordBookListResult {
@@ -45,6 +46,7 @@ export const listWordBooks = async (params?: {
 export interface WordBookDetail extends WordBookItem {
   description?: string
   category?: string
+  ownerUserId?: number
 }
 
 export const getWordBook = async (id: number): Promise<ApiResponse<WordBookDetail>> => {
@@ -75,6 +77,26 @@ export const listWordBookWords = async (
     `/wordbooks/${wordBookId}/words`,
     { params: { page: params.page, pageSize: params.pageSize, keyword: params.keyword || undefined } }
   )
+}
+
+export const updateWordBookWord = async (
+  wordBookId: number,
+  wordId: number,
+  body: {
+    word?: string
+    phonetic?: string
+    translation?: string
+    translationShort?: string
+  }
+): Promise<ApiResponse<WordBookWord>> => {
+  return put<WordBookWord>(`/wordbooks/${wordBookId}/words/${wordId}`, body)
+}
+
+export const deleteWordBookWord = async (
+  wordBookId: number,
+  wordId: number
+): Promise<ApiResponse<null>> => {
+  return del<null>(`/wordbooks/${wordBookId}/words/${wordId}`)
 }
 
 // ===== 单词详情（完整词典数据） =====
@@ -149,4 +171,27 @@ export const saveUserWord = async (
 
 export const deleteUserWord = async (wordId: number): Promise<ApiResponse<UserWordView>> => {
   return del<UserWordView>(`/words/${wordId}/user-word`)
+}
+
+// ===== 自定义词书 =====
+
+export type CustomParsedWord = {
+  word: string
+  phonetic?: string
+  translation?: string
+  translationShort?: string
+}
+
+/** 用词库内存缓存回填缺失释义/音标（前端本地解析后调用） */
+export const enrichCustomWordBookWords = async (
+  words: CustomParsedWord[]
+): Promise<ApiResponse<{ list: CustomParsedWord[]; total: number }>> => {
+  return post<{ list: CustomParsedWord[]; total: number }>('/wordbooks/custom/enrich', { words })
+}
+
+export const createCustomWordBook = async (body: {
+  name: string
+  words: CustomParsedWord[]
+}): Promise<ApiResponse<WordBookItem>> => {
+  return post<WordBookItem>('/wordbooks/custom', body)
 }

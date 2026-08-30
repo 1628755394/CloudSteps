@@ -5,35 +5,34 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/internal/notify"
+	notify2 "github.com/LingByte/CloudStepsGo/pkg/notify"
 	"gorm.io/gorm"
 )
 
 func init() {
-	notify.RegisterChannelLoader(EnabledMailConfigs)
-	notify.RegisterEmailTemplateLoader(loadEmailTemplate)
-	notify.RegisterInboxTemplateLoader(loadInboxTemplate)
+	notify2.RegisterChannelLoader(EnabledMailConfigs)
+	notify2.RegisterEmailTemplateLoader(loadEmailTemplate)
+	notify2.RegisterInboxTemplateLoader(loadInboxTemplate)
 }
 
 // EnabledMailConfigs returns all enabled email channels for the system mail service.
-func EnabledMailConfigs(db *gorm.DB) ([]notify.MailConfig, error) {
+func EnabledMailConfigs(db *gorm.DB) ([]notify2.MailConfig, error) {
 	if db == nil {
 		return nil, errors.New("nil db")
 	}
-	var rows []models.NotificationChannel
-	if err := db.Where("type = ? AND enabled = ? AND is_deleted = ?", models.NotificationChannelTypeEmail, true, models.SoftDeleteStatusActive).
+	var rows []notify2.NotificationChannel
+	if err := db.Where("type = ? AND enabled = ?", notify2.NotificationChannelTypeEmail, true).
 		Order("sort_order ASC, id ASC").
 		Find(&rows).Error; err != nil {
 		return nil, err
 	}
-	out := make([]notify.MailConfig, 0, len(rows))
+	out := make([]notify2.MailConfig, 0, len(rows))
 	for _, row := range rows {
 		raw := strings.TrimSpace(row.ConfigJSON)
 		if raw == "" {
 			continue
 		}
-		var cfg notify.MailConfig
+		var cfg notify2.MailConfig
 		if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
 			continue
 		}
@@ -48,23 +47,23 @@ func EnabledMailConfigs(db *gorm.DB) ([]notify.MailConfig, error) {
 	return out, nil
 }
 
-func loadEmailTemplate(db *gorm.DB, code, locale string) (notify.LoadedEmailTemplate, error) {
-	tpl, err := models.GetMailTemplateByCodeAndType(db, code, locale, models.NotificationTemplateTypeEmail)
+func loadEmailTemplate(db *gorm.DB, code, locale string) (notify2.LoadedEmailTemplate, error) {
+	tpl, err := notify2.GetMailTemplateByCodeAndType(db, code, locale, notify2.NotificationTemplateTypeEmail)
 	if err != nil {
-		return notify.LoadedEmailTemplate{}, err
+		return notify2.LoadedEmailTemplate{}, err
 	}
-	return notify.LoadedEmailTemplate{
+	return notify2.LoadedEmailTemplate{
 		Subject:  tpl.Subject,
 		HTMLBody: tpl.HTMLBody,
 	}, nil
 }
 
-func loadInboxTemplate(db *gorm.DB, code, locale string) (notify.LoadedInboxTemplate, error) {
-	tpl, err := models.GetMailTemplateByCodeAndType(db, code, locale, models.NotificationTemplateTypeInbox)
+func loadInboxTemplate(db *gorm.DB, code, locale string) (notify2.LoadedInboxTemplate, error) {
+	tpl, err := notify2.GetMailTemplateByCodeAndType(db, code, locale, notify2.NotificationTemplateTypeInbox)
 	if err != nil {
-		return notify.LoadedInboxTemplate{}, err
+		return notify2.LoadedInboxTemplate{}, err
 	}
-	return notify.LoadedInboxTemplate{
+	return notify2.LoadedInboxTemplate{
 		Title: tpl.InboxTitle,
 		Body:  tpl.InboxBody,
 	}, nil

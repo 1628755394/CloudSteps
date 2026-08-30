@@ -2,14 +2,17 @@ package handlers
 
 import (
 	"encoding/json"
-	"net/http"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -29,11 +32,11 @@ type readingAnswerItem struct {
 	Explanation string `json:"explanation,omitempty"`
 }
 
-func (h *Handlers) registerReadingRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerReadingRoutes(r *humax.Group) {
 	rg := r.Group("reading")
 	{
 		user := rg.Group("")
-		user.Use(models.AuthRequired)
+		user.Use(auth.Required)
 		user.GET("/passages", h.handleReadingListPassages)
 		user.GET("/passages/:id", h.handleReadingGetPassage)
 		user.POST("/passages/:id/submit", h.handleReadingSubmit)
@@ -41,7 +44,7 @@ func (h *Handlers) registerReadingRoutes(r *gin.RouterGroup) {
 		user.GET("/records/:id", h.handleReadingGetRecord)
 
 		admin := rg.Group("admin")
-		admin.Use(models.AuthRequired, staffRequired)
+		admin.Use(auth.Required, auth.AdminRequired)
 		admin.POST("/passages", h.handleAdminCreatePassage)
 		admin.PUT("/passages/:id", h.handleAdminUpdatePassage)
 		admin.DELETE("/passages/:id", h.handleAdminDeletePassage)
@@ -75,8 +78,8 @@ func parseReadingOptions(raw string) []readingOption {
 
 // GET /reading/passages
 func (h *Handlers) handleReadingListPassages(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 
 	level := strings.TrimSpace(c.Query("level"))
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -89,14 +92,14 @@ func (h *Handlers) handleReadingListPassages(c *gin.Context) {
 	}
 
 	q := db.Model(&models.ReadingPassage{}).
-		Where("is_deleted = ? AND status = ?", models.SoftDeleteStatusActive, models.ReadingStatusPublished)
+		Where("status = ?", models.ReadingStatusPublished)
 	if level != "" {
 		q = q.Where("level = ?", level)
 	}
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -104,7 +107,7 @@ func (h *Handlers) handleReadingListPassages(c *gin.Context) {
 	if err := q.Order("sort_order ASC, id ASC").
 		Offset((page - 1) * pageSize).Limit(pageSize).
 		Find(&list).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -122,7 +125,7 @@ func (h *Handlers) handleReadingListPassages(c *gin.Context) {
 		var rows []qCount
 		db.Model(&models.ReadingQuestion{}).
 			Select("passage_id as passage_id, count(*) as cnt").
-			Where("passage_id IN ? AND is_deleted = ?", ids, models.SoftDeleteStatusActive).
+			Where("passage_id IN ?", ids).
 			Group("passage_id").
 			Scan(&rows)
 		for _, r := range rows {
@@ -133,8 +136,8 @@ func (h *Handlers) handleReadingListPassages(c *gin.Context) {
 	latestMap := map[uint]models.ReadingRecord{}
 	if user != nil && len(ids) > 0 {
 		var records []models.ReadingRecord
-		db.Where("user_id = ? AND passage_id IN ? AND is_latest = ? AND is_deleted = ?",
-			user.ID, ids, true, models.SoftDeleteStatusActive).
+		db.Where("user_id = ? AND passage_id IN ? AND is_latest = ?",
+			user.ID, ids, true).
 			Find(&records)
 		for _, rec := range records {
 			latestMap[rec.PassageID] = rec
@@ -162,7 +165,7 @@ func (h *Handlers) handleReadingListPassages(c *gin.Context) {
 		items = append(items, item)
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":     items,
 		"total":    total,
 		"page":     page,
@@ -172,23 +175,23 @@ func (h *Handlers) handleReadingListPassages(c *gin.Context) {
 
 // GET /reading/passages/:id — 做题视图，不含正确答案
 func (h *Handlers) handleReadingGetPassage(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无效文章ID"})
+		response.FailI18n(c, "reading.invalid_id", nil)
 		return
 	}
 
 	var passage models.ReadingPassage
-	if err := db.Where("id = ? AND is_deleted = ? AND status = ?",
-		id, models.SoftDeleteStatusActive, models.ReadingStatusPublished).
+	if err := db.Where("id = ? AND status = ?",
+		id, models.ReadingStatusPublished).
 		First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在或未发布", nil)
+		response.FailI18n(c, "reading.not_found_or_unpublished", nil)
 		return
 	}
 
 	var questions []models.ReadingQuestion
-	db.Where("passage_id = ? AND is_deleted = ?", passage.ID, models.SoftDeleteStatusActive).
+	db.Where("passage_id = ?", passage.ID).
 		Order("sort_order ASC, id ASC").
 		Find(&questions)
 
@@ -202,7 +205,7 @@ func (h *Handlers) handleReadingGetPassage(c *gin.Context) {
 		})
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"id":               passage.ID,
 		"title":            passage.Title,
 		"level":            passage.Level,
@@ -216,16 +219,16 @@ func (h *Handlers) handleReadingGetPassage(c *gin.Context) {
 
 // POST /reading/passages/:id/submit
 func (h *Handlers) handleReadingSubmit(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无效文章ID"})
+		response.FailI18n(c, "reading.invalid_id", nil)
 		return
 	}
 
@@ -237,28 +240,28 @@ func (h *Handlers) handleReadingSubmit(c *gin.Context) {
 		DurationSec int `json:"durationSec"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if len(body.Answers) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "答案不能为空"})
+		response.FailI18n(c, "msg.9be807ce", nil)
 		return
 	}
 
 	var passage models.ReadingPassage
-	if err := db.Where("id = ? AND is_deleted = ? AND status = ?",
-		id, models.SoftDeleteStatusActive, models.ReadingStatusPublished).
+	if err := db.Where("id = ? AND status = ?",
+		id, models.ReadingStatusPublished).
 		First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在或未发布", nil)
+		response.FailI18n(c, "reading.not_found_or_unpublished", nil)
 		return
 	}
 
 	var questions []models.ReadingQuestion
-	db.Where("passage_id = ? AND is_deleted = ?", passage.ID, models.SoftDeleteStatusActive).
+	db.Where("passage_id = ?", passage.ID).
 		Order("sort_order ASC, id ASC").
 		Find(&questions)
 	if len(questions) == 0 {
-		response.Fail(c, "该文章暂无题目", nil)
+		response.FailI18n(c, "reading.no_questions", nil)
 		return
 	}
 
@@ -321,11 +324,11 @@ func (h *Handlers) handleReadingSubmit(c *gin.Context) {
 		return tx.Create(&record).Error
 	})
 	if err != nil {
-		response.Fail(c, "保存答题记录失败", err)
+		response.FailI18n(c, "reading.save_record_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"recordId":      record.ID,
 		"passageId":     passage.ID,
 		"title":         passage.Title,
@@ -341,10 +344,10 @@ func (h *Handlers) handleReadingSubmit(c *gin.Context) {
 
 // GET /reading/records
 func (h *Handlers) handleReadingListRecords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 
@@ -358,7 +361,7 @@ func (h *Handlers) handleReadingListRecords(c *gin.Context) {
 	}
 
 	q := db.Model(&models.ReadingRecord{}).
-		Where("user_id = ? AND is_deleted = ?", user.ID, models.SoftDeleteStatusActive)
+		Where("user_id = ?", user.ID)
 
 	var total int64
 	q.Count(&total)
@@ -397,7 +400,7 @@ func (h *Handlers) handleReadingListRecords(c *gin.Context) {
 		})
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"list":     list,
 		"total":    total,
 		"page":     page,
@@ -407,23 +410,23 @@ func (h *Handlers) handleReadingListRecords(c *gin.Context) {
 
 // GET /reading/records/:id
 func (h *Handlers) handleReadingGetRecord(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无效记录ID"})
+		response.FailI18n(c, "common.invalid_record_id", nil)
 		return
 	}
 
 	var record models.ReadingRecord
-	if err := db.Where("id = ? AND user_id = ? AND is_deleted = ?",
-		id, user.ID, models.SoftDeleteStatusActive).First(&record).Error; err != nil {
-		response.Fail(c, "记录不存在", nil)
+	if err := db.Where("id = ? AND user_id = ?",
+		id, user.ID).First(&record).Error; err != nil {
+		response.FailI18n(c, "common.record_not_found", nil)
 		return
 	}
 
@@ -433,7 +436,7 @@ func (h *Handlers) handleReadingGetRecord(c *gin.Context) {
 	var details []readingAnswerItem
 	_ = json.Unmarshal([]byte(record.Answers), &details)
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"id":            record.ID,
 		"passageId":     record.PassageID,
 		"title":         passage.Title,
@@ -451,7 +454,7 @@ func (h *Handlers) handleReadingGetRecord(c *gin.Context) {
 // ---------- admin ----------
 
 func (h *Handlers) handleAdminListPassages(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	if page < 1 {
@@ -461,7 +464,7 @@ func (h *Handlers) handleAdminListPassages(c *gin.Context) {
 		pageSize = 20
 	}
 
-	q := db.Model(&models.ReadingPassage{}).Where("is_deleted = ?", models.SoftDeleteStatusActive)
+	q := db.Model(&models.ReadingPassage{})
 	if status := strings.TrimSpace(c.Query("status")); status != "" {
 		q = q.Where("status = ?", status)
 	}
@@ -471,19 +474,19 @@ func (h *Handlers) handleAdminListPassages(c *gin.Context) {
 	var list []models.ReadingPassage
 	q.Order("sort_order ASC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list)
 
-	response.SuccessMsg(c, "success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
+	response.SuccessI18n(c, "common.success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handlers) handleAdminGetPassage(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 	var passage models.ReadingPassage
-	if err := db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在", nil)
+	if err := db.Where("id = ?", id).First(&passage).Error; err != nil {
+		response.FailI18n(c, "reading.not_found", nil)
 		return
 	}
 	var questions []models.ReadingQuestion
-	db.Where("passage_id = ? AND is_deleted = ?", passage.ID, models.SoftDeleteStatusActive).
+	db.Where("passage_id = ?", passage.ID).
 		Order("sort_order ASC, id ASC").Find(&questions)
 
 	qs := make([]gin.H, 0, len(questions))
@@ -497,12 +500,12 @@ func (h *Handlers) handleAdminGetPassage(c *gin.Context) {
 			"sortOrder":   q.SortOrder,
 		})
 	}
-	response.SuccessMsg(c, "success", gin.H{"passage": passage, "questions": qs})
+	response.SuccessI18n(c, "common.success", gin.H{"passage": passage, "questions": qs})
 }
 
 func (h *Handlers) handleAdminCreatePassage(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 
 	var body struct {
 		Title            string `json:"title" binding:"required"`
@@ -521,7 +524,7 @@ func (h *Handlers) handleAdminCreatePassage(c *gin.Context) {
 		} `json:"questions"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -581,20 +584,20 @@ func (h *Handlers) handleAdminCreatePassage(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		response.Fail(c, "创建失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "创建成功", gin.H{"id": passage.ID})
+	response.SuccessI18n(c, "common.created", gin.H{"id": passage.ID})
 }
 
 func (h *Handlers) handleAdminUpdatePassage(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 
 	var passage models.ReadingPassage
-	if err := db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在", nil)
+	if err := db.Where("id = ?", id).First(&passage).Error; err != nil {
+		response.FailI18n(c, "reading.not_found", nil)
 		return
 	}
 
@@ -608,7 +611,7 @@ func (h *Handlers) handleAdminUpdatePassage(c *gin.Context) {
 		SortOrder        *int    `json:"sortOrder"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -638,20 +641,20 @@ func (h *Handlers) handleAdminUpdatePassage(c *gin.Context) {
 		passage.SetUpdateInfo(user.Username)
 	}
 	if err := db.Save(&passage).Error; err != nil {
-		response.Fail(c, "更新失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "更新成功", passage)
+	response.SuccessI18n(c, "common.updated", passage)
 }
 
 func (h *Handlers) handleAdminDeletePassage(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 
 	var passage models.ReadingPassage
-	if err := db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在", nil)
+	if err := db.Where("id = ?", id).First(&passage).Error; err != nil {
+		response.FailI18n(c, "reading.not_found", nil)
 		return
 	}
 	op := ""
@@ -660,23 +663,24 @@ func (h *Handlers) handleAdminDeletePassage(c *gin.Context) {
 	}
 	passage.SoftDelete(op)
 	if err := db.Save(&passage).Error; err != nil {
-		response.Fail(c, "删除失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	db.Model(&models.ReadingQuestion{}).
-		Where("passage_id = ? AND is_deleted = ?", passage.ID, models.SoftDeleteStatusActive).
-		Updates(map[string]any{"is_deleted": models.SoftDeleteStatusDeleted, "update_by": op})
-	response.SuccessMsg(c, "删除成功", nil)
+	if err := db.Unscoped().Where("passage_id = ?", passage.ID).Delete(&models.ReadingQuestion{}).Error; err != nil {
+		response.FailI18n(c, "common.operation_failed", err)
+		return
+	}
+	response.SuccessI18n(c, "common.deleted", nil)
 }
 
 func (h *Handlers) handleAdminUpsertQuestions(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
 
 	var passage models.ReadingPassage
-	if err := db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&passage).Error; err != nil {
-		response.Fail(c, "文章不存在", nil)
+	if err := db.Where("id = ?", id).First(&passage).Error; err != nil {
+		response.FailI18n(c, "reading.not_found", nil)
 		return
 	}
 
@@ -691,7 +695,7 @@ func (h *Handlers) handleAdminUpsertQuestions(c *gin.Context) {
 		} `json:"questions" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -702,9 +706,7 @@ func (h *Handlers) handleAdminUpsertQuestions(c *gin.Context) {
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		if body.Replace {
-			if err := tx.Model(&models.ReadingQuestion{}).
-				Where("passage_id = ? AND is_deleted = ?", passage.ID, models.SoftDeleteStatusActive).
-				Updates(map[string]any{"is_deleted": models.SoftDeleteStatusDeleted, "update_by": op}).Error; err != nil {
+			if err := tx.Unscoped().Where("passage_id = ?", passage.ID).Delete(&models.ReadingQuestion{}).Error; err != nil {
 				return err
 			}
 		}
@@ -730,8 +732,8 @@ func (h *Handlers) handleAdminUpsertQuestions(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		response.Fail(c, "保存题目失败", err)
+		response.FailI18n(c, "reading.save_question_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "保存成功", nil)
+	response.SuccessI18n(c, "common.saved", nil)
 }

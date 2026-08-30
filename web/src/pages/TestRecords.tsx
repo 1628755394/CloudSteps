@@ -134,10 +134,10 @@ export default function TestRecords() {
         title="词汇测试记录"
         subtitle="查看历史测评结果与答题明细"
         fallbackTo="/coach-center"
-        maxWidthClass="max-w-[1200px]"
+        maxWidthClass="max-w-none"
       />
 
-      <div className="flex-1 flex flex-col min-h-0 max-w-[1200px] w-full mx-auto px-4 py-4 gap-3">
+      <div className="flex-1 flex flex-col min-h-0 w-full py-4 gap-3">
         {errorMsg && (
           <div className="shrink-0 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {errorMsg}

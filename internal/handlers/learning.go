@@ -1,27 +1,29 @@
 package handlers
 
 import (
-	"net/http"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"strconv"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-func (h *Handlers) registerLearningRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerLearningRoutes(r *humax.Group) {
 	learning := r.Group("learning")
-	learning.Use(models.AuthRequired)
+	learning.Use(auth.Required)
 	{
 		learning.POST("/learned", h.handleMarkLearnedWords)
 	}
 
 	study := r.Group("study")
-	study.Use(models.AuthRequired)
+	study.Use(auth.Required)
 	{
 		study.GET("/words", h.handleStudyWords)
 		study.GET("/lighthouse", h.handleStudyLighthouse)
@@ -34,7 +36,7 @@ func (h *Handlers) registerLearningRoutes(r *gin.RouterGroup) {
 	}
 
 	review := r.Group("review")
-	review.Use(models.AuthRequired)
+	review.Use(auth.Required)
 	{
 		review.GET("/today", h.handleReviewToday)
 		review.GET("/books", h.handleReviewBooks)
@@ -52,10 +54,10 @@ func (h *Handlers) registerLearningRoutes(r *gin.RouterGroup) {
 // handleMarkLearnedWords POST /learning/learned
 // body: { wordBookId: number, wordIds: number[] }
 func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -64,11 +66,11 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 		WordIDs    []uint `json:"wordIds" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 	if len(body.WordIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "wordIds 不能为空"})
+		response.FailI18n(c, "vocab.word_ids_required", nil)
 		return
 	}
 
@@ -106,29 +108,29 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 
 	if err := db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "word_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "learn_status", "review_stage", "first_learned_at", "next_review_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "learn_status", "review_stage", "first_learned_at", "next_review_at", "deleted_at"}),
 	}).Create(&states).Error; err != nil {
-		response.Fail(c, "保存学习状态失败", err)
+		response.FailI18n(c, "study.save_state_failed", err)
 		return
 	}
 
 	if err := db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "word_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "due_at", "stage", "status"}),
+		DoUpdates: clause.AssignmentColumns([]string{"word_book_id", "due_at", "stage", "status", "deleted_at"}),
 	}).Create(&queueItems).Error; err != nil {
-		response.Fail(c, "写入复习队列失败", err)
+		response.FailI18n(c, "study.write_queue_failed", err)
 		return
 	}
 
-	response.SuccessMsg(c, "success", gin.H{"queued": len(body.WordIDs)})
+	response.SuccessI18n(c, "common.success", gin.H{"queued": len(body.WordIDs)})
 }
 
 // handleReviewDue GET /review/due?wordBookId=1&limit=20
 func (h *Handlers) handleReviewDue(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -150,7 +152,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 
 	var items []models.ReviewQueue
 	if err := q.Order("due_at ASC, id ASC").Limit(limit).Find(&items).Error; err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -164,7 +166,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 	var words []models.WordLite
 	if len(wordIDs) > 0 {
 		if err := db.Where("id IN ?", wordIDs).Find(&words).Error; err != nil {
-			response.Fail(c, "查询单词失败", err)
+			response.FailI18n(c, "wordbook.query_word_failed", err)
 			return
 		}
 	}
@@ -188,7 +190,7 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 		}
 	}
 
-	response.SuccessMsg(c, "success", gin.H{
+	response.SuccessI18n(c, "common.success", gin.H{
 		"total": len(sorted),
 		"words": sorted,
 	})
@@ -197,10 +199,10 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 // handleReviewSubmit POST /review/submit
 // body: { results: [{ wordId: number, remembered: bool }] }
 func (h *Handlers) handleReviewSubmit(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.FailI18n(c, "auth.authorization_required", nil)
 		return
 	}
 
@@ -211,7 +213,7 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 		} `json:"results" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || len(body.Results) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
 
@@ -295,10 +297,10 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 	})
 
 	if err != nil {
-		response.Fail(c, "提交失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
 
 	invalidateLighthouseCacheForUser(user.ID)
-	response.SuccessMsg(c, "success", gin.H{"submitted": len(body.Results)})
+	response.SuccessI18n(c, "common.success", gin.H{"submitted": len(body.Results)})
 }

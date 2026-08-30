@@ -29,15 +29,6 @@ func TestRandRunesAndFriends(t *testing.T) {
 			t.Fatalf("RandNumberText contains non-digit at %d: %q", i, c)
 		}
 	}
-
-	// Cover randRunes source path (pass in different rune source)
-	alpha := []rune("ab")
-	got := randRunes(32, alpha)
-	for _, c := range got {
-		if c != 'a' && c != 'b' {
-			t.Fatalf("randRunes unexpected rune: %q", c)
-		}
-	}
 }
 
 // ---------- SafeCall ----------
@@ -238,38 +229,30 @@ func TestReadFileNotExists(t *testing.T) {
 	}
 }
 
-// ---------- randRunes ----------
+// ---------- RandText charset ----------
 
-func TestRandRunes(t *testing.T) {
-	// Test using letter source
-	result := randRunes(10, letterRunes)
+func TestRandTextCharset(t *testing.T) {
+	result := RandText(10)
 	if len(result) != 10 {
-		t.Fatalf("randRunes length = %d, want 10", len(result))
+		t.Fatalf("RandText length = %d, want 10", len(result))
 	}
-
-	// Verify result only contains letters and digits
 	for _, r := range result {
 		if (r < '0' || r > '9') && (r < 'a' || r > 'z') {
-			t.Fatalf("randRunes contains invalid character: %c", r)
+			t.Fatalf("RandText contains invalid character: %c", r)
 		}
 	}
 
-	// Test using number source
-	result = randRunes(5, numberRunes)
+	result = RandNumberText(5)
 	if len(result) != 5 {
-		t.Fatalf("randRunes length = %d, want 5", len(result))
+		t.Fatalf("RandNumberText length = %d, want 5", len(result))
 	}
-
-	// Verify result only contains digits
 	for _, r := range result {
 		if r < '0' || r > '9' {
-			t.Fatalf("randRunes contains non-digit character: %c", r)
+			t.Fatalf("RandNumberText contains non-digit character: %c", r)
 		}
 	}
 
-	// Test length of 0
-	result = randRunes(0, letterRunes)
-	if result != "" {
-		t.Fatalf("randRunes(0) = %q, want empty string", result)
+	if got := RandText(0); got != "" {
+		t.Fatalf("RandText(0) = %q, want empty string", got)
 	}
 }

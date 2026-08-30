@@ -8,8 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -55,8 +56,16 @@ func TestVocabSubmit_rejectsStudentWithoutCoachingPair(t *testing.T) {
 	q := mustCreateVocabQuestion(t, db)
 
 	w := submitVocabRaw(t, db, teacher, q, stranger.ID, q.CorrectAnswer)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status %d body %s, want 403", w.Code, w.Body.String())
+	// ling-base response 层始终返回 HTTP 200，业务错误码在 envelope.code 中
+	var envelope struct {
+		Code  int    `json:"code"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope.Error != "FORBIDDEN" {
+		t.Fatalf("status %d body %s, want FORBIDDEN business error", w.Code, w.Body.String())
 	}
 }
 
@@ -140,7 +149,7 @@ func submitVocabRaw(t *testing.T, db *gorm.DB, user *models.User, q models.Vocab
 	req := httptest.NewRequest(http.MethodPost, "/vocab/submit", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	c.Request = req
-	c.Set(constants.DbField, db)
+	c.Set(lbconstants.DbField, db)
 	c.Set(constants.UserField, user)
 	h := &Handlers{}
 	h.handleVocabTestSubmit(c)
@@ -171,7 +180,7 @@ func vocabRecordsForStudent(t *testing.T, db *gorm.DB, teacher *models.User, stu
 	)
 	c.Request = req
 	c.Params = gin.Params{{Key: "studentId", Value: fmt.Sprintf("%d", studentID)}}
-	c.Set(constants.DbField, db)
+	c.Set(lbconstants.DbField, db)
 	c.Set(constants.UserField, teacher)
 	h := &Handlers{}
 	h.coachingTeacherStudentVocabRecords(c)

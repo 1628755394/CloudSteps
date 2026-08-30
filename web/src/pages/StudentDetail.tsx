@@ -23,6 +23,7 @@ import {
 } from "../components/ui/dialog";
 import {
   addStudentWordBookAsTeacher,
+  addTeacherCoachingStudent,
   listAllTeacherCoachingQuotas,
   listStudentActivityRecordsAsTeacher,
   listStudentWordBooksAsTeacher,
@@ -57,12 +58,8 @@ function studentLabel(row: TeacherCoachingQuotaRow) {
 }
 
 function minsLabel(n: number) {
-  if (n >= 60) {
-    const h = Math.floor(n / 60);
-    const m = n % 60;
-    return m ? `${h}小时${m}分` : `${h}小时`;
-  }
-  return `${n}分钟`;
+  if (!Number.isFinite(n)) return "—";
+  return `${Math.max(0, Math.round(n))}分钟`;
 }
 
 function formatDateTime(iso?: string | null) {
@@ -111,6 +108,9 @@ export default function StudentDetail() {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [quotaMode, setQuotaMode] = useState<"add" | "set">("add");
+  const [quotaInput, setQuotaInput] = useState("60");
+  const [quotaSaving, setQuotaSaving] = useState(false);
 
   useEffect(() => {
     const fromNav = (location.state as { studentName?: string } | null)?.studentName;
@@ -184,6 +184,49 @@ export default function StudentDetail() {
       showToast.error("保存失败");
     } finally {
       setReviewSaving(false);
+    }
+  };
+
+  const saveStudentQuota = async () => {
+    if (!quota) return;
+    const n = Number(quotaInput);
+    if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+      showToast.error("请输入非负整数分钟");
+      return;
+    }
+    const nextRemaining =
+      quotaMode === "add" ? Math.max(0, remaining) + n : n;
+    setQuotaSaving(true);
+    try {
+      const res = await addTeacherCoachingStudent({
+        studentId,
+        remainingMinutes: nextRemaining,
+      });
+      if (res.code !== 200 || !res.data) {
+        showToast.error(res.msg || "保存失败");
+        return;
+      }
+      setQuota((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...res.data,
+              student: res.data.student || prev.student,
+            }
+          : res.data
+      );
+      showToast.success(
+        quotaMode === "add"
+          ? `已追加 ${n} 分钟，剩余 ${minsLabel(nextRemaining)}`
+          : `剩余额度已设为 ${minsLabel(nextRemaining)}`
+      );
+      setQuotaInput(quotaMode === "add" ? "60" : String(nextRemaining));
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "保存失败";
+      showToast.error(msg);
+    } finally {
+      setQuotaSaving(false);
     }
   };
 
@@ -467,7 +510,7 @@ export default function StudentDetail() {
                       {minsLabel(remaining)}
                     </div>
                     <div className="text-[11px] text-muted-soft mt-1">
-                      累计分配 {minsLabel(total)} · 约 {(remaining / 60).toFixed(1)} 学时剩余
+                      累计分配 {minsLabel(total)} · 剩余 {minsLabel(remaining)}
                     </div>
                   </div>
                   <div
@@ -488,6 +531,75 @@ export default function StudentDetail() {
                     />
                   </div>
                 )}
+              </CloudCard>
+
+              <CloudCard className="p-4 space-y-3">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">配置陪练额度</div>
+                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    为该学员追加或调整可上课分钟数。额度用尽后将无法开课计时。
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <CloudButton
+                    type="button"
+                    size="sm"
+                    variant={quotaMode === "add" ? "brand" : "outline"}
+                    onClick={() => {
+                      setQuotaMode("add");
+                      setQuotaInput("60");
+                    }}
+                  >
+                    追加分钟
+                  </CloudButton>
+                  <CloudButton
+                    type="button"
+                    size="sm"
+                    variant={quotaMode === "set" ? "brand" : "outline"}
+                    onClick={() => {
+                      setQuotaMode("set");
+                      setQuotaInput(String(Math.max(0, remaining)));
+                    }}
+                  >
+                    设为剩余
+                  </CloudButton>
+                </div>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1 min-w-0">
+                    <CloudInput
+                      label={quotaMode === "add" ? "追加分钟数" : "剩余分钟数"}
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={quotaInput}
+                      onChange={setQuotaInput}
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <CloudButton
+                    type="button"
+                    variant="brand"
+                    className="shrink-0 mb-0.5"
+                    disabled={quotaSaving}
+                    onClick={() => void saveStudentQuota()}
+                  >
+                    {quotaSaving ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                    保存
+                  </CloudButton>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(quotaMode === "add" ? [30, 60, 120, 180] : [0, 60, 120, 240]).map((n) => (
+                    <CloudButton
+                      key={n}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setQuotaInput(String(n))}
+                    >
+                      {quotaMode === "add" ? `+${n}` : `${n}分钟`}
+                    </CloudButton>
+                  ))}
+                </div>
               </CloudCard>
 
               <CloudCard className="p-4 space-y-3">

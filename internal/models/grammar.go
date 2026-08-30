@@ -1,6 +1,11 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/LingByte/CloudStepsGo/internal/constants"
+	common "github.com/LingByte/ling-base/common"
+)
 
 const (
 	GrammarStatusDraft     = "draft"
@@ -9,7 +14,7 @@ const (
 
 // GrammarLesson 语法解析课
 type GrammarLesson struct {
-	BaseModel
+	common.BaseModel
 	Title            string `json:"title" gorm:"size:256;not null;index;comment:课标题"`
 	Topic            string `json:"topic" gorm:"size:128;index;comment:语法主题"`
 	Level            string `json:"level" gorm:"size:32;index;comment:难度 初阶/中阶/高阶"`
@@ -21,11 +26,11 @@ type GrammarLesson struct {
 	SortOrder        int    `json:"sortOrder" gorm:"default:0;index;comment:排序"`
 }
 
-func (GrammarLesson) TableName() string { return "grammar_lessons" }
+func (GrammarLesson) TableName() string { return constants.TABLE_GRAMMAR_LESSONS }
 
 // GrammarQuestion 语法练习题
 type GrammarQuestion struct {
-	BaseModel
+	common.BaseModel
 	LessonID    uint   `json:"lessonId" gorm:"index;not null;comment:课ID"`
 	Stem        string `json:"stem" gorm:"type:text;not null;comment:题干"`
 	Options     string `json:"options" gorm:"type:text;not null;comment:选项 JSON [{key,text}]"`
@@ -34,11 +39,11 @@ type GrammarQuestion struct {
 	SortOrder   int    `json:"sortOrder" gorm:"default:0;index;comment:题序"`
 }
 
-func (GrammarQuestion) TableName() string { return "grammar_questions" }
+func (GrammarQuestion) TableName() string { return constants.TABLE_GRAMMAR_QUESTIONS }
 
 // GrammarRecord 语法练习答题记录
 type GrammarRecord struct {
-	BaseModel
+	common.BaseModel
 	UserID        uint       `json:"userId" gorm:"index;not null;comment:用户ID"`
 	LessonID      uint       `json:"lessonId" gorm:"index;not null;comment:课ID"`
 	Answers       string     `json:"answers" gorm:"type:text;comment:答题快照 JSON"`
@@ -50,4 +55,4 @@ type GrammarRecord struct {
 	CompletedAt   *time.Time `json:"completedAt" gorm:"comment:完成时间"`
 }
 
-func (GrammarRecord) TableName() string { return "grammar_records" }
+func (GrammarRecord) TableName() string { return constants.TABLE_GRAMMAR_RECORDS }

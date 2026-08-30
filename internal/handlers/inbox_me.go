@@ -1,11 +1,12 @@
 package handlers
 
 import (
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/notification/inbox"
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,7 @@ type meInboxBatchDeleteReq struct {
 	IDs []uint `json:"ids" binding:"required,min=1"`
 }
 
-func (h *Handlers) registerInboxMeRoutes(admin *gin.RouterGroup) {
+func (h *Handlers) registerInboxMeRoutes(admin *humax.Group) {
 	me := admin.Group("me/inbox-messages")
 	{
 		me.GET("/unread-count", h.handleMeInboxUnreadCount)
@@ -40,7 +41,7 @@ func (h *Handlers) registerInboxMeRoutes(admin *gin.RouterGroup) {
 }
 
 func currentUserIDStr(c *gin.Context) (string, bool) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		return "", false
 	}
@@ -51,23 +52,23 @@ func currentUserIDStr(c *gin.Context) (string, bool) {
 func (h *Handlers) handleMeInboxUnreadCount(c *gin.Context) {
 	userID, ok := currentUserIDStr(c)
 	if !ok {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	store := inbox.NewGormStore(h.db)
 	count, err := store.UnreadCount(userID)
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "ok", count)
+	response.SuccessI18n(c, "common.ok", count)
 }
 
 // GET /admin/me/inbox-messages
 func (h *Handlers) handleMeListInboxMessages(c *gin.Context) {
 	userID, ok := currentUserIDStr(c)
 	if !ok {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	page, pageSize := parsePageParams(c)
@@ -81,7 +82,7 @@ func (h *Handlers) handleMeListInboxMessages(c *gin.Context) {
 	store := inbox.NewGormStore(h.db)
 	res, err := store.List(userID, page, pageSize, filter, title, content, time.Time{}, time.Time{})
 	if err != nil {
-		response.Fail(c, "查询失败", err)
+		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
 
@@ -94,7 +95,7 @@ func (h *Handlers) handleMeListInboxMessages(c *gin.Context) {
 		list = append(list, row)
 	}
 
-	response.SuccessMsg(c, "ok", gin.H{
+	response.SuccessI18n(c, "common.ok", gin.H{
 		"list":        list,
 		"total":       res.Total,
 		"totalUnread": res.TotalUnread,
@@ -108,85 +109,85 @@ func (h *Handlers) handleMeListInboxMessages(c *gin.Context) {
 func (h *Handlers) handleMeGetInboxMessage(c *gin.Context) {
 	userID, ok := currentUserIDStr(c)
 	if !ok {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	id := strings.TrimSpace(c.Param("id"))
 	store := inbox.NewGormStore(h.db)
 	msg, err := store.GetByID(userID, id)
 	if err != nil {
-		response.Fail(c, "站内信不存在", err)
+		response.FailI18n(c, "notification.not_found", err)
 		return
 	}
 	row, ok := messageToMeRow(*msg)
 	if !ok {
-		response.Fail(c, "无效消息", nil)
+		response.FailI18n(c, "notification.invalid_message", nil)
 		return
 	}
-	response.SuccessMsg(c, "ok", row)
+	response.SuccessI18n(c, "common.ok", row)
 }
 
 // PUT /admin/me/inbox-messages/:id/read
 func (h *Handlers) handleMeMarkInboxRead(c *gin.Context) {
 	userID, ok := currentUserIDStr(c)
 	if !ok {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	id := strings.TrimSpace(c.Param("id"))
 	store := inbox.NewGormStore(h.db)
 	if _, err := store.GetByID(userID, id); err != nil {
-		response.Fail(c, "站内信不存在", err)
+		response.FailI18n(c, "notification.not_found", err)
 		return
 	}
-	if err := store.MarkRead("", id); err != nil {
-		response.Fail(c, "标记已读失败", err)
+	if err := store.MarkRead(userID, id); err != nil {
+		response.FailI18n(c, "common.mark_read_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已标记为已读", nil)
+	response.SuccessI18n(c, "common.marked_read", nil)
 }
 
 // POST /admin/me/inbox-messages/read-all
 func (h *Handlers) handleMeMarkAllInboxRead(c *gin.Context) {
 	userID, ok := currentUserIDStr(c)
 	if !ok {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	store := inbox.NewGormStore(h.db)
 	if err := store.MarkAllRead(userID); err != nil {
-		response.Fail(c, "全部标记已读失败", err)
+		response.FailI18n(c, "common.mark_all_read_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已全部标记为已读", nil)
+	response.SuccessI18n(c, "common.all_marked_read", nil)
 }
 
 // DELETE /admin/me/inbox-messages/:id
 func (h *Handlers) handleMeDeleteInboxMessage(c *gin.Context) {
 	userID, ok := currentUserIDStr(c)
 	if !ok {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	id := strings.TrimSpace(c.Param("id"))
 	store := inbox.NewGormStore(h.db)
 	if err := store.Delete(userID, id); err != nil {
-		response.Fail(c, "删除失败", err)
+		response.FailI18n(c, "common.operation_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已删除", nil)
+	response.SuccessI18n(c, "common.deleted", nil)
 }
 
 // POST /admin/me/inbox-messages/batch-delete
 func (h *Handlers) handleMeBatchDeleteInboxMessages(c *gin.Context) {
 	userID, ok := currentUserIDStr(c)
 	if !ok {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
 	var req meInboxBatchDeleteReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, "参数无效", err)
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 	ids := make([]string, 0, len(req.IDs))
@@ -196,16 +197,16 @@ func (h *Handlers) handleMeBatchDeleteInboxMessages(c *gin.Context) {
 		}
 	}
 	if len(ids) == 0 {
-		response.Fail(c, "未提供有效 ID", nil)
+		response.FailI18n(c, "common.no_valid_id", nil)
 		return
 	}
 	store := inbox.NewGormStore(h.db)
 	deleted, err := store.BatchDelete(userID, ids)
 	if err != nil {
-		response.Fail(c, "批量删除失败", err)
+		response.FailI18n(c, "common.batch_delete_failed", err)
 		return
 	}
-	response.SuccessMsg(c, "已删除", gin.H{
+	response.SuccessI18n(c, "common.deleted", gin.H{
 		"deletedCount":   deleted,
 		"totalRequested": len(ids),
 	})

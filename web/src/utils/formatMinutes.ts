@@ -1,10 +1,6 @@
-/** Format coaching minutes for display (e.g. 90 → "1 小时 30 分"). */
+/** Format coaching minutes for display — always minutes, never decimal hours. */
 export function formatTeachingMinutes(mins: number): string {
   if (!Number.isFinite(mins)) return "—";
-  if (mins >= 60) {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return m ? `${h} 小时 ${m} 分` : `${h} 小时`;
-  }
-  return `${mins} 分钟`;
+  const n = Math.max(0, Math.round(mins));
+  return `${n} 分钟`;
 }
