@@ -1,4 +1,4 @@
-package bootstrap
+package seeds
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ import (
 )
 
 type SeedService struct {
-	db *gorm.DB
+	DB *gorm.DB
 }
 
 func (s *SeedService) SeedAll() error {
@@ -40,7 +40,7 @@ func (s *SeedService) SeedAll() error {
 	return nil
 }
 
-func (s *SeedService) seedNotificationDefaults() error {
+func (s *SeedService) SeedNotificationDefaults() error {
 	if err := s.seedNotificationTemplates(); err != nil {
 		return err
 	}
@@ -48,15 +48,15 @@ func (s *SeedService) seedNotificationDefaults() error {
 }
 
 func (s *SeedService) seedNotificationTemplates() error {
-	if s == nil || s.db == nil {
+	if s == nil || s.DB == nil {
 		return nil
 	}
-	if s.db.Dialector.Name() == "mysql" {
+	if s.DB.Dialector.Name() == "mysql" {
 		for _, tbl := range []string{"mail_templates", "mail_logs", "notification_channels"} {
-			_ = s.db.Exec("ALTER TABLE " + tbl + " CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci").Error
+			_ = s.DB.Exec("ALTER TABLE " + tbl + " CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci").Error
 		}
 	}
-	if err := notify2.SplitLegacyMailTemplates(s.db); err != nil {
+	if err := notify2.SplitLegacyMailTemplates(s.DB); err != nil {
 		return err
 	}
 	type tplDef struct {
@@ -101,16 +101,16 @@ func (s *SeedService) seedNotificationTemplates() error {
 			"邮箱已更换",
 			"{{.Username}}，您的账号邮箱已由 {{.OldEmail}} 更换为 {{.NewEmail}}。如非本人操作请立即联系管理员。"},
 	}
-	if err := upsertNotificationTemplate(s.db, notify2.TmplFeedbackReply, "反馈回复通知", notify2.NotificationTemplateTypeInbox, "", "", "管理员在工单中回复后提醒用户去看完整对话",
+	if err := upsertNotificationTemplate(s.DB, notify2.TmplFeedbackReply, "反馈回复通知", notify2.NotificationTemplateTypeInbox, "", "", "管理员在工单中回复后提醒用户去看完整对话",
 		"您的反馈有了新回复",
 		"{{.Username}}，管理员回复了你的反馈：{{.ReplyPreview}}。请前往「反馈给我们」查看完整对话。"); err != nil {
 		return err
 	}
 	for _, d := range defs {
-		if err := upsertNotificationTemplate(s.db, d.code, d.emailName, notify2.NotificationTemplateTypeEmail, d.subject, d.html, d.desc, "", ""); err != nil {
+		if err := upsertNotificationTemplate(s.DB, d.code, d.emailName, notify2.NotificationTemplateTypeEmail, d.subject, d.html, d.desc, "", ""); err != nil {
 			return err
 		}
-		if err := upsertNotificationTemplate(s.db, d.code, d.inboxName, notify2.NotificationTemplateTypeInbox, "", "", d.desc, d.inboxTitle, d.inboxBody); err != nil {
+		if err := upsertNotificationTemplate(s.DB, d.code, d.inboxName, notify2.NotificationTemplateTypeInbox, "", "", d.desc, d.inboxTitle, d.inboxBody); err != nil {
 			return err
 		}
 	}
@@ -160,11 +160,11 @@ func upsertNotificationTemplate(db *gorm.DB, code, name, channelType, subject, h
 }
 
 func (s *SeedService) seedDefaultEmailChannel() error {
-	if s == nil || s.db == nil || configs.Global == nil {
+	if s == nil || s.DB == nil || configs.Global == nil {
 		return nil
 	}
 	var n int64
-	if err := s.db.Model(&notify2.NotificationChannel{}).
+	if err := s.DB.Model(&notify2.NotificationChannel{}).
 		Where("type = ?", notify2.NotificationChannelTypeEmail).
 		Count(&n).Error; err != nil {
 		return err
@@ -194,16 +194,16 @@ func (s *SeedService) seedDefaultEmailChannel() error {
 		Remark:     "从环境配置导入",
 		ConfigJSON: cfgJSON,
 	}
-	return s.db.Create(&row).Error
+	return s.DB.Create(&row).Error
 }
 
 func (s *SeedService) seedScenarios() error {
 	for _, sc := range models.DefaultScenarios {
 		sc.Enabled = true
 		var existing models.ScenarioDialogueScenario
-		err := s.db.Where("slug = ?", sc.Slug).First(&existing).Error
+		err := s.DB.Where("slug = ?", sc.Slug).First(&existing).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			if err := s.db.Create(&sc).Error; err != nil {
+			if err := s.DB.Create(&sc).Error; err != nil {
 				return err
 			}
 			continue
@@ -211,7 +211,7 @@ func (s *SeedService) seedScenarios() error {
 		if err != nil {
 			return err
 		}
-		_ = s.db.Model(&existing).Updates(map[string]any{
+		_ = s.DB.Model(&existing).Updates(map[string]any{
 			"icon":        sc.Icon,
 			"prompt":      sc.Prompt,
 			"ai_role":     sc.AIRole,
@@ -226,7 +226,7 @@ func (s *SeedService) seedUsers() error {
 	defaultAdminUsername := "admin"
 	defaultPassword := "demo123"
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
 		// 1) admin
 		var count int64
 		tx.Model(&models.User{}).Where("username = ?", defaultAdminUsername).Count(&count)
@@ -298,13 +298,13 @@ func (s *SeedService) seedConfigs() error {
 	}
 	for _, cfg := range defaults {
 		var existingConfig lbconfig.ConfigItem
-		result := s.db.Where("`key` = ?", cfg.Key).First(&existingConfig)
+		result := s.DB.Where("`key` = ?", cfg.Key).First(&existingConfig)
 
 		if result.Error != nil {
 			if !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 				return result.Error
 			}
-			if err := s.db.Create(&cfg).Error; err != nil {
+			if err := s.DB.Create(&cfg).Error; err != nil {
 				return err
 			}
 		} else {
@@ -313,7 +313,7 @@ func (s *SeedService) seedConfigs() error {
 			existingConfig.Autoload = cfg.Autoload
 			existingConfig.Public = cfg.Public
 			existingConfig.Format = cfg.Format
-			if err := s.db.Save(&existingConfig).Error; err != nil {
+			if err := s.DB.Save(&existingConfig).Error; err != nil {
 				return err
 			}
 		}
@@ -558,7 +558,7 @@ Urban planners increasingly see green roofs not as decoration, but as infrastruc
 		},
 	}
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
 		for _, p := range passages {
 			var count int64
 			tx.Model(&models.ReadingPassage{}).
@@ -823,7 +823,7 @@ The ocean's health is closely {{5}} to our own future, so protecting it is not o
 		},
 	}
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
 		for _, p := range passages {
 			var count int64
 			tx.Model(&models.ClozePassage{}).
@@ -1139,7 +1139,7 @@ func (s *SeedService) seedGrammarLessons() error {
 		},
 	}
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
 		for _, l := range lessons {
 			var count int64
 			tx.Model(&models.GrammarLesson{}).

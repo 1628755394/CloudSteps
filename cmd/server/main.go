@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -8,14 +9,18 @@ import (
 
 	"github.com/LingByte/CloudStepsGo/internal/app"
 	"github.com/LingByte/CloudStepsGo/internal/configs"
+	"github.com/LingByte/CloudStepsGo/internal/database"
 	"github.com/LingByte/CloudStepsGo/internal/handlers"
+	"github.com/LingByte/CloudStepsGo/internal/seeds"
 	"github.com/LingByte/ling-base/bootstrap"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
+	"github.com/LingByte/ling-base/common"
 	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/common/response"
 	respgin "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/i18n"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 // Version / BuildTime / GitCommit 可由 ldflags 注入。
@@ -83,19 +88,70 @@ func main() {
 		zap.String("env", cfg.App.Environment),
 	)
 
+	// 连接数据库（在创建 Application 之前，因为 WithAutoMigrate 需要已连接的 *gorm.DB）
+	db, err := database.Connect(os.Stdout)
+	if err != nil {
+		logger.Error("init database failed", zap.Error(err))
+		os.Exit(1)
+	}
+
+	// 可选：执行初始化 SQL
+	if *initSQL != "" {
+		if err := runInitSQL(db, *initSQL); err != nil {
+			logger.Error("run init sql failed", zap.String("path", *initSQL), zap.Error(err))
+			os.Exit(1)
+		}
+	}
+
 	lbApp := bootstrap.New(info.Name,
 		bootstrap.WithProfile(cfg.Mode()),
 		bootstrap.WithBannerFile("banner.txt"),
 		bootstrap.WithShutdownTimeout(30*time.Second),
 	)
 
+	// 迁移：使用 ling-base bootstrap 的 WithAutoMigrate
+	if *initDB {
+		lbApp.AddInitHook("auto-migrate", func(ctx context.Context) error {
+			models := database.Models()
+			logger.Info("running auto-migrate", zap.Int("models", len(models)))
+			if err := db.AutoMigrate(models...); err != nil {
+				return fmt.Errorf("auto-migrate failed: %w", err)
+			}
+			if err := database.PostMigrate(db); err != nil {
+				return fmt.Errorf("post-migrate failed: %w", err)
+			}
+			logger.Info("migration success",
+				zap.String("database", cfg.Database.Driver),
+				zap.String("dsn", cfg.Database.DSN),
+			)
+			return nil
+		})
+	} else {
+		// 即使不执行 AutoMigrate，也做后置修复（ensureUsersEmailColumn 等）
+		lbApp.AddInitHook("post-migrate", func(ctx context.Context) error {
+			return database.PostMigrate(db)
+		})
+	}
+
+	// 通知模板种子（始终执行，确保基线行存在）
+	lbApp.AddInitHook("seed-notification-defaults", func(ctx context.Context) error {
+		seedSvc := &seeds.SeedService{DB: db}
+		return seedSvc.SeedNotificationDefaults()
+	})
+
+	// 非生产环境种子数据
+	if *seed {
+		lbApp.AddInitHook("seed-all", func(ctx context.Context) error {
+			seedSvc := &seeds.SeedService{DB: db}
+			return seedSvc.SeedAll()
+		})
+	}
+
 	if err := lbApp.Register("http-server", &app.HTTPServer{
-		Cfg:         cfg,
-		Info:        info,
-		I18n:        i18nManager,
-		InitSQL:     *initSQL,
-		AutoMigrate: *initDB,
-		SeedNonProd: *seed,
+		Cfg:  cfg,
+		DB:   db,
+		Info: info,
+		I18n: i18nManager,
 	}); err != nil {
 		logger.Error("注册 HTTP 组件失败", zap.Error(err))
 		os.Exit(1)
@@ -105,4 +161,9 @@ func main() {
 		logger.Error("应用启动失败", zap.Error(err))
 		os.Exit(1)
 	}
+}
+
+// runInitSQL 执行初始化 SQL 脚本（按分号分段）。
+func runInitSQL(db *gorm.DB, path string) error {
+	return common.RunInitSQL(db, path)
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/LingByte/CloudStepsGo/cmd/bootstrap"
 	"github.com/LingByte/CloudStepsGo/internal/configs"
+	"github.com/LingByte/CloudStepsGo/internal/database"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 )
 
@@ -27,9 +27,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	db, err := bootstrap.SetupDatabase(os.Stdout, &bootstrap.Options{AutoMigrate: false})
+	db, err := database.Connect(os.Stdout)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "database setup failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "database connect failed: %v\n", err)
 		os.Exit(1)
 	}
 

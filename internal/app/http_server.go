@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/cmd/bootstrap"
 	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/handlers"
@@ -35,12 +33,10 @@ import (
 
 // HTTPServer 是 bootstrap.Register 的 HTTP 组件。
 type HTTPServer struct {
-	Cfg         *configs.Config
-	Info        handlers.AppInfo
-	I18n        *i18n.Manager
-	InitSQL     string
-	AutoMigrate bool
-	SeedNonProd bool
+	Cfg  *configs.Config
+	DB   *gorm.DB
+	Info handlers.AppInfo
+	I18n *i18n.Manager
 
 	db      *gorm.DB
 	server  *http.Server
@@ -48,13 +44,9 @@ type HTTPServer struct {
 }
 
 func (s *HTTPServer) Start(ctx context.Context) error {
-	db, err := bootstrap.SetupDatabase(os.Stdout, &bootstrap.Options{
-		InitSQLPath: s.InitSQL,
-		AutoMigrate: s.AutoMigrate,
-		SeedNonProd: s.SeedNonProd,
-	})
-	if err != nil {
-		return fmt.Errorf("database setup: %w", err)
+	db := s.DB
+	if db == nil {
+		return fmt.Errorf("database not connected")
 	}
 	s.db = db
 

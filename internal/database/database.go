@@ -1,7 +1,7 @@
-package bootstrap
+// Package database 负责数据库连接、迁移模型注册与后置修复。
+package database
 
 import (
-	"errors"
 	"io"
 	"strings"
 
@@ -17,90 +17,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// Options controls database initialization behavior
-type Options struct {
-	// InitSQLPath points to a .sql script file (optional); skip if empty
-	InitSQLPath string
-	// AutoMigrate whether to execute entity migration (default true)
-	AutoMigrate bool
-	// SeedNonProd whether to write default configuration in non-production environments (default true)
-	SeedNonProd bool
+// Connect 根据全局配置创建 *gorm.DB。
+func Connect(logWriter io.Writer) (*gorm.DB, error) {
+	return common.InitDatabase(logWriter, configs.Global.Database.Driver, configs.Global.Database.DSN)
 }
 
-// SetupDatabase unified entry: connect database -> run initialization SQL -> migrate entities -> (non-production) write default configuration
-func SetupDatabase(logWriter io.Writer, opts *Options) (*gorm.DB, error) {
-	if opts == nil {
-		opts = &Options{AutoMigrate: true, SeedNonProd: true}
-	}
-
-	// 1) Connect to database
-	db, err := initDBConn(logWriter)
-	if err != nil {
-		logger.Error("init database failed", zap.Error(err))
-		return nil, err
-	}
-
-	// 2) Optional: execute initialization SQL
-	if opts.InitSQLPath != "" {
-		if err := common.RunInitSQL(db, opts.InitSQLPath); err != nil {
-			logger.Error("run init sql failed", zap.String("path", opts.InitSQLPath), zap.Error(err))
-			return nil, err
-		}
-	}
-
-	// 3) Migrate entities
-	if opts.AutoMigrate {
-		if err := RunMigrations(db); err != nil {
-			logger.Error("migration failed", zap.Error(err))
-			return nil, err
-		}
-		logger.Info("migration success",
-			zap.String("database", configs.Global.Database.Driver),
-			zap.String("dsn", configs.Global.Database.DSN),
-		)
-	}
-
-	// 3.5) Ensure critical columns exist even without --init flag (e.g. users.email)
-	if err := ensureUsersEmailColumn(db); err != nil {
-		logger.Error("ensure users.email column failed", zap.Error(err))
-		return nil, err
-	}
-
-	// Notification templates (email + inbox) and default mail channel — always upsert so
-	// /notification-templates has baseline rows even without --init / --seed flags.
-	mailSeed := SeedService{db: db}
-	if err := mailSeed.seedNotificationDefaults(); err != nil {
-		logger.Error("notification seed failed", zap.Error(err))
-		return nil, err
-	}
-	// 4) Non-production: demo users, content, etc.
-	if opts.SeedNonProd {
-		service := SeedService{
-			db: db,
-		}
-		if err := service.SeedAll(); err != nil {
-			logger.Error("seed failed", zap.Error(err))
-			return nil, err
-		}
-	}
-
-	logger.Info("system bootstrap - database is initialization complete")
-	return db, nil
-}
-
-// initDBConn creates *gorm.DB based on global configuration
-func initDBConn(logWriter io.Writer) (*gorm.DB, error) {
-	dbDriver := configs.Global.Database.Driver
-	dsn := configs.Global.Database.DSN
-	return common.InitDatabase(logWriter, dbDriver, dsn)
-}
-
-// RunMigrations executes entity migration
-func RunMigrations(db *gorm.DB) error {
-	if db == nil {
-		return errors.New("db is nil")
-	}
-	if err := common.MakeMigrates(db, []any{
+// Models 返回需要 AutoMigrate 的全部实体，顺序与原 cmd/bootstrap.RunMigrations 一致。
+func Models() []any {
+	return []any{
 		&lbconfig.ConfigItem{},
 		&models.AccountLock{},
 		&models.UserDevice{},
@@ -145,16 +69,21 @@ func RunMigrations(db *gorm.DB) error {
 		&models.SysMetric{},
 		&models.FeedbackTicket{},
 		&models.FeedbackReply{},
-	}); err != nil {
-		return err
 	}
-	if err := fixScenarioDialogueCharset(db); err != nil {
+}
+
+// PostMigrate 在 AutoMigrate 之后执行的兜底修复：
+//   - 确保 users.email 列存在
+//   - 删除 users.username 唯一索引（允许软删后同用户名重新注册）
+//   - 修正 scenario_dialogue 表字符集为 utf8mb4
+func PostMigrate(db *gorm.DB) error {
+	if err := ensureUsersEmailColumn(db); err != nil {
 		return err
 	}
 	if err := dropUsersUsernameUniqueIndex(db); err != nil {
 		return err
 	}
-	return nil
+	return fixScenarioDialogueCharset(db)
 }
 
 // ensureUsersEmailColumn 确保 users 表有 email 列（GORM AutoMigrate 对已有表加带索引的列时可能不生效，这里做兜底）。
