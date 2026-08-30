@@ -135,9 +135,9 @@ export default function CoachCenter() {
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 min-w-0">
-              <h1 className="text-sm font-semibold text-foreground truncate leading-snug">
+              <h2 className=" font-semibold text-foreground truncate leading-snug">
                 {name || "-"}
-              </h1>
+              </h2>
               <GenderMark gender={user?.gender} />
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">陪练中心</p>
@@ -174,7 +174,7 @@ export default function CoachCenter() {
                   className="text-muted-soft group-hover:text-primary shrink-0 transition-colors"
                 />
               </div>
-              <div className="mt-0.5 text-xl font-bold tabular-nums text-foreground tracking-tight leading-none">
+              <div className="mt-0.5 text-base font-bold tabular-nums text-foreground tracking-tight leading-none">
                 {poolLoading ? "…" : formatTeachingMinutes(remaining)}
               </div>
               <p className="mt-1 text-[10px] text-muted-foreground truncate">

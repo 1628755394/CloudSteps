@@ -56,6 +56,7 @@ func (h *Handlers) registerVocabTestRoutes(r *humax.Group) {
 
 func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, totalAll float64) (string, int) {
 	levels := []string{"A1", "A2", "B1", "B2", "C1"}
+	// 各等级对应的词汇量基数（CEFR 标准）
 	vocabMap := map[string]int{
 		"A1": 300,
 		"A2": 1000,
@@ -65,8 +66,11 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 	}
 
 	// Beta(1,1) 先验做平滑，题目少时更稳定
-	passLine := 0.6
+	// passLine 提高到 0.7：必须答对 70% 以上才算掌握该等级
+	passLine := 0.7
 	finalLevel := "A1"
+	// 记录最后一个达标等级的正确率，用于插值估算词汇量
+	finalLevelRate := 0.0
 	for _, lv := range levels {
 		wT := totalW[lv]
 		if wT <= 0 {
@@ -76,6 +80,7 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 		r := (wC + 1.0) / (wT + 2.0)
 		if r >= passLine {
 			finalLevel = lv
+			finalLevelRate = r
 		} else {
 			break
 		}
@@ -84,8 +89,9 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 	// 若整体加权正确率很高，允许上探一档（避免卡在某一级别题目偏难导致低估）
 	if totalAll > 0 {
 		overall := (correctAll + 1.0) / (totalAll + 2.0)
-		if overall >= 0.8 {
+		if overall >= 0.85 {
 			finalLevel = nextLevelOf(finalLevel)
+			finalLevelRate = overall
 		}
 	}
 
@@ -95,7 +101,38 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 	if _, ok := vocabMap[finalLevel]; !ok {
 		finalLevel = "A1"
 	}
-	return finalLevel, vocabMap[finalLevel]
+
+	// 词汇量插值：根据当前等级正确率，在当前等级和上一等级之间插值
+	// 正确率越高，词汇量越接近下一等级；正确率刚过 passLine，词汇量接近当前等级基数
+	estimatedVocab := interpolateVocab(finalLevel, finalLevelRate, passLine, vocabMap)
+
+	return finalLevel, estimatedVocab
+}
+
+// interpolateVocab 根据正确率在当前等级和下一等级之间插值估算词汇量
+func interpolateVocab(level string, rate, passLine float64, vocabMap map[string]int) int {
+	base := vocabMap[level]
+	next := vocabMap[nextLevelOf(level)]
+	if level == "C1" || next <= base {
+		// C1 已是最高级，根据正确率在 6000~8000 之间插值
+		if rate >= 0.95 {
+			return 8000
+		}
+		if rate <= passLine {
+			return base
+		}
+		// passLine~0.95 之间线性插值 6000~8000
+		return base + int(float64(2000)*(rate-passLine)/(0.95-passLine))
+	}
+	if rate <= passLine {
+		return base
+	}
+	if rate >= 0.95 {
+		// 接近全对，给到下一等级基数
+		return next
+	}
+	// passLine~0.95 之间线性插值 base~next
+	return base + int(float64(next-base)*(rate-passLine)/(0.95-passLine))
 }
 
 // vocabTestOwnedByStudent 老师代测（student_id）+ 学员自测（user_id 且未绑定）。
@@ -159,7 +196,7 @@ func (h *Handlers) handleVocabTestStart(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 
-	// 每个等级各取 6 题，共 30 题（A1×6 + A2×6 + B1×6 + B2×6 + C1×6）
+	// 每个等级各取 8 题，共 40 题（A1×8 + A2×8 + B1×8 + B2×8 + C1×8）
 	levels := []string{"A1", "A2", "B1", "B2", "C1"}
 	var allQuestions []models.VocabTestQuestion
 
@@ -179,7 +216,7 @@ func (h *Handlers) handleVocabTestStart(c *gin.Context) {
 	}
 
 	for _, lv := range levels {
-		qs, err := pickBalancedRandomQuestionsFromPool(pool, lv, 6, excludeIDs)
+		qs, err := pickBalancedRandomQuestionsFromPool(pool, lv, 8, excludeIDs)
 		if err != nil {
 			response.Fail(c, "题库暂无题目，请联系管理员添加", nil)
 			return

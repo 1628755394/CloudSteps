@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { CloudButton } from "../components/cloudsteps";
 import { useNavigate } from "react-router";
 import { X, Volume2 } from "lucide-react";
@@ -17,7 +17,9 @@ type ApiQuestion = VocabTestQuestion;
 
 type OptionItem = { label: string; value: string };
 
-const WRONG_LIMIT = 5;
+const TOTAL_QUESTIONS = 40;
+const LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1"] as const;
+const REVEAL_DELAY_MS = 900;
 
 const parseOptions = (options: string): string[] => {
   try {
@@ -31,6 +33,7 @@ const parseOptions = (options: string): string[] => {
 export default function VocabularyTestTesting() {
   const navigate = useNavigate();
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [wrongCount, setWrongCount] = useState(0);
   const [timer, setTimer] = useState(8);
@@ -38,12 +41,20 @@ export default function VocabularyTestTesting() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const [questions, setQuestions] = useState<ApiQuestion[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<{ questionId: number; answer: string }[]>([]);
+  // 题池按等级分组
+  const [poolByLevel, setPoolByLevel] = useState<Record<string, ApiQuestion[]>>({});
+  // 已使用的题目 ID 集合
+  const usedIdsRef = useRef<Set<number>>(new Set());
+  // 当前题
+  const [currentQuestion, setCurrentQuestion] = useState<ApiQuestion | null>(null);
+  // 当前等级索引
+  const levelIndexRef = useRef(0);
+  // 答案列表（用于触发重渲染）
+  const [, setAnswersTick] = useState(0);
+  // 已答数
+  const answeredCountRef = useRef(0);
+  // 答案列表
   const answersRef = useRef<{ questionId: number; answer: string }[]>([]);
-
-  const currentQuestion = questions[currentIndex] ?? null;
 
   const wordDisplayClass = useMemo(() => {
     if (!currentQuestion?.word) return "text-2xl sm:text-3xl";
@@ -88,10 +99,12 @@ export default function VocabularyTestTesting() {
       .concat([{ label: "不认识", value: "不认识" }]);
   }, [currentQuestion]);
 
-  const progress = questions.length > 0 ? Math.round(((currentIndex + 1) / questions.length) * 100) : 0;
+  const progress = answeredCountRef.current > 0
+    ? Math.round((answeredCountRef.current / TOTAL_QUESTIONS) * 100)
+    : 0;
 
   useEffect(() => {
-    if (timer > 0 && !submitting) {
+    if (timer > 0 && !submitting && !revealed) {
       const interval = setInterval(() => {
         setTimer((prev) => prev - 1);
       }, 1000);
@@ -100,7 +113,7 @@ export default function VocabularyTestTesting() {
     if (timer === 0) {
       setShowWarning(true);
     }
-  }, [timer, submitting]);
+  }, [timer, submitting, revealed]);
 
   const submitAndGoResult = async (payloadAnswers: { questionId: number; answer: string }[]) => {
     if (!payloadAnswers.length) {
@@ -117,13 +130,82 @@ export default function VocabularyTestTesting() {
     navigate("/vocabulary-test/result", { replace: true });
   };
 
+  // 从指定等级取一道未用过的题
+  const pickQuestionFromLevel = useCallback((level: string): ApiQuestion | null => {
+    const pool = poolByLevel[level];
+    if (!pool || pool.length === 0) return null;
+    for (const q of pool) {
+      if (!usedIdsRef.current.has(q.id)) {
+        usedIdsRef.current.add(q.id);
+        return q;
+      }
+    }
+    return null;
+  }, [poolByLevel]);
+
+  // 取下一题（自适应）
+  const pickNextQuestion = useCallback((wasCorrect: boolean | null): ApiQuestion | null => {
+    // wasCorrect=null 表示第一题
+    if (wasCorrect !== null) {
+      if (wasCorrect) {
+        // 答对 → 升一级
+        levelIndexRef.current = Math.min(levelIndexRef.current + 1, LEVEL_ORDER.length - 1);
+      } else {
+        // 答错 → 降一级
+        levelIndexRef.current = Math.max(levelIndexRef.current - 1, 0);
+      }
+    }
+    // 从当前等级取题，取不到则尝试相邻等级
+    const tried = new Set<string>();
+    let idx = levelIndexRef.current;
+    // 先尝试当前及更高等级
+    for (let i = idx; i < LEVEL_ORDER.length; i++) {
+      const lv = LEVEL_ORDER[i];
+      if (tried.has(lv)) continue;
+      tried.add(lv);
+      const q = pickQuestionFromLevel(lv);
+      if (q) {
+        levelIndexRef.current = i;
+        return q;
+      }
+    }
+    // 再尝试更低等级
+    for (let i = idx - 1; i >= 0; i--) {
+      const lv = LEVEL_ORDER[i];
+      if (tried.has(lv)) continue;
+      tried.add(lv);
+      const q = pickQuestionFromLevel(lv);
+      if (q) {
+        levelIndexRef.current = i;
+        return q;
+      }
+    }
+    return null;
+  }, [pickQuestionFromLevel]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
         const list = await ensureVocabTestQuestions();
-        if (mounted) setQuestions(list);
+        if (!mounted) return;
+        // 按等级分组
+        const byLevel: Record<string, ApiQuestion[]> = {};
+        for (const q of list) {
+          const lv = q.level || "A1";
+          if (!byLevel[lv]) byLevel[lv] = [];
+          byLevel[lv].push(q);
+        }
+        setPoolByLevel(byLevel);
+        // 取第一题（从 A1 开始）
+        levelIndexRef.current = 0;
+        const first = pickQuestionFromLevel("A1") || pickQuestionFromLevel("A2") || pickQuestionFromLevel("B1");
+        if (first) {
+          setCurrentQuestion(first);
+        } else {
+          throw new Error("题库暂无题目");
+        }
       } catch (e) {
         console.error(e);
         alert(e instanceof Error ? e.message : "加载题目失败");
@@ -135,11 +217,12 @@ export default function VocabularyTestTesting() {
     return () => {
       mounted = false;
     };
-  }, [navigate]);
+  }, [navigate, pickQuestionFromLevel]);
 
   const handleAnswerSelect = async (value: string) => {
-    if (!currentQuestion || loading || submitting) return;
+    if (!currentQuestion || loading || submitting || revealed) return;
     setSelectedAnswer(value);
+    setRevealed(true);
 
     const isUnknown = value === "不认识";
     const isCorrect = !isUnknown && value === currentQuestion.correctAnswer;
@@ -147,15 +230,17 @@ export default function VocabularyTestTesting() {
     if (!isCorrect) setWrongCount((prev) => prev + 1);
 
     const qid = currentQuestion.id;
-    const nextAnswers = [...answers, { questionId: qid, answer: value }];
-    setAnswers(nextAnswers);
+    const nextAnswers = [...answersRef.current, { questionId: qid, answer: value }];
     answersRef.current = nextAnswers;
+    answeredCountRef.current += 1;
+    // 触发 progress 重渲染
+    setAnswersTick((n) => n + 1);
 
-    const nextWrongCount = wrongCount + (isCorrect ? 0 : 1);
-    const nextIndex = currentIndex + 1;
-    const shouldFinish = nextWrongCount > WRONG_LIMIT || nextIndex >= questions.length;
+    const isFinished = answeredCountRef.current >= TOTAL_QUESTIONS;
 
-    if (shouldFinish) {
+    if (isFinished) {
+      // 停顿展示对错颜色后再提交
+      await new Promise((r) => setTimeout(r, REVEAL_DELAY_MS));
       try {
         setSubmitting(true);
         await submitAndGoResult(nextAnswers);
@@ -168,10 +253,24 @@ export default function VocabularyTestTesting() {
       return;
     }
 
-    setCurrentIndex(nextIndex);
-    setSelectedAnswer(null);
-    setTimer(8);
-    setShowWarning(false);
+    // 停顿展示对错颜色后切下一题（自适应难度）
+    setTimeout(() => {
+      const next = pickNextQuestion(isCorrect);
+      if (!next) {
+        // 题池耗尽，直接提交
+        setSubmitting(true);
+        submitAndGoResult(nextAnswers).catch((e) => {
+          console.error(e);
+          alert(e instanceof Error ? e.message : "提交失败");
+        }).finally(() => setSubmitting(false));
+        return;
+      }
+      setCurrentQuestion(next);
+      setSelectedAnswer(null);
+      setRevealed(false);
+      setTimer(8);
+      setShowWarning(false);
+    }, REVEAL_DELAY_MS);
   };
 
   const busy = loading || submitting;
@@ -181,6 +280,8 @@ export default function VocabularyTestTesting() {
     else navigate("/vocabulary-test");
   };
 
+  const answeredCount = answeredCountRef.current;
+
   return (
     <div className="h-dvh w-full min-w-0 flex flex-col bg-gray-50 overflow-hidden">
       <TopBar title="词汇量测试" onBack={handleBack} />
@@ -188,8 +289,8 @@ export default function VocabularyTestTesting() {
       <main className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto overflow-x-hidden flex flex-col px-4 py-3 max-w-6xl mx-auto">
         <div className="shrink-0 flex items-center gap-2 mb-3 max-w-5xl mx-auto w-full min-w-0">
           <div className="text-[#4ECDC4] text-sm font-semibold tabular-nums">
-            {questions.length > 0
-              ? `${String(currentIndex + 1).padStart(2, "0")}/${questions.length}`
+            {answeredCount > 0
+              ? `${String(answeredCount).padStart(2, "0")}/${TOTAL_QUESTIONS}`
               : "--"}
           </div>
           <div className="flex-1 h-1 bg-[#E2E8F0] rounded-full overflow-hidden">
@@ -231,21 +332,33 @@ export default function VocabularyTestTesting() {
         </div>
 
         <div className="flex-1 min-h-0 flex flex-col justify-center gap-2 py-1 max-w-5xl mx-auto w-full min-w-0">
-          {options.map((option, index) => (
-            <CloudButton
-              key={index}
-              variant={option.label === "不认识" ? "secondary" : "outline"}
-              className={`w-full justify-start px-4 py-3 h-auto min-h-[3rem] max-h-[4.5rem] rounded-xl text-left whitespace-normal ${
-                selectedAnswer === option.value ? "ring-2 ring-[#4ECDC4] bg-[#4ECDC4]/10" : ""
-              } ${busy ? "opacity-60 pointer-events-none" : ""}`}
-              onClick={() => handleAnswerSelect(option.value)}
-              disabled={busy || !currentQuestion}
-            >
-              <span className="text-sm leading-snug break-words [overflow-wrap:anywhere] w-full line-clamp-2">
-                {option.label}
-              </span>
-            </CloudButton>
-          ))}
+          {options.map((option, index) => {
+            const isCorrectOpt = option.value === currentQuestion?.correctAnswer;
+            const isSelected = selectedAnswer === option.value;
+            let revealClass = "";
+            if (revealed && isCorrectOpt) {
+              revealClass = "bg-green-100 border-green-400 text-green-700";
+            } else if (revealed && isSelected && !isCorrectOpt) {
+              revealClass = "bg-red-100 border-red-400 text-red-700";
+            } else if (revealed) {
+              revealClass = "opacity-50";
+            }
+            return (
+              <CloudButton
+                key={index}
+                variant={option.label === "不认识" ? "secondary" : "outline"}
+                className={`w-full justify-start px-4 py-3 h-auto min-h-[3rem] max-h-[4.5rem] rounded-xl text-left whitespace-normal border ${revealClass} ${
+                  !revealed && isSelected ? "ring-2 ring-[#4ECDC4] bg-[#4ECDC4]/10" : ""
+                } ${busy || revealed ? "pointer-events-none" : ""}`}
+                onClick={() => handleAnswerSelect(option.value)}
+                disabled={busy || !currentQuestion || revealed}
+              >
+                <span className="text-sm leading-snug break-words [overflow-wrap:anywhere] w-full line-clamp-2">
+                  {option.label}
+                </span>
+              </CloudButton>
+            );
+          })}
         </div>
       </main>
 
