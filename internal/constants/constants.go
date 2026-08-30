@@ -24,5 +24,3 @@ const KEY_SITE_TERMS_URL = "SITE_TERMS_URL"
 const KEY_SITE_PRIVACY_URL = "SITE_PRIVACY_URL"
 const KEY_USER_ACTIVATED = "USER_ACTIVATED"
 const AUTHORIZATION_PREFIX = "Bearer "
-
-const SigInitSystemConfig = "system.init"
