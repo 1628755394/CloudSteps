@@ -67,74 +67,113 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 		"C1": 6000,
 	}
 
-	// Beta(1,1) 先验做平滑，题目少时更稳定
-	// passLine 提高到 0.7：必须答对 70% 以上才算掌握该等级
-	passLine := 0.7
-	finalLevel := "A1"
-	// 记录最后一个达标等级的正确率，用于插值估算词汇量
-	finalLevelRate := 0.0
-	for _, lv := range levels {
+	// 自适应模式下，用户不是按 A1→C1 顺序做完每级题目，
+	// 而是答对升一级、答错降一级，所以逐级判断 ≥passLine 不适用。
+	//
+	// 新算法：用各等级正确率做加权平均，算出能力分（0~1），再映射到等级。
+	// 每级有不同权重：高等级答对的贡献更大（因为题目更难）。
+
+	// 1. 计算每级的 Beta 平滑正确率
+	levelRates := map[string]float64{}
+	totalWeight := 0.0
+	weightedScore := 0.0 // 加权能力分
+
+	for i, lv := range levels {
 		wT := totalW[lv]
 		if wT <= 0 {
 			continue
 		}
 		wC := correctW[lv]
+		// Beta(1,1) 平滑
 		r := (wC + 1.0) / (wT + 2.0)
-		if r >= passLine {
-			finalLevel = lv
-			finalLevelRate = r
-		} else {
-			break
-		}
+		levelRates[lv] = r
+
+		// 等级权重：等级越高，权重越大（A1=1, A2=2, B1=3, B2=4, C1=5）
+		// 这样高等级的表现在能力分中占比更大
+		lvWeight := float64(i + 1)
+		// 该等级的能力贡献 = 等级权重 × 正确率
+		// 答对 C1 题目比答对 A1 题目更能说明水平高
+		weightedScore += lvWeight * r * float64(wT) / float64(totalAll)
+		totalWeight += lvWeight * float64(wT) / float64(totalAll)
 	}
 
-	// 若整体加权正确率很高，允许上探一档（避免卡在某一级别题目偏难导致低估）
+	// 能力分 = 加权平均正确率（0~1）
+	abilityScore := 0.5 // 默认中间值
+	if totalWeight > 0 {
+		abilityScore = weightedScore / totalWeight
+	}
+
+	// 2. 能力分映射到等级
+	// 能力分 0~1 映射到 5 个等级，每级占 0.2 的区间
+	// 但要考虑高等级答得多说明水平高，低等级答得多说明水平低
+	// 用整体正确率 + 能力分综合判断
+	overallRate := 0.5
 	if totalAll > 0 {
-		overall := (correctAll + 1.0) / (totalAll + 2.0)
-		if overall >= 0.85 {
-			finalLevel = nextLevelOf(finalLevel)
-			finalLevelRate = overall
-		}
+		overallRate = (correctAll + 1.0) / (totalAll + 2.0)
 	}
 
-	if finalLevel == "" {
+	// 综合分 = 60% 能力分 + 40% 整体正确率
+	combinedScore := 0.6*abilityScore + 0.4*overallRate
+
+	// 映射到等级
+	finalLevel := "A1"
+	switch {
+	case combinedScore >= 0.85:
+		finalLevel = "C1"
+	case combinedScore >= 0.70:
+		finalLevel = "B2"
+	case combinedScore >= 0.55:
+		finalLevel = "B1"
+	case combinedScore >= 0.40:
+		finalLevel = "A2"
+	default:
 		finalLevel = "A1"
 	}
+
 	if _, ok := vocabMap[finalLevel]; !ok {
 		finalLevel = "A1"
 	}
 
-	// 词汇量插值：根据当前等级正确率，在当前等级和上一等级之间插值
-	// 正确率越高，词汇量越接近下一等级；正确率刚过 passLine，词汇量接近当前等级基数
-	estimatedVocab := interpolateVocab(finalLevel, finalLevelRate, passLine, vocabMap)
+	// 3. 词汇量插值：根据综合分在等级之间连续插值
+	estimatedVocab := interpolateVocabByScore(combinedScore, levels, vocabMap)
 
 	return finalLevel, estimatedVocab
 }
 
-// interpolateVocab 根据正确率在当前等级和下一等级之间插值估算词汇量
-func interpolateVocab(level string, rate, passLine float64, vocabMap map[string]int) int {
-	base := vocabMap[level]
-	next := vocabMap[nextLevelOf(level)]
-	if level == "C1" || next <= base {
-		// C1 已是最高级，根据正确率在 6000~8000 之间插值
-		if rate >= 0.95 {
-			return 8000
+// interpolateVocabByScore 根据综合能力分（0~1）在等级之间连续插值估算词汇量
+func interpolateVocabByScore(score float64, levels []string, vocabMap map[string]int) int {
+	// 等级边界：A1=0.0, A2=0.4, B1=0.55, B2=0.70, C1=0.85
+	// 词汇量：A1=300, A2=1000, B1=2500, B2=4000, C1=6000, C1+=8000
+	boundaries := []struct {
+		minScore float64
+		vocab    int
+		nextVocab int
+	}{
+		{0.0, 300, 1000},    // A1
+		{0.4, 1000, 2500},   // A2
+		{0.55, 2500, 4000},  // B1
+		{0.70, 4000, 6000},  // B2
+		{0.85, 6000, 8000},  // C1
+	}
+
+	for i, b := range boundaries {
+		nextBoundary := 1.0
+		if i+1 < len(boundaries) {
+			nextBoundary = boundaries[i+1].minScore
 		}
-		if rate <= passLine {
-			return base
+		if score < nextBoundary || i == len(boundaries)-1 {
+			if score <= b.minScore {
+				return b.vocab
+			}
+			if score >= nextBoundary && i < len(boundaries)-1 {
+				return b.nextVocab
+			}
+			// 在当前区间内线性插值
+			ratio := (score - b.minScore) / (nextBoundary - b.minScore)
+			return b.vocab + int(float64(b.nextVocab-b.vocab)*ratio)
 		}
-		// passLine~0.95 之间线性插值 6000~8000
-		return base + int(float64(2000)*(rate-passLine)/(0.95-passLine))
 	}
-	if rate <= passLine {
-		return base
-	}
-	if rate >= 0.95 {
-		// 接近全对，给到下一等级基数
-		return next
-	}
-	// passLine~0.95 之间线性插值 base~next
-	return base + int(float64(next-base)*(rate-passLine)/(0.95-passLine))
+	return 8000
 }
 
 // vocabTestOwnedByStudent 老师代测（student_id）+ 学员自测（user_id 且未绑定）。
