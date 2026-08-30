@@ -94,7 +94,8 @@ export default function VocabularyTestTesting() {
     return shuffledOptions
       .map((label) => ({ label, value: label }))
       .concat([{ label: "不认识", value: "不认识" }]);
-  }, [currentQuestion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQuestion?.id]);
 
   const progress = answeredCountRef.current > 0
     ? Math.round((answeredCountRef.current / TOTAL_QUESTIONS) * 100)
