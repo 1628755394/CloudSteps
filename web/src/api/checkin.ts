@@ -16,6 +16,9 @@ export type CheckInStatus = {
   poolRemainingMinutes: number
   monthMask: boolean[]
   monthStartWeekday: number
+  yearMask: boolean[]
+  yearStartWeekday: number
+  yearDays: number
   rewardPreview?: CheckInRewardTier[]
 }
 

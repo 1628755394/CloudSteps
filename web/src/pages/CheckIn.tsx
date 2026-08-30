@@ -7,7 +7,7 @@ import { getCheckInStatus, postCheckIn, type CheckInStatus } from "../api/checki
 import { formatTeachingMinutes } from "../utils/formatMinutes";
 import { showToast } from "../utils/toast";
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+const MONTH_LABELS = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 
 const FALLBACK_TIERS = [
   { days: 1, minutes: 60 },
@@ -46,17 +46,48 @@ export default function CheckIn() {
     void load();
   }, [load]);
 
-  const monthCells = useMemo(() => {
-    if (!status?.monthMask?.length) return [];
-    const pad = status.monthStartWeekday ?? 0;
-    const todayDay = new Date().getDate();
-    const cells: Array<{ day: number | null; checked: boolean; isToday: boolean }> = [];
-    for (let i = 0; i < pad; i++) cells.push({ day: null, checked: false, isToday: false });
-    status.monthMask.forEach((checked, i) => {
-      const day = i + 1;
-      cells.push({ day, checked, isToday: day === todayDay });
-    });
-    return cells;
+  // 构建全年贡献热力图：按周排列，每列 7 格（周日→周六）。
+  const heatmap = useMemo(() => {
+    const mask = status?.yearMask ?? [];
+    const pad = status?.yearStartWeekday ?? 0;
+    const totalDays = status?.yearDays ?? mask.length;
+    if (!totalDays) return { weeks: [], monthLabels: [] as { label: string; weekIndex: number }[] };
+
+    // 前面补 pad 个空格对齐到周几
+    const cells: Array<{ day: number; checked: boolean } | null> = [];
+    for (let i = 0; i < pad; i++) cells.push(null);
+    for (let d = 0; d < totalDays; d++) {
+      cells.push({ day: d + 1, checked: !!mask[d] });
+    }
+    // 补齐到整周
+    const remainder = cells.length % 7;
+    if (remainder > 0) {
+      for (let i = 0; i < 7 - remainder; i++) cells.push(null);
+    }
+
+    // 按周分组
+    const weeks: Array<Array<{ day: number; checked: boolean } | null>> = [];
+    for (let i = 0; i < cells.length; i += 7) {
+      weeks.push(cells.slice(i, i + 7));
+    }
+
+    // 月份标签：找到每个月第一周所在的列索引
+    const monthLabels: { label: string; weekIndex: number }[] = [];
+    let lastMonth = -1;
+    for (let w = 0; w < weeks.length; w++) {
+      for (const cell of weeks[w]) {
+        if (cell && cell.day > 0) {
+          const date = new Date(new Date().getFullYear(), 0, cell.day);
+          const m = date.getMonth();
+          if (m !== lastMonth) {
+            monthLabels.push({ label: MONTH_LABELS[m], weekIndex: w });
+            lastMonth = m;
+          }
+        }
+      }
+    }
+
+    return { weeks, monthLabels };
   }, [status]);
 
   const tiers = status?.rewardPreview?.length ? status.rewardPreview : FALLBACK_TIERS;
@@ -204,33 +235,87 @@ export default function CheckIn() {
           </CloudCard>
 
           <CloudCard className="px-3 py-3">
-            <h2 className="text-xs font-semibold text-foreground mb-2">本月</h2>
-            <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] text-muted-soft mb-1">
-              {WEEKDAYS.map((w) => (
-                <div key={w} className="py-0.5">
-                  {w}
-                </div>
-              ))}
+            <div className="flex items-baseline justify-between gap-2 mb-2">
+              <h2 className="text-xs font-semibold text-foreground">签到热力图</h2>
+              <p className="text-[9px] text-muted-foreground truncate">
+                {new Date().getFullYear()} 年 · {status?.yearCheckIns ?? 0} 天
+              </p>
             </div>
-            <div className="grid grid-cols-7 gap-0.5">
-              {monthCells.map((cell, i) =>
-                cell.day == null ? (
-                  <div key={`e-${i}`} className="aspect-square" />
-                ) : (
-                  <div
-                    key={cell.day}
-                    className={`aspect-square rounded-md flex items-center justify-center text-[10px] tabular-nums ${
-                      cell.checked
-                        ? "bg-primary text-primary-foreground font-semibold"
-                        : cell.isToday
-                          ? "bg-primary/10 text-primary font-medium ring-1 ring-inset ring-primary/30"
-                          : "text-muted-foreground"
-                    }`}
-                  >
-                    {cell.day}
+
+            <div className="overflow-x-auto -mx-1 px-1">
+              <div className="inline-block min-w-full">
+                {/* 月份标签行 */}
+                <div className="flex gap-[3px] mb-1 pl-5 relative h-3">
+                  {heatmap.monthLabels.map((ml, i) => {
+                    const next = heatmap.monthLabels[i + 1];
+                    const span = next ? next.weekIndex - ml.weekIndex : heatmap.weeks.length - ml.weekIndex;
+                    return (
+                      <div
+                        key={ml.label + i}
+                        className="text-[8px] text-muted-soft leading-3 whitespace-nowrap"
+                        style={{ width: `calc(${span} * (var(--cell-size) + 3px))` }}
+                      >
+                        {ml.label}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-[3px]">
+                  {/* 星期标签列 */}
+                  <div className="flex flex-col gap-[3px] shrink-0">
+                    {["", "一", "", "三", "", "五", ""].map((w, i) => (
+                      <div
+                        key={i}
+                        className="text-[8px] text-muted-soft leading-none flex items-center justify-center"
+                        style={{ height: "var(--cell-size)" }}
+                      >
+                        {w}
+                      </div>
+                    ))}
                   </div>
-                ),
-              )}
+
+                  {/* 热力图格子 */}
+                  {heatmap.weeks.map((week, wi) => (
+                    <div key={wi} className="flex flex-col gap-[3px]">
+                      {week.map((cell, ci) => (
+                        <div
+                          key={ci}
+                          className="rounded-[2px] transition-colors"
+                          style={{
+                            width: "var(--cell-size)",
+                            height: "var(--cell-size)",
+                            backgroundColor: cell
+                              ? cell.checked
+                                ? "var(--cell-active)"
+                                : "var(--cell-idle)"
+                              : "transparent",
+                          }}
+                          title={
+                            cell
+                              ? `${new Date(new Date().getFullYear(), 0, cell.day).toLocaleDateString("zh-CN")} ${cell.checked ? "已签到" : "未签到"}`
+                              : ""
+                          }
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 图例 */}
+                <div className="flex items-center gap-1.5 mt-2 justify-end">
+                  <span className="text-[8px] text-muted-soft">少</span>
+                  <div
+                    className="rounded-[2px]"
+                    style={{ width: "var(--cell-size)", height: "var(--cell-size)", backgroundColor: "var(--cell-idle)" }}
+                  />
+                  <div
+                    className="rounded-[2px]"
+                    style={{ width: "var(--cell-size)", height: "var(--cell-size)", backgroundColor: "var(--cell-active)" }}
+                  />
+                  <span className="text-[8px] text-muted-soft">多</span>
+                </div>
+              </div>
             </div>
           </CloudCard>
         </>

@@ -73,6 +73,9 @@ type CheckInStatus struct {
 	PoolRemaining     int                 `json:"poolRemainingMinutes"`
 	MonthMask         []bool              `json:"monthMask"`
 	MonthStartWeekday int                 `json:"monthStartWeekday"`
+	YearMask          []bool              `json:"yearMask"`
+	YearStartWeekday  int                 `json:"yearStartWeekday"`
+	YearDays          int                 `json:"yearDays"`
 	RewardPreview     []CheckInRewardTier `json:"rewardPreview"`
 }
 
@@ -208,6 +211,30 @@ func monthCheckInMask(db *gorm.DB, teacherID uint, monthStart time.Time, days in
 	return mask, nil
 }
 
+// yearCheckInMask 返回从当年 1 月 1 日到 today（含）的签到布尔掩码，
+// 长度等于当年截至 today 的天数（1-based 索引 0 = 1月1日）。
+func yearCheckInMask(db *gorm.DB, teacherID uint, today time.Time) ([]bool, error) {
+	yearStart := time.Date(today.Year(), 1, 1, 0, 0, 0, 0, time.Local)
+	days := int(today.Sub(yearStart).Hours()/24) + 1
+	if days <= 0 {
+		return []bool{}, nil
+	}
+	mask := make([]bool, days)
+	var rows []TeacherCheckIn
+	if err := db.Where("teacher_id = ? AND check_in_date >= ? AND check_in_date <= ?",
+		teacherID, yearStart, today).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		d := int(localDateOnly(r.CheckInDate).Sub(yearStart).Hours()/24) + 1
+		if d >= 1 && d <= days {
+			mask[d-1] = true
+		}
+	}
+	return mask, nil
+}
+
 // GetTeacherCheckInStatus 查询签到状态（不签到）。
 func GetTeacherCheckInStatus(db *gorm.DB, teacherID uint, now time.Time) (*CheckInStatus, error) {
 	if db == nil || teacherID == 0 {
@@ -249,6 +276,13 @@ func GetTeacherCheckInStatus(db *gorm.DB, teacherID uint, now time.Time) (*Check
 		return nil, err
 	}
 
+	yearStart := time.Date(today.Year(), 1, 1, 0, 0, 0, 0, time.Local)
+	yearMask, err := yearCheckInMask(db, teacherID, today)
+	if err != nil {
+		return nil, err
+	}
+	yearDays := len(yearMask)
+
 	var dailyReward int
 	if checkedToday {
 		dailyReward = CheckInRewardForStreak(streak)
@@ -276,6 +310,9 @@ func GetTeacherCheckInStatus(db *gorm.DB, teacherID uint, now time.Time) (*Check
 		PoolRemaining:     pool.RemainingMinutes,
 		MonthMask:         mask,
 		MonthStartWeekday: int(monthStart.Weekday()),
+		YearMask:          yearMask,
+		YearStartWeekday:  int(yearStart.Weekday()),
+		YearDays:          yearDays,
 		RewardPreview:     CheckInRewardPreview(),
 	}, nil
 }

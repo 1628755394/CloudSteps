@@ -49,6 +49,28 @@ import { WordbookCoverDrawer } from './wordbook-cover-drawer'
 
 const route = getRouteApi('/_authenticated/wordbooks/')
 
+// 封面渐变色组（与 web 端 WordBooks.tsx 保持一致）
+const COVER_GRADIENTS: [string, string][] = [
+  ['#4ECDC4', '#44A5A0'],
+  ['#5B8DEF', '#4A7BC8'],
+  ['#F6B042', '#E89832'],
+  ['#E8718E', '#D45C78'],
+  ['#8B7FD8', '#7B6BC8'],
+  ['#66BB6A', '#4CAF50'],
+  ['#FF8A65', '#FF7043'],
+  ['#26C6DA', '#00ACC1'],
+]
+
+function hashStr(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
+function pickGradient(tag: string): [string, string] {
+  return COVER_GRADIENTS[hashStr(tag) % COVER_GRADIENTS.length]
+}
+
 type WordBook = {
   id: number
   name: string
@@ -410,8 +432,15 @@ export function WordBooksPage() {
                         className='absolute inset-0 h-full w-full object-cover'
                       />
                     ) : (
-                      <div className='flex h-full w-full items-center justify-center bg-muted/40 text-sm text-muted-foreground'>
-                        暂无封面
+                      <div
+                        className='flex h-full w-full items-center justify-center px-2'
+                        style={{
+                          background: `linear-gradient(135deg, ${pickGradient(b.name)[0]}, ${pickGradient(b.name)[1]})`,
+                        }}
+                      >
+                        <span className='line-clamp-2 text-center text-sm font-bold text-white'>
+                          {b.name}
+                        </span>
                       </div>
                     )}
                     <Button

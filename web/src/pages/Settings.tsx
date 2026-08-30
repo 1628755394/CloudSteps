@@ -357,17 +357,8 @@ export default function Settings() {
         <div className="mt-auto flex flex-col gap-2 shrink-0">
         <button
           type="button"
-          onClick={() => setDeactivateOpen(true)}
-          className="w-full bg-card border border-destructive/30 rounded-xl px-4 py-2.5 text-destructive text-sm font-medium hover:bg-destructive/5 transition-colors flex items-center justify-center gap-2"
-        >
-          <UserX size={16} />
-          <span>注销账号</span>
-        </button>
-
-        <button
-          type="button"
           onClick={() => setLogoutOpen(true)}
-          className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-muted-foreground text-sm font-medium hover:bg-muted/60 transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-card border border-destructive/30 rounded-xl px-4 py-2.5 text-destructive text-sm font-medium hover:bg-destructive/5 transition-colors flex items-center justify-center gap-2"
         >
           <LogOut size={16} />
           <span>退出登录</span>
@@ -389,66 +380,7 @@ export default function Settings() {
           }}
         />
 
-        <Dialog open={deactivateOpen} onOpenChange={(v) => !deactivating && setDeactivateOpen(v)}>
-          <DialogContent className="sm:max-w-[480px] rounded-xl border-border">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">注销账号</DialogTitle>
-            </DialogHeader>
-            <div className="text-sm text-muted-foreground space-y-3">
-              <p>注销后你将无法使用本账号登录，请确认已了解以下后果：</p>
-              <ul className="list-disc pl-5 space-y-1.5">
-                <li>账号将被停用，无法登录或继续使用功能</li>
-                <li>剩余学员学时、教师授课额度将全部清空</li>
-                <li>若为教师，名下学员账号将一并注销</li>
-                <li>使用相同邮箱重新注册将获得新账号，与本次账号的历史数据无关</li>
-              </ul>
-              <p className="text-destructive font-medium">此操作不可撤销，请谨慎操作。</p>
-            </div>
-            <DialogFooter className="gap-2 sm:gap-2">
-              <CloudButton
-                type="button"
-                variant="outline"
-                disabled={deactivating}
-                onClick={() => setDeactivateOpen(false)}
-              >
-                取消
-              </CloudButton>
-              <CloudButton
-                type="button"
-                variant="destructive"
-                loading={deactivating}
-                loadingText="注销中..."
-                disabled={deactivating}
-                onClick={async () => {
-                  try {
-                    setDeactivating(true);
-                    const res = await deactivateAccount();
-                    if (res.code !== 200) {
-                      showToast.error(res.msg || "注销失败");
-                      return;
-                    }
-                    setDeactivateOpen(false);
-                    clearUser();
-                    showToast.success("账号已注销");
-                    navigate("/login", { replace: true });
-                  } catch (e: unknown) {
-                    const msg =
-                      e && typeof e === "object" && "msg" in e
-                        ? String((e as { msg: string }).msg)
-                        : "注销失败";
-                    showToast.error(msg);
-                  } finally {
-                    setDeactivating(false);
-                  }
-                }}
-              >
-                确认注销
-              </CloudButton>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={panel !== null} onOpenChange={(v) => !v && setPanel(null)}>
+        <Dialog open={panel !== null && panel !== "security"} onOpenChange={(v) => !v && setPanel(null)}>
           <DialogContent className="sm:max-w-[520px] rounded-xl border-border">
             {panel === "password" ? (
               <>
@@ -781,54 +713,119 @@ export default function Settings() {
               </>
             ) : null}
 
-            {panel === "security" ? (
-              <>
-                <DialogHeader>
-                  <DialogTitle className="text-foreground">账号安全</DialogTitle>
-                </DialogHeader>
+            {panel === "security" ? null : null}
+          </DialogContent>
+        </Dialog>
 
-                <div className="space-y-3">
-                  <div className="p-4 rounded-xl border border-border">
-                    <div className="text-sm font-medium text-foreground">最近登录</div>
-                    <div className="text-sm text-muted-foreground mt-1">{user?.lastLogin || "-"}</div>
-                  </div>
+        {panel === "security" ? (
+          <div className="fixed inset-0 z-50 bg-background flex flex-col">
+            <PageBackHeader title="账号安全" fallbackTo="/settings" onBack={() => setPanel(null)} maxWidthClass="max-w-2xl" />
 
-                  <div className="p-4 rounded-xl border border-border">
-                    <div className="text-sm font-medium text-foreground">活动记录</div>
-                    <div className="text-xs text-muted-foreground mt-1">显示最近 20 条</div>
+            <div className="flex-1 min-h-0 w-full py-3 overflow-y-auto">
+              <div className="max-w-2xl mx-auto px-3 space-y-3">
+                <div className="p-4 rounded-xl border border-border bg-card">
+                  <div className="text-sm font-medium text-foreground">活动记录</div>
+                  <div className="text-xs text-muted-foreground mt-1">显示最近 20 条</div>
 
-                    <div className="mt-3 space-y-2 max-h-[320px] overflow-auto pr-1">
-                      {activityLoading ? (
-                        <div className="text-sm text-muted-foreground">加载中...</div>
-                      ) : activities.length === 0 ? (
-                        <div className="text-sm text-muted-foreground">暂无记录</div>
-                      ) : (
-                        activities.map((a) => (
-                          <div key={a.id} className="p-3 rounded-xl bg-muted border border-border">
-                            <div className="text-sm font-medium text-foreground">{a.action || "-"}</div>
-                            <div className="text-xs text-muted-foreground mt-1 break-words">
-                              {a.createdAt}
-                            </div>
+                  <div className="mt-3 space-y-2 max-h-[360px] overflow-auto pr-1">
+                    {activityLoading ? (
+                      <div className="text-sm text-muted-foreground">加载中...</div>
+                    ) : activities.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">暂无记录</div>
+                    ) : (
+                      activities.map((a) => (
+                        <div key={a.id} className="p-3 rounded-xl bg-muted border border-border">
+                          <div className="text-sm font-medium text-foreground">{a.action || "-"}</div>
+                          <div className="text-xs text-muted-foreground mt-1 break-words">
+                            {a.createdAt}
                           </div>
-                        ))
-                      )}
-                    </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-
-                  {errorText ? (
-                    <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
-                      {errorText}
-                    </div>
-                  ) : null}
                 </div>
 
-                <DialogFooter>
-                  <CloudButton type="button" variant="outline" onClick={() => setPanel(null)}>
-                    关闭
-                  </CloudButton>
-                </DialogFooter>
-              </>
-            ) : null}
+                {errorText ? (
+                  <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
+                    {errorText}
+                  </div>
+                ) : null}
+
+                <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5">
+                  <div className="text-sm font-medium text-destructive">注销账号</div>
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                    注销后你将无法使用本账号登录，剩余学时和授课额度将全部清空。此操作不可撤销，请谨慎操作。
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setDeactivateOpen(true)}
+                    className="mt-3 inline-flex items-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <UserX size={16} />
+                    申请注销账号
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <Dialog open={deactivateOpen} onOpenChange={(v) => !deactivating && setDeactivateOpen(v)}>
+          <DialogContent className="sm:max-w-[480px] rounded-xl border-border">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">注销账号</DialogTitle>
+            </DialogHeader>
+            <div className="text-sm text-muted-foreground space-y-3">
+              <p>注销后你将无法使用本账号登录，请确认已了解以下后果：</p>
+              <ul className="list-disc pl-5 space-y-1.5">
+                <li>账号将被停用，无法登录或继续使用功能</li>
+                <li>剩余学员学时、教师授课额度将全部清空</li>
+                <li>若为教师，名下学员账号将一并注销</li>
+                <li>使用相同邮箱重新注册将获得新账号，与本次账号的历史数据无关</li>
+              </ul>
+              <p className="text-destructive font-medium">此操作不可撤销，请谨慎操作。</p>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <CloudButton
+                type="button"
+                variant="outline"
+                disabled={deactivating}
+                onClick={() => setDeactivateOpen(false)}
+              >
+                取消
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant="destructive"
+                loading={deactivating}
+                loadingText="注销中..."
+                disabled={deactivating}
+                onClick={async () => {
+                  try {
+                    setDeactivating(true);
+                    const res = await deactivateAccount();
+                    if (res.code !== 200) {
+                      showToast.error(res.msg || "注销失败");
+                      return;
+                    }
+                    setDeactivateOpen(false);
+                    clearUser();
+                    showToast.success("账号已注销");
+                    navigate("/login", { replace: true });
+                  } catch (e: unknown) {
+                    const msg =
+                      e && typeof e === "object" && "msg" in e
+                        ? String((e as { msg: string }).msg)
+                        : "注销失败";
+                    showToast.error(msg);
+                  } finally {
+                    setDeactivating(false);
+                  }
+                }}
+              >
+                确认注销
+              </CloudButton>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
     </div>

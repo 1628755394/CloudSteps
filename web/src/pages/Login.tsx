@@ -195,6 +195,25 @@ export default function Login() {
           refreshCaptcha();
           return;
         }
+        // 注册成功后自动登录，无需再次手动登录
+        const autoLogin = await loginWithPassword({
+          email: identity,
+          password,
+          timezone,
+          authToken: true,
+        });
+        if (autoLogin.code === 200) {
+          const token = pickToken(autoLogin.data);
+          if (token) {
+            const userForStore = (autoLogin.data?.user || {}) as User;
+            const ok = await doLogin(token, userForStore);
+            if (ok) {
+              navigate(nextPath, { replace: true });
+              return;
+            }
+          }
+        }
+        // 自动登录失败则回退到登录页
         setScreen("login");
         setMethod("password");
         setPassword("");

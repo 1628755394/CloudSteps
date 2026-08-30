@@ -129,3 +129,11 @@ input[type="month"]::-webkit-calendar-picker-indicator {
 .grammar-html-content li {
   margin-bottom: 4px;
 }
+
+/* 签到热力图：H5 端缩小格子 */
+@media (max-width: 640px) {
+  :root,
+  .dark {
+    --cell-size: 9px;
+  }
+}
