@@ -134,6 +134,6 @@ input[type="month"]::-webkit-calendar-picker-indicator {
 @media (max-width: 640px) {
   :root,
   .dark {
-    --cell-size: 9px;
+    --cell-size: 18px;
   }
 }

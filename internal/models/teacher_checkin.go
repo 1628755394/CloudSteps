@@ -73,9 +73,10 @@ type CheckInStatus struct {
 	PoolRemaining     int                 `json:"poolRemainingMinutes"`
 	MonthMask         []bool              `json:"monthMask"`
 	MonthStartWeekday int                 `json:"monthStartWeekday"`
-	YearMask          []bool              `json:"yearMask"`
-	YearStartWeekday  int                 `json:"yearStartWeekday"`
-	YearDays          int                 `json:"yearDays"`
+	RecentMask        []bool              `json:"recentMask"`
+	RecentStartWeekday int               `json:"recentStartWeekday"`
+	RecentDays        int                 `json:"recentDays"`
+	RecentStartDate   string              `json:"recentStartDate"`
 	RewardPreview     []CheckInRewardTier `json:"rewardPreview"`
 }
 
@@ -211,23 +212,22 @@ func monthCheckInMask(db *gorm.DB, teacherID uint, monthStart time.Time, days in
 	return mask, nil
 }
 
-// yearCheckInMask 返回从当年 1 月 1 日到 today（含）的签到布尔掩码，
-// 长度等于当年截至 today 的天数（1-based 索引 0 = 1月1日）。
-func yearCheckInMask(db *gorm.DB, teacherID uint, today time.Time) ([]bool, error) {
-	yearStart := time.Date(today.Year(), 1, 1, 0, 0, 0, 0, time.Local)
-	days := int(today.Sub(yearStart).Hours()/24) + 1
+// recentCheckInMask 返回从 startDate（含）到 today（含）的签到布尔掩码。
+// startDate 到 today 之间的每一天对应 mask 的一个元素（索引 0 = startDate）。
+func recentCheckInMask(db *gorm.DB, teacherID uint, startDate, today time.Time) ([]bool, error) {
+	days := int(today.Sub(startDate).Hours()/24) + 1
 	if days <= 0 {
 		return []bool{}, nil
 	}
 	mask := make([]bool, days)
 	var rows []TeacherCheckIn
 	if err := db.Where("teacher_id = ? AND check_in_date >= ? AND check_in_date <= ?",
-		teacherID, yearStart, today).
+		teacherID, startDate, today).
 		Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	for _, r := range rows {
-		d := int(localDateOnly(r.CheckInDate).Sub(yearStart).Hours()/24) + 1
+		d := int(localDateOnly(r.CheckInDate).Sub(startDate).Hours()/24) + 1
 		if d >= 1 && d <= days {
 			mask[d-1] = true
 		}
@@ -276,12 +276,13 @@ func GetTeacherCheckInStatus(db *gorm.DB, teacherID uint, now time.Time) (*Check
 		return nil, err
 	}
 
-	yearStart := time.Date(today.Year(), 1, 1, 0, 0, 0, 0, time.Local)
-	yearMask, err := yearCheckInMask(db, teacherID, today)
+	// 最近 90 天的签到掩码，用于热力图展示
+	recentDays := 90
+	recentStart := today.AddDate(0, 0, -(recentDays - 1))
+	recentMask, err := recentCheckInMask(db, teacherID, recentStart, today)
 	if err != nil {
 		return nil, err
 	}
-	yearDays := len(yearMask)
 
 	var dailyReward int
 	if checkedToday {
@@ -300,20 +301,21 @@ func GetTeacherCheckInStatus(db *gorm.DB, teacherID uint, now time.Time) (*Check
 
 	nbDays, nbMins := nextRewardStep(streak, checkedToday)
 	return &CheckInStatus{
-		CheckedInToday:    checkedToday,
-		CurrentStreak:     streak,
-		LongestStreak:     longest,
-		YearCheckIns:      yearCount,
-		DailyReward:       dailyReward,
-		NextStreakBonus:   nbDays,
-		NextStreakMinutes: nbMins,
-		PoolRemaining:     pool.RemainingMinutes,
-		MonthMask:         mask,
-		MonthStartWeekday: int(monthStart.Weekday()),
-		YearMask:          yearMask,
-		YearStartWeekday:  int(yearStart.Weekday()),
-		YearDays:          yearDays,
-		RewardPreview:     CheckInRewardPreview(),
+		CheckedInToday:     checkedToday,
+		CurrentStreak:      streak,
+		LongestStreak:      longest,
+		YearCheckIns:       yearCount,
+		DailyReward:        dailyReward,
+		NextStreakBonus:    nbDays,
+		NextStreakMinutes:  nbMins,
+		PoolRemaining:      pool.RemainingMinutes,
+		MonthMask:          mask,
+		MonthStartWeekday:  int(monthStart.Weekday()),
+		RecentMask:         recentMask,
+		RecentStartWeekday: int(recentStart.Weekday()),
+		RecentDays:         len(recentMask),
+		RecentStartDate:    recentStart.Format("2006-01-02"),
+		RewardPreview:      CheckInRewardPreview(),
 	}, nil
 }
 

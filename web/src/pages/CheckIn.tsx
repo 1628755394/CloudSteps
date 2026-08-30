@@ -46,18 +46,22 @@ export default function CheckIn() {
     void load();
   }, [load]);
 
-  // 构建全年贡献热力图：按周排列，每列 7 格（周日→周六）。
+  // 构建最近 90 天贡献热力图：按周排列，每列 7 格（周日→周六）。
   const heatmap = useMemo(() => {
-    const mask = status?.yearMask ?? [];
-    const pad = status?.yearStartWeekday ?? 0;
-    const totalDays = status?.yearDays ?? mask.length;
-    if (!totalDays) return { weeks: [], monthLabels: [] as { label: string; weekIndex: number }[] };
+    const mask = status?.recentMask ?? [];
+    const pad = status?.recentStartWeekday ?? 0;
+    const totalDays = status?.recentDays ?? mask.length;
+    const startDateStr = status?.recentStartDate ?? "";
+    if (!totalDays) return { weeks: [], monthLabels: [] as { label: string; weekIndex: number }[], startDateStr };
 
     // 前面补 pad 个空格对齐到周几
-    const cells: Array<{ day: number; checked: boolean } | null> = [];
+    const cells: Array<{ day: number; checked: boolean; date: Date } | null> = [];
     for (let i = 0; i < pad; i++) cells.push(null);
+    const start = new Date(startDateStr);
     for (let d = 0; d < totalDays; d++) {
-      cells.push({ day: d + 1, checked: !!mask[d] });
+      const date = new Date(start);
+      date.setDate(start.getDate() + d);
+      cells.push({ day: d, checked: !!mask[d], date });
     }
     // 补齐到整周
     const remainder = cells.length % 7;
@@ -66,19 +70,18 @@ export default function CheckIn() {
     }
 
     // 按周分组
-    const weeks: Array<Array<{ day: number; checked: boolean } | null>> = [];
+    const weeks: Array<Array<{ day: number; checked: boolean; date: Date } | null>> = [];
     for (let i = 0; i < cells.length; i += 7) {
       weeks.push(cells.slice(i, i + 7));
     }
 
-    // 月份标签：找到每个月第一周所在的列索引
+    // 月份标签
     const monthLabels: { label: string; weekIndex: number }[] = [];
     let lastMonth = -1;
     for (let w = 0; w < weeks.length; w++) {
       for (const cell of weeks[w]) {
-        if (cell && cell.day > 0) {
-          const date = new Date(new Date().getFullYear(), 0, cell.day);
-          const m = date.getMonth();
+        if (cell) {
+          const m = cell.date.getMonth();
           if (m !== lastMonth) {
             monthLabels.push({ label: MONTH_LABELS[m], weekIndex: w });
             lastMonth = m;
@@ -87,7 +90,7 @@ export default function CheckIn() {
       }
     }
 
-    return { weeks, monthLabels };
+    return { weeks, monthLabels, startDateStr };
   }, [status]);
 
   const tiers = status?.rewardPreview?.length ? status.rewardPreview : FALLBACK_TIERS;
@@ -133,7 +136,7 @@ export default function CheckIn() {
         >
           <ChevronLeft size={18} />
         </CloudButton>
-        <h1 className="text-sm font-semibold text-foreground tracking-tight">每日签到</h1>
+        <h3 className="text-sm font-semibold text-foreground tracking-tight">每日签到</h3>
       </div>
 
       {loading && !status ? (
@@ -235,25 +238,25 @@ export default function CheckIn() {
           </CloudCard>
 
           <CloudCard className="px-3 py-3">
-            <div className="flex items-baseline justify-between gap-2 mb-2">
-              <h2 className="text-xs font-semibold text-foreground">签到热力图</h2>
+            <div className="flex items-baseline justify-between gap-2 mb-2.5">
+              <h2 className="text-xs font-semibold text-foreground">签到记录</h2>
               <p className="text-[9px] text-muted-foreground truncate">
-                {new Date().getFullYear()} 年 · {status?.yearCheckIns ?? 0} 天
+                近 90 天 · {status?.yearCheckIns ?? 0} 天签到
               </p>
             </div>
 
             <div className="overflow-x-auto -mx-1 px-1">
               <div className="inline-block min-w-full">
                 {/* 月份标签行 */}
-                <div className="flex gap-[3px] mb-1 pl-5 relative h-3">
+                <div className="flex gap-[4px] mb-1.5 pl-7 relative h-3.5">
                   {heatmap.monthLabels.map((ml, i) => {
                     const next = heatmap.monthLabels[i + 1];
                     const span = next ? next.weekIndex - ml.weekIndex : heatmap.weeks.length - ml.weekIndex;
                     return (
                       <div
                         key={ml.label + i}
-                        className="text-[8px] text-muted-soft leading-3 whitespace-nowrap"
-                        style={{ width: `calc(${span} * (var(--cell-size) + 3px))` }}
+                        className="text-[10px] text-muted-soft leading-3.5 whitespace-nowrap"
+                        style={{ width: `calc(${span} * (var(--cell-size) + 4px))` }}
                       >
                         {ml.label}
                       </div>
@@ -261,13 +264,13 @@ export default function CheckIn() {
                   })}
                 </div>
 
-                <div className="flex gap-[3px]">
+                <div className="flex gap-[4px]">
                   {/* 星期标签列 */}
-                  <div className="flex flex-col gap-[3px] shrink-0">
-                    {["", "一", "", "三", "", "五", ""].map((w, i) => (
+                  <div className="flex flex-col gap-[4px] shrink-0 w-6">
+                    {["日", "一", "二", "三", "四", "五", "六"].map((w, i) => (
                       <div
                         key={i}
-                        className="text-[8px] text-muted-soft leading-none flex items-center justify-center"
+                        className="text-[9px] text-muted-soft leading-none flex items-center justify-end pr-1"
                         style={{ height: "var(--cell-size)" }}
                       >
                         {w}
@@ -277,43 +280,68 @@ export default function CheckIn() {
 
                   {/* 热力图格子 */}
                   {heatmap.weeks.map((week, wi) => (
-                    <div key={wi} className="flex flex-col gap-[3px]">
-                      {week.map((cell, ci) => (
-                        <div
-                          key={ci}
-                          className="rounded-[2px] transition-colors"
-                          style={{
-                            width: "var(--cell-size)",
-                            height: "var(--cell-size)",
-                            backgroundColor: cell
-                              ? cell.checked
-                                ? "var(--cell-active)"
-                                : "var(--cell-idle)"
-                              : "transparent",
-                          }}
-                          title={
-                            cell
-                              ? `${new Date(new Date().getFullYear(), 0, cell.day).toLocaleDateString("zh-CN")} ${cell.checked ? "已签到" : "未签到"}`
-                              : ""
-                          }
-                        />
-                      ))}
+                    <div key={wi} className="flex flex-col gap-[4px]">
+                      {week.map((cell, ci) => {
+                        const isToday = cell
+                          ? cell.date.toDateString() === new Date().toDateString()
+                          : false;
+                        return (
+                          <button
+                            key={ci}
+                            type="button"
+                            disabled={!cell}
+                            onClick={() => {
+                              if (!cell) return;
+                              const dateStr = cell.date.toLocaleDateString("zh-CN", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                                weekday: "long",
+                              });
+                              if (cell.checked) {
+                                showToast.success(`${dateStr} · 已签到`);
+                              } else if (isToday) {
+                                showToast.info(`${dateStr} · 今日未签到`);
+                              } else {
+                                showToast.info(`${dateStr} · 未签到`);
+                              }
+                            }}
+                            className={`rounded-[3px] transition-all ${cell ? "cursor-pointer hover:ring-2 hover:ring-primary/40 hover:scale-110" : "cursor-default"}`}
+                            style={{
+                              width: "var(--cell-size)",
+                              height: "var(--cell-size)",
+                              backgroundColor: cell
+                                ? cell.checked
+                                  ? "var(--cell-active)"
+                                  : "var(--cell-idle)"
+                                : "transparent",
+                              outline: isToday ? "2px solid var(--primary)" : "none",
+                              outlineOffset: isToday ? "1px" : "0",
+                            }}
+                            title={
+                              cell
+                                ? `${cell.date.toLocaleDateString("zh-CN")} ${cell.checked ? "已签到" : "未签到"}`
+                                : ""
+                            }
+                          />
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
 
                 {/* 图例 */}
-                <div className="flex items-center gap-1.5 mt-2 justify-end">
-                  <span className="text-[8px] text-muted-soft">少</span>
+                <div className="flex items-center gap-2 mt-2.5 justify-end">
+                  <span className="text-[9px] text-muted-soft">未签到</span>
                   <div
-                    className="rounded-[2px]"
+                    className="rounded-[3px]"
                     style={{ width: "var(--cell-size)", height: "var(--cell-size)", backgroundColor: "var(--cell-idle)" }}
                   />
                   <div
-                    className="rounded-[2px]"
+                    className="rounded-[3px]"
                     style={{ width: "var(--cell-size)", height: "var(--cell-size)", backgroundColor: "var(--cell-active)" }}
                   />
-                  <span className="text-[8px] text-muted-soft">多</span>
+                  <span className="text-[9px] text-muted-soft">已签到</span>
                 </div>
               </div>
             </div>

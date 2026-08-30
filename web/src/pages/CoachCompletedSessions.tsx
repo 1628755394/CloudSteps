@@ -83,9 +83,9 @@ export default function CoachCompletedSessions() {
           <ChevronLeft size={20} />
         </CloudButton>
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+          <h3 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
             已上课程
-          </h1>
+          </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             近 90 天已完成的陪练记录
             {total > 0 ? ` · 共 ${total} 条` : ""}
