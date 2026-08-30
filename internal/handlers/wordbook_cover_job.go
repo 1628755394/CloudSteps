@@ -271,7 +271,7 @@ func parseCoverStartRequest(c *gin.Context, db *gorm.DB, book *models.WordBook) 
 	}
 
 	if prompt == "" {
-		prompt = imagegen.BuildPrompt(imagegen.DefaultPromptTemplate, book.Name, book.Level, book.Description)
+		return "", "", nil, "请填写提示词"
 	}
 	if size == "" {
 		size = imagegen.DefaultCoverSize

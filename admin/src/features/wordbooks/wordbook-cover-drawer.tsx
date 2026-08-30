@@ -25,6 +25,19 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { type CoverJob, isCoverJobActive } from './cover-jobs'
 import { parseCoverMeta } from './cover-meta'
 
+// 默认提示词模板，由管理后台维护，后端不再硬编码。
+const DEFAULT_PROMPT_TEMPLATE = `Design an original English vocabulary wordbook cover thumbnail for a learning app.
+The cover MUST include clear, readable text (Chinese and/or English) as the main focus:
+- Top line (large): "{{t1}}"
+- Bottom line (medium): "{{t2}}"
+- Version or series tag (small badge): "{{tag}}"
+- Category label: "{{cat}}" · CEFR level "{{level}}"
+- Wordbook name reference: "{{name}}"
+Layout: modern flat illustration, soft gradient background, subtle geometric shapes and education motifs (book, lightbulb, globe) around the typography — do not let decorations obscure the text.
+Typography: bold, high contrast, legible at small thumbnail size; balanced composition like a clean app icon cover.
+Do not imitate real publisher or textbook covers; no third-party logos; copyright-safe original artwork.
+Mood: friendly, bright, professional.`
+
 type WordBookBrief = {
   id: number
   name: string
@@ -39,8 +52,6 @@ type CoverSizeOption = {
 }
 
 type CoverDefaults = {
-  promptTemplate: string
-  prompt: string
   model: string
   configured: boolean
   defaultSize: string
@@ -104,7 +115,7 @@ export function WordbookCoverDrawer({
   const [clearing, setClearing] = useState(false)
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [promptTemplate, setPromptTemplate] = useState('')
+  const [promptTemplate, setPromptTemplate] = useState(DEFAULT_PROMPT_TEMPLATE)
   const [prompt, setPrompt] = useState('')
   const [size, setSize] = useState('1792x1024')
   const [sizeOptions, setSizeOptions] = useState<CoverSizeOption[]>([
@@ -131,17 +142,22 @@ export function WordbookCoverDrawer({
     if (!book) return
     setLoadingDefaults(true)
     try {
-      const res = await get<CoverDefaults>('/wordbooks/cover-ai/defaults', {
-        params: {
-          name: book.name,
-          level: book.level || '',
-          description: book.description || '',
-        },
-      })
+      const res = await get<CoverDefaults>('/wordbooks/cover-ai/defaults')
       const data = res.data
-      setPromptTemplate(data?.promptTemplate || '')
+      // 提示词模板由前端管理，不从后端获取
+      setPromptTemplate(DEFAULT_PROMPT_TEMPLATE)
       if (!job?.prompt) {
-        setPrompt(data?.prompt || '')
+        // 用模板预填一次提示词
+        const { meta } = parseCoverMeta(book.description || '')
+        const filled = DEFAULT_PROMPT_TEMPLATE
+          .replace(/\{\{name\}\}/g, book.name)
+          .replace(/\{\{level\}\}/g, book.level || '')
+          .replace(/\{\{description\}\}/g, (book.description || '').slice(0, 120))
+          .replace(/\{\{tag\}\}/g, meta?.tag || '')
+          .replace(/\{\{t1\}\}/g, meta?.t1 || '')
+          .replace(/\{\{t2\}\}/g, meta?.t2 || '')
+          .replace(/\{\{cat\}\}/g, meta?.cat || '')
+        setPrompt(filled.trim())
       }
       const opts = data?.sizeOptions?.length ? data.sizeOptions : sizeOptions
       if (data?.sizeOptions?.length) {

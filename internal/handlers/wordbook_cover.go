@@ -12,18 +12,12 @@ import (
 
 func (h *Handlers) adminWordBookCoverDefaults(c *gin.Context) {
 	cfg := imagegen.FromGlobal()
-	name := strings.TrimSpace(c.Query("name"))
-	level := strings.TrimSpace(c.Query("level"))
-	description := strings.TrimSpace(c.Query("description"))
-	prompt := imagegen.BuildPrompt(imagegen.DefaultPromptTemplate, name, level, description)
 	response.SuccessI18n(c, "common.ok", gin.H{
-		"promptTemplate": imagegen.DefaultPromptTemplate,
-		"prompt":         prompt,
-		"model":          cfg.Model,
-		"baseUrl":        cfg.BaseURL,
-		"configured":     strings.TrimSpace(cfg.APIKey) != "",
-		"defaultSize":    imagegen.DefaultCoverSize,
-		"sizeOptions":    imagegen.CoverSizeOptions,
+		"model":       cfg.Model,
+		"baseUrl":     cfg.BaseURL,
+		"configured":  strings.TrimSpace(cfg.APIKey) != "",
+		"defaultSize": imagegen.DefaultCoverSize,
+		"sizeOptions": imagegen.CoverSizeOptions,
 	})
 }
 
