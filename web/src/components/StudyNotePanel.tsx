@@ -1,5 +1,6 @@
 // StudyNotePanel: 学习笔记面板（画板 + 文本 + 持久化）
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNote } from "./NoteContext";
 import {
   ArrowLeft,
   ArrowRight,
@@ -49,30 +50,20 @@ type StudyNoteLauncherProps = {
 };
 
 export function StudyNoteLauncher({ storageKey, title = "随心记", label = "随心记", className = "" }: StudyNoteLauncherProps) {
-  const [open, setOpen] = useState(false);
-  const [side, setSide] = useState<"left" | "right">("right");
+  const note = useNote();
   return (
-    <>
-      <button
-        type="button"
-        className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
-        onClick={() => setOpen(true)}
-        title={`打开${label}`}
-      >
-        <BookOpen size={15} />
-        {label}
-      </button>
-      {open && (
-        <StudyNotePanel
-          open={open}
-          onClose={() => setOpen(false)}
-          storageKey={storageKey}
-          title={title}
-          side={side}
-          onSideChange={setSide}
-        />
-      )}
-    </>
+    <button
+      type="button"
+      className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
+      onClick={() => {
+        note.setDefaultTitle(title);
+        note.openNote(storageKey);
+      }}
+      title={`打开${label}`}
+    >
+      <BookOpen size={15} />
+      {label}
+    </button>
   );
 }
 

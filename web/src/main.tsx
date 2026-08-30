@@ -6,11 +6,14 @@ import "./styles/arco-popup.css";
 import "./styles/iconfont.css";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ArcoAppProvider } from "./providers/ArcoAppProvider";
+import { NoteProvider } from "./components/NoteContext";
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <ArcoAppProvider>
-      <App />
+      <NoteProvider>
+        <App />
+      </NoteProvider>
     </ArcoAppProvider>
   </ErrorBoundary>,
 );

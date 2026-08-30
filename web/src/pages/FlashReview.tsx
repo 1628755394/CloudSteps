@@ -13,6 +13,7 @@ import { playFirstWordAudio, playSecondWordAudio } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { applyUserWordView } from "../components/WordEditControls";
+import { NoteSplitLayout } from "../components/NoteSplitLayout";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
 import {
   clearStudyRetryFlash,
@@ -334,7 +335,10 @@ export default function FlashReview() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6 max-w-5xl mx-auto w-full pb-28">
+      <NoteSplitLayout
+        defaultStorageKey={`study-note:global:${wordBookId}`}
+        defaultTitle="随心记"
+      >
         <p className="text-center text-sm text-[#718096] mb-6">
           {isRetryMode
             ? "点红剪刀表示不熟（会重新排队），点青剪刀表示掌握"
@@ -542,7 +546,7 @@ export default function FlashReview() {
             ))}
           </div>
         )}
-      </div>
+      </NoteSplitLayout>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-2">

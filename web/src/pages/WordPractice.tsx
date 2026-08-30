@@ -9,7 +9,9 @@ import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
+import { NoteSplitLayout } from "../components/NoteSplitLayout";
+import { useNote } from "../components/NoteContext";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
@@ -17,7 +19,6 @@ import { syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { buildWordPracticeSequence } from "../utils/wordPracticeSequence";
 import { getPracticeTapState } from "../utils/wordPracticeTap";
-import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import type { UserWordView } from "../api/wordbooks";
 
 type PracticeWord = {
@@ -51,15 +52,7 @@ export default function WordPractice() {
 
   const [audioIndexMap, setAudioIndexMap] = useState<Map<number, number>>(new Map());
 
-  const {
-    open: globalNoteOpen,
-    setOpen: setGlobalNoteOpen,
-    side: noteSide,
-    setSide: setNoteSide,
-    width: noteWidth,
-    isDesktop,
-    startResize: startNoteResize,
-  } = useSplitScreenNote("lb_practice_note_width");
+  const note = useNote();
 
   const handlePlayNextAudio = (word: PracticeWord) => {
     if (!word.audioUrl) return;
@@ -310,13 +303,10 @@ export default function WordPractice() {
         onOpenChange={setAnnotationOpen}
       />
 
-      {/* Split container: word content + note panel on the same layer (desktop). */}
-      <div
-        className={`box-border min-h-[calc(100dvh-9.5rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2 lg:mx-0" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`}
-        style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}
+      <NoteSplitLayout
+        defaultStorageKey={`study-note:global:${wordBookId}`}
+        defaultTitle="随心记"
       >
-        {/* Word content pane */}
-        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {viewMode === "card" && cardWord ? (
@@ -398,12 +388,12 @@ export default function WordPractice() {
           </div>
         ) : (
           <div
-            className={globalNoteOpen && isDesktop
+            className={note.open && note.isDesktop
               ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,auto))] gap-2.5 overflow-y-auto"
               : "space-y-3 mb-6"}
           >
             {words.map((word, index) => (
-              <div key={word.id} className={globalNoteOpen && isDesktop ? "min-h-0" : ""}>
+              <div key={word.id} className={note.open && note.isDesktop ? "min-h-0" : ""}>
                 <div
                   className={`relative min-h-0 bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
                     !manualReadMode && index === selectedIndex
@@ -458,50 +448,7 @@ export default function WordPractice() {
             ))}
           </div>
         )}
-        </div>
-
-        {/* Note panel pane — same layer as word content (desktop split only) */}
-        {globalNoteOpen && isDesktop && (
-          <>
-            {/* Drag handle between word content and note panel */}
-            <div
-              className={`group hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none lg:select-none ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}
-              style={{ width: "10px", flexShrink: 0 }}
-              onPointerDown={startNoteResize}
-              title="拖动调整随心记宽度"
-              aria-label="拖动调整随心记宽度"
-            >
-              <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 group-hover:bg-[#4ECDC4]/60 group-hover:w-1.5 transition-all" />
-            </div>
-            <div
-              className={`lg:flex lg:flex-col ${noteSide === "right" ? "lg:order-3" : "lg:order-1"}`}
-              style={{ width: `${noteWidth}px`, flexShrink: 0 }}
-            >
-              <StudyNotePanel
-                open={globalNoteOpen}
-                onClose={() => setGlobalNoteOpen(false)}
-                storageKey={`study-note:global:${wordBookId}`}
-                title="随心记"
-                side={noteSide}
-                split
-                onSideChange={setNoteSide}
-              />
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Mobile: note panel as floating overlay */}
-      {globalNoteOpen && !isDesktop && (
-        <StudyNotePanel
-          open={globalNoteOpen}
-          onClose={() => setGlobalNoteOpen(false)}
-          storageKey={`study-note:global:${wordBookId}`}
-          title="随心记"
-          side={noteSide}
-          onSideChange={setNoteSide}
-        />
-      )}
+      </NoteSplitLayout>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
@@ -548,12 +495,12 @@ export default function WordPractice() {
             </CloudButton>
             <CloudButton
               type="button"
-              variant={globalNoteOpen ? "brand" : "outline"}
+              variant={note.open ? "brand" : "outline"}
               size="pill"
-              onClick={() => setGlobalNoteOpen((v) => !v)}
+              onClick={() => note.setOpen((v) => !v)}
               aria-label="打开随心记"
             >
-              <PanelTop size={16} className={globalNoteOpen ? "text-white" : "text-[#c45c78]"} />
+              <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
               随心记
             </CloudButton>
           </div>

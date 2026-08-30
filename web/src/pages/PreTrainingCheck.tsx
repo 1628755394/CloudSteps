@@ -19,9 +19,9 @@ import {
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
-import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
+import { NoteSplitLayout } from "../components/NoteSplitLayout";
+import { useNote } from "../components/NoteContext";
 import { applyUserWordView } from "../components/WordEditControls";
-import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
@@ -80,7 +80,7 @@ export default function PreTrainingCheck() {
   };
 
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
-  const note = useSplitScreenNote("lb_pretraining_note_width");
+  const note = useNote();
 
   const loadWords = useCallback(
     async (page: number, isInitial = false) => {
@@ -484,15 +484,9 @@ export default function PreTrainingCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <StudyNoteSplitLayout
-        open={note.open}
-        isDesktop={note.isDesktop}
-        side={note.side}
-        width={note.width}
-        storageKey={`study-note:global:${wordBookId}`}
-        onClose={() => note.setOpen(false)}
-        onSideChange={note.setSide}
-        onResize={note.startResize}
+      <NoteSplitLayout
+        defaultStorageKey={`study-note:global:${wordBookId}`}
+        defaultTitle="随心记"
       >
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm mb-4">
@@ -554,7 +548,7 @@ export default function PreTrainingCheck() {
             )}
           </div>
         )}
-      </StudyNoteSplitLayout>
+      </NoteSplitLayout>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">

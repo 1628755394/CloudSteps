@@ -17,6 +17,7 @@ import { playFirstWordAudio } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { applyUserWordView } from "../components/WordEditControls";
+import { NoteSplitLayout } from "../components/NoteSplitLayout";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
 
 type ListenWord = {
@@ -261,7 +262,10 @@ export default function ListenIdentify() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <div className="px-4 mt-6 max-w-5xl mx-auto w-full pb-28">
+      <NoteSplitLayout
+        defaultStorageKey={`study-note:global:${wordBookId}`}
+        defaultTitle="随心记"
+      >
         <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
 
         {viewMode === "card" && cardWord ? (
@@ -372,7 +376,7 @@ export default function ListenIdentify() {
             ))}
           </div>
         )}
-      </div>
+      </NoteSplitLayout>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
