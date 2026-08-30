@@ -1,7 +1,7 @@
 import { getVocabStart } from "../api/vocab";
 
 export type VocabTestQuestion = {
-  id: number;
+  id: number | string;
   word: string;
   options: string;
   correctAnswer: string;
@@ -63,8 +63,8 @@ export function prefetchVocabTestQuestions(options?: { force?: boolean }): Promi
       if (res.code !== 200) throw new Error(res.msg || "获取题目失败");
       const list: VocabTestQuestion[] = res.data?.questions || [];
       if (!list.length) throw new Error("题库暂无题目，请联系管理员添加");
-      // 校验题目格式：必须有 id 和 word
-      const valid = list.filter((q) => q && typeof q.id === "number" && q.word);
+      // 校验题目格式：必须有 id 和 word（id 可能是 string 或 number）
+      const valid = list.filter((q) => q && q.id != null && q.word);
       if (!valid.length) throw new Error("题库数据格式异常");
       saveCachedVocabQuestions(valid);
       return valid;

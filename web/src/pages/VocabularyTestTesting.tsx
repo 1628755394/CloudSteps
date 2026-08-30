@@ -44,7 +44,7 @@ export default function VocabularyTestTesting() {
   // 题池按等级分组
   const [poolByLevel, setPoolByLevel] = useState<Record<string, ApiQuestion[]>>({});
   // 已使用的题目 ID 集合
-  const usedIdsRef = useRef<Set<number>>(new Set());
+  const usedIdsRef = useRef<Set<number | string>>(new Set());
   // 当前题
   const [currentQuestion, setCurrentQuestion] = useState<ApiQuestion | null>(null);
   // 当前等级索引
@@ -54,7 +54,7 @@ export default function VocabularyTestTesting() {
   // 已答数
   const answeredCountRef = useRef(0);
   // 答案列表
-  const answersRef = useRef<{ questionId: number; answer: string }[]>([]);
+  const answersRef = useRef<{ questionId: number | string; answer: string }[]>([]);
 
   const wordDisplayClass = useMemo(() => {
     if (!currentQuestion?.word) return "text-2xl sm:text-3xl";
@@ -115,7 +115,7 @@ export default function VocabularyTestTesting() {
     }
   }, [timer, submitting, revealed]);
 
-  const submitAndGoResult = async (payloadAnswers: { questionId: number; answer: string }[]) => {
+  const submitAndGoResult = async (payloadAnswers: { questionId: number | string; answer: string }[]) => {
     if (!payloadAnswers.length) {
       throw new Error("答案不能为空");
     }
@@ -188,6 +188,8 @@ export default function VocabularyTestTesting() {
     (async () => {
       try {
         setLoading(true);
+        // 强制清除旧缓存，确保每次测试都重新拉题
+        clearVocabTestQuestionsCache();
         const list = await ensureVocabTestQuestions();
         if (!mounted) return;
         // 按等级分组
