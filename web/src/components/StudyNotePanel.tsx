@@ -81,7 +81,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
   const [note, setNote] = useState<NoteData>(() => loadNote(storageKey));
   const sidePos = side;
   const [width, setWidth] = useState(initialPanelWidth);
-  const [fontSize, setFontSize] = useState(28);
+  const [fontSize, setFontSize] = useState(20);
   const [color, setColor] = useState("#25344a");
   const [fill, setFill] = useState("#fff8e8");
   const [tool, setTool] = useState<Tool>("select");
@@ -178,7 +178,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
     persist();
   };
 
-  const button = (activeState = false) => `flex h-8 w-8 items-center justify-center rounded-lg ${activeState ? "bg-[#d8cdb8] text-[#25344a]" : "text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a]"}`;
+  const button = (activeState = false) => `flex h-7 w-7 items-center justify-center rounded-lg ${activeState ? "bg-[#d8cdb8] text-[#25344a]" : "text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a]"}`;
 
   const startEdgeResize = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -203,7 +203,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
         {Array.from({ length: 8 }).map((_, index) => (
           <span
             key={index}
-            className="block h-8 w-12 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[4px_0_0_#5c9bd7]"
+            className="block h-7 w-10 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[4px_0_0_#5c9bd7]"
           />
         ))}
       </div>
@@ -215,27 +215,27 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
       >
         <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[22px]">
           {/* Title bar */}
-          <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-2 text-[#25344a] sm:h-10 sm:gap-2 sm:pl-11 sm:pr-3">
-            <span className="truncate text-base font-bold sm:text-lg">{title}</span>
-            <span className="hidden truncate text-xs text-[#9b927f] sm:inline">随心笔记</span>
+          <div className="flex h-8 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-2 text-[#25344a] sm:h-9 sm:gap-2 sm:pl-11 sm:pr-3">
+            <span className="truncate text-sm font-bold sm:text-base">{title}</span>
+            <span className="hidden truncate text-[11px] text-[#9b927f] sm:inline">随心笔记</span>
             <button
               type="button"
-              className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
+              className="ml-auto flex h-6 w-6 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
               onClick={() => setToolbarVisible((v) => !v)}
               title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
               aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
             >
-              <PanelLeft size={16} />
+              <PanelLeft size={14} />
             </button>
           </div>
 
           {/* Toolbar */}
           <div className={`shrink-0 overflow-hidden transition-[max-height] duration-200 ease-out ${toolbarVisible ? "max-h-64" : "max-h-0"}`}>
             {toolbarVisible && (
-              <div className="mx-1 mt-1 flex flex-wrap items-center gap-0.5 pl-10 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-1.5 sm:gap-1 sm:pl-11 sm:pr-0 sm:py-1">
-                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置（或右键文字）"><Bold size={16} /></button>
-                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置"><Italic size={16} /></button>
-                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置"><Underline size={16} /></button>
+              <div className="mx-1 mt-0.5 flex flex-wrap items-center gap-0.5 pl-10 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-1 sm:gap-1 sm:pl-11 sm:pr-0 sm:py-0.5">
+                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置（或右键文字）"><Bold size={14} /></button>
+                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置"><Italic size={14} /></button>
+                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置"><Underline size={14} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
                 <div className="relative">
                   <button
@@ -247,7 +247,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     }}
                     title="画布背景颜色"
                   >
-                    <PaintBucket size={16} />
+                    <PaintBucket size={14} />
                   </button>
                   {bgPopupOpen && (
                     <>
@@ -293,7 +293,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     </>
                   )}
                 </div>
-                <button className={button(tool === "select")} onClick={() => activateTool("select")} title="选择"><MousePointer2 size={16} /></button>
+                <button className={button(tool === "select")} onClick={() => activateTool("select")} title="选择"><MousePointer2 size={14} /></button>
                 <div className="relative">
                   <button
                     className={button(tool === "pen" || penPopupOpen)}
@@ -308,7 +308,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     }}
                     title="画笔（点击弹出设置）"
                   >
-                    <Pencil size={16} />
+                    <Pencil size={14} />
                   </button>
                   {penPopupOpen && (
                     <>
@@ -439,7 +439,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     }}
                     title="橡皮（点击打开设置）"
                   >
-                    <Eraser size={16} />
+                    <Eraser size={14} />
                   </button>
                   {eraserPopupOpen && (
                     <>
@@ -512,18 +512,18 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     </>
                   )}
                 </div>
-                <button className={button(tool === "circle")} onClick={() => activateTool("circle")} title="圆形"><CircleIcon size={16} /></button>
-                <button className={button(tool === "rect")} onClick={() => activateTool("rect")} title="矩形"><SquareIcon size={16} /></button>
-                <button className={button()} onClick={() => { closePopups(); addText(); }} title="添加文字（居中）"><Type size={16} /></button>
+                <button className={button(tool === "circle")} onClick={() => activateTool("circle")} title="圆形"><CircleIcon size={14} /></button>
+                <button className={button(tool === "rect")} onClick={() => activateTool("rect")} title="矩形"><SquareIcon size={14} /></button>
+                <button className={button()} onClick={() => { closePopups(); addText(); }} title="添加文字（居中）"><Type size={14} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
-                <button className={button()} onClick={undo} title="撤销（上一步）" aria-label="撤销"><Undo2 size={16} /></button>
-                <button className={button()} onClick={redo} title="重做（下一步）" aria-label="重做"><Redo2 size={16} /></button>
-                <button className={button()} onClick={persist} title="保存笔记" aria-label="保存笔记"><Save size={16} /></button>
-                <button className={button()} onClick={() => leaferRef.current?.exportImage(`${title || "随心记"}.png`)} title="下载图片" aria-label="下载图片"><Download size={16} /></button>
+                <button className={button()} onClick={undo} title="撤销（上一步）" aria-label="撤销"><Undo2 size={14} /></button>
+                <button className={button()} onClick={redo} title="重做（下一步）" aria-label="重做"><Redo2 size={14} /></button>
+                <button className={button()} onClick={persist} title="保存笔记" aria-label="保存笔记"><Save size={14} /></button>
+                <button className={button()} onClick={() => leaferRef.current?.exportImage(`${title || "随心记"}.png`)} title="下载图片" aria-label="下载图片"><Download size={14} /></button>
                 <div className="contents">
-                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title={sidePos === "right" ? "移到左侧" : "移到右侧"} aria-label={sidePos === "right" ? "移到左侧" : "移到右侧"}>{sidePos === "right" ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}</button>
-                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { closePopups(); clearCanvas(); }} title="清空 一键清空全部" aria-label="清空"><Trash2 size={16} /></button>
-                  <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label="关闭"><X size={16} /></CloudButton>
+                  <button className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title={sidePos === "right" ? "移到左侧" : "移到右侧"} aria-label={sidePos === "right" ? "移到左侧" : "移到右侧"}>{sidePos === "right" ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}</button>
+                  <button className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { closePopups(); clearCanvas(); }} title="清空 一键清空全部" aria-label="清空"><Trash2 size={14} /></button>
+                  <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-7 w-7 text-[#25344a]" aria-label="关闭"><X size={14} /></CloudButton>
                 </div>
               </div>
             )}
