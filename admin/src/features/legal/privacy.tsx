@@ -32,8 +32,8 @@ export function PrivacyPage() {
       <section className='space-y-2'>
         <h2 className='text-base font-semibold'>3. Storage and protection</h2>
         <p className='text-muted-foreground'>
-          We use reasonable technical and organizational measures such as
-          access control, encryption in transit, and audit logs. No internet
+          We use reasonable technical and organizational measures such as access
+          control, encryption in transit, and audit logs. No internet
           environment is perfectly secure; we work to reduce risk.
         </p>
       </section>
@@ -42,8 +42,8 @@ export function PrivacyPage() {
         <p className='text-muted-foreground'>
           We do not sell your personal information. We may share, transfer, or
           disclose it only with your consent, when required by law, to protect
-          vital interests, or with service providers in the minimum scope
-          needed to run the product.
+          vital interests, or with service providers in the minimum scope needed
+          to run the product.
         </p>
       </section>
       <section className='space-y-2'>

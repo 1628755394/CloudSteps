@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Pencil, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { get, put } from '@/lib/api'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -20,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import {
   capLabel,
   formatMinutes,
@@ -134,7 +134,8 @@ export function TeacherUsagePanel() {
   return (
     <div className='space-y-4'>
       <p className='text-sm text-muted-foreground'>
-        老师历史上每月已授课分钟（仅统计，<strong>不限制</strong>开课）。开课限制请看「老师授课池」。
+        老师历史上每月已授课分钟（仅统计，<strong>不限制</strong>
+        开课）。开课限制请看「老师授课池」。
       </p>
       <div className='flex flex-wrap items-end gap-3'>
         <div className='grid gap-1.5'>
@@ -147,7 +148,11 @@ export function TeacherUsagePanel() {
             onChange={(e) => setTeacherFilter(e.target.value)}
           />
         </div>
-        <Button variant='outline' onClick={() => void load()} disabled={loading}>
+        <Button
+          variant='outline'
+          onClick={() => void load()}
+          disabled={loading}
+        >
           查询
         </Button>
         <Button onClick={openCreate}>
@@ -176,7 +181,10 @@ export function TeacherUsagePanel() {
           <TableBody>
             {list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className='text-center text-muted-foreground'>
+                <TableCell
+                  colSpan={6}
+                  className='text-center text-muted-foreground'
+                >
                   暂无老师授课额度记录
                 </TableCell>
               </TableRow>
@@ -184,8 +192,7 @@ export function TeacherUsagePanel() {
               list.map((row) => {
                 const cap = row.capMinutes
                 const used = row.usedMinutes
-                const room =
-                  cap > 0 ? Math.max(0, cap - used) : null
+                const room = cap > 0 ? Math.max(0, cap - used) : null
                 const full = cap > 0 && used >= cap
                 return (
                   <TableRow key={row.id}>
@@ -210,7 +217,7 @@ export function TeacherUsagePanel() {
                       ) : full ? (
                         <Badge variant='destructive'>已满</Badge>
                       ) : (
-                        <span className='tabular-nums text-sm'>
+                        <span className='text-sm tabular-nums'>
                           {formatMinutes(room ?? 0)}
                         </span>
                       )}

@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
 import { Eye, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { del, get } from '@/lib/api'
-import { AdminPage } from '@/components/admin-page'
-import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -21,6 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { AdminPage } from '@/components/admin-page'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   VocabQuestionDetailSheet,
   type VocabQuestion,
@@ -124,10 +124,13 @@ export function VocabQuestionsPage() {
           placeholder='搜索单词'
           onChange={(e) => setKeyword(e.target.value)}
         />
-        <Select value={level} onValueChange={(v) => {
-          setLevel(v)
-          setPage(1)
-        }}>
+        <Select
+          value={level}
+          onValueChange={(v) => {
+            setLevel(v)
+            setPage(1)
+          }}
+        >
           <SelectTrigger className='w-[120px]'>
             <SelectValue placeholder='级别' />
           </SelectTrigger>
@@ -165,7 +168,10 @@ export function VocabQuestionsPage() {
           <TableBody>
             {list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className='text-center text-muted-foreground'>
+                <TableCell
+                  colSpan={7}
+                  className='text-center text-muted-foreground'
+                >
                   暂无题目
                 </TableCell>
               </TableRow>

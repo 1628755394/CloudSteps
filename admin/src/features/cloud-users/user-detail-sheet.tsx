@@ -2,9 +2,6 @@ import { useState } from 'react'
 import { Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { del } from '@/lib/api'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,6 +12,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import {
   Sheet,
   SheetContent,

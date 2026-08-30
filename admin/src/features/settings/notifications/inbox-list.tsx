@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react'
-import { CheckCheck, ExternalLink, Eye, Loader2, RefreshCw, Trash2 } from 'lucide-react'
+import {
+  CheckCheck,
+  ExternalLink,
+  Eye,
+  Loader2,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { del, get, post, put } from '@/lib/api'
 import { formatDateTime } from '@/lib/datetime'
-import { MarkdownView } from '@/components/markdown-view'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -31,6 +37,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { MarkdownView } from '@/components/markdown-view'
 
 export type MyInboxMessage = {
   id: number
@@ -90,7 +97,9 @@ export function SettingsInboxList() {
     try {
       await put(`/admin/me/inbox-messages/${row.id}/read`)
       setList((prev) =>
-        prev.map((item) => (item.id === row.id ? { ...item, read: true } : item))
+        prev.map((item) =>
+          item.id === row.id ? { ...item, read: true } : item
+        )
       )
       setTotalUnread((n) => Math.max(0, n - 1))
       setDetail((d) => (d?.id === row.id ? { ...d, read: true } : d))
@@ -133,7 +142,13 @@ export function SettingsInboxList() {
   return (
     <div className='space-y-4'>
       <div className='flex flex-wrap items-center gap-2'>
-        <Select value={filter} onValueChange={(v) => { setFilter(v); setPage(1) }}>
+        <Select
+          value={filter}
+          onValueChange={(v) => {
+            setFilter(v)
+            setPage(1)
+          }}
+        >
           <SelectTrigger className='w-[120px]'>
             <SelectValue placeholder='筛选' />
           </SelectTrigger>
@@ -143,8 +158,17 @@ export function SettingsInboxList() {
             <SelectItem value='read'>已读</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant='outline' size='sm' disabled={loading} onClick={() => void load(page)}>
-          {loading ? <Loader2 className='size-4 animate-spin' /> : <RefreshCw className='size-4' />}
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={loading}
+          onClick={() => void load(page)}
+        >
+          {loading ? (
+            <Loader2 className='size-4 animate-spin' />
+          ) : (
+            <RefreshCw className='size-4' />
+          )}
           刷新
         </Button>
         <Button
@@ -156,7 +180,7 @@ export function SettingsInboxList() {
           <CheckCheck className='size-4' />
           全部已读
         </Button>
-        <span className='text-muted-foreground ms-auto text-sm'>
+        <span className='ms-auto text-sm text-muted-foreground'>
           {totalUnread > 0 ? `${totalUnread} 条未读` : '暂无未读'}
         </span>
       </div>
@@ -174,19 +198,28 @@ export function SettingsInboxList() {
           <TableBody>
             {loading && list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className='text-muted-foreground h-24 text-center'>
+                <TableCell
+                  colSpan={4}
+                  className='h-24 text-center text-muted-foreground'
+                >
                   加载中…
                 </TableCell>
               </TableRow>
             ) : list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className='text-muted-foreground h-24 text-center'>
+                <TableCell
+                  colSpan={4}
+                  className='h-24 text-center text-muted-foreground'
+                >
                   暂无通知
                 </TableCell>
               </TableRow>
             ) : (
               list.map((row) => (
-                <TableRow key={row.id} className={row.read ? undefined : 'bg-muted/30'}>
+                <TableRow
+                  key={row.id}
+                  className={row.read ? undefined : 'bg-muted/30'}
+                >
                   <TableCell>
                     <Badge variant={row.read ? 'secondary' : 'default'}>
                       {row.read ? '已读' : '未读'}
@@ -195,24 +228,32 @@ export function SettingsInboxList() {
                   <TableCell>
                     <button
                       type='button'
-                      className='hover:text-primary text-start font-medium'
+                      className='text-start font-medium hover:text-primary'
                       onClick={() => void openDetail(row)}
                     >
                       {row.title}
                     </button>
-                    <p className='text-muted-foreground mt-0.5 line-clamp-1 text-sm'>
+                    <p className='mt-0.5 line-clamp-1 text-sm text-muted-foreground'>
                       {row.content}
                     </p>
                   </TableCell>
-                  <TableCell className='text-muted-foreground hidden md:table-cell text-sm'>
+                  <TableCell className='hidden text-sm text-muted-foreground md:table-cell'>
                     {formatDateTime(row.createdAt)}
                   </TableCell>
                   <TableCell className='text-end'>
                     <div className='flex justify-end gap-1'>
-                      <Button variant='ghost' size='icon' onClick={() => void openDetail(row)}>
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        onClick={() => void openDetail(row)}
+                      >
                         <Eye className='size-4' />
                       </Button>
-                      <Button variant='ghost' size='icon' onClick={() => setDeleting(row)}>
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        onClick={() => setDeleting(row)}
+                      >
                         <Trash2 className='size-4' />
                       </Button>
                     </div>
@@ -234,7 +275,7 @@ export function SettingsInboxList() {
           >
             上一页
           </Button>
-          <span className='text-muted-foreground text-sm'>
+          <span className='text-sm text-muted-foreground'>
             {page} / {pageCount}
           </span>
           <Button
@@ -252,14 +293,21 @@ export function SettingsInboxList() {
         <SheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-xl md:max-w-2xl'>
           <SheetHeader className='shrink-0 space-y-2 border-b px-6 py-5 text-start'>
             <div className='flex items-start gap-2 pe-8'>
-              <SheetTitle className='text-lg leading-snug'>{detail?.title}</SheetTitle>
+              <SheetTitle className='text-lg leading-snug'>
+                {detail?.title}
+              </SheetTitle>
               {detail ? (
-                <Badge variant={detail.read ? 'secondary' : 'default'} className='shrink-0'>
+                <Badge
+                  variant={detail.read ? 'secondary' : 'default'}
+                  className='shrink-0'
+                >
                   {detail.read ? '已读' : '未读'}
                 </Badge>
               ) : null}
             </div>
-            <SheetDescription>{formatDateTime(detail?.createdAt)}</SheetDescription>
+            <SheetDescription>
+              {formatDateTime(detail?.createdAt)}
+            </SheetDescription>
           </SheetHeader>
 
           <ScrollArea className='min-h-0 flex-1'>

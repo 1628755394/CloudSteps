@@ -1,5 +1,5 @@
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import {
   CHART_SERIES,
   type ChartSeriesKey,
@@ -18,9 +18,7 @@ export function MetricSeriesPicker({
   onChange,
 }: MetricSeriesPickerProps) {
   if (available.length === 0) {
-    return (
-      <p className='text-sm text-muted-foreground'>暂无可用曲线数据</p>
-    )
+    return <p className='text-sm text-muted-foreground'>暂无可用曲线数据</p>
   }
 
   const toggle = (key: ChartSeriesKey) => {

@@ -54,7 +54,15 @@ export const FilterableTrendChart = memo(function FilterableTrendChart({
 
   return (
     <ResponsiveContainer width='100%' height={320} debounce={80}>
-      <ComposedChart data={data} margin={{ top: 8, right: showCount && showMs ? 16 : 8, left: 0, bottom: 0 }}>
+      <ComposedChart
+        data={data}
+        margin={{
+          top: 8,
+          right: showCount && showMs ? 16 : 8,
+          left: 0,
+          bottom: 0,
+        }}
+      >
         <CartesianGrid strokeDasharray='3 3' className='stroke-border' />
         <XAxis dataKey='name' {...axis} />
         {showCount ? (
@@ -76,7 +84,10 @@ export const FilterableTrendChart = memo(function FilterableTrendChart({
         <Tooltip
           formatter={(value, _name, item) => {
             const key = String(item.dataKey) as ChartSeriesKey
-            return [formatSeriesValue(key, Number(value)), getSeriesDef(key).label]
+            return [
+              formatSeriesValue(key, Number(value)),
+              getSeriesDef(key).label,
+            ]
           }}
         />
         <Legend />

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { WordBookWordsPage } from '@/features/wordbooks/words'
 import { wordbooksSearchSchema } from '@/features/wordbooks/search'
+import { WordBookWordsPage } from '@/features/wordbooks/words'
 
 export const Route = createFileRoute('/_authenticated/wordbooks/$bookId')({
   validateSearch: wordbooksSearchSchema,

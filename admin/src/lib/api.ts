@@ -49,12 +49,20 @@ export async function get<T>(url: string, config?: AxiosRequestConfig) {
   return unwrap(data)
 }
 
-export async function post<T>(url: string, body?: unknown, config?: AxiosRequestConfig) {
+export async function post<T>(
+  url: string,
+  body?: unknown,
+  config?: AxiosRequestConfig
+) {
   const { data } = await api.post<ApiResponse<T>>(url, body, config)
   return unwrap(data)
 }
 
-export async function put<T>(url: string, body?: unknown, config?: AxiosRequestConfig) {
+export async function put<T>(
+  url: string,
+  body?: unknown,
+  config?: AxiosRequestConfig
+) {
   const { data } = await api.put<ApiResponse<T>>(url, body, config)
   return unwrap(data)
 }

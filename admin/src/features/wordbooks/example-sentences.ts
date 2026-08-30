@@ -5,7 +5,9 @@ export type ExampleSentence = {
   pos: string
 }
 
-export function parseExampleSentences(raw: string | undefined): ExampleSentence[] | null {
+export function parseExampleSentences(
+  raw: string | undefined
+): ExampleSentence[] | null {
   if (!raw?.trim()) return []
   try {
     const parsed: unknown = JSON.parse(raw)
@@ -29,7 +31,9 @@ export function parseExampleSentences(raw: string | undefined): ExampleSentence[
   }
 }
 
-export function splitHighlightedText(text: string): Array<{ text: string; highlight: boolean }> {
+export function splitHighlightedText(
+  text: string
+): Array<{ text: string; highlight: boolean }> {
   const parts: Array<{ text: string; highlight: boolean }> = []
   const re = /<(b|strong)>(.*?)<\/\1>/gi
   let last = 0

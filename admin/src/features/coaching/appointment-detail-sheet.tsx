@@ -1,3 +1,4 @@
+import { formatDateTime } from '@/lib/datetime'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -8,7 +9,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { formatDateTime } from '@/lib/datetime'
 import {
   appointmentTitle,
   formatScheduleDate,
@@ -100,12 +100,12 @@ export function AppointmentDetailSheet({
             {appointment.notes?.trim() ? (
               <div className='rounded-md border p-3'>
                 <p className='text-xs text-muted-foreground'>备注</p>
-                <p className='mt-1 whitespace-pre-wrap text-sm'>
+                <p className='mt-1 text-sm whitespace-pre-wrap'>
                   {appointment.notes}
                 </p>
               </div>
             ) : null}
-            <div className='rounded-md border p-3 space-y-2'>
+            <div className='space-y-2 rounded-md border p-3'>
               <p className='text-xs text-muted-foreground'>课时结算</p>
               {session && session.id ? (
                 <>
@@ -133,13 +133,19 @@ export function AppointmentDetailSheet({
                   </div>
                 </>
               ) : (
-                <p className='text-sm text-muted-foreground'>尚未完课，暂无结算</p>
+                <p className='text-sm text-muted-foreground'>
+                  尚未完课，暂无结算
+                </p>
               )}
             </div>
           </div>
         ) : null}
         <SheetFooter>
-          <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => onOpenChange(false)}
+          >
             关闭
           </Button>
         </SheetFooter>

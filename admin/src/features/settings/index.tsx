@@ -63,7 +63,9 @@ export function Settings() {
           <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>
             设置
           </h1>
-          <p className='text-muted-foreground'>查看账号信息、站内信通知并调整外观。</p>
+          <p className='text-muted-foreground'>
+            查看账号信息、站内信通知并调整外观。
+          </p>
         </div>
         <Separator className='my-4 lg:my-6' />
         <div className='flex min-h-0 flex-1 flex-col space-y-2 overflow-hidden md:space-y-2 lg:flex-row lg:space-y-0 lg:space-x-12'>

@@ -1,6 +1,11 @@
 import { Link } from '@tanstack/react-router'
 import { Logo } from '@/assets/logo'
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar'
 
 export function AppTitle() {
   const { setOpenMobile } = useSidebar()

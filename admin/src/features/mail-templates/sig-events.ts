@@ -16,7 +16,10 @@ export const TEMPLATE_EVENT_BY_CODE: Record<string, TemplateEventMeta> = {
     sigEvent: 'user.create',
     sigLabel: '用户注册',
     trigger: 'sig',
-    sampleVars: { Username: '测试用户', VerifyURL: 'https://example.com/login' },
+    sampleVars: {
+      Username: '测试用户',
+      VerifyURL: 'https://example.com/login',
+    },
   },
   email_verification: {
     sigEvent: 'user.verifyemail',
@@ -100,7 +103,11 @@ export const TEMPLATE_EVENT_BY_CODE: Record<string, TemplateEventMeta> = {
   device_verification: {
     trigger: 'direct',
     directNote: 'Mailer.SendDeviceVerificationCode（不经 Sig）',
-    sampleVars: { Username: '测试用户', Code: '654321', DeviceID: 'device-demo' },
+    sampleVars: {
+      Username: '测试用户',
+      Code: '654321',
+      DeviceID: 'device-demo',
+    },
   },
   group_invitation: {
     trigger: 'direct',
@@ -117,10 +124,15 @@ export const TEMPLATE_EVENT_BY_CODE: Record<string, TemplateEventMeta> = {
 }
 
 /** Sig events defined in backend but not wired to notification templates yet. */
-export const UNBOUND_SIG_EVENTS: { event: string; label: string; note: string }[] =
-  []
+export const UNBOUND_SIG_EVENTS: {
+  event: string
+  label: string
+  note: string
+}[] = []
 
-export function getTemplateEventMeta(code: string): TemplateEventMeta | undefined {
+export function getTemplateEventMeta(
+  code: string
+): TemplateEventMeta | undefined {
   return TEMPLATE_EVENT_BY_CODE[code.trim()]
 }
 
@@ -128,7 +140,9 @@ export function formatTemplateTrigger(code: string): string {
   const meta = getTemplateEventMeta(code)
   if (!meta) return '—'
   if (meta.trigger === 'sig' && meta.sigEvent) {
-    return meta.sigLabel ? `${meta.sigEvent}（${meta.sigLabel}）` : meta.sigEvent
+    return meta.sigLabel
+      ? `${meta.sigEvent}（${meta.sigLabel}）`
+      : meta.sigEvent
   }
   return meta.directNote || '直接调用'
 }

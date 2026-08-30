@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Eye, Loader2, Megaphone, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import {
+  Eye,
+  Loader2,
+  Megaphone,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { del, get, post, put } from '@/lib/api'
 import { formatDateTime } from '@/lib/datetime'
@@ -262,13 +270,19 @@ export function AnnouncementsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className='h-24 text-center text-muted-foreground'>
+                <TableCell
+                  colSpan={6}
+                  className='h-24 text-center text-muted-foreground'
+                >
                   <Loader2 className='mx-auto size-5 animate-spin' />
                 </TableCell>
               </TableRow>
             ) : list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className='h-24 text-center text-muted-foreground'>
+                <TableCell
+                  colSpan={6}
+                  className='h-24 text-center text-muted-foreground'
+                >
                   暂无公告
                 </TableCell>
               </TableRow>
@@ -277,12 +291,16 @@ export function AnnouncementsPage() {
                 <TableRow key={row.id}>
                   <TableCell className='font-medium'>{row.title}</TableCell>
                   <TableCell>
-                    <Badge variant={row.status === 'published' ? 'default' : 'secondary'}>
+                    <Badge
+                      variant={
+                        row.status === 'published' ? 'default' : 'secondary'
+                      }
+                    >
                       {row.status === 'published' ? '已发布' : '草稿'}
                     </Badge>
                   </TableCell>
                   <TableCell>{row.priority}</TableCell>
-                  <TableCell className='tabular-nums text-sm'>
+                  <TableCell className='text-sm tabular-nums'>
                     <button
                       type='button'
                       className='text-primary hover:underline'
@@ -291,7 +309,7 @@ export function AnnouncementsPage() {
                       {row.readCount ?? 0} 人
                     </button>
                   </TableCell>
-                  <TableCell className='text-muted-foreground text-sm'>
+                  <TableCell className='text-sm text-muted-foreground'>
                     {row.publishedAt ? formatDateTime(row.publishedAt) : '—'}
                   </TableCell>
                   <TableCell className='text-right'>
@@ -354,14 +372,15 @@ export function AnnouncementsPage() {
       ) : null}
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className='sm:max-w-xl overflow-y-auto'>
+        <SheetContent className='overflow-y-auto sm:max-w-xl'>
           <SheetHeader>
             <SheetTitle className='flex items-center gap-2'>
               <Megaphone className='size-4' />
               {editing ? '编辑公告' : '新建公告'}
             </SheetTitle>
             <SheetDescription>
-              发布后，未读用户登录 Web 会看到弹窗；确认后写入已读，不再主动弹出。
+              发布后，未读用户登录 Web
+              会看到弹窗；确认后写入已读，不再主动弹出。
             </SheetDescription>
           </SheetHeader>
           <div className='mt-4 space-y-4 px-1'>
@@ -370,7 +389,9 @@ export function AnnouncementsPage() {
               <Input
                 id='ann-title'
                 value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title: e.target.value }))
+                }
                 placeholder='公告标题'
               />
             </div>
@@ -380,9 +401,13 @@ export function AnnouncementsPage() {
                 id='ann-priority'
                 type='number'
                 value={form.priority}
-                onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, priority: e.target.value }))
+                }
               />
-              <p className='text-xs text-muted-foreground'>数字越大越优先弹出</p>
+              <p className='text-xs text-muted-foreground'>
+                数字越大越优先弹出
+              </p>
             </div>
             <div className='grid gap-1.5'>
               <Label>正文</Label>
@@ -395,7 +420,9 @@ export function AnnouncementsPage() {
               <input
                 type='checkbox'
                 checked={form.publish}
-                onChange={(e) => setForm((f) => ({ ...f, publish: e.target.checked }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, publish: e.target.checked }))
+                }
               />
               保存后立即发布
             </label>
@@ -422,12 +449,14 @@ export function AnnouncementsPage() {
           }
         }}
       >
-        <SheetContent className='sm:max-w-lg overflow-y-auto'>
+        <SheetContent className='overflow-y-auto sm:max-w-lg'>
           <SheetHeader>
             <SheetTitle>{detail?.title}</SheetTitle>
             <SheetDescription>
               {detail?.status === 'published' ? '已发布' : '草稿'}
-              {detail?.publishedAt ? ` · ${formatDateTime(detail.publishedAt)}` : ''}
+              {detail?.publishedAt
+                ? ` · ${formatDateTime(detail.publishedAt)}`
+                : ''}
               {` · 已读 ${readersTotal || detail?.readCount || 0} 人`}
             </SheetDescription>
           </SheetHeader>
@@ -440,17 +469,20 @@ export function AnnouncementsPage() {
               )}
             </div>
             <div className='border-t pt-4'>
-              <h3 className='text-sm font-semibold mb-2'>已读用户</h3>
+              <h3 className='mb-2 text-sm font-semibold'>已读用户</h3>
               {readersLoading ? (
-                <div className='py-6 flex justify-center'>
+                <div className='flex justify-center py-6'>
                   <Loader2 className='size-5 animate-spin text-muted-foreground' />
                 </div>
               ) : readers.length === 0 ? (
                 <p className='text-sm text-muted-foreground'>暂无人已读</p>
               ) : (
-                <ul className='divide-y rounded-md border max-h-64 overflow-y-auto'>
+                <ul className='max-h-64 divide-y overflow-y-auto rounded-md border'>
                   {readers.map((r) => (
-                    <li key={`${r.userId}-${r.readAt}`} className='px-3 py-2 text-sm'>
+                    <li
+                      key={`${r.userId}-${r.readAt}`}
+                      className='px-3 py-2 text-sm'
+                    >
                       <div className='font-medium'>
                         {r.userName || `用户 #${r.userId}`}
                       </div>

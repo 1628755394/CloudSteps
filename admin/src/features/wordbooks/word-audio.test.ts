@@ -1,16 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import {
-  joinAudioUrls,
-  mediaSrc,
-  splitAudioUrls,
-} from './word-audio'
+import { joinAudioUrls, mediaSrc, splitAudioUrls } from './word-audio'
 
 describe('splitAudioUrls', () => {
   it('splits up to two semicolon-separated slots', () => {
-    expect(splitAudioUrls('/a.mp3;/b.mp3;/c.mp3')).toEqual([
-      '/a.mp3',
-      '/b.mp3',
-    ])
+    expect(splitAudioUrls('/a.mp3;/b.mp3;/c.mp3')).toEqual(['/a.mp3', '/b.mp3'])
   })
 
   it('pads missing slots with empty strings', () => {

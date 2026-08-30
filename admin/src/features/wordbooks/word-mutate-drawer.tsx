@@ -14,6 +14,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
+import { ExampleSentencesPreview } from './example-sentences-preview'
 import { generateWordAudioUrls } from './lingecho-tts'
 import { type Word, type WordForm } from './types'
 import {
@@ -24,7 +25,6 @@ import {
   splitAudioUrls,
 } from './word-audio'
 import { emptyWordForm, wordToForm } from './word-form'
-import { ExampleSentencesPreview } from './example-sentences-preview'
 
 type WordMutateDrawerProps = {
   open: boolean
@@ -252,7 +252,9 @@ export function WordMutateDrawer({
                       aria-label='重音'
                       placeholder='重音'
                       value={form.stressPattern}
-                      onChange={(e) => setField('stressPattern', e.target.value)}
+                      onChange={(e) =>
+                        setField('stressPattern', e.target.value)
+                      }
                     />
                   </div>
                 </div>
@@ -377,13 +379,18 @@ export function WordMutateDrawer({
                         onChange={(e) => setField('morphology', e.target.value)}
                       />
                     </Field>
-                    <Field id='derivations' label='派生 derivations（JSON 数组）'>
+                    <Field
+                      id='derivations'
+                      label='派生 derivations（JSON 数组）'
+                    >
                       <Textarea
                         id='derivations'
                         rows={2}
                         className='font-mono'
                         value={form.derivations}
-                        onChange={(e) => setField('derivations', e.target.value)}
+                        onChange={(e) =>
+                          setField('derivations', e.target.value)
+                        }
                       />
                     </Field>
                   </div>
@@ -590,7 +597,11 @@ export function WordMutateDrawer({
           >
             取消
           </Button>
-          <Button className='w-auto' disabled={saving} onClick={() => void save()}>
+          <Button
+            className='w-auto'
+            disabled={saving}
+            onClick={() => void save()}
+          >
             {saving ? <Loader2 className='animate-spin' /> : null}
             {saving ? '保存中…' : '保存'}
           </Button>

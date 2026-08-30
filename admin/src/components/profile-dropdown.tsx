@@ -1,4 +1,6 @@
 import { Link } from '@tanstack/react-router'
+import { useAuthStore } from '@/stores/auth-store'
+import { DEFAULT_TEACHER_AVATAR, teacherAvatarSrc } from '@/lib/avatar'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -11,8 +13,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { SignOutDialog } from '@/components/sign-out-dialog'
-import { DEFAULT_TEACHER_AVATAR, teacherAvatarSrc } from '@/lib/avatar'
-import { useAuthStore } from '@/stores/auth-store'
 
 export function ProfileDropdown() {
   const [open, setOpen] = useDialogState()
@@ -28,8 +28,12 @@ export function ProfileDropdown() {
           <Button variant='ghost' className='relative h-8 w-8 rounded-full'>
             <Avatar className='h-8 w-8'>
               <AvatarImage src={avatar} alt={name} />
-              <AvatarFallback className='p-0 overflow-hidden'>
-                <img src={DEFAULT_TEACHER_AVATAR} alt='' className='size-full object-cover' />
+              <AvatarFallback className='overflow-hidden p-0'>
+                <img
+                  src={DEFAULT_TEACHER_AVATAR}
+                  alt=''
+                  className='size-full object-cover'
+                />
               </AvatarFallback>
             </Avatar>
           </Button>

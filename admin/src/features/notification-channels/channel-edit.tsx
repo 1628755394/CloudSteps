@@ -4,12 +4,7 @@ import { ArrowLeft, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { get, post, put } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -77,7 +72,10 @@ export function ChannelEditPage({ id }: { id?: string }) {
       .finally(() => setLoading(false))
   }, [id])
 
-  const update = <K extends keyof UpsertChannelReq>(key: K, value: UpsertChannelReq[K]) => {
+  const update = <K extends keyof UpsertChannelReq>(
+    key: K,
+    value: UpsertChannelReq[K]
+  ) => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -142,7 +140,9 @@ export function ChannelEditPage({ id }: { id?: string }) {
                 <Input
                   type='number'
                   value={form.sortOrder ?? 0}
-                  onChange={(e) => update('sortOrder', Number(e.target.value) || 0)}
+                  onChange={(e) =>
+                    update('sortOrder', Number(e.target.value) || 0)
+                  }
                 />
               </Field>
               <Field label='备注'>
@@ -193,14 +193,18 @@ export function ChannelEditPage({ id }: { id?: string }) {
                   <Field label='API User'>
                     <Input
                       value={form.sendcloudApiUser || ''}
-                      onChange={(e) => update('sendcloudApiUser', e.target.value)}
+                      onChange={(e) =>
+                        update('sendcloudApiUser', e.target.value)
+                      }
                     />
                   </Field>
                   <Field label={isEdit ? 'API Key（留空则保留）' : 'API Key'}>
                     <Input
                       type='password'
                       value={form.sendcloudApiKey || ''}
-                      onChange={(e) => update('sendcloudApiKey', e.target.value)}
+                      onChange={(e) =>
+                        update('sendcloudApiKey', e.target.value)
+                      }
                     />
                   </Field>
                   <Field label='发件地址'>
@@ -233,7 +237,9 @@ export function ChannelEditPage({ id }: { id?: string }) {
                       onChange={(e) => update('smtpUsername', e.target.value)}
                     />
                   </Field>
-                  <Field label={isEdit ? 'SMTP 密码（留空则保留）' : 'SMTP 密码'}>
+                  <Field
+                    label={isEdit ? 'SMTP 密码（留空则保留）' : 'SMTP 密码'}
+                  >
                     <Input
                       type='password'
                       value={form.smtpPassword || ''}

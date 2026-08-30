@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Pause, Play } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import {
   decorativeWaveformBars,
   loadProgressiveWavWaveform,
 } from '@/lib/progressive-wav-waveform'
+import { cn } from '@/lib/utils'
 
 const BAR_COUNT = 100
 const PLACEHOLDER_BAR = 14
@@ -125,7 +125,13 @@ export function CallAudioPlayer({
 
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio || seekToSeconds == null || !Number.isFinite(seekToSeconds) || scrubbing.current) return
+    if (
+      !audio ||
+      seekToSeconds == null ||
+      !Number.isFinite(seekToSeconds) ||
+      scrubbing.current
+    )
+      return
     if (Math.abs(audio.currentTime - seekToSeconds) <= 0.12) return
     try {
       scrubbing.current = true
@@ -151,7 +157,10 @@ export function CallAudioPlayer({
     const waveform = waveformRef.current
     if (!audio || !waveform || !duration) return
     const rect = waveform.getBoundingClientRect()
-    const percentage = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    const percentage = Math.max(
+      0,
+      Math.min(1, (e.clientX - rect.left) / rect.width)
+    )
     const next = percentage * duration
     scrubbing.current = true
     audio.currentTime = next
@@ -172,7 +181,8 @@ export function CallAudioPlayer({
   const receivedBars = Math.floor(waveformProgress * BAR_COUNT)
 
   const barHeight = (i: number) => {
-    if (i < receivedBars && waveformData[i] != null) return Math.max(20, waveformData[i])
+    if (i < receivedBars && waveformData[i] != null)
+      return Math.max(20, waveformData[i])
     return PLACEHOLDER_BAR
   }
 
@@ -183,12 +193,16 @@ export function CallAudioPlayer({
         <div className='font-mono text-sm text-muted-foreground'>
           {formatTime(currentTime)} / {formatTime(duration)}
           {waveformLoading ? (
-            <span className='ml-2 text-xs'>波形 {Math.round(waveformProgress * 100)}%</span>
+            <span className='ml-2 text-xs'>
+              波形 {Math.round(waveformProgress * 100)}%
+            </span>
           ) : null}
         </div>
       </div>
       <audio ref={audioRef} src={audioUrl} preload='metadata' />
-      {error ? <div className='mb-3 text-sm text-destructive'>{error}</div> : null}
+      {error ? (
+        <div className='mb-3 text-sm text-destructive'>{error}</div>
+      ) : null}
       <div className='flex items-center gap-3'>
         <button
           type='button'
@@ -196,7 +210,11 @@ export function CallAudioPlayer({
           disabled={isLoading}
           className='flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50'
         >
-          {isPlaying ? <Pause className='size-4' /> : <Play className='size-4' />}
+          {isPlaying ? (
+            <Pause className='size-4' />
+          ) : (
+            <Play className='size-4' />
+          )}
         </button>
         <div
           ref={waveformRef}
@@ -215,7 +233,9 @@ export function CallAudioPlayer({
                 key={i}
                 className={cn(
                   'w-0.5 rounded-full transition-[height] duration-75',
-                  (i / BAR_COUNT) * 100 < progress ? 'bg-primary' : 'bg-muted-foreground/30',
+                  (i / BAR_COUNT) * 100 < progress
+                    ? 'bg-primary'
+                    : 'bg-muted-foreground/30',
                   i >= receivedBars && 'opacity-40'
                 )}
                 style={{ height: `${barHeight(i)}%` }}

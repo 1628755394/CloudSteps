@@ -132,7 +132,8 @@ export function UserFeedbackPage() {
         const ticketId = detailIdRef.current
         if (ticketId) {
           const res = await get<FeedbackTicket>(`/admin/feedbacks/${ticketId}`)
-          if (!cancelled && detailIdRef.current === ticketId) setDetail(res.data)
+          if (!cancelled && detailIdRef.current === ticketId)
+            setDetail(res.data)
         }
       } catch {
         /* keep previous snapshot on background poll */
@@ -197,7 +198,9 @@ export function UserFeedbackPage() {
     if (!detail) return
     setSaving(true)
     try {
-      const res = await post<FeedbackTicket>(`/admin/feedbacks/${detail.id}/close`)
+      const res = await post<FeedbackTicket>(
+        `/admin/feedbacks/${detail.id}/close`
+      )
       setDetail(res.data)
       toast.success('工单已关闭')
       await load(page)
@@ -228,7 +231,11 @@ export function UserFeedbackPage() {
       title='用户反馈'
       description='用户工单对话。回复写在工单里，同时给用户发一条站内信提醒。'
       extra={
-        <Button variant='outline' disabled={loading} onClick={() => void load(page)}>
+        <Button
+          variant='outline'
+          disabled={loading}
+          onClick={() => void load(page)}
+        >
           <RefreshCw className='size-4' />
           刷新
         </Button>
@@ -316,14 +323,16 @@ export function UserFeedbackPage() {
                       </div>
                       <div className='text-xs text-muted-foreground'>
                         #{row.id}
-                        {row.replyCount > 0 ? ` · ${row.replyCount} 条回复` : ''}
+                        {row.replyCount > 0
+                          ? ` · ${row.replyCount} 条回复`
+                          : ''}
                         {row.contact ? ` · ${row.contact}` : ''}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={badge.variant}>{badge.label}</Badge>
                     </TableCell>
-                    <TableCell className='whitespace-nowrap text-sm text-muted-foreground'>
+                    <TableCell className='text-sm whitespace-nowrap text-muted-foreground'>
                       {formatDateTime(row.lastRepliedAt || row.createdAt)}
                     </TableCell>
                     <TableCell className='text-right'>
@@ -379,9 +388,7 @@ export function UserFeedbackPage() {
       >
         <SheetContent className='overflow-y-auto sm:max-w-lg'>
           <SheetHeader>
-            <SheetTitle>
-              {detail ? `工单 #${detail.id}` : '工单'}
-            </SheetTitle>
+            <SheetTitle>{detail ? `工单 #${detail.id}` : '工单'}</SheetTitle>
             <SheetDescription>
               {detail
                 ? `${detail.userName || `用户 #${detail.userId}`} · ${formatDateTime(detail.createdAt)}`
@@ -414,7 +421,7 @@ export function UserFeedbackPage() {
                         {adminMsg ? '管理员' : detail.userName || '用户'} ·{' '}
                         {formatDateTime(item.createdAt)}
                       </div>
-                      <p className='whitespace-pre-wrap leading-relaxed'>
+                      <p className='leading-relaxed whitespace-pre-wrap'>
                         {item.content}
                       </p>
                     </div>

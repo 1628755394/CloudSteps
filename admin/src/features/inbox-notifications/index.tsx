@@ -193,7 +193,11 @@ export function InboxNotificationsPage() {
       description='用户 inbox 中的实际通知消息，可查询、发送、编辑与删除。'
       extra={
         <div className='flex gap-2'>
-          <Button variant='outline' disabled={loading} onClick={() => void load(page)}>
+          <Button
+            variant='outline'
+            disabled={loading}
+            onClick={() => void load(page)}
+          >
             <RefreshCw className='size-4' />
             刷新
           </Button>
@@ -289,7 +293,7 @@ export function InboxNotificationsPage() {
                       {row.read ? '已读' : '未读'}
                     </Badge>
                   </TableCell>
-                  <TableCell className='whitespace-nowrap text-sm text-muted-foreground'>
+                  <TableCell className='text-sm whitespace-nowrap text-muted-foreground'>
                     {formatDateTime(row.createdAt)}
                   </TableCell>
                   <TableCell className='text-right'>
@@ -439,7 +443,10 @@ export function InboxNotificationsPage() {
         </SheetContent>
       </Sheet>
 
-      <Sheet open={Boolean(detail)} onOpenChange={(open) => !open && setDetail(null)}>
+      <Sheet
+        open={Boolean(detail)}
+        onOpenChange={(open) => !open && setDetail(null)}
+      >
         <SheetContent className='overflow-y-auto sm:max-w-xl'>
           <SheetHeader>
             <SheetTitle>{detail?.title}</SheetTitle>

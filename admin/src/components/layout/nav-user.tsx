@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronsUpDown, LogOut, UserCog } from 'lucide-react'
-import useDialogState from '@/hooks/use-dialog-state'
+import { useAuthStore } from '@/stores/auth-store'
 import { DEFAULT_TEACHER_AVATAR, teacherAvatarSrc } from '@/lib/avatar'
+import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -18,7 +19,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { SignOutDialog } from '@/components/sign-out-dialog'
-import { useAuthStore } from '@/stores/auth-store'
 
 export function NavUser() {
   const { isMobile } = useSidebar()
@@ -40,8 +40,12 @@ export function NavUser() {
               >
                 <Avatar className='h-8 w-8 rounded-lg'>
                   <AvatarImage src={avatar} alt={name} />
-                  <AvatarFallback className='rounded-lg p-0 overflow-hidden'>
-                    <img src={DEFAULT_TEACHER_AVATAR} alt='' className='size-full object-cover' />
+                  <AvatarFallback className='overflow-hidden rounded-lg p-0'>
+                    <img
+                      src={DEFAULT_TEACHER_AVATAR}
+                      alt=''
+                      className='size-full object-cover'
+                    />
                   </AvatarFallback>
                 </Avatar>
                 <div className='grid flex-1 text-start text-sm leading-tight'>
@@ -61,8 +65,12 @@ export function NavUser() {
                 <div className='flex items-center gap-2 px-1 py-1.5 text-start text-sm'>
                   <Avatar className='h-8 w-8 rounded-lg'>
                     <AvatarImage src={avatar} alt={name} />
-                    <AvatarFallback className='rounded-lg p-0 overflow-hidden'>
-                      <img src={DEFAULT_TEACHER_AVATAR} alt='' className='size-full object-cover' />
+                    <AvatarFallback className='overflow-hidden rounded-lg p-0'>
+                      <img
+                        src={DEFAULT_TEACHER_AVATAR}
+                        alt=''
+                        className='size-full object-cover'
+                      />
                     </AvatarFallback>
                   </Avatar>
                   <div className='grid flex-1 text-start text-sm leading-tight'>

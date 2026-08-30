@@ -63,8 +63,10 @@ type AdminUserWord = {
 const ALL = 'all'
 
 function statusBadge(status: string) {
-  if (status === 'adopted') return { label: '已写入词库', variant: 'outline' as const }
-  if (status === 'dismissed') return { label: '已忽略', variant: 'secondary' as const }
+  if (status === 'adopted')
+    return { label: '已写入词库', variant: 'outline' as const }
+  if (status === 'dismissed')
+    return { label: '已忽略', variant: 'secondary' as const }
   return { label: '待审核', variant: 'default' as const }
 }
 
@@ -150,7 +152,11 @@ export function UserWordsPage() {
       title='用户单词'
       description='用户对词库单词的修正。展示时用这份覆盖原文；确认无误后再写入共享词库。'
       extra={
-        <Button variant='outline' disabled={loading} onClick={() => void load(page)}>
+        <Button
+          variant='outline'
+          disabled={loading}
+          onClick={() => void load(page)}
+        >
           <RefreshCw className='size-4' />
           刷新
         </Button>
@@ -223,16 +229,19 @@ export function UserWordsPage() {
             ) : (
               list.map((row) => {
                 const badge = statusBadge(row.status)
-                const overlayWord = row.overlay.word || row.canonical.word || `#${row.wordId}`
+                const overlayWord =
+                  row.overlay.word || row.canonical.word || `#${row.wordId}`
                 const wordChanged =
-                  Boolean(row.overlay.word) && row.overlay.word !== row.canonical.word
+                  Boolean(row.overlay.word) &&
+                  row.overlay.word !== row.canonical.word
                 const transShortChanged =
                   Boolean(row.overlay.translationShort) &&
                   pretty(row.overlay.translationShort) !==
                     pretty(row.canonical.translationShort)
                 const transChanged =
                   Boolean(row.overlay.translation) &&
-                  pretty(row.overlay.translation) !== pretty(row.canonical.translation)
+                  pretty(row.overlay.translation) !==
+                    pretty(row.canonical.translation)
                 const overlayTrans = pretty(
                   row.overlay.translationShort ||
                     row.overlay.translation ||
@@ -252,7 +261,9 @@ export function UserWordsPage() {
                     <TableCell className='max-w-xs'>
                       <div
                         className={`truncate font-medium ${
-                          wordChanged ? 'text-emerald-700 dark:text-emerald-400' : ''
+                          wordChanged
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : ''
                         }`}
                       >
                         {overlayWord}
@@ -282,7 +293,7 @@ export function UserWordsPage() {
                     <TableCell>
                       <Badge variant={badge.variant}>{badge.label}</Badge>
                     </TableCell>
-                    <TableCell className='whitespace-nowrap text-sm text-muted-foreground'>
+                    <TableCell className='text-sm whitespace-nowrap text-muted-foreground'>
                       {formatDateTime(row.updatedAt || row.createdAt)}
                     </TableCell>
                     <TableCell className='text-right'>
@@ -338,11 +349,16 @@ export function UserWordsPage() {
             <div className='flex-1 space-y-4 overflow-y-auto px-4 pb-4'>
               {detail.notes ? (
                 <div className='rounded-md border bg-muted/40 p-3 text-sm'>
-                  <div className='mb-1 text-xs text-muted-foreground'>用户备注</div>
+                  <div className='mb-1 text-xs text-muted-foreground'>
+                    用户备注
+                  </div>
                   {detail.notes}
                 </div>
               ) : null}
-              <CompareTable overlay={detail.overlay} canonical={detail.canonical} />
+              <CompareTable
+                overlay={detail.overlay}
+                canonical={detail.canonical}
+              />
             </div>
           ) : null}
           <SheetFooter className='gap-2'>
@@ -422,18 +438,26 @@ function CompareTable({
                 changed ? 'bg-amber-50/70 dark:bg-amber-950/20' : ''
               }`}
             >
-              <div className={changed ? 'font-medium text-foreground' : 'text-muted-foreground'}>
+              <div
+                className={
+                  changed
+                    ? 'font-medium text-foreground'
+                    : 'text-muted-foreground'
+                }
+              >
                 {row.label}
               </div>
               <div
-                className={`break-all rounded-md px-1.5 py-0.5 ${
-                  changed ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200' : ''
+                className={`rounded-md px-1.5 py-0.5 break-all ${
+                  changed
+                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200'
+                    : ''
                 }`}
               >
                 {left}
               </div>
               <div
-                className={`break-all rounded-md px-1.5 py-0.5 ${
+                className={`rounded-md px-1.5 py-0.5 break-all ${
                   changed
                     ? 'bg-emerald-100 font-medium text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
                     : 'text-muted-foreground'

@@ -24,12 +24,19 @@ import {
   seriesForPicker,
   type ChartSeriesKey,
 } from './chart-series'
-import { FilterableTrendChart } from './components/metrics-charts'
 import {
   MetricSeriesPicker,
   selectedSeriesLabel,
 } from './components/metric-series-picker'
+import { FilterableTrendChart } from './components/metrics-charts'
 import { MetricsRangePicker } from './components/metrics-range-picker'
+import {
+  errorRate,
+  formatQps,
+  toChartPoints,
+  type LiveMetric,
+  type SysMetricRow,
+} from './metrics'
 import {
   dayLabel,
   isRangeEndingToday,
@@ -40,18 +47,13 @@ import {
   validateCustomRange,
   type MetricsRangeState,
 } from './metrics-range'
-import {
-  errorRate,
-  formatQps,
-  toChartPoints,
-  type LiveMetric,
-  type SysMetricRow,
-} from './metrics'
 
 const LIVE_POLL_MS = 5000
 
 export function Dashboard() {
-  const [range, setRange] = useState<MetricsRangeState>(() => loadMetricsRange())
+  const [range, setRange] = useState<MetricsRangeState>(() =>
+    loadMetricsRange()
+  )
   const [rows, setRows] = useState<SysMetricRow[]>([])
   const [live, setLive] = useState<LiveMetric | null>(null)
   const [loading, setLoading] = useState(true)
@@ -123,7 +125,9 @@ export function Dashboard() {
   const today = rows.length > 0 ? rows[rows.length - 1] : undefined
   const yesterday = rows.length > 1 ? rows[rows.length - 2] : undefined
   const lastDayLabel = dayLabel(today?.metricDate)
-  const compareHint = endingToday ? '较昨日' : `较前日 (${dayLabel(yesterday?.metricDate)})`
+  const compareHint = endingToday
+    ? '较昨日'
+    : `较前日 (${dayLabel(yesterday?.metricDate)})`
 
   return (
     <AdminPage
@@ -148,13 +152,21 @@ export function Dashboard() {
             <StatCard
               title={endingToday ? '今日请求' : `${lastDayLabel} 请求`}
               value={formatInt(today?.requests)}
-              hint={formatCompare(today?.requests ?? 0, yesterday?.requests ?? 0, compareHint)}
+              hint={formatCompare(
+                today?.requests ?? 0,
+                yesterday?.requests ?? 0,
+                compareHint
+              )}
               icon={Activity}
             />
             <StatCard
               title={endingToday ? '今日 UV' : `${lastDayLabel} UV`}
               value={formatInt(today?.uv)}
-              hint={formatCompare(today?.uv ?? 0, yesterday?.uv ?? 0, compareHint)}
+              hint={formatCompare(
+                today?.uv ?? 0,
+                yesterday?.uv ?? 0,
+                compareHint
+              )}
               icon={Users}
             />
             <StatCard
@@ -175,7 +187,11 @@ export function Dashboard() {
             <StatCard
               title={endingToday ? '今日新增用户' : `${lastDayLabel} 新增`}
               value={formatInt(today?.newUsers)}
-              hint={formatCompare(today?.newUsers ?? 0, yesterday?.newUsers ?? 0, compareHint)}
+              hint={formatCompare(
+                today?.newUsers ?? 0,
+                yesterday?.newUsers ?? 0,
+                compareHint
+              )}
               icon={UserPlus}
             />
             <StatCard
@@ -186,17 +202,18 @@ export function Dashboard() {
             />
             <StatCard
               title={endingToday ? '4xx 错误率' : `${lastDayLabel} 4xx`}
-              value={errorRate(
-                today?.requests ?? 0,
-                today?.clientErrors ?? 0
-              )}
+              value={errorRate(today?.requests ?? 0, today?.clientErrors ?? 0)}
               hint={`${formatInt(today?.clientErrors)} / ${formatInt(today?.requests)} 请求`}
               icon={ShieldAlert}
             />
             <StatCard
               title={endingToday ? '今日 IP' : `${lastDayLabel} IP`}
               value={formatInt(today?.ip)}
-              hint={formatCompare(today?.ip ?? 0, yesterday?.ip ?? 0, compareHint)}
+              hint={formatCompare(
+                today?.ip ?? 0,
+                yesterday?.ip ?? 0,
+                compareHint
+              )}
               icon={Globe}
             />
           </div>
@@ -206,8 +223,8 @@ export function Dashboard() {
               <div>
                 <CardTitle>趋势曲线</CardTitle>
                 <CardDescription>
-                  {rangeDescription(range)} · {selectedSeriesLabel(selectedSeries)} ·
-                  仅展示有数据的指标
+                  {rangeDescription(range)} ·{' '}
+                  {selectedSeriesLabel(selectedSeries)} · 仅展示有数据的指标
                 </CardDescription>
               </div>
               <MetricSeriesPicker
@@ -217,10 +234,7 @@ export function Dashboard() {
               />
             </CardHeader>
             <CardContent className='px-2 sm:px-6'>
-              <FilterableTrendChart
-                data={points}
-                selected={selectedSeries}
-              />
+              <FilterableTrendChart data={points} selected={selectedSeries} />
             </CardContent>
           </Card>
         </div>
@@ -233,7 +247,11 @@ function formatInt(n: number | undefined): string {
   return (n ?? 0).toLocaleString()
 }
 
-function formatCompare(today: number, yesterday: number, suffix: string): string {
+function formatCompare(
+  today: number,
+  yesterday: number,
+  suffix: string
+): string {
   if (yesterday <= 0) return `${suffix} —`
   const pct = ((today - yesterday) / yesterday) * 100
   const sign = pct > 0 ? '+' : ''

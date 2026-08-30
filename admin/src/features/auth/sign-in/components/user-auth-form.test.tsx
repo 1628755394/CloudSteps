@@ -105,7 +105,9 @@ describe('UserAuthForm', () => {
         },
       })
       screen = await render(<UserAuthForm />)
-      usernameInput = screen.getByRole('textbox', { name: /username or email/i })
+      usernameInput = screen.getByRole('textbox', {
+        name: /username or email/i,
+      })
       passwordInput = screen.getByLabelText(/^Password$/i)
       signInButton = screen.getByRole('button', { name: /^Sign in$/i })
       forgotPasswordLink = screen.getByText(/^Forgot password\?$/i)
@@ -132,7 +134,9 @@ describe('UserAuthForm', () => {
     it('authenticates and navigates to default route on success', async () => {
       await userEvent.fill(usernameInput, 'admin')
       await userEvent.fill(passwordInput, '1234567')
-      await userEvent.click(screen.getByRole('button', { name: 'Complete captcha' }))
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Complete captcha' })
+      )
 
       await userEvent.click(signInButton)
 
@@ -148,9 +152,7 @@ describe('UserAuthForm', () => {
       expect(setAccessTokenMock).toHaveBeenCalledOnce()
       expect(setAccessTokenMock).toHaveBeenCalledWith('mock-access-token')
 
-      await vi.waitFor(() =>
-        expect(locationAssign).toHaveBeenCalledWith('/')
-      )
+      await vi.waitFor(() => expect(locationAssign).toHaveBeenCalledWith('/'))
     })
   })
 

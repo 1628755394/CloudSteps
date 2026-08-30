@@ -147,10 +147,7 @@ export function reconcileSelection(
   return next.length > 0 ? next : defaultSelected(available)
 }
 
-export function formatSeriesValue(
-  key: ChartSeriesKey,
-  value: number
-): string {
+export function formatSeriesValue(key: ChartSeriesKey, value: number): string {
   const def = getSeriesDef(key)
   if (def.unit === 'ms') return `${value.toFixed(1)} ms`
   return value.toLocaleString()

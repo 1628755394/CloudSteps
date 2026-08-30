@@ -60,7 +60,7 @@ export function useWordBookAudioJobs(books: BookRef[]) {
 
     const tick = async () => {
       if (stopped) return
-      let nextMs = POLL_IDLE_MS
+      let nextMs: number
       try {
         const res = await get<{ jobs?: BatchJobSnap[] }>(
           '/wordbooks/batch-audio/jobs',
@@ -122,7 +122,9 @@ export function useWordBookAudioJobs(books: BookRef[]) {
               total?: number
               success?: number
               error?: string
-            }>(`/wordbooks/${id}/words/batch-audio`, { timeout: JOBS_TIMEOUT_MS })
+            }>(`/wordbooks/${id}/words/batch-audio`, {
+              timeout: JOBS_TIMEOUT_MS,
+            })
             if (stopped) return
             const status = one.data?.status || 'idle'
             if (status === 'failed') {

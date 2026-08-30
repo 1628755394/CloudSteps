@@ -19,9 +19,9 @@ describe('formatScheduleDate', () => {
 
 describe('personLabel', () => {
   it('prefers display name then username then id', () => {
-    expect(
-      personLabel({ displayName: '小明', username: 'stu1' }, 9)
-    ).toBe('小明')
+    expect(personLabel({ displayName: '小明', username: 'stu1' }, 9)).toBe(
+      '小明'
+    )
     expect(personLabel({ username: 'stu1' }, 9)).toBe('stu1')
     expect(personLabel(undefined, 9)).toBe('#9')
     expect(personLabel(undefined)).toBe('—')

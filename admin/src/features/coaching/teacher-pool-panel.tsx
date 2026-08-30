@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { get, put } from '@/lib/api'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -20,11 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import {
-  formatMinutes,
-  personLabel,
-} from './quota-display'
+import { formatMinutes, personLabel } from './quota-display'
 
 export type TeacherPoolRow = {
   id: number
@@ -99,8 +96,9 @@ export function TeacherPoolPanel() {
   return (
     <div className='space-y-4'>
       <p className='text-sm text-muted-foreground'>
-        老师可授课<strong>总池</strong>：默认 0；公开注册赠送 180 分钟（跨所有学员合计扣减）。
-        开始上课需老师池 &gt; 0，且对应学员也有陪练剩余。下方「月度统计」仅供对账参考，不限制开课。
+        老师可授课<strong>总池</strong>：默认 0；公开注册赠送 180
+        分钟（跨所有学员合计扣减）。 开始上课需老师池 &gt;
+        0，且对应学员也有陪练剩余。下方「月度统计」仅供对账参考，不限制开课。
       </p>
       <div className='flex flex-wrap items-end gap-3'>
         <div className='grid gap-1.5'>
@@ -113,7 +111,11 @@ export function TeacherPoolPanel() {
             onChange={(e) => setTeacherFilter(e.target.value)}
           />
         </div>
-        <Button variant='outline' onClick={() => void load()} disabled={loading}>
+        <Button
+          variant='outline'
+          onClick={() => void load()}
+          disabled={loading}
+        >
           查询
         </Button>
       </div>
@@ -137,7 +139,10 @@ export function TeacherPoolPanel() {
           <TableBody>
             {list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className='text-center text-muted-foreground'>
+                <TableCell
+                  colSpan={5}
+                  className='text-center text-muted-foreground'
+                >
                   暂无授课池记录（未开课的老师可能尚未生成行，注册后会自动创建）
                 </TableCell>
               </TableRow>
@@ -154,10 +159,10 @@ export function TeacherPoolPanel() {
                         ID {row.teacherId}
                       </div>
                     </TableCell>
-                    <TableCell className='tabular-nums font-medium'>
+                    <TableCell className='font-medium tabular-nums'>
                       {formatMinutes(row.remainingMinutes)}
                     </TableCell>
-                    <TableCell className='tabular-nums text-muted-foreground'>
+                    <TableCell className='text-muted-foreground tabular-nums'>
                       {formatMinutes(row.totalAllocatedMinutes)}
                     </TableCell>
                     <TableCell>
@@ -192,7 +197,8 @@ export function TeacherPoolPanel() {
           {edit && (
             <div className='grid gap-3 py-2'>
               <p className='text-sm text-muted-foreground'>
-                {personLabel(edit.teacher, edit.teacherId)}（ID {edit.teacherId}）
+                {personLabel(edit.teacher, edit.teacherId)}（ID {edit.teacherId}
+                ）
               </p>
               <div className='grid gap-1.5'>
                 <Label>剩余可授课分钟</Label>

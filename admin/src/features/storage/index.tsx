@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Eye, Folder, Link2, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
-import { ConfirmDialog } from '@/components/confirm-dialog'
 import { get, post } from '@/lib/api'
 import { formatDateTime } from '@/lib/datetime'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { AdminPage } from '@/components/admin-page'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   canPageNext,
   deleteConfirmText,
@@ -82,7 +82,9 @@ export function StoragePage() {
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<StorageFile | null>(null)
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set())
-  const [selectedPrefixes, setSelectedPrefixes] = useState<Set<string>>(() => new Set())
+  const [selectedPrefixes, setSelectedPrefixes] = useState<Set<string>>(
+    () => new Set()
+  )
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -112,7 +114,9 @@ export function StoragePage() {
 
   const loadBuckets = async () => {
     try {
-      const res = await get<{ buckets?: BucketInfo[] }>('/admin/storage/buckets')
+      const res = await get<{ buckets?: BucketInfo[] }>(
+        '/admin/storage/buckets'
+      )
       setBuckets(res.data.buckets ?? [])
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '无法列出存储桶')
@@ -241,7 +245,8 @@ export function StoragePage() {
 
   const fileKeys = files.map((f) => f.key)
   const allFilesSelected =
-    fileKeys.length === 0 || fileKeys.every((k) => selectedKeys.has(k) || isFileCovered(k))
+    fileKeys.length === 0 ||
+    fileKeys.every((k) => selectedKeys.has(k) || isFileCovered(k))
   const allFoldersSelected =
     folders.length === 0 || folders.every((p) => selectedPrefixes.has(p))
   const allSelected = allFilesSelected && allFoldersSelected
@@ -252,7 +257,8 @@ export function StoragePage() {
   const selectionTotal = selectedKeys.size + selectedPrefixes.size
 
   const crumbs = prefixCrumbs(prefix)
-  const showPager = page > 1 || canPageNext(page, markers, truncated, nextMarker)
+  const showPager =
+    page > 1 || canPageNext(page, markers, truncated, nextMarker)
 
   const openBulkDelete = () => {
     setDeleteTarget({
@@ -326,7 +332,12 @@ export function StoragePage() {
               删除选中（{selectionTotal}）
             </Button>
           ) : null}
-          <Button variant='outline' size='sm' disabled={loading} onClick={() => void loadFiles()}>
+          <Button
+            variant='outline'
+            size='sm'
+            disabled={loading}
+            onClick={() => void loadFiles()}
+          >
             <RefreshCw className='size-4' />
             刷新
           </Button>
@@ -409,7 +420,9 @@ export function StoragePage() {
           <TableRow>
             <TableHead className='w-10'>
               <Checkbox
-                checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                checked={
+                  allSelected ? true : someSelected ? 'indeterminate' : false
+                }
                 onCheckedChange={(v) => {
                   if (v) {
                     setSelectedKeys(new Set(fileKeys))
@@ -458,7 +471,9 @@ export function StoragePage() {
                 <Button
                   variant='ghost'
                   size='sm'
-                  onClick={() => setDeleteTarget({ keys: [], prefixes: [folder] })}
+                  onClick={() =>
+                    setDeleteTarget({ keys: [], prefixes: [folder] })
+                  }
                 >
                   <Trash2 className='size-4' />
                 </Button>
@@ -470,7 +485,9 @@ export function StoragePage() {
             return (
               <TableRow
                 key={file.key}
-                data-state={selectedKeys.has(file.key) || covered ? 'selected' : undefined}
+                data-state={
+                  selectedKeys.has(file.key) || covered ? 'selected' : undefined
+                }
               >
                 <TableCell>
                   <Checkbox
@@ -492,17 +509,27 @@ export function StoragePage() {
                 <TableCell>{formatBytes(file.size)}</TableCell>
                 <TableCell>{formatDateTime(file.lastModified)}</TableCell>
                 <TableCell className='flex gap-1'>
-                  <Button variant='ghost' size='sm' onClick={() => setPreview(file)}>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => setPreview(file)}
+                  >
                     <Eye className='size-4' />
                   </Button>
-                  <Button variant='ghost' size='sm' onClick={() => void copyURL(file.key)}>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => void copyURL(file.key)}
+                  >
                     <Link2 className='size-4' />
                   </Button>
                   <Button
                     variant='ghost'
                     size='sm'
                     disabled={covered}
-                    onClick={() => setDeleteTarget({ keys: [file.key], prefixes: [] })}
+                    onClick={() =>
+                      setDeleteTarget({ keys: [file.key], prefixes: [] })
+                    }
                   >
                     <Trash2 className='size-4' />
                   </Button>
@@ -532,7 +559,9 @@ export function StoragePage() {
           </Button>
           <Button
             variant='outline'
-            disabled={loading || !canPageNext(page, markers, truncated, nextMarker)}
+            disabled={
+              loading || !canPageNext(page, markers, truncated, nextMarker)
+            }
             onClick={() => setPage((p) => p + 1)}
           >
             下一页

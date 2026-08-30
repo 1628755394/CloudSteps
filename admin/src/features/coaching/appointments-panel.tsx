@@ -81,7 +81,7 @@ export function CoachingAppointmentsPanel() {
       const data = res.data
       const rows = Array.isArray(data) ? data : data.list || []
       setList(rows)
-      setTotal(Array.isArray(data) ? rows.length : data.total ?? rows.length)
+      setTotal(Array.isArray(data) ? rows.length : (data.total ?? rows.length))
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : '加载陪练失败')
     } finally {
@@ -163,13 +163,25 @@ export function CoachingAppointmentsPanel() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant='outline' onClick={() => void load()} disabled={loading}>
+        <Button
+          variant='outline'
+          onClick={() => void load()}
+          disabled={loading}
+        >
           查询
         </Button>
-        <Button variant='ghost' size='sm' onClick={() => applyRange(weekRange())}>
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={() => applyRange(weekRange())}
+        >
           本周
         </Button>
-        <Button variant='ghost' size='sm' onClick={() => applyRange(monthRange())}>
+        <Button
+          variant='ghost'
+          size='sm'
+          onClick={() => applyRange(monthRange())}
+        >
           本月
         </Button>
       </div>

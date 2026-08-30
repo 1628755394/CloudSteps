@@ -81,7 +81,10 @@ export function UserPicker({ value, onChange, disabled }: UserPickerProps) {
           <ChevronsUpDown className='ms-2 size-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className='w-[var(--radix-popover-trigger-width)] p-0' align='start'>
+      <PopoverContent
+        className='w-[var(--radix-popover-trigger-width)] p-0'
+        align='start'
+      >
         <Command shouldFilter={false}>
           <CommandInput
             placeholder='搜索用户名 / 显示名 / 邮箱…'
@@ -114,7 +117,7 @@ export function UserPicker({ value, onChange, disabled }: UserPickerProps) {
                         <Check
                           className={cn(
                             'size-4',
-                            active ? 'opacity-100' : 'opacity-0',
+                            active ? 'opacity-100' : 'opacity-0'
                           )}
                         />
                         <div className='min-w-0 flex-1'>

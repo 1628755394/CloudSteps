@@ -2,7 +2,10 @@ import { LegalPage } from './legal-page'
 
 export function TermsPage() {
   return (
-    <LegalPage title='Terms of Service' updatedAt='Effective date: March 26, 2026'>
+    <LegalPage
+      title='Terms of Service'
+      updatedAt='Effective date: March 26, 2026'
+    >
       <p>
         Welcome to CloudSteps. These terms form a binding agreement between you
         and the CloudSteps operator. Please read them before registering,
@@ -12,9 +15,9 @@ export function TermsPage() {
       <section className='space-y-2'>
         <h2 className='text-base font-semibold'>1. Account</h2>
         <p className='text-muted-foreground'>
-          You must provide accurate registration information and keep it
-          up to date. You are responsible for safeguarding your credentials,
-          including passwords, captcha answers, and tokens.
+          You must provide accurate registration information and keep it up to
+          date. You are responsible for safeguarding your credentials, including
+          passwords, captcha answers, and tokens.
         </p>
       </section>
       <section className='space-y-2'>
@@ -30,8 +33,13 @@ export function TermsPage() {
         <p className='text-muted-foreground'>You must not:</p>
         <ul className='list-disc space-y-1 ps-5 text-muted-foreground'>
           <li>Violate applicable laws, regulations, or public order.</li>
-          <li>Infringe others’ rights, including privacy and intellectual property.</li>
-          <li>Access, disrupt, or damage systems or data without authorization.</li>
+          <li>
+            Infringe others’ rights, including privacy and intellectual
+            property.
+          </li>
+          <li>
+            Access, disrupt, or damage systems or data without authorization.
+          </li>
           <li>Create or spread illegal or harmful content.</li>
         </ul>
       </section>
@@ -47,8 +55,8 @@ export function TermsPage() {
         <h2 className='text-base font-semibold'>5. Disclaimer</h2>
         <p className='text-muted-foreground'>
           We work to keep the service available, but we do not guarantee
-          uninterrupted or error-free operation. To the extent permitted by
-          law, we are not liable for outages caused by force majeure, network
+          uninterrupted or error-free operation. To the extent permitted by law,
+          we are not liable for outages caused by force majeure, network
           failure, or third parties.
         </p>
       </section>

@@ -53,7 +53,8 @@ export function wordbooksListSearch(
   search: Partial<WordbooksSearch>
 ): WordbooksSearch {
   const next: WordbooksSearch = {
-    page: Number(search.page) > 0 ? Number(search.page) : WORDBOOKS_DEFAULT_PAGE,
+    page:
+      Number(search.page) > 0 ? Number(search.page) : WORDBOOKS_DEFAULT_PAGE,
     pageSize:
       Number(search.pageSize) > 0
         ? Number(search.pageSize)
@@ -84,9 +85,9 @@ export function wordbooksApiParams(search: WordbooksSearch): URLSearchParams {
 export function hasWordbookFilters(search: WordbooksSearch): boolean {
   return Boolean(
     search.keyword ||
-      search.isActive ||
-      search.group ||
-      search.sourceName ||
-      search.level
+    search.isActive ||
+    search.group ||
+    search.sourceName ||
+    search.level
   )
 }

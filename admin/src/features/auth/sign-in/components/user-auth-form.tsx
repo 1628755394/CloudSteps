@@ -6,8 +6,8 @@ import { Link } from '@tanstack/react-router'
 import { Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
 import { IconFacebook, IconGithub } from '@/assets/brand-icons'
-import { post } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
+import { post } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,10 +20,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { PasswordInput } from '@/components/password-input'
-import {
-  CaptchaChallenge,
-  type CaptchaValue,
-} from './captcha-challenge'
+import { CaptchaChallenge, type CaptchaValue } from './captcha-challenge'
 
 const formSchema = z.object({
   username: z.string().min(1, 'Please enter your username or email.'),
@@ -33,12 +30,7 @@ const formSchema = z.object({
     .min(6, 'Password must be at least 6 characters long.'),
 })
 
-const AUTH_REDIRECTS = [
-  '/sign-in',
-  '/sign-up',
-  '/otp',
-  '/forgot-password',
-]
+const AUTH_REDIRECTS = ['/sign-in', '/sign-up', '/otp', '/forgot-password']
 
 function postLoginPath(redirectTo?: string) {
   if (!redirectTo) return '/'
@@ -159,11 +151,7 @@ export function UserAuthForm({
             <FormItem>
               <FormLabel>Username or email</FormLabel>
               <FormControl>
-                <Input
-                  placeholder='admin'
-                  autoComplete='username'
-                  {...field}
-                />
+                <Input placeholder='admin' autoComplete='username' {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -14,7 +14,7 @@ export function CoverMetaBadges({
     if (plainText) {
       return (
         <p
-          className={`text-sm text-muted-foreground line-clamp-2 ${className ?? ''}`}
+          className={`line-clamp-2 text-sm text-muted-foreground ${className ?? ''}`}
         >
           {plainText}
         </p>
@@ -27,7 +27,11 @@ export function CoverMetaBadges({
     )
   }
 
-  const items: { key: string; label: string; variant: 'default' | 'secondary' | 'outline' }[] = []
+  const items: {
+    key: string
+    label: string
+    variant: 'default' | 'secondary' | 'outline'
+  }[] = []
   if (meta.cat) items.push({ key: 'cat', label: meta.cat, variant: 'default' })
   if (meta.t1) items.push({ key: 't1', label: meta.t1, variant: 'secondary' })
   if (meta.t2) items.push({ key: 't2', label: meta.t2, variant: 'outline' })

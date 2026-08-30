@@ -14,6 +14,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import {
   Table,
   TableBody,
   TableCell,
@@ -22,12 +28,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { AdminPage } from '@/components/admin-page'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
 import { TestSendDialog } from '@/features/mail-templates/test-send-dialog'
 
 export type MailLog = {
@@ -226,7 +226,9 @@ export function MailLogsPage() {
                     {formatDateTime(row.sent_at || row.created_at)}
                   </TableCell>
                   <TableCell>{row.to_email}</TableCell>
-                  <TableCell className='max-w-xs truncate'>{row.subject}</TableCell>
+                  <TableCell className='max-w-xs truncate'>
+                    {row.subject}
+                  </TableCell>
                   <TableCell>
                     <div className='flex items-center gap-1.5'>
                       <Badge variant='outline'>{row.provider || '—'}</Badge>
@@ -236,7 +238,9 @@ export function MailLogsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
+                    <Badge variant={statusVariant(row.status)}>
+                      {row.status}
+                    </Badge>
                   </TableCell>
                   <TableCell className='text-right'>
                     <Button
@@ -272,7 +276,10 @@ export function MailLogsPage() {
         </div>
       ) : null}
 
-      <Sheet open={Boolean(detail)} onOpenChange={(next) => !next && setDetail(null)}>
+      <Sheet
+        open={Boolean(detail)}
+        onOpenChange={(next) => !next && setDetail(null)}
+      >
         <SheetContent className='overflow-y-auto sm:max-w-xl'>
           <SheetHeader>
             <SheetTitle>邮件日志详情</SheetTitle>
@@ -321,13 +328,7 @@ export function MailLogsPage() {
   )
 }
 
-function DetailRow({
-  label,
-  value,
-}: {
-  label: string
-  value: ReactNode
-}) {
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className='flex items-start gap-3'>
       <div className='w-24 shrink-0 text-muted-foreground'>{label}</div>

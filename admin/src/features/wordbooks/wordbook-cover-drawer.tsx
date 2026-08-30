@@ -2,10 +2,8 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { ImageIcon, Loader2, Sparkles, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { get, post } from '@/lib/api'
-import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -13,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import {
   Sheet,
   SheetContent,
@@ -22,6 +21,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { type CoverJob, isCoverJobActive } from './cover-jobs'
 import { parseCoverMeta } from './cover-meta'
 
@@ -76,9 +76,9 @@ function Section({
   children: ReactNode
 }) {
   return (
-    <section className='rounded-lg border bg-card p-4 shadow-sm space-y-3'>
+    <section className='space-y-3 rounded-lg border bg-card p-4 shadow-sm'>
       <div className='space-y-0.5'>
-        <h3 className='text-sm font-medium leading-none'>{title}</h3>
+        <h3 className='text-sm leading-none font-medium'>{title}</h3>
         {description ? (
           <p className='text-xs text-muted-foreground'>{description}</p>
         ) : null}
@@ -122,7 +122,10 @@ export function WordbookCoverDrawer({
 
   const active = job && isCoverJobActive(job.status)
   const preview =
-    job?.previewUrl || (job?.saved ? book?.coverUrl : '') || book?.coverUrl || ''
+    job?.previewUrl ||
+    (job?.saved ? book?.coverUrl : '') ||
+    book?.coverUrl ||
+    ''
 
   const loadDefaults = useCallback(async () => {
     if (!book) return
@@ -140,17 +143,14 @@ export function WordbookCoverDrawer({
       if (!job?.prompt) {
         setPrompt(data?.prompt || '')
       }
-      const opts =
-        data?.sizeOptions?.length ? data.sizeOptions : sizeOptions
+      const opts = data?.sizeOptions?.length ? data.sizeOptions : sizeOptions
       if (data?.sizeOptions?.length) {
         setSizeOptions(data.sizeOptions)
       }
       const defaultSize = data?.defaultSize || '1792x1024'
       const raw = job?.size || defaultSize
       const picked = opts.find((o) => o.value === raw)
-      setSize(
-        picked && raw !== '1024x1024' ? raw : defaultSize
-      )
+      setSize(picked && raw !== '1024x1024' ? raw : defaultSize)
       setConfigured(Boolean(data?.configured))
       setModel(data?.model || '')
     } catch (e: unknown) {
@@ -246,7 +246,9 @@ export function WordbookCoverDrawer({
   const runTest = async () => {
     setTesting(true)
     try {
-      const res = await post<Record<string, unknown>>('/wordbooks/cover-ai/test')
+      const res = await post<Record<string, unknown>>(
+        '/wordbooks/cover-ai/test'
+      )
       toast.success(res.msg || '图片生成接口可用')
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : '接口测试失败')
@@ -379,11 +381,7 @@ export function WordbookCoverDrawer({
             <Section title='生成参数'>
               <div className='grid gap-1.5'>
                 <Label>尺寸</Label>
-                <Select
-                  value={size}
-                  onValueChange={setSize}
-                  disabled={active}
-                >
+                <Select value={size} onValueChange={setSize} disabled={active}>
                   <SelectTrigger className='w-full'>
                     <SelectValue placeholder='选择尺寸' />
                   </SelectTrigger>
@@ -484,9 +482,7 @@ export function WordbookCoverDrawer({
             </Section>
 
             <Section title='预览'>
-              <div
-                className='relative flex w-full aspect-[1792/1024] items-center justify-center overflow-hidden rounded-md border border-dashed bg-muted/20'
-              >
+              <div className='relative flex aspect-[1792/1024] w-full items-center justify-center overflow-hidden rounded-md border border-dashed bg-muted/20'>
                 {preview ? (
                   <img
                     src={preview}
@@ -504,9 +500,7 @@ export function WordbookCoverDrawer({
           </div>
         ) : null}
 
-        <SheetFooter
-          className='shrink-0 flex-row flex-wrap justify-end gap-2 border-t bg-muted/30 px-6 py-4'
-        >
+        <SheetFooter className='shrink-0 flex-row flex-wrap justify-end gap-2 border-t bg-muted/30 px-6 py-4'>
           <Button
             type='button'
             variant='outline'

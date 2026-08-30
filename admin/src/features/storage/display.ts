@@ -24,7 +24,17 @@ export function fileLabel(key: string): string {
 
 export type PreviewKind = 'image' | 'audio' | 'video' | 'pdf' | 'text' | 'other'
 
-const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'])
+const IMAGE_EXT = new Set([
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'svg',
+  'bmp',
+  'ico',
+  'avif',
+])
 const AUDIO_EXT = new Set(['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac', 'opus'])
 const VIDEO_EXT = new Set(['mp4', 'webm', 'mov', 'm4v', 'ogv'])
 const TEXT_EXT = new Set([
@@ -88,7 +98,12 @@ export function pageMarker(markers: string[], page: number): string {
   return markers[page - 1] ?? ''
 }
 
-export function canPageNext(page: number, markers: string[], truncated: boolean, nextMarker: string): boolean {
+export function canPageNext(
+  page: number,
+  markers: string[],
+  truncated: boolean,
+  nextMarker: string
+): boolean {
   return page < markers.length || (truncated && Boolean(nextMarker))
 }
 
@@ -111,9 +126,13 @@ export function deleteConfirmText(keys: string[], prefixes: string[]): string {
   return `确定删除选中的 ${parts.join('和')}？此操作不可恢复。`
 }
 
-export function prefixCrumbs(prefix: string): { label: string; prefix: string }[] {
+export function prefixCrumbs(
+  prefix: string
+): { label: string; prefix: string }[] {
   const parts = prefix.split('/').filter(Boolean)
-  const crumbs: { label: string; prefix: string }[] = [{ label: '根目录', prefix: '' }]
+  const crumbs: { label: string; prefix: string }[] = [
+    { label: '根目录', prefix: '' },
+  ]
   let acc = ''
   for (const part of parts) {
     acc += `${part}/`

@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { Calendar as CalendarIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -14,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
 import {
   defaultCustomRange,
   MAX_RANGE_DAYS,
@@ -46,13 +46,15 @@ export function MetricsRangePicker({
   }
 
   const customError =
-    value.kind === 'custom'
-      ? validateCustomRange(value.from, value.to)
-      : null
+    value.kind === 'custom' ? validateCustomRange(value.from, value.to) : null
 
   return (
     <div className='flex flex-wrap items-center gap-2'>
-      <Select value={selectValue} onValueChange={onPresetChange} disabled={disabled}>
+      <Select
+        value={selectValue}
+        onValueChange={onPresetChange}
+        disabled={disabled}
+      >
         <SelectTrigger size='sm' className='w-[132px]'>
           <SelectValue placeholder='时间范围' />
         </SelectTrigger>
@@ -73,7 +75,9 @@ export function MetricsRangePicker({
             value={value.from}
             disabled={disabled}
             max={value.to}
-            onChange={(from) => onChange({ kind: 'custom', from, to: value.to })}
+            onChange={(from) =>
+              onChange({ kind: 'custom', from, to: value.to })
+            }
           />
           <span className='text-sm text-muted-foreground'>—</span>
           <CompactDatePicker
@@ -81,7 +85,9 @@ export function MetricsRangePicker({
             value={value.to}
             disabled={disabled}
             min={value.from}
-            onChange={(to) => onChange({ kind: 'custom', from: value.from, to })}
+            onChange={(to) =>
+              onChange({ kind: 'custom', from: value.from, to })
+            }
           />
           {customError ? (
             <span className='text-xs text-destructive'>{customError}</span>

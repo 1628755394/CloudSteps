@@ -26,14 +26,14 @@ import { Switch } from '@/components/ui/switch'
 import { AdminPage } from '@/components/admin-page'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { AudioJobButtons } from './audio-job-buttons'
-import { CoverMetaBadges } from './cover-meta-badges'
+import { coverJobButtonLabel } from './cover-jobs'
 import {
   buildDescriptionFromForm,
   emptyWordBookForm,
   type WordBookEditForm,
   wordBookToForm,
 } from './cover-meta'
-import { coverJobButtonLabel } from './cover-jobs'
+import { CoverMetaBadges } from './cover-meta-badges'
 import {
   DEFAULT_WORDBOOK_GROUPS,
   defaultWordbooksSearch,
@@ -368,121 +368,119 @@ export function WordBooksPage() {
             const coverBusy =
               coverJob?.status === 'queued' || coverJob?.status === 'running'
             return (
-            <Card key={b.id}>
-              <CardHeader className='flex flex-row items-start justify-between space-y-0'>
-                <div>
-                  <CardTitle className='text-base'>
-                    <Link
-                      to='/wordbooks/$bookId'
-                      params={{ bookId: String(b.id) }}
-                      search={listSearch}
-                      className='hover:underline'
-                    >
-                      {b.name}
-                    </Link>
-                  </CardTitle>
-                  <div className='mt-1.5'>
-                    <CoverMetaBadges description={b.description} />
-                  </div>
-                </div>
-                {b.isActive ? (
-                  <Badge variant='default'>已上架</Badge>
-                ) : (
-                  <Button
-                    size='sm'
-                    variant='outline'
-                    disabled={publishingId === b.id}
-                    onClick={() => void publish(b)}
-                  >
-                    {publishingId === b.id ? (
-                      <Loader2 className='animate-spin' />
-                    ) : null}
-                    上架
-                  </Button>
-                )}
-              </CardHeader>
-              <CardContent className='space-y-3'>
-                <div className='relative w-full aspect-[1792/1024] overflow-hidden rounded-md border bg-muted'>
-                  {coverSrc ? (
-                    <img
-                      src={coverSrc}
-                      alt={`${b.name} 封面`}
-                      className='absolute inset-0 h-full w-full object-cover'
-                    />
-                  ) : (
-                    <div
-                      className='flex h-full w-full items-center justify-center bg-muted/40 text-sm text-muted-foreground'
-                    >
-                      暂无封面
+              <Card key={b.id}>
+                <CardHeader className='flex flex-row items-start justify-between space-y-0'>
+                  <div>
+                    <CardTitle className='text-base'>
+                      <Link
+                        to='/wordbooks/$bookId'
+                        params={{ bookId: String(b.id) }}
+                        search={listSearch}
+                        className='hover:underline'
+                      >
+                        {b.name}
+                      </Link>
+                    </CardTitle>
+                    <div className='mt-1.5'>
+                      <CoverMetaBadges description={b.description} />
                     </div>
-                  )}
-                  <Button
-                    type='button'
-                    size='sm'
-                    variant='secondary'
-                    className='absolute bottom-2 right-2 z-10 shadow-sm'
-                    onClick={() => setCoverBook(b)}
-                  >
-                    {coverBusy ? (
-                      <Loader2 className='size-4 animate-spin' />
-                    ) : (
-                      <Sparkles className='size-4' />
-                    )}
-                    {coverJobButtonLabel(coverJob)}
-                  </Button>
-                </div>
-                <div className='flex items-center justify-between text-sm text-muted-foreground'>
-                  <span>{b.level || '—'}</span>
-                  <span>{b.wordCount ?? 0} 词</span>
-                </div>
-                <div className='flex flex-wrap gap-2'>
-                  <Button size='sm' variant='outline' asChild>
-                    <Link
-                      to='/wordbooks/$bookId'
-                      params={{ bookId: String(b.id) }}
-                      search={listSearch}
+                  </div>
+                  {b.isActive ? (
+                    <Badge variant='default'>已上架</Badge>
+                  ) : (
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      disabled={publishingId === b.id}
+                      onClick={() => void publish(b)}
                     >
-                      单词
-                    </Link>
-                  </Button>
-                  <AudioJobButtons
-                    job={jobs[b.id]}
-                    onBatch={() => void toggleBatchAudio(b)}
-                    onPurge={() => void startPurgeAudio(b)}
-                  />
-                  <Button
-                    size='sm'
-                    variant='outline'
-                    onClick={() => setCoverBook(b)}
-                  >
-                    {coverBusy ? (
-                      <Loader2 className='size-4 animate-spin' />
+                      {publishingId === b.id ? (
+                        <Loader2 className='animate-spin' />
+                      ) : null}
+                      上架
+                    </Button>
+                  )}
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                  <div className='relative aspect-[1792/1024] w-full overflow-hidden rounded-md border bg-muted'>
+                    {coverSrc ? (
+                      <img
+                        src={coverSrc}
+                        alt={`${b.name} 封面`}
+                        className='absolute inset-0 h-full w-full object-cover'
+                      />
                     ) : (
-                      <Sparkles className='size-4' />
+                      <div className='flex h-full w-full items-center justify-center bg-muted/40 text-sm text-muted-foreground'>
+                        暂无封面
+                      </div>
                     )}
-                    {coverJobButtonLabel(coverJob)}
-                  </Button>
-                  <Button
-                    size='sm'
-                    variant='ghost'
-                    onClick={() => {
-                      setEditing(b)
-                      setForm(wordBookToForm(b))
-                      setOpen(true)
-                    }}
-                  >
-                    编辑
-                  </Button>
-                  <Button
-                    size='sm'
-                    variant='ghost'
-                    onClick={() => requestDelete(b)}
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                    <Button
+                      type='button'
+                      size='sm'
+                      variant='secondary'
+                      className='absolute right-2 bottom-2 z-10 shadow-sm'
+                      onClick={() => setCoverBook(b)}
+                    >
+                      {coverBusy ? (
+                        <Loader2 className='size-4 animate-spin' />
+                      ) : (
+                        <Sparkles className='size-4' />
+                      )}
+                      {coverJobButtonLabel(coverJob)}
+                    </Button>
+                  </div>
+                  <div className='flex items-center justify-between text-sm text-muted-foreground'>
+                    <span>{b.level || '—'}</span>
+                    <span>{b.wordCount ?? 0} 词</span>
+                  </div>
+                  <div className='flex flex-wrap gap-2'>
+                    <Button size='sm' variant='outline' asChild>
+                      <Link
+                        to='/wordbooks/$bookId'
+                        params={{ bookId: String(b.id) }}
+                        search={listSearch}
+                      >
+                        单词
+                      </Link>
+                    </Button>
+                    <AudioJobButtons
+                      job={jobs[b.id]}
+                      onBatch={() => void toggleBatchAudio(b)}
+                      onPurge={() => void startPurgeAudio(b)}
+                    />
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => setCoverBook(b)}
+                    >
+                      {coverBusy ? (
+                        <Loader2 className='size-4 animate-spin' />
+                      ) : (
+                        <Sparkles className='size-4' />
+                      )}
+                      {coverJobButtonLabel(coverJob)}
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='ghost'
+                      onClick={() => {
+                        setEditing(b)
+                        setForm(wordBookToForm(b))
+                        setOpen(true)
+                      }}
+                    >
+                      编辑
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='ghost'
+                      onClick={() => requestDelete(b)}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             )
           })}
         </div>
@@ -613,16 +611,17 @@ export function WordBooksPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, notes: e.target.value }))
                 }
-                disabled={
-                  Boolean(
-                    form.coverTag.trim() ||
-                      form.coverT1.trim() ||
-                      form.coverT2.trim() ||
-                      form.coverCat.trim()
-                  )
-                }
+                disabled={Boolean(
+                  form.coverTag.trim() ||
+                  form.coverT1.trim() ||
+                  form.coverT2.trim() ||
+                  form.coverCat.trim()
+                )}
               />
-              {form.coverTag || form.coverT1 || form.coverT2 || form.coverCat ? (
+              {form.coverTag ||
+              form.coverT1 ||
+              form.coverT2 ||
+              form.coverCat ? (
                 <p className='text-xs text-muted-foreground'>
                   已填写封面标签时，简介以标签形式展示，无需填写此项。
                 </p>

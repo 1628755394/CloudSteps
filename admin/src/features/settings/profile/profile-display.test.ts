@@ -49,7 +49,9 @@ describe('profileFields', () => {
       region: '浙江',
       loginCount: 12,
     })
-    const byLabel = Object.fromEntries(rows.map((row) => [row.label, row.value]))
+    const byLabel = Object.fromEntries(
+      rows.map((row) => [row.label, row.value])
+    )
     expect(byLabel['邮箱']).toBe('cetide@example.com')
     expect(byLabel['姓名']).toBe('Ce Tide')
     expect(byLabel['性别']).toBe('男')

@@ -51,7 +51,8 @@ function fromQuestion(q: VocabQuestion): VocabQuestionFormValues {
   return {
     word: q.word || '',
     level: q.level || 'A1',
-    difficultyScore: q.difficultyScore && q.difficultyScore > 0 ? q.difficultyScore : 1,
+    difficultyScore:
+      q.difficultyScore && q.difficultyScore > 0 ? q.difficultyScore : 1,
     options: options.slice(0, 8),
     correctAnswer: q.correctAnswer || '',
     audioUrl: q.audioUrl || '',
@@ -96,9 +97,7 @@ export function VocabQuestionFormDialog({
       return {
         ...prev,
         options: next,
-        correctAnswer: correctStillValid
-          ? prev.correctAnswer
-          : trimmed || '',
+        correctAnswer: correctStillValid ? prev.correctAnswer : trimmed || '',
       }
     })
   }
@@ -243,7 +242,9 @@ export function VocabQuestionFormDialog({
             <Label>正确答案</Label>
             <Select
               value={form.correctAnswer || undefined}
-              onValueChange={(v) => setForm((f) => ({ ...f, correctAnswer: v }))}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, correctAnswer: v }))
+              }
               disabled={filledOptions.length === 0}
             >
               <SelectTrigger className='w-full'>

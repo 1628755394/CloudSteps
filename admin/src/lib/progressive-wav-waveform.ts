@@ -14,7 +14,8 @@ const PCM_CHUNK_BYTES = 256 * 1024
 
 function readFourCC(view: DataView, offset: number): string {
   let s = ''
-  for (let i = 0; i < 4; i++) s += String.fromCharCode(view.getUint8(offset + i))
+  for (let i = 0; i < 4; i++)
+    s += String.fromCharCode(view.getUint8(offset + i))
   return s
 }
 
@@ -28,7 +29,11 @@ export type WavPCMInfo = {
 
 export function parseWavPCMHeader(buf: ArrayBuffer): WavPCMInfo | null {
   const view = new DataView(buf)
-  if (buf.byteLength < 12 || readFourCC(view, 0) !== 'RIFF' || readFourCC(view, 8) !== 'WAVE') {
+  if (
+    buf.byteLength < 12 ||
+    readFourCC(view, 0) !== 'RIFF' ||
+    readFourCC(view, 8) !== 'WAVE'
+  ) {
     return null
   }
   let pos = 12
@@ -81,11 +86,17 @@ class WaveformPeakAccumulator {
         if (off + 2 > bytes.byteLength) break
         peak = Math.max(peak, Math.abs(view.getInt16(off, true)))
       }
-      const barIdx = Math.min(this.barCount - 1, Math.floor((sampleIdx / this.totalSamples) * this.barCount))
+      const barIdx = Math.min(
+        this.barCount - 1,
+        Math.floor((sampleIdx / this.totalSamples) * this.barCount)
+      )
       if (peak > this.peaks[barIdx]) this.peaks[barIdx] = peak
       if (peak > this.globalMax) this.globalMax = peak
     }
-    this.samplesProcessed = Math.min(this.totalSamples, this.samplesProcessed + frames)
+    this.samplesProcessed = Math.min(
+      this.totalSamples,
+      this.samplesProcessed + frames
+    )
   }
 
   pcmProgress(): number {
@@ -98,7 +109,12 @@ class WaveformPeakAccumulator {
   }
 }
 
-async function fetchByteRange(url: string, start: number, end: number, signal?: AbortSignal): Promise<Response> {
+async function fetchByteRange(
+  url: string,
+  start: number,
+  end: number,
+  signal?: AbortSignal
+): Promise<Response> {
   return fetch(url, {
     headers: { Range: `bytes=${start}-${end}` },
     signal,
@@ -116,7 +132,10 @@ function contentLengthFromResponse(res: Response): number | null {
   return null
 }
 
-async function probeContentLength(url: string, signal?: AbortSignal): Promise<number> {
+async function probeContentLength(
+  url: string,
+  signal?: AbortSignal
+): Promise<number> {
   try {
     const head = await fetch(url, { method: 'HEAD', signal })
     if (head.ok) {
@@ -201,7 +220,10 @@ export async function loadProgressiveWavWaveform(
   const headerPcmLen = Math.max(0, headerBuf.byteLength - info.dataOffset)
   if (headerPcmLen > 0) {
     acc.appendPCM16LE(
-      headerBuf.slice(info.dataOffset, info.dataOffset + Math.min(headerPcmLen, info.dataSize)),
+      headerBuf.slice(
+        info.dataOffset,
+        info.dataOffset + Math.min(headerPcmLen, info.dataSize)
+      ),
       info.channels
     )
     nextByte += Math.min(headerPcmLen, info.dataSize)
@@ -230,6 +252,7 @@ export async function loadProgressiveWavWaveform(
 export function decorativeWaveformBars(barCount = DEFAULT_BAR_COUNT): number[] {
   return Array.from(
     { length: barCount },
-    (_, i) => 35 + Math.sin((i / barCount) * Math.PI * 6) * 15 + Math.random() * 10
+    (_, i) =>
+      35 + Math.sin((i / barCount) * Math.PI * 6) * 15 + Math.random() * 10
   )
 }

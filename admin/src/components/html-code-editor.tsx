@@ -13,7 +13,9 @@ type HtmlCodeEditorProps = {
 
 const editorTheme = EditorView.theme({
   '&': { fontSize: '13px' },
-  '.cm-content': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
+  '.cm-content': {
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  },
   '.cm-scroller': { overflow: 'auto' },
 })
 

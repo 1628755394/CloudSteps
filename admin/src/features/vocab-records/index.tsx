@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
 import { Eye, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { get } from '@/lib/api'
-import { AdminPage } from '@/components/admin-page'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -12,10 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  VocabRecordDetailSheet,
-  type VocabRecord,
-} from './record-detail-sheet'
+import { AdminPage } from '@/components/admin-page'
+import { VocabRecordDetailSheet, type VocabRecord } from './record-detail-sheet'
 
 export function VocabRecordsPage() {
   const [list, setList] = useState<VocabRecord[]>([])
@@ -79,7 +76,9 @@ export function VocabRecordsPage() {
           <TableBody>
             {list.map((r) => (
               <TableRow key={r.id}>
-                <TableCell>{r.userDisplayName || r.userEmail || r.id}</TableCell>
+                <TableCell>
+                  {r.userDisplayName || r.userEmail || r.id}
+                </TableCell>
                 <TableCell>{r.estimatedLevel || '—'}</TableCell>
                 <TableCell>{r.estimatedVocab ?? '—'}</TableCell>
                 <TableCell>

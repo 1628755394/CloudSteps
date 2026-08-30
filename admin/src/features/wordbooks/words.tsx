@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { toast } from 'sonner'
 import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react'
-import { wordbooksListSearch } from './search'
+import { toast } from 'sonner'
 import { del, get } from '@/lib/api'
-import { AdminPage } from '@/components/admin-page'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,10 +13,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { type Word } from './types'
-import { WordMutateDrawer } from './word-mutate-drawer'
+import { AdminPage } from '@/components/admin-page'
 import { AudioJobButtons } from './audio-job-buttons'
+import { wordbooksListSearch } from './search'
+import { type Word } from './types'
 import { useWordBookAudioJobs } from './use-wordbook-audio-jobs'
+import { WordMutateDrawer } from './word-mutate-drawer'
 
 const bookRoute = getRouteApi('/_authenticated/wordbooks/$bookId')
 
@@ -89,11 +89,17 @@ export function WordBookWordsPage({ bookId }: { bookId: string }) {
             job={jobs[bookIdNum]}
             size='default'
             onBatch={() =>
-              void toggleBatchAudio({ id: bookIdNum, name: bookName || `词库 #${bookId}` })
+              void toggleBatchAudio({
+                id: bookIdNum,
+                name: bookName || `词库 #${bookId}`,
+              })
             }
             onPurge={() => {
               if (!confirm('清除本词库全部音频？')) return
-              void startPurgeAudio({ id: bookIdNum, name: bookName || `词库 #${bookId}` })
+              void startPurgeAudio({
+                id: bookIdNum,
+                name: bookName || `词库 #${bookId}`,
+              })
             }}
           />
           <Button

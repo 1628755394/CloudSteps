@@ -52,11 +52,17 @@ function filled(value?: string | number | null) {
 }
 
 function location(info: ProfileInfo) {
-  return [info.region, info.city].map((p) => p?.trim()).filter(Boolean).join(' · ')
+  return [info.region, info.city]
+    .map((p) => p?.trim())
+    .filter(Boolean)
+    .join(' · ')
 }
 
 function fullName(info: ProfileInfo) {
-  return [info.firstName, info.lastName].map((p) => p?.trim()).filter(Boolean).join(' ')
+  return [info.firstName, info.lastName]
+    .map((p) => p?.trim())
+    .filter(Boolean)
+    .join(' ')
 }
 
 export function profileFields(info: ProfileInfo | null): ProfileField[] {
@@ -65,7 +71,9 @@ export function profileFields(info: ProfileInfo | null): ProfileField[] {
   const gender = info.gender?.trim().toLowerCase() || ''
   const rows: Array<ProfileField | null> = [
     { label: '账号', value: filled(info.account || info.username) || '—' },
-    looksLikeEmail(info.email) ? { label: '邮箱', value: info.email!.trim() } : null,
+    looksLikeEmail(info.email)
+      ? { label: '邮箱', value: info.email!.trim() }
+      : null,
     { label: '角色', value: roleLabel[role] || filled(role) || '—' },
     { label: '用户 ID', value: info.id != null ? String(info.id) : '—' },
     filled(fullName(info)) ? { label: '姓名', value: fullName(info) } : null,

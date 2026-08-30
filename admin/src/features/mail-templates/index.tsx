@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { del, get } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -22,14 +23,8 @@ import {
 } from '@/components/ui/table'
 import { AdminPage } from '@/components/admin-page'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { TestSendDialog } from './test-send-dialog'
 import { formatTemplateTrigger, UNBOUND_SIG_EVENTS } from './sig-events'
+import { TestSendDialog } from './test-send-dialog'
 import { channelTypeLabel, type NotificationTemplate } from './types'
 
 const ALL = 'all'
@@ -168,9 +163,15 @@ export function NotificationTemplatesPage() {
             ) : (
               list.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className='font-mono text-xs'>{row.code}</TableCell>
+                  <TableCell className='font-mono text-xs'>
+                    {row.code}
+                  </TableCell>
                   <TableCell>
-                    <Badge variant={row.channelType === 'inbox' ? 'secondary' : 'outline'}>
+                    <Badge
+                      variant={
+                        row.channelType === 'inbox' ? 'secondary' : 'outline'
+                      }
+                    >
                       {channelTypeLabel(row.channelType)}
                     </Badge>
                   </TableCell>

@@ -80,7 +80,9 @@ export function VocabRecordDetailSheet({
         <SheetHeader className='text-start'>
           <SheetTitle>测试记录详情</SheetTitle>
           <SheetDescription>
-            {record?.userDisplayName || record?.userEmail || `记录 #${record?.id ?? ''}`}
+            {record?.userDisplayName ||
+              record?.userEmail ||
+              `记录 #${record?.id ?? ''}`}
           </SheetDescription>
         </SheetHeader>
         {record ? (

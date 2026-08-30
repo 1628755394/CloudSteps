@@ -7,7 +7,8 @@ export function currentPath(location: {
   if (typeof location.href === 'string' && location.href.startsWith('/')) {
     return location.href
   }
-  const pathname = typeof location.pathname === 'string' ? location.pathname : '/'
+  const pathname =
+    typeof location.pathname === 'string' ? location.pathname : '/'
   const searchStr =
     typeof location.searchStr === 'string'
       ? location.searchStr

@@ -126,8 +126,8 @@ export function TestSendDialog({
         <DialogHeader>
           <DialogTitle>测试发送邮件</DialogTitle>
           <DialogDescription>
-            仅测试<strong>邮件</strong>模板，走当前已启用的邮件渠道。站内信由 Sig
-            触发后写入 inbox，不支持在此对话框测试。
+            仅测试<strong>邮件</strong>模板，走当前已启用的邮件渠道。站内信由
+            Sig 触发后写入 inbox，不支持在此对话框测试。
           </DialogDescription>
         </DialogHeader>
         <div className='grid gap-4'>

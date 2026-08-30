@@ -58,7 +58,9 @@ export function NotificationChannelsPage() {
             <Send className='size-4' />
             测试发送
           </Button>
-          <Button onClick={() => void navigate({ to: '/notification-channels/new' })}>
+          <Button
+            onClick={() => void navigate({ to: '/notification-channels/new' })}
+          >
             <Plus className='size-4' />
             新建邮件渠道
           </Button>

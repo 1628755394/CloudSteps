@@ -3,8 +3,6 @@ import { Loader2, Pencil, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { get, put } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -137,7 +137,11 @@ export function StudentQuotasPanel() {
             onChange={(e) => setStudentFilter(e.target.value)}
           />
         </div>
-        <Button variant='outline' onClick={() => void load()} disabled={loading}>
+        <Button
+          variant='outline'
+          onClick={() => void load()}
+          disabled={loading}
+        >
           查询
         </Button>
         <Button onClick={openCreate}>
@@ -165,7 +169,10 @@ export function StudentQuotasPanel() {
           <TableBody>
             {list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className='text-center text-muted-foreground'>
+                <TableCell
+                  colSpan={5}
+                  className='text-center text-muted-foreground'
+                >
                   暂无师生额度记录
                 </TableCell>
               </TableRow>
@@ -191,7 +198,7 @@ export function StudentQuotasPanel() {
                   <TableCell className='tabular-nums'>
                     {formatMinutes(row.remainingMinutes)}
                   </TableCell>
-                  <TableCell className='tabular-nums text-muted-foreground'>
+                  <TableCell className='text-muted-foreground tabular-nums'>
                     {formatMinutes(row.totalAllocatedMinutes)}
                   </TableCell>
                   <TableCell>

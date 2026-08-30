@@ -9,7 +9,7 @@ type MarkdownViewProps = {
 
 export function MarkdownView({ content, className }: MarkdownViewProps) {
   if (!content.trim()) {
-    return <p className='text-muted-foreground text-sm'>（空）</p>
+    return <p className='text-sm text-muted-foreground'>（空）</p>
   }
 
   return (

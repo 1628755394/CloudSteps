@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Camera, Loader2, Save } from 'lucide-react'
 import { toast } from 'sonner'
-import { get, post, put } from '@/lib/api'
 import { useAuthStore, type AuthUser } from '@/stores/auth-store'
+import { get, post, put } from '@/lib/api'
+import { DEFAULT_TEACHER_AVATAR, teacherAvatarSrc } from '@/lib/avatar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { DEFAULT_TEACHER_AVATAR, teacherAvatarSrc } from '@/lib/avatar'
-import { profileFields, looksLikeEmail, type ProfileInfo } from './profile-display'
+import {
+  profileFields,
+  looksLikeEmail,
+  type ProfileInfo,
+} from './profile-display'
 
 type AuthInfo = ProfileInfo & {
   avatar?: string
 }
 
 function syncAuthUser(info: AuthInfo, prev: AuthUser | null): AuthUser {
-  const role = info.role ? [info.role] : prev?.role ?? ['admin']
+  const role = info.role ? [info.role] : (prev?.role ?? ['admin'])
   const email = looksLikeEmail(info.email)
     ? info.email!.trim()
     : looksLikeEmail(prev?.email)
@@ -107,7 +111,10 @@ export function ProfileForm() {
     formData.append('avatar', file)
     setUploading(true)
     try {
-      const res = await post<{ avatar: string }>('/auth/avatar/upload', formData)
+      const res = await post<{ avatar: string }>(
+        '/auth/avatar/upload',
+        formData
+      )
       const next = res.data.avatar
       setAvatarUrl(next)
       setInfo((prev) => ({ ...prev, avatar: next }))
@@ -147,14 +154,18 @@ export function ProfileForm() {
       <div className='flex flex-wrap items-center gap-4'>
         <button
           type='button'
-          className='group relative rounded-lg outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring'
+          className='group relative rounded-lg ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring'
           onClick={() => void onPickAvatar()}
           disabled={uploading}
         >
           <Avatar className='h-20 w-20 rounded-lg'>
             <AvatarImage src={avatarSrc} alt={name} />
-            <AvatarFallback className='rounded-lg p-0 overflow-hidden'>
-              <img src={DEFAULT_TEACHER_AVATAR} alt='' className='size-full object-cover' />
+            <AvatarFallback className='overflow-hidden rounded-lg p-0'>
+              <img
+                src={DEFAULT_TEACHER_AVATAR}
+                alt=''
+                className='size-full object-cover'
+              />
             </AvatarFallback>
           </Avatar>
           <span className='absolute inset-0 flex items-center justify-center rounded-lg bg-black/45 opacity-0 transition group-hover:opacity-100'>

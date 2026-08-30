@@ -39,7 +39,8 @@ export function CaptchaChallenge({
         data.type === 'rotate' ||
         data.type === 'click'
       ) {
-        refresh()
+        // 不支持的验证码类型，重新获取
+        setCaptcha(null)
         return
       }
       setCaptcha(data)

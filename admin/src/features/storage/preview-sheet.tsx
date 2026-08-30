@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ExternalLink, Link2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { CallAudioPlayer } from '@/components/call-audio-player'
 import { get, getBlob } from '@/lib/api'
 import { formatDateTime } from '@/lib/datetime'
 import { Button } from '@/components/ui/button'
@@ -12,7 +11,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { fileLabel, formatBytes, previewKind, type PreviewKind } from './display'
+import { CallAudioPlayer } from '@/components/call-audio-player'
+import {
+  fileLabel,
+  formatBytes,
+  previewKind,
+  type PreviewKind,
+} from './display'
 
 export type StorageFile = {
   key: string
@@ -64,7 +69,9 @@ export function StorageFilePreview({
     ;(async () => {
       try {
         const [infoRes, urlRes] = await Promise.all([
-          get<StorageFile>('/admin/storage/files/info', { params }).catch(() => null),
+          get<StorageFile>('/admin/storage/files/info', { params }).catch(
+            () => null
+          ),
           get<{ url: string }>('/admin/storage/files/url', {
             params: { ...params, expires: 3600 },
           }).catch(() => null),
@@ -98,7 +105,11 @@ export function StorageFilePreview({
           return
         }
 
-        if (nextKind === 'image' || nextKind === 'video' || nextKind === 'pdf') {
+        if (
+          nextKind === 'image' ||
+          nextKind === 'video' ||
+          nextKind === 'pdf'
+        ) {
           if (remote) {
             setSrc(remote)
             return
@@ -146,7 +157,9 @@ export function StorageFilePreview({
           </SheetTitle>
           <SheetDescription className='break-all'>
             {file?.key}
-            {info ? ` · ${formatBytes(info.size)} · ${formatDateTime(info.lastModified)}` : ''}
+            {info
+              ? ` · ${formatBytes(info.size)} · ${formatDateTime(info.lastModified)}`
+              : ''}
           </SheetDescription>
         </SheetHeader>
         <div className='flex flex-wrap gap-2 px-4'>
@@ -195,16 +208,34 @@ function PreviewBody({
   contentType?: string
 }) {
   if (kind === 'image' && src) {
-    return <img src={src} alt='' className='max-h-[70vh] max-w-full rounded-md object-contain' />
+    return (
+      <img
+        src={src}
+        alt=''
+        className='max-h-[70vh] max-w-full rounded-md object-contain'
+      />
+    )
   }
   if (kind === 'audio' && src) {
     return <CallAudioPlayer audioUrl={src} title={title} />
   }
   if (kind === 'video' && src) {
-    return <video src={src} controls className='max-h-[70vh] w-full rounded-md bg-black' />
+    return (
+      <video
+        src={src}
+        controls
+        className='max-h-[70vh] w-full rounded-md bg-black'
+      />
+    )
   }
   if (kind === 'pdf' && src) {
-    return <iframe title='pdf' src={src} className='h-[70vh] w-full rounded-md border' />
+    return (
+      <iframe
+        title='pdf'
+        src={src}
+        className='h-[70vh] w-full rounded-md border'
+      />
+    )
   }
   if (kind === 'text' && text) {
     return (
@@ -214,11 +245,16 @@ function PreviewBody({
     )
   }
   if (kind === 'text' && !text) {
-    return <p className='text-sm text-muted-foreground'>文本超过 2MB，请在新窗口打开。</p>
+    return (
+      <p className='text-sm text-muted-foreground'>
+        文本超过 2MB，请在新窗口打开。
+      </p>
+    )
   }
   return (
     <p className='text-sm text-muted-foreground'>
-      无法内嵌预览{contentType ? `（${contentType}）` : ''}，请复制链接或在新窗口打开。
+      无法内嵌预览{contentType ? `（${contentType}）` : ''}
+      ，请复制链接或在新窗口打开。
     </p>
   )
 }

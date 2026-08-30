@@ -4,16 +4,8 @@ import { ArrowLeft, Eye, Save, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { get, post, put } from '@/lib/api'
 import { applySampleVars } from '@/lib/template-preview'
-import { HtmlCodeEditor } from '@/components/html-code-editor'
-import { MarkdownEditor } from '@/components/markdown-editor'
-import { MarkdownView } from '@/components/markdown-view'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -25,6 +17,10 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { AdminPage } from '@/components/admin-page'
+import { HtmlCodeEditor } from '@/components/html-code-editor'
+import { MarkdownEditor } from '@/components/markdown-editor'
+import { MarkdownView } from '@/components/markdown-view'
+import { formatTemplateTrigger, getTemplateEventMeta } from './sig-events'
 import { TestSendDialog } from './test-send-dialog'
 import {
   channelTypeLabel,
@@ -33,7 +29,6 @@ import {
   type NotificationTemplateType,
   type NotificationTemplateUpsertReq,
 } from './types'
-import { formatTemplateTrigger, getTemplateEventMeta } from './sig-events'
 
 const empty: NotificationTemplateUpsertReq = {
   code: '',
@@ -179,11 +174,13 @@ export function TemplateEditPage({ id }: { id?: string }) {
                 <CardTitle className='text-base'>触发方式</CardTitle>
               </CardHeader>
               <CardContent className='text-sm'>
-                <p className='font-medium'>{formatTemplateTrigger(form.code)}</p>
+                <p className='font-medium'>
+                  {formatTemplateTrigger(form.code)}
+                </p>
                 {eventMeta?.trigger === 'sig' && eventMeta.sigEvent ? (
                   <p className='mt-2 text-xs text-muted-foreground'>
-                    Sig 监听器会同时查找同 code 的
-                    {isEmail ? '邮件' : '站内信'}模板并
+                    Sig 监听器会同时查找同 code 的{isEmail ? '邮件' : '站内信'}
+                    模板并
                     {isEmail ? '走邮件渠道发送' : '写入用户 inbox'}。
                   </p>
                 ) : eventMeta?.trigger === 'direct' ? (
@@ -199,133 +196,134 @@ export function TemplateEditPage({ id }: { id?: string }) {
             </Card>
           ) : null}
           <div className='grid gap-4 lg:grid-cols-2'>
-          <Card>
-            <CardHeader>
-              <CardTitle>模板内容</CardTitle>
-            </CardHeader>
-            <CardContent className='grid gap-4'>
-              <Field label='类型' required>
-                <Select
-                  value={form.channelType || 'email'}
-                  disabled={isEdit}
-                  onValueChange={(v) =>
-                    update('channelType', v as NotificationTemplateType)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='email'>邮件</SelectItem>
-                    <SelectItem value='inbox'>站内信</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label='编码 code' required>
-                <Input
-                  value={form.code || ''}
-                  disabled={isEdit}
-                  placeholder='例如：welcome、verification'
-                  onChange={(e) => update('code', e.target.value)}
-                />
-              </Field>
-              <Field label='名称' required>
-                <Input
-                  value={form.name}
-                  placeholder='模板展示名'
-                  onChange={(e) => update('name', e.target.value)}
-                />
-              </Field>
-              <Field label='语言（可选）'>
-                <Input
-                  value={form.locale || ''}
-                  placeholder='zh-CN / en-US'
-                  onChange={(e) => update('locale', e.target.value)}
-                />
-              </Field>
-              {isEmail ? (
-                <>
-                  <Field label='邮件主题 subject'>
-                    <Input
-                      value={form.subject || ''}
-                      placeholder='支持 {{.Name}} 占位符'
-                      onChange={(e) => update('subject', e.target.value)}
-                    />
-                  </Field>
-                  <Field label='HTML 正文' required>
-                    <HtmlCodeEditor
-                      value={form.htmlBody || ''}
-                      placeholder='<html>...</html>'
-                      minHeight='480px'
-                      onChange={(htmlBody) => update('htmlBody', htmlBody)}
-                    />
-                  </Field>
-                </>
-              ) : (
-                <>
-                  <Field label='站内信标题' required>
-                    <Input
-                      value={form.inboxTitle || ''}
-                      placeholder='支持 {{.Username}} 占位符'
-                      onChange={(e) => update('inboxTitle', e.target.value)}
-                    />
-                  </Field>
-                  <Field label='站内信正文（Markdown）' required>
-                    <MarkdownEditor
-                      value={form.inboxBody || ''}
-                      placeholder='支持 Markdown 与 {{.Username}} 占位符'
-                      minHeight='480px'
-                      onChange={(inboxBody) => update('inboxBody', inboxBody)}
-                    />
-                  </Field>
-                </>
-              )}
-              <Field label='说明'>
-                <Input
-                  value={form.description || ''}
-                  placeholder='模板用途简介'
-                  onChange={(e) => update('description', e.target.value)}
-                />
-              </Field>
-              <div className='flex items-center justify-between'>
-                <Label>启用</Label>
-                <Switch
-                  checked={form.enabled !== false}
-                  onCheckedChange={(enabled) => update('enabled', enabled)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className='overflow-hidden py-0'>
-            <CardHeader className='px-6 pt-6'>
-              <CardTitle className='inline-flex items-center gap-2'>
-                <Eye className='size-4' />
-                {isEmail ? 'HTML 预览' : '示例渲染预览'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className='px-6 pb-6'>
-              {isEmail ? (
-                <iframe
-                  title='email-preview'
-                  sandbox=''
-                  className='h-[600px] w-full rounded-md border bg-white'
-                  srcDoc={previewSrcDoc}
-                />
-              ) : (
-                <div className='space-y-3 rounded-md border bg-muted/20 p-5'>
-                  <p className='text-base font-semibold'>
-                    {inboxPreviewTitle || '（标题）'}
-                  </p>
-                  <MarkdownView content={inboxPreviewBody} />
-                  <p className='text-muted-foreground border-t pt-3 text-xs'>
-                    预览使用示例变量填充 {'{{.Var}}'} 占位符；正文支持 Markdown。
-                  </p>
+            <Card>
+              <CardHeader>
+                <CardTitle>模板内容</CardTitle>
+              </CardHeader>
+              <CardContent className='grid gap-4'>
+                <Field label='类型' required>
+                  <Select
+                    value={form.channelType || 'email'}
+                    disabled={isEdit}
+                    onValueChange={(v) =>
+                      update('channelType', v as NotificationTemplateType)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='email'>邮件</SelectItem>
+                      <SelectItem value='inbox'>站内信</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label='编码 code' required>
+                  <Input
+                    value={form.code || ''}
+                    disabled={isEdit}
+                    placeholder='例如：welcome、verification'
+                    onChange={(e) => update('code', e.target.value)}
+                  />
+                </Field>
+                <Field label='名称' required>
+                  <Input
+                    value={form.name}
+                    placeholder='模板展示名'
+                    onChange={(e) => update('name', e.target.value)}
+                  />
+                </Field>
+                <Field label='语言（可选）'>
+                  <Input
+                    value={form.locale || ''}
+                    placeholder='zh-CN / en-US'
+                    onChange={(e) => update('locale', e.target.value)}
+                  />
+                </Field>
+                {isEmail ? (
+                  <>
+                    <Field label='邮件主题 subject'>
+                      <Input
+                        value={form.subject || ''}
+                        placeholder='支持 {{.Name}} 占位符'
+                        onChange={(e) => update('subject', e.target.value)}
+                      />
+                    </Field>
+                    <Field label='HTML 正文' required>
+                      <HtmlCodeEditor
+                        value={form.htmlBody || ''}
+                        placeholder='<html>...</html>'
+                        minHeight='480px'
+                        onChange={(htmlBody) => update('htmlBody', htmlBody)}
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <>
+                    <Field label='站内信标题' required>
+                      <Input
+                        value={form.inboxTitle || ''}
+                        placeholder='支持 {{.Username}} 占位符'
+                        onChange={(e) => update('inboxTitle', e.target.value)}
+                      />
+                    </Field>
+                    <Field label='站内信正文（Markdown）' required>
+                      <MarkdownEditor
+                        value={form.inboxBody || ''}
+                        placeholder='支持 Markdown 与 {{.Username}} 占位符'
+                        minHeight='480px'
+                        onChange={(inboxBody) => update('inboxBody', inboxBody)}
+                      />
+                    </Field>
+                  </>
+                )}
+                <Field label='说明'>
+                  <Input
+                    value={form.description || ''}
+                    placeholder='模板用途简介'
+                    onChange={(e) => update('description', e.target.value)}
+                  />
+                </Field>
+                <div className='flex items-center justify-between'>
+                  <Label>启用</Label>
+                  <Switch
+                    checked={form.enabled !== false}
+                    onCheckedChange={(enabled) => update('enabled', enabled)}
+                  />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+
+            <Card className='overflow-hidden py-0'>
+              <CardHeader className='px-6 pt-6'>
+                <CardTitle className='inline-flex items-center gap-2'>
+                  <Eye className='size-4' />
+                  {isEmail ? 'HTML 预览' : '示例渲染预览'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className='px-6 pb-6'>
+                {isEmail ? (
+                  <iframe
+                    title='email-preview'
+                    sandbox=''
+                    className='h-[600px] w-full rounded-md border bg-white'
+                    srcDoc={previewSrcDoc}
+                  />
+                ) : (
+                  <div className='space-y-3 rounded-md border bg-muted/20 p-5'>
+                    <p className='text-base font-semibold'>
+                      {inboxPreviewTitle || '（标题）'}
+                    </p>
+                    <MarkdownView content={inboxPreviewBody} />
+                    <p className='border-t pt-3 text-xs text-muted-foreground'>
+                      预览使用示例变量填充 {'{{.Var}}'} 占位符；正文支持
+                      Markdown。
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
       <TestSendDialog

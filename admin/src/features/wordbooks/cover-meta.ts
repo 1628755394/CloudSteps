@@ -68,9 +68,11 @@ export function buildDescriptionFromForm(form: WordBookEditForm): string {
   return form.notes.trim()
 }
 
-export function wordBookToForm(
-  book: { name: string; description?: string; level?: string }
-): WordBookEditForm {
+export function wordBookToForm(book: {
+  name: string
+  description?: string
+  level?: string
+}): WordBookEditForm {
   const { meta, plainText } = parseCoverMeta(book.description)
   return {
     name: book.name,

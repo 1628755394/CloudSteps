@@ -36,9 +36,15 @@ export function ExampleSentencesPreview({ raw }: { raw: string }) {
   }
 
   return (
-    <div id='exampleSentences' className='max-h-80 space-y-3 overflow-y-auto pr-1'>
+    <div
+      id='exampleSentences'
+      className='max-h-80 space-y-3 overflow-y-auto pr-1'
+    >
       {items.map((ex, i) => (
-        <div key={`${ex.en}-${i}`} className='border-s-2 border-primary/30 ps-3'>
+        <div
+          key={`${ex.en}-${i}`}
+          className='border-s-2 border-primary/30 ps-3'
+        >
           <div className='flex flex-wrap items-center gap-1.5'>
             <span className='text-xs text-muted-foreground'>{i + 1}</span>
             {ex.pos ? (

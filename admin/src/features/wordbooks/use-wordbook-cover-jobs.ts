@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { get, post } from '@/lib/api'
-import {
-  type CoverJob,
-  isCoverJobActive,
-  sameCoverJob,
-} from './cover-jobs'
+import { type CoverJob, isCoverJobActive, sameCoverJob } from './cover-jobs'
 
 type BookRef = { id: number; name: string }
 
@@ -122,9 +118,7 @@ export function useWordbookCoverJobs(books: BookRef[]) {
         })
 
         const hasActive = remote.some((j) => isCoverJobActive(j.status))
-        const hasPreview = remote.some(
-          (j) => j.status === 'done' && !j.saved
-        )
+        const hasPreview = remote.some((j) => j.status === 'done' && !j.saved)
         if (hasActive) nextMs = POLL_FAST_MS
         else if (hasPreview) nextMs = POLL_SLOW_MS
       } catch {

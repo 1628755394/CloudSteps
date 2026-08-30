@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { WordMutateDrawer } from './word-mutate-drawer'
 import { type Word } from './types'
+import { WordMutateDrawer } from './word-mutate-drawer'
 
 const getMock = vi.hoisted(() => vi.fn())
 const putMock = vi.hoisted(() => vi.fn())
@@ -51,9 +51,7 @@ describe('WordMutateDrawer', () => {
     await expect.element(preview).toBeInTheDocument()
     await expect.element(preview).toHaveAttribute('src', '/uploads/a.mp3')
 
-    await vi.waitFor(() =>
-      expect(getMock).toHaveBeenCalledWith('/words/42')
-    )
+    await vi.waitFor(() => expect(getMock).toHaveBeenCalledWith('/words/42'))
   })
 
   it('opens a create drawer without audio players', async () => {

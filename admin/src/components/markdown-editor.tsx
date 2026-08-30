@@ -1,7 +1,7 @@
 import MDEditor from '@uiw/react-md-editor'
 import '@uiw/react-md-editor/markdown-editor.css'
-import { useTheme } from '@/context/theme-provider'
 import { cn } from '@/lib/utils'
+import { useTheme } from '@/context/theme-provider'
 
 type MarkdownEditorProps = {
   value: string
@@ -29,7 +29,10 @@ export function MarkdownEditor({
 
   return (
     <div
-      className={cn('md-editor-wrap overflow-hidden rounded-md border', className)}
+      className={cn(
+        'md-editor-wrap overflow-hidden rounded-md border',
+        className
+      )}
       data-color-mode={resolvedTheme}
     >
       <MDEditor

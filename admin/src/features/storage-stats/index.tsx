@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Activity, BarChart3, Cloud, Database, RefreshCw, Zap } from 'lucide-react'
-import { toast } from 'sonner'
+import {
+  Activity,
+  BarChart3,
+  Cloud,
+  Database,
+  RefreshCw,
+  Zap,
+} from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -11,11 +17,18 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { toast } from 'sonner'
 import { get } from '@/lib/api'
-import { AdminPage } from '@/components/admin-page'
+import { formatDateTime } from '@/lib/datetime'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -23,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { formatDateTime } from '@/lib/datetime'
+import { AdminPage } from '@/components/admin-page'
 
 // ── Types ──
 
@@ -137,7 +150,12 @@ function formatPercent(v: number): string {
 function formatTime(s: string): string {
   try {
     const d = new Date(s)
-    return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    return d.toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   } catch {
     return s
   }
@@ -152,12 +170,18 @@ const RANGE_LABELS: Record<RangePreset, string> = {
   '24h': '最近 24 小时',
   '7d': '最近 7 天',
   '30d': '最近 30 天',
-  'custom': '自定义',
+  custom: '自定义',
 }
 
-function rangeToQuery(preset: RangePreset, customStart?: string, customEnd?: string) {
+function rangeToQuery(
+  preset: RangePreset,
+  customStart?: string,
+  customEnd?: string
+) {
   if (preset === 'custom') {
-    const start = customStart ? new Date(customStart + 'T00:00:00') : new Date(Date.now() - 7 * 86400000)
+    const start = customStart
+      ? new Date(customStart + 'T00:00:00')
+      : new Date(Date.now() - 7 * 86400000)
     const end = customEnd ? new Date(customEnd + 'T23:59:59') : new Date()
     return {
       start: Math.floor(start.getTime() / 1000),
@@ -211,12 +235,16 @@ function StatCard({
   return (
     <Card>
       <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-        <CardTitle className='text-sm font-medium text-muted-foreground'>{label}</CardTitle>
+        <CardTitle className='text-sm font-medium text-muted-foreground'>
+          {label}
+        </CardTitle>
         <Icon className={`size-4 ${tint}`} />
       </CardHeader>
       <CardContent>
         <div className='text-2xl font-bold'>{value}</div>
-        {sub ? <p className='text-xs text-muted-foreground mt-1'>{sub}</p> : null}
+        {sub ? (
+          <p className='mt-1 text-xs text-muted-foreground'>{sub}</p>
+        ) : null}
       </CardContent>
     </Card>
   )
@@ -229,9 +257,13 @@ export function StorageStatsPage() {
   const [bucketStats, setBucketStats] = useState<BucketStats | null>(null)
   const [cdnStats, setCdnStats] = useState<CDNStatsResponse | null>(null)
   const [apiStats, setApiStats] = useState<APIStatsResponse | null>(null)
-  const [originStats, setOriginStats] = useState<OriginStatsResponse | null>(null)
+  const [originStats, setOriginStats] = useState<OriginStatsResponse | null>(
+    null
+  )
   const [range, setRange] = useState<RangePreset>('7d')
-  const [customStart, setCustomStart] = useState(toDateInputValue(new Date(Date.now() - 7 * 86400000)))
+  const [customStart, setCustomStart] = useState(
+    toDateInputValue(new Date(Date.now() - 7 * 86400000))
+  )
   const [customEnd, setCustomEnd] = useState(toDateInputValue(new Date()))
   const [loading, setLoading] = useState(false)
 
@@ -306,7 +338,10 @@ export function StorageStatsPage() {
       description='存储用量、CDN 流量、API 请求与回源统计'
       extra={
         <div className='flex items-center gap-2'>
-          <Select value={range} onValueChange={(v) => setRange(v as RangePreset)}>
+          <Select
+            value={range}
+            onValueChange={(v) => setRange(v as RangePreset)}
+          >
             <SelectTrigger className='w-[140px]'>
               <SelectValue />
             </SelectTrigger>
@@ -338,7 +373,12 @@ export function StorageStatsPage() {
               />
             </>
           ) : null}
-          <Button variant='outline' size='sm' onClick={() => void loadAll()} disabled={loading}>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => void loadAll()}
+            disabled={loading}
+          >
             <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
             刷新
           </Button>
@@ -359,9 +399,13 @@ export function StorageStatsPage() {
           {info ? (
             <div className='flex items-center gap-2 text-xs text-muted-foreground'>
               <Badge variant='secondary'>{info.kind}</Badge>
-              {info.defaultBucket ? <span>Bucket: {info.defaultBucket}</span> : null}
+              {info.defaultBucket ? (
+                <span>Bucket: {info.defaultBucket}</span>
+              ) : null}
               {info.defaultDomain ? <span>·</span> : null}
-              {info.defaultDomain ? <span>Domain: {info.defaultDomain}</span> : null}
+              {info.defaultDomain ? (
+                <span>Domain: {info.defaultDomain}</span>
+              ) : null}
             </div>
           ) : null}
           {/* 概览卡片 */}
@@ -370,28 +414,52 @@ export function StorageStatsPage() {
               icon={Database}
               label='存储用量'
               value={bucketStats ? formatBytes(bucketStats.size) : '-'}
-              sub={bucketStats ? `${formatNumber(bucketStats.objectCount)} 个对象` : undefined}
+              sub={
+                bucketStats
+                  ? `${formatNumber(bucketStats.objectCount)} 个对象`
+                  : undefined
+              }
               tint='text-blue-500'
             />
             <StatCard
               icon={Cloud}
               label='CDN 总流量'
-              value={cdnStats ? formatBytes(cdnStats.summary.totalTraffic) : '-'}
-              sub={cdnStats ? `${formatNumber(cdnStats.summary.totalRequests)} 次请求` : undefined}
+              value={
+                cdnStats ? formatBytes(cdnStats.summary.totalTraffic) : '-'
+              }
+              sub={
+                cdnStats
+                  ? `${formatNumber(cdnStats.summary.totalRequests)} 次请求`
+                  : undefined
+              }
               tint='text-cyan-500'
             />
             <StatCard
               icon={Activity}
               label='API 请求'
-              value={apiStats ? formatNumber(apiStats.summary.totalRequests) : '-'}
-              sub={apiStats ? `错误率 ${formatPercent(apiStats.summary.errorRate)}` : undefined}
+              value={
+                apiStats ? formatNumber(apiStats.summary.totalRequests) : '-'
+              }
+              sub={
+                apiStats
+                  ? `错误率 ${formatPercent(apiStats.summary.errorRate)}`
+                  : undefined
+              }
               tint='text-violet-500'
             />
             <StatCard
               icon={Zap}
               label='回源流量'
-              value={originStats ? formatBytes(originStats.summary.totalOriginTraffic) : '-'}
-              sub={originStats ? `失败率 ${formatPercent(originStats.summary.failureRate)}` : undefined}
+              value={
+                originStats
+                  ? formatBytes(originStats.summary.totalOriginTraffic)
+                  : '-'
+              }
+              sub={
+                originStats
+                  ? `失败率 ${formatPercent(originStats.summary.failureRate)}`
+                  : undefined
+              }
               tint='text-amber-500'
             />
           </div>
@@ -408,7 +476,9 @@ export function StorageStatsPage() {
                 {cdnStats ? formatPercent(cdnStats.summary.hitRatio) : '-'}
                 {' · '}
                 峰值带宽：
-                {cdnStats ? `${formatBytes(cdnStats.summary.peakBandwidth)}/s` : '-'}
+                {cdnStats
+                  ? `${formatBytes(cdnStats.summary.peakBandwidth)}/s`
+                  : '-'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -416,18 +486,40 @@ export function StorageStatsPage() {
                 <ResponsiveContainer width='100%' height={280}>
                   <AreaChart data={cdnChartData}>
                     <defs>
-                      <linearGradient id='cdnTraffic' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#06b6d4' stopOpacity={0.3} />
-                        <stop offset='95%' stopColor='#06b6d4' stopOpacity={0} />
+                      <linearGradient
+                        id='cdnTraffic'
+                        x1='0'
+                        y1='0'
+                        x2='0'
+                        y2='1'
+                      >
+                        <stop
+                          offset='5%'
+                          stopColor='#06b6d4'
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset='95%'
+                          stopColor='#06b6d4'
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray='3 3' className='stroke-muted' />
+                    <CartesianGrid
+                      strokeDasharray='3 3'
+                      className='stroke-muted'
+                    />
                     <XAxis dataKey='time' tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v) => formatBytes(v)} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      tickFormatter={(v) => formatBytes(v)}
+                      tick={{ fontSize: 11 }}
+                    />
                     <Tooltip
                       formatter={(v, name) => {
                         const n = typeof v === 'number' ? v : Number(v ?? 0)
-                        return name === 'traffic' ? formatBytes(n) : formatNumber(n)
+                        return name === 'traffic'
+                          ? formatBytes(n)
+                          : formatNumber(n)
                       }}
                     />
                     <Legend />
@@ -441,7 +533,9 @@ export function StorageStatsPage() {
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className='py-8 text-center text-sm text-muted-foreground'>暂无 CDN 数据</div>
+                <div className='py-8 text-center text-sm text-muted-foreground'>
+                  暂无 CDN 数据
+                </div>
               )}
             </CardContent>
           </Card>
@@ -466,18 +560,52 @@ export function StorageStatsPage() {
                 <ResponsiveContainer width='100%' height={280}>
                   <AreaChart data={apiChartData}>
                     <defs>
-                      <linearGradient id='apiUpload' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#8b5cf6' stopOpacity={0.3} />
-                        <stop offset='95%' stopColor='#8b5cf6' stopOpacity={0} />
+                      <linearGradient
+                        id='apiUpload'
+                        x1='0'
+                        y1='0'
+                        x2='0'
+                        y2='1'
+                      >
+                        <stop
+                          offset='5%'
+                          stopColor='#8b5cf6'
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset='95%'
+                          stopColor='#8b5cf6'
+                          stopOpacity={0}
+                        />
                       </linearGradient>
-                      <linearGradient id='apiDownload' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#10b981' stopOpacity={0.3} />
-                        <stop offset='95%' stopColor='#10b981' stopOpacity={0} />
+                      <linearGradient
+                        id='apiDownload'
+                        x1='0'
+                        y1='0'
+                        x2='0'
+                        y2='1'
+                      >
+                        <stop
+                          offset='5%'
+                          stopColor='#10b981'
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset='95%'
+                          stopColor='#10b981'
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray='3 3' className='stroke-muted' />
+                    <CartesianGrid
+                      strokeDasharray='3 3'
+                      className='stroke-muted'
+                    />
                     <XAxis dataKey='time' tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v) => formatBytes(v)} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      tickFormatter={(v) => formatBytes(v)}
+                      tick={{ fontSize: 11 }}
+                    />
                     <Tooltip
                       formatter={(v) =>
                         formatBytes(typeof v === 'number' ? v : Number(v ?? 0))
@@ -501,7 +629,9 @@ export function StorageStatsPage() {
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className='py-8 text-center text-sm text-muted-foreground'>暂无 API 数据</div>
+                <div className='py-8 text-center text-sm text-muted-foreground'>
+                  暂无 API 数据
+                </div>
               )}
             </CardContent>
           </Card>
@@ -515,10 +645,14 @@ export function StorageStatsPage() {
               </CardTitle>
               <CardDescription>
                 回源请求：
-                {originStats ? formatNumber(originStats.summary.totalOriginRequests) : '-'}
+                {originStats
+                  ? formatNumber(originStats.summary.totalOriginRequests)
+                  : '-'}
                 {' · '}
                 失败：
-                {originStats ? formatNumber(originStats.summary.totalFailedRequests) : '-'}
+                {originStats
+                  ? formatNumber(originStats.summary.totalFailedRequests)
+                  : '-'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -526,14 +660,34 @@ export function StorageStatsPage() {
                 <ResponsiveContainer width='100%' height={280}>
                   <AreaChart data={originChartData}>
                     <defs>
-                      <linearGradient id='originTraffic' x1='0' y1='0' x2='0' y2='1'>
-                        <stop offset='5%' stopColor='#f59e0b' stopOpacity={0.3} />
-                        <stop offset='95%' stopColor='#f59e0b' stopOpacity={0} />
+                      <linearGradient
+                        id='originTraffic'
+                        x1='0'
+                        y1='0'
+                        x2='0'
+                        y2='1'
+                      >
+                        <stop
+                          offset='5%'
+                          stopColor='#f59e0b'
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset='95%'
+                          stopColor='#f59e0b'
+                          stopOpacity={0}
+                        />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray='3 3' className='stroke-muted' />
+                    <CartesianGrid
+                      strokeDasharray='3 3'
+                      className='stroke-muted'
+                    />
                     <XAxis dataKey='time' tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v) => formatBytes(v)} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      tickFormatter={(v) => formatBytes(v)}
+                      tick={{ fontSize: 11 }}
+                    />
                     <Tooltip
                       formatter={(v) =>
                         formatBytes(typeof v === 'number' ? v : Number(v ?? 0))
@@ -550,7 +704,9 @@ export function StorageStatsPage() {
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className='py-8 text-center text-sm text-muted-foreground'>暂无回源数据</div>
+                <div className='py-8 text-center text-sm text-muted-foreground'>
+                  暂无回源数据
+                </div>
               )}
             </CardContent>
           </Card>
@@ -585,9 +741,12 @@ export function StorageStatsPage() {
                     </div>
                   </div>
                   <div>
-                    <div className='text-xs text-muted-foreground'>存储类型</div>
-                    <div className='flex flex-wrap gap-1 mt-1'>
-                      {bucketStats.storageClasses && bucketStats.storageClasses.length > 0 ? (
+                    <div className='text-xs text-muted-foreground'>
+                      存储类型
+                    </div>
+                    <div className='mt-1 flex flex-wrap gap-1'>
+                      {bucketStats.storageClasses &&
+                      bucketStats.storageClasses.length > 0 ? (
                         bucketStats.storageClasses.map((sc) => (
                           <Badge key={sc.class} variant='secondary'>
                             {sc.class}: {formatBytes(sc.size)}
