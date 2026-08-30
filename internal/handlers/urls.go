@@ -61,6 +61,7 @@ func (h *Handlers) Register(engine *gin.Engine) {
 	h.registerGrammarRoutes(r)
 	h.registerNotificationRoutes(r)
 	h.registerNotificationAdminRoutes(r)
+	h.registerAnnouncementRoutes(r)
 	h.registerStorageAdminRoutes(r)
 	h.registerCoachingRoutes(r)
 	h.registerFeedbackRoutes(r)

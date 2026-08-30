@@ -130,6 +130,8 @@ func RunMigrations(db *gorm.DB) error {
 		&models.GrammarQuestion{},
 		&models.GrammarRecord{},
 		&models.InternalNotification{},
+		&models.Announcement{},
+		&models.AnnouncementRead{},
 		&models.NotificationChannel{},
 		&models.MailTemplate{},
 		&models.MailLog{},

@@ -124,6 +124,45 @@ export function shouldShowCoachOnboarding(
   return !isCoachOnboardingDone(userId);
 }
 
+/** 新手引导 UI 是否正在展示（与 localStorage「已看过」分开：打开时会立刻 mark done，但仍需挡住公告）。 */
+const COACH_ONBOARDING_UI_EVENT = "cs:coach-onboarding-ui";
+
+let coachOnboardingUiActive = false;
+
+export function isCoachOnboardingUiActive(): boolean {
+  return coachOnboardingUiActive;
+}
+
+export function setCoachOnboardingUiActive(active: boolean): void {
+  if (coachOnboardingUiActive === active) return;
+  coachOnboardingUiActive = active;
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(COACH_ONBOARDING_UI_EVENT, { detail: { active } }),
+  );
+}
+
+export function subscribeCoachOnboardingUi(
+  listener: (active: boolean) => void,
+): () => void {
+  if (typeof window === "undefined") return () => {};
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent<{ active?: boolean }>).detail;
+    listener(Boolean(detail?.active));
+  };
+  window.addEventListener(COACH_ONBOARDING_UI_EVENT, handler);
+  return () => window.removeEventListener(COACH_ONBOARDING_UI_EVENT, handler);
+}
+
+/** 系统公告等全局弹层应让路：尚需引导，或引导蒙层仍在展示。 */
+export function shouldDeferSystemPopups(
+  role: string | null | undefined,
+  userId: number | string | null | undefined,
+): boolean {
+  if (isCoachOnboardingUiActive()) return true;
+  return shouldShowCoachOnboarding(role, userId);
+}
+
 export type CoachTargetRect = {
   top: number;
   left: number;

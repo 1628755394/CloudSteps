@@ -13,6 +13,7 @@ import {
 import { Header } from "./header";
 import { NavMenu } from "./NavMenu";
 import { AnimatedOutlet } from "./PageTransition";
+import { AnnouncementPopupHost } from "./AnnouncementPopupHost";
 import { CloudImageWithFallback } from "./cloudsteps";
 import { useAuthStore } from "../stores/authStore";
 import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
@@ -351,6 +352,8 @@ export function Layout() {
           <BottomNav items={filteredNavItems} pathname={location.pathname} />
         </div>
       )}
+
+      <AnnouncementPopupHost />
     </div>
   );
 }

@@ -14,7 +14,7 @@ import {
   setTrainingStudent,
   studentLabelFromQuota,
 } from "../utils/trainingStudent";
-import { shouldShowCoachOnboarding } from "../utils/coachOnboarding";
+import { shouldShowCoachOnboarding, setCoachOnboardingUiActive } from "../utils/coachOnboarding";
 import { showToast } from "../utils/toast";
 import { cn } from "../utils/cn";
 
@@ -63,7 +63,7 @@ function parseCover(desc?: string): CoverInfo | null {
   }
 }
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 12;
 
 const CUSTOM_GROUP: WordBookGroup = { key: "custom", label: "自定义" };
 
@@ -116,7 +116,9 @@ export default function WordBooks() {
 
   useEffect(() => {
     if (!hasHydrated || !userId) return;
-    setShowOnboarding(shouldShowCoachOnboarding(role, userId));
+    const show = shouldShowCoachOnboarding(role, userId);
+    setShowOnboarding(show);
+    setCoachOnboardingUiActive(show);
   }, [hasHydrated, userId, role]);
 
   const fetchBooks = useCallback(async (p: number, kw: string, g: string) => {
@@ -614,7 +616,10 @@ export default function WordBooks() {
         <CoachOnboarding
           open={showOnboarding}
           userId={userId}
-          onDone={() => setShowOnboarding(false)}
+          onDone={() => {
+            setShowOnboarding(false);
+            setCoachOnboardingUiActive(false);
+          }}
         />
       ) : null}
     </div>

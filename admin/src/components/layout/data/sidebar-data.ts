@@ -16,6 +16,7 @@ import {
   MessageSquare,
   MessagesSquare,
   SpellCheck,
+  Megaphone,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -108,6 +109,11 @@ export const sidebarData: SidebarData = {
               title: '站内信',
               url: '/inbox-notifications',
               icon: MessageSquare,
+            },
+            {
+              title: '系统公告',
+              url: '/announcements',
+              icon: Megaphone,
             },
             {
               title: '邮件日志',

@@ -47,6 +47,7 @@ import { Route as AuthenticatedCoachingIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedCloudUsersIndexRouteImport } from './routes/_authenticated/cloud-users/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
+import { Route as AuthenticatedAnnouncementsIndexRouteImport } from './routes/_authenticated/announcements/index'
 import { Route as ClerkAuthenticatedUserManagementRouteImport } from './routes/clerk/_authenticated/user-management'
 import { Route as ClerkauthSignUpRouteImport } from './routes/clerk/(auth)/sign-up'
 import { Route as ClerkauthSignInRouteImport } from './routes/clerk/(auth)/sign-in'
@@ -269,6 +270,12 @@ const AuthenticatedAppsIndexRoute = AuthenticatedAppsIndexRouteImport.update({
   path: '/apps/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnnouncementsIndexRoute =
+  AuthenticatedAnnouncementsIndexRouteImport.update({
+    id: '/announcements/',
+    path: '/announcements/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ClerkAuthenticatedUserManagementRoute =
   ClerkAuthenticatedUserManagementRouteImport.update({
     id: '/user-management',
@@ -401,6 +408,7 @@ export interface FileRoutesByFullPath {
   '/clerk/sign-in': typeof ClerkauthSignInRoute
   '/clerk/sign-up': typeof ClerkauthSignUpRoute
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
+  '/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
   '/cloud-users/': typeof AuthenticatedCloudUsersIndexRoute
@@ -454,6 +462,7 @@ export interface FileRoutesByTo {
   '/clerk/sign-in': typeof ClerkauthSignInRoute
   '/clerk/sign-up': typeof ClerkauthSignUpRoute
   '/clerk/user-management': typeof ClerkAuthenticatedUserManagementRoute
+  '/announcements': typeof AuthenticatedAnnouncementsIndexRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
   '/cloud-users': typeof AuthenticatedCloudUsersIndexRoute
@@ -512,6 +521,7 @@ export interface FileRoutesById {
   '/clerk/(auth)/sign-in': typeof ClerkauthSignInRoute
   '/clerk/(auth)/sign-up': typeof ClerkauthSignUpRoute
   '/clerk/_authenticated/user-management': typeof ClerkAuthenticatedUserManagementRoute
+  '/_authenticated/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
   '/_authenticated/cloud-users/': typeof AuthenticatedCloudUsersIndexRoute
@@ -568,6 +578,7 @@ export interface FileRouteTypes {
     | '/clerk/sign-in'
     | '/clerk/sign-up'
     | '/clerk/user-management'
+    | '/announcements/'
     | '/apps/'
     | '/chats/'
     | '/cloud-users/'
@@ -621,6 +632,7 @@ export interface FileRouteTypes {
     | '/clerk/sign-in'
     | '/clerk/sign-up'
     | '/clerk/user-management'
+    | '/announcements'
     | '/apps'
     | '/chats'
     | '/cloud-users'
@@ -678,6 +690,7 @@ export interface FileRouteTypes {
     | '/clerk/(auth)/sign-in'
     | '/clerk/(auth)/sign-up'
     | '/clerk/_authenticated/user-management'
+    | '/_authenticated/announcements/'
     | '/_authenticated/apps/'
     | '/_authenticated/chats/'
     | '/_authenticated/cloud-users/'
@@ -987,6 +1000,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/announcements/': {
+      id: '/_authenticated/announcements/'
+      path: '/announcements'
+      fullPath: '/announcements/'
+      preLoaderRoute: typeof AuthenticatedAnnouncementsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/clerk/_authenticated/user-management': {
       id: '/clerk/_authenticated/user-management'
       path: '/user-management'
@@ -1149,6 +1169,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotificationTemplatesIdRoute: typeof AuthenticatedNotificationTemplatesIdRoute
   AuthenticatedNotificationTemplatesNewRoute: typeof AuthenticatedNotificationTemplatesNewRoute
   AuthenticatedWordbooksBookIdRoute: typeof AuthenticatedWordbooksBookIdRoute
+  AuthenticatedAnnouncementsIndexRoute: typeof AuthenticatedAnnouncementsIndexRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
   AuthenticatedCloudUsersIndexRoute: typeof AuthenticatedCloudUsersIndexRoute
@@ -1185,6 +1206,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotificationTemplatesNewRoute:
     AuthenticatedNotificationTemplatesNewRoute,
   AuthenticatedWordbooksBookIdRoute: AuthenticatedWordbooksBookIdRoute,
+  AuthenticatedAnnouncementsIndexRoute: AuthenticatedAnnouncementsIndexRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
   AuthenticatedCloudUsersIndexRoute: AuthenticatedCloudUsersIndexRoute,
