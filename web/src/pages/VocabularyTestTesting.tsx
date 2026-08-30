@@ -223,7 +223,8 @@ export default function VocabularyTestTesting() {
     return () => {
       mounted = false;
     };
-  }, [navigate, pickQuestionFromLevel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
 
   const handleAnswerSelect = async (value: string) => {
     if (!currentQuestion || loading || submitting || revealed) return;
