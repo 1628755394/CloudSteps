@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	relay "github.com/LingByte/ling-base/relay"
+	"github.com/LingByte/CloudStepsGo/internal/configs"
+	"github.com/LingByte/ling-base/relay"
 	"github.com/LingByte/ling-base/relay/channel/openai"
 	"github.com/LingByte/ling-base/relay/meter"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
 )
 
 // Config is the runtime image-generation configuration.
@@ -24,10 +24,10 @@ type Config struct {
 
 // FromGlobal reads image generation settings from loaded app config.
 func FromGlobal() Config {
-	if config.GlobalConfig == nil {
+	if configs.Global == nil {
 		return Config{}
 	}
-	c := config.GlobalConfig.Services.ImageGen
+	c := configs.Global.Services.ImageGen
 	return Config{
 		APIKey:  strings.TrimSpace(c.APIKey),
 		BaseURL: normalizeBaseURL(c.BaseURL),
@@ -81,8 +81,8 @@ type GenerateRequest struct {
 
 // Result holds raw image bytes returned by the provider.
 type Result struct {
-	Data       []byte
-	Ext        string
+	Data          []byte
+	Ext           string
 	RevisedPrompt string
 }
 

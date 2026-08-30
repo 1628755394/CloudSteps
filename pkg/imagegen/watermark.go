@@ -2,70 +2,46 @@ package imagegen
 
 import (
 	"bytes"
-	_ "embed"
 	"fmt"
 	"image"
 	"image/color"
-	"os"
 	"strings"
 	"sync"
 
+	CloudSteps "github.com/LingByte/CloudStepsGo"
 	"github.com/LingByte/ling-base/common/imageutil"
 )
 
-//go:embed embed/logo.png
-var embeddedLogoPNG []byte
-
-const watermarkText = "解忧背词"
-const watermarkFontName = "cover-watermark-cn"
-
 var (
-	watermarkFontOnce sync.Once
+	watermarkFontOnce  sync.Once
 	watermarkFontReady bool
 )
 
 func initWatermarkFont() {
 	watermarkFontOnce.Do(func() {
-		candidates := []string{
-			strings.TrimSpace(os.Getenv("COVER_WATERMARK_FONT")),
-			"/System/Library/Fonts/PingFang.ttc",
-			"/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-			"/Library/Fonts/Arial Unicode.ttf",
-			"/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-			"/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+		if len(CloudSteps.EmbeddedWatermarkFont) == 0 {
+			return
 		}
-		for _, path := range candidates {
-			if path == "" {
-				continue
-			}
-			lower := strings.ToLower(path)
-			var err error
-			if strings.HasSuffix(lower, ".ttc") {
-				err = imageutil.LoadFontTTC(watermarkFontName, path, 0)
-			} else {
-				err = imageutil.LoadFont(watermarkFontName, path)
-			}
-			if err == nil {
-				watermarkFontReady = true
-				return
-			}
+		if err := imageutil.LoadFontBytes(CloudSteps.WatermarkFontName, CloudSteps.EmbeddedWatermarkFont); err != nil {
+			return
 		}
+		watermarkFontReady = true
 	})
 }
 
 func watermarkFont() string {
 	initWatermarkFont()
 	if watermarkFontReady {
-		return watermarkFontName
+		return CloudSteps.WatermarkFontName
 	}
 	return imageutil.FontGoRegular
 }
 
 func decodeLogo() (image.Image, error) {
-	if len(embeddedLogoPNG) == 0 {
+	if len(CloudSteps.EmbeddedLogoPNG) == 0 {
 		return nil, fmt.Errorf("embedded logo missing")
 	}
-	logo, _, err := imageutil.Decode(bytes.NewReader(embeddedLogoPNG))
+	logo, _, err := imageutil.Decode(bytes.NewReader(CloudSteps.EmbeddedLogoPNG))
 	return logo, err
 }
 
@@ -85,7 +61,7 @@ func ApplyCoverWatermark(imageData []byte, extHint string) ([]byte, string, erro
 
 	out := imageutil.CompositeWatermarkBottomRight(base, imageutil.CompositeWatermarkOptions{
 		Logo:       logo,
-		Text:       watermarkText,
+		Text:       CloudSteps.WatermarkText,
 		Font:       watermarkFont(),
 		FontSize:   15,
 		TextColor:  color.White,
