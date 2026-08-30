@@ -99,7 +99,7 @@ export function TeacherPoolPanel() {
   return (
     <div className='space-y-4'>
       <p className='text-sm text-muted-foreground'>
-        老师可授课<strong>总池</strong>：默认 0；公开注册赠送 1000 分钟（跨所有学员合计扣减）。
+        老师可授课<strong>总池</strong>：默认 0；公开注册赠送 180 分钟（跨所有学员合计扣减）。
         开始上课需老师池 &gt; 0，且对应学员也有陪练剩余。下方「月度统计」仅供对账参考，不限制开课。
       </p>
       <div className='flex flex-wrap items-end gap-3'>

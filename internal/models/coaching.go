@@ -24,7 +24,7 @@ const (
 const (
 	CoachingSessionStatusCompleted = "completed"
 	// SignupTeachingPoolMinutes 新老师注册赠送的可授课总时长（分钟，跨学员合计）。
-	SignupTeachingPoolMinutes = 1000
+	SignupTeachingPoolMinutes = 180
 )
 
 // StudentTeacherCoachingQuota 学员在某老师名下的陪练剩余时长（分钟）
