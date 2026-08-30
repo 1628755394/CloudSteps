@@ -62,10 +62,15 @@ func pickFromPool(candidates []models.VocabTestQuestion, minScore, maxScore, lim
 		if used[q.ID] {
 			continue
 		}
-		if q.DifficultyScore < minScore {
+		// difficulty_score=0 视为最低难度（min=0），避免全库 0 分时取不到题
+		score := q.DifficultyScore
+		if score < 0 {
+			score = 0
+		}
+		if score < minScore {
 			continue
 		}
-		if maxScore < 1_000_000 && q.DifficultyScore > maxScore {
+		if maxScore < 1_000_000 && score > maxScore {
 			continue
 		}
 		filtered = append(filtered, q)
@@ -96,7 +101,7 @@ func pickBalancedRandomQuestionsFromPool(pool map[string][]models.VocabTestQuest
 		max int
 		cnt int
 	}{
-		{min: 1, max: 2, cnt: (n + 2) / 3},
+		{min: 0, max: 2, cnt: (n + 2) / 3},
 		{min: 3, max: 4, cnt: n / 3},
 		{min: 5, max: 1_000_000, cnt: n - (n+2)/3 - n/3},
 	}
@@ -116,7 +121,7 @@ func pickBalancedRandomQuestionsFromPool(pool map[string][]models.VocabTestQuest
 
 	if len(res) < n {
 		need := n - len(res)
-		fill := pickFromPool(candidates, 1, 1_000_000, need, used, rng)
+		fill := pickFromPool(candidates, 0, 1_000_000, need, used, rng)
 		for _, q := range fill {
 			if len(res) >= n {
 				break

@@ -62,9 +62,12 @@ export function prefetchVocabTestQuestions(options?: { force?: boolean }): Promi
       const res = await getVocabStart();
       if (res.code !== 200) throw new Error(res.msg || "获取题目失败");
       const list: VocabTestQuestion[] = res.data?.questions || [];
-      if (!list.length) throw new Error("题库暂无题目");
-      saveCachedVocabQuestions(list);
-      return list;
+      if (!list.length) throw new Error("题库暂无题目，请联系管理员添加");
+      // 校验题目格式：必须有 id 和 word
+      const valid = list.filter((q) => q && typeof q.id === "number" && q.word);
+      if (!valid.length) throw new Error("题库数据格式异常");
+      saveCachedVocabQuestions(valid);
+      return valid;
     } catch (err) {
       prefetchPromise = null;
       throw err;

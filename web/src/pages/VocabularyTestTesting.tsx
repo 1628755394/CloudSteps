@@ -207,8 +207,9 @@ export default function VocabularyTestTesting() {
           throw new Error("题库暂无题目");
         }
       } catch (e) {
-        console.error(e);
-        alert(e instanceof Error ? e.message : "加载题目失败");
+        console.error("加载题目失败:", e);
+        const msg = e instanceof Error ? e.message : (e as any)?.msg || "加载题目失败";
+        alert(msg);
         navigate("/vocabulary-test", { replace: true });
       } finally {
         if (mounted) setLoading(false);
