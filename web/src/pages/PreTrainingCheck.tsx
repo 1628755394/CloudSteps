@@ -11,7 +11,6 @@ import { TopBar } from "../components/TopBar";
 import { FlowPageShell } from "../components/PageTransition";
 import {
   WordCardPanel,
-  WordMarkStatsBar,
   WordViewModeToggle,
   isWordCardTapped,
   markWordCardClass,
@@ -371,9 +370,6 @@ export default function PreTrainingCheck() {
     }
   };
 
-  const correctCount = useMemo(() => words.filter((word) => word.status === "correct").length, [words]);
-  const wrongCount = useMemo(() => words.filter((word) => word.status === "wrong").length, [words]);
-
   const renderWordItem = (word: WordItem) => (
     <div
       className={`rounded-xl p-3.5 sm:p-4 shadow-sm transition-all cursor-pointer ${markWordCardClass(
@@ -503,12 +499,6 @@ export default function PreTrainingCheck() {
             {error}
           </div>
         )}
-
-        <WordMarkStatsBar
-          correctCount={correctCount}
-          wrongCount={wrongCount}
-          total={words.length}
-        />
 
         {initialLoading ? (
           <div className="flex justify-center py-8">
@@ -642,7 +632,7 @@ export default function PreTrainingCheck() {
             loading={starting}
             loadingText="启动中…"
           >
-            开始识记
+            开始识记{selectedCount > 0 && `（${selectedCount}个）`}
           </CloudButton>
         </div>
         </div>
