@@ -4,6 +4,7 @@ import Home from "../pages/Home";
 import AntiForgetting from "../pages/AntiForgetting";
 import CoachCenter from "../pages/CoachCenter";
 import CoachCompletedSessions from "../pages/CoachCompletedSessions";
+import CheckIn from "../pages/CheckIn";
 import VocabularyTest from "../pages/VocabularyTest";
 import VocabularyTestTesting from "../pages/VocabularyTestTesting";
 import VocabularyTestResult from "../pages/VocabularyTestResult";
@@ -98,6 +99,14 @@ export const router = createBrowserRouter(
       { path: "training-records", element: <TrainingRecords /> },
       { path: "anti-forgetting", element: <AntiForgetting /> },
       { path: "coach-center", element: <CoachCenter /> },
+      {
+        path: "coach-center/checkin",
+        element: (
+          <RequireRole roles={["user", "teacher", "admin"]}>
+            <CheckIn />
+          </RequireRole>
+        ),
+      },
       {
         path: "coach-center/completed",
         element: (
