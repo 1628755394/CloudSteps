@@ -100,13 +100,13 @@ func TestUserWordState_CRUD(t *testing.T) {
 	db := testLearningDB(t)
 	now := time.Now()
 	st := &UserWordState{
-		UserID:        1,
-		WordID:        10,
-		WordBookID:    2,
-		ScreenResult:  "pass",
-		ScreenAt:      &now,
-		LearnStatus:   "pending",
-		ReviewStage:   0,
+		UserID:         1,
+		WordID:         10,
+		WordBookID:     2,
+		ScreenResult:   "pass",
+		ScreenAt:       &now,
+		LearnStatus:    "pending",
+		ReviewStage:    0,
 		FirstLearnedAt: &now,
 	}
 	if err := db.Create(st).Error; err != nil {

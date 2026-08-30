@@ -173,7 +173,7 @@ func countYearCheckIns(db *gorm.DB, teacherID uint, year int) (int, error) {
 	var n int64
 	err := db.Model(&TeacherCheckIn{}).
 		Where("teacher_id = ? AND check_in_date >= ? AND check_in_date < ?",
-		teacherID, start, end).
+			teacherID, start, end).
 		Count(&n).Error
 	return int(n), err
 }

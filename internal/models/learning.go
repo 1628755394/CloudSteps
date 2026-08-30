@@ -10,13 +10,13 @@ import (
 // UserWordBook 用户选择的词库
 type UserWordBook struct {
 	common.BaseModel
-	UserID      uint       `json:"userId" gorm:"uniqueIndex:uidx_user_wordbook;not null"`
-	WordBookID  uint       `json:"wordBookId" gorm:"uniqueIndex:uidx_user_wordbook;not null"`
-	Status      string     `json:"status" gorm:"size:20;default:'active'"`
+	UserID          uint       `json:"userId" gorm:"uniqueIndex:uidx_user_wordbook;not null"`
+	WordBookID      uint       `json:"wordBookId" gorm:"uniqueIndex:uidx_user_wordbook;not null"`
+	Status          string     `json:"status" gorm:"size:20;default:'active'"`
 	ScreenProgress  int        `json:"screenProgress" gorm:"default:0"`
 	ScreenCompleted bool       `json:"screenCompleted" gorm:"default:false"`
-	StartedAt   *time.Time `json:"startedAt"`
-	CompletedAt *time.Time `json:"completedAt"`
+	StartedAt       *time.Time `json:"startedAt"`
+	CompletedAt     *time.Time `json:"completedAt"`
 }
 
 func (UserWordBook) TableName() string { return constants.TABLE_USER_WORD_BOOKS }
@@ -24,13 +24,13 @@ func (UserWordBook) TableName() string { return constants.TABLE_USER_WORD_BOOKS 
 // UserWordState 用户-单词学习状态（核心）
 type UserWordState struct {
 	common.BaseModel
-	UserID       uint       `json:"userId" gorm:"uniqueIndex:uidx_user_word;index:idx_user_book_status;index:idx_user_book_screen;not null"`
-	WordID       uint       `json:"wordId" gorm:"uniqueIndex:uidx_user_word;not null"`
-	WordBookID   uint       `json:"wordBookId" gorm:"index:idx_user_book_status;index:idx_user_book_screen;not null"`
-	ScreenResult string     `json:"screenResult" gorm:"size:10;index:idx_user_book_screen"`
-	ScreenAt     *time.Time `json:"screenAt"`
-	LearnStatus  string     `json:"learnStatus" gorm:"size:20;default:'pending';index:idx_user_book_status"`
-	ReviewStage  int        `json:"reviewStage" gorm:"default:0"`
+	UserID         uint       `json:"userId" gorm:"uniqueIndex:uidx_user_word;index:idx_user_book_status;index:idx_user_book_screen;not null"`
+	WordID         uint       `json:"wordId" gorm:"uniqueIndex:uidx_user_word;not null"`
+	WordBookID     uint       `json:"wordBookId" gorm:"index:idx_user_book_status;index:idx_user_book_screen;not null"`
+	ScreenResult   string     `json:"screenResult" gorm:"size:10;index:idx_user_book_screen"`
+	ScreenAt       *time.Time `json:"screenAt"`
+	LearnStatus    string     `json:"learnStatus" gorm:"size:20;default:'pending';index:idx_user_book_status"`
+	ReviewStage    int        `json:"reviewStage" gorm:"default:0"`
 	FirstLearnedAt *time.Time `json:"firstLearnedAt"`
 	LastReviewedAt *time.Time `json:"lastReviewedAt"`
 	NextReviewAt   *time.Time `json:"nextReviewAt" gorm:"index"`

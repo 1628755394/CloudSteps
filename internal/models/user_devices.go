@@ -54,14 +54,14 @@ func (LoginHistory) TableName() string {
 type AccountLock struct {
 	common.BaseModel
 	UserID         uint      `gorm:"index;not null" json:"userId"`
-	Email          string    `gorm:"size:128;index" json:"email"`           // 邮箱（用于未登录时的锁定）
-	Username       string    `gorm:"size:128;index" json:"username"`       // 用户名（用于未登录时的锁定）
-	IPAddress      string    `gorm:"size:128;index" json:"ipAddress"`      // 锁定IP
-	LockedAt       time.Time `gorm:"index" json:"lockedAt"`                // 锁定时间
-	UnlockAt       time.Time `gorm:"index" json:"unlockAt"`                // 解锁时间
-	Reason         string    `gorm:"size:256" json:"reason"`               // 锁定原因
-	FailedAttempts int       `gorm:"default:0" json:"failedAttempts"`      // 失败次数
-	IsActive       bool      `gorm:"default:true;index" json:"isActive"`   // 是否激活
+	Email          string    `gorm:"size:128;index" json:"email"`        // 邮箱（用于未登录时的锁定）
+	Username       string    `gorm:"size:128;index" json:"username"`     // 用户名（用于未登录时的锁定）
+	IPAddress      string    `gorm:"size:128;index" json:"ipAddress"`    // 锁定IP
+	LockedAt       time.Time `gorm:"index" json:"lockedAt"`              // 锁定时间
+	UnlockAt       time.Time `gorm:"index" json:"unlockAt"`              // 解锁时间
+	Reason         string    `gorm:"size:256" json:"reason"`             // 锁定原因
+	FailedAttempts int       `gorm:"default:0" json:"failedAttempts"`    // 失败次数
+	IsActive       bool      `gorm:"default:true;index" json:"isActive"` // 是否激活
 }
 
 func (AccountLock) TableName() string {

@@ -29,7 +29,9 @@ type ScenarioDialogueScenario struct {
 	SortOrder   int    `json:"sortOrder" gorm:"default:0"`
 }
 
-func (ScenarioDialogueScenario) TableName() string { return constants.TABLE_SCENARIO_DIALOGUE_SCENARIOS }
+func (ScenarioDialogueScenario) TableName() string {
+	return constants.TABLE_SCENARIO_DIALOGUE_SCENARIOS
+}
 
 // BuildScenarioSystemPrompt composes the full realtime system prompt for a scenario.
 func BuildScenarioSystemPrompt(s *ScenarioDialogueScenario) string {

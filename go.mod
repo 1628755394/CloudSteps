@@ -62,10 +62,12 @@ require (
 	github.com/LingByte/ling-base/voice/synthesizer/volcengine v0.1.1
 	github.com/LingByte/ling-base/voice/synthesizer/xunfei v0.1.1
 	github.com/aws/aws-sdk-go-v2/service/polly v1.58.2
+	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/gin-contrib/sessions v1.0.4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/mssola/user_agent v0.6.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.12.0
@@ -144,7 +146,6 @@ require (
 	github.com/clbanning/mxj v1.8.4 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
-	github.com/danielgtaylor/huma/v2 v2.39.1 // indirect
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -190,7 +191,6 @@ require (
 	github.com/ks3sdklib/aws-sdk-go v1.12.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.23 // indirect
-	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.2.1 // indirect

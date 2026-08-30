@@ -10,19 +10,19 @@ import (
 
 // SysMetric is one calendar day's API traffic/health snapshot.
 type SysMetric struct {
-	ID         uint      `json:"id" gorm:"primaryKey"`
-	MetricDate string    `json:"metricDate" gorm:"size:10;uniqueIndex;not null;comment:YYYY-MM-DD"`
-	PV         int64     `json:"pv" gorm:"not null;default:0;comment:API page-view / request hits"`
-	UV         int64     `json:"uv" gorm:"not null;default:0;comment:Unique logged-in users (HLL)"`
-	IP         int64     `json:"ip" gorm:"not null;default:0;comment:Unique client IPs (HLL)"`
+	ID           uint      `json:"id" gorm:"primaryKey"`
+	MetricDate   string    `json:"metricDate" gorm:"size:10;uniqueIndex;not null;comment:YYYY-MM-DD"`
+	PV           int64     `json:"pv" gorm:"not null;default:0;comment:API page-view / request hits"`
+	UV           int64     `json:"uv" gorm:"not null;default:0;comment:Unique logged-in users (HLL)"`
+	IP           int64     `json:"ip" gorm:"not null;default:0;comment:Unique client IPs (HLL)"`
 	Requests     int64     `json:"requests" gorm:"not null;default:0"`
 	Errors       int64     `json:"errors" gorm:"not null;default:0;comment:HTTP 5xx count"`
 	ClientErrors int64     `json:"clientErrors" gorm:"not null;default:0;comment:HTTP 4xx count"`
 	P50Ms        float64   `json:"p50Ms" gorm:"column:p50_ms;not null;default:0;comment:Response time P50 ms"`
-	P95Ms      float64   `json:"p95Ms" gorm:"column:p95_ms;not null;default:0;comment:Response time P95 ms"`
-	P99Ms      float64   `json:"p99Ms" gorm:"column:p99_ms;not null;default:0;comment:Response time P99 ms"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	P95Ms        float64   `json:"p95Ms" gorm:"column:p95_ms;not null;default:0;comment:Response time P95 ms"`
+	P99Ms        float64   `json:"p99Ms" gorm:"column:p99_ms;not null;default:0;comment:Response time P99 ms"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 func (SysMetric) TableName() string { return constants.SYS_METRIC_TABLE_NAME }
@@ -62,9 +62,9 @@ func ApplySysMetricFlush(db *gorm.DB, date string, delta SysMetricDelta, uv, ip 
 		"requests":      gorm.Expr("requests + ?", row.Requests),
 		"errors":        gorm.Expr("errors + ?", row.Errors),
 		"client_errors": gorm.Expr("client_errors + ?", row.ClientErrors),
-		"uv":         gorm.Expr("CASE WHEN ? > uv THEN ? ELSE uv END", row.UV, row.UV),
-		"ip":         gorm.Expr("CASE WHEN ? > ip THEN ? ELSE ip END", row.IP, row.IP),
-		"updated_at": now,
+		"uv":            gorm.Expr("CASE WHEN ? > uv THEN ? ELSE uv END", row.UV, row.UV),
+		"ip":            gorm.Expr("CASE WHEN ? > ip THEN ? ELSE ip END", row.IP, row.IP),
+		"updated_at":    now,
 	}
 	if updateLatency {
 		expr["p50_ms"] = row.P50Ms

@@ -15,12 +15,12 @@ const (
 	TABLE_WORDS      = "words"
 
 	// ── 学习与复习 ──
-	TABLE_USER_WORD_BOOKS  = "user_word_books"
-	TABLE_USER_WORD_STATES = "user_word_states"
-	TABLE_USER_WORDS       = "user_words"
-	TABLE_REVIEW_QUEUE     = "review_queue"
-	TABLE_WORD_BOOK_PROGRESS  = "word_book_progress"
-	TABLE_USER_WORD_PROGRESS  = "user_word_progress"
+	TABLE_USER_WORD_BOOKS    = "user_word_books"
+	TABLE_USER_WORD_STATES   = "user_word_states"
+	TABLE_USER_WORDS         = "user_words"
+	TABLE_REVIEW_QUEUE       = "review_queue"
+	TABLE_WORD_BOOK_PROGRESS = "word_book_progress"
+	TABLE_USER_WORD_PROGRESS = "user_word_progress"
 
 	// ── 学习会话 ──
 	TABLE_STUDY_SESSIONS = "study_sessions"
@@ -37,7 +37,7 @@ const (
 	TABLE_CLOZE_RECORDS  = "cloze_records"
 
 	// ── 语法 ──
-	TABLE_GRAMMAR_LESSONS  = "grammar_lessons"
+	TABLE_GRAMMAR_LESSONS   = "grammar_lessons"
 	TABLE_GRAMMAR_QUESTIONS = "grammar_questions"
 	TABLE_GRAMMAR_RECORDS   = "grammar_records"
 

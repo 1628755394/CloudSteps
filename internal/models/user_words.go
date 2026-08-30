@@ -33,50 +33,50 @@ var (
 // when present; the canonical Word row is not mutated until an admin adopts it.
 type UserWord struct {
 	common.BaseModel
-	UserID          uint   `json:"userId" gorm:"uniqueIndex:uidx_user_word_overlay;not null"`
-	WordID          uint   `json:"wordId" gorm:"uniqueIndex:uidx_user_word_overlay;index;not null"`
-	WordBookID      uint   `json:"wordBookId" gorm:"index;not null"`
-	Word            string `json:"word" gorm:"size:128"`
-	Phonetic        string `json:"phonetic" gorm:"size:128"`
-	PhoneticUS      string `json:"phoneticUs" gorm:"size:128"`
-	PhoneticUK      string `json:"phoneticUk" gorm:"size:128"`
+	UserID           uint   `json:"userId" gorm:"uniqueIndex:uidx_user_word_overlay;not null"`
+	WordID           uint   `json:"wordId" gorm:"uniqueIndex:uidx_user_word_overlay;index;not null"`
+	WordBookID       uint   `json:"wordBookId" gorm:"index;not null"`
+	Word             string `json:"word" gorm:"size:128"`
+	Phonetic         string `json:"phonetic" gorm:"size:128"`
+	PhoneticUS       string `json:"phoneticUs" gorm:"size:128"`
+	PhoneticUK       string `json:"phoneticUk" gorm:"size:128"`
 	Translation      string `json:"translation" gorm:"type:text"`
 	TranslationShort string `json:"translationShort" gorm:"type:text"`
-	PartOfSpeech    string `json:"partOfSpeech" gorm:"size:50"`
-	Definition      string `json:"definition" gorm:"type:text"`
-	ExampleSentence string `json:"exampleSentence" gorm:"type:text"`
-	Notes           string `json:"notes" gorm:"type:text"`
-	Status          string `json:"status" gorm:"size:16;index;not null;default:pending"`
+	PartOfSpeech     string `json:"partOfSpeech" gorm:"size:50"`
+	Definition       string `json:"definition" gorm:"type:text"`
+	ExampleSentence  string `json:"exampleSentence" gorm:"type:text"`
+	Notes            string `json:"notes" gorm:"type:text"`
+	Status           string `json:"status" gorm:"size:16;index;not null;default:pending"`
 }
 
 func (UserWord) TableName() string { return constants.TABLE_USER_WORDS }
 
 // UserWordFields is the editable overlay snapshot sent by the learner.
 type UserWordFields struct {
-	Word            string `json:"word"`
-	Phonetic        string `json:"phonetic"`
-	PhoneticUS      string `json:"phoneticUs"`
-	PhoneticUK      string `json:"phoneticUk"`
+	Word             string `json:"word"`
+	Phonetic         string `json:"phonetic"`
+	PhoneticUS       string `json:"phoneticUs"`
+	PhoneticUK       string `json:"phoneticUk"`
 	Translation      string `json:"translation"`
 	TranslationShort string `json:"translationShort"`
-	PartOfSpeech    string `json:"partOfSpeech"`
-	Definition      string `json:"definition"`
-	ExampleSentence string `json:"exampleSentence"`
-	Notes           string `json:"notes"`
+	PartOfSpeech     string `json:"partOfSpeech"`
+	Definition       string `json:"definition"`
+	ExampleSentence  string `json:"exampleSentence"`
+	Notes            string `json:"notes"`
 }
 
 func NormalizeUserWordFields(in UserWordFields) (UserWordFields, error) {
 	out := UserWordFields{
-		Word:            strings.TrimSpace(in.Word),
-		Phonetic:        strings.TrimSpace(in.Phonetic),
-		PhoneticUS:      strings.TrimSpace(in.PhoneticUS),
-		PhoneticUK:      strings.TrimSpace(in.PhoneticUK),
+		Word:             strings.TrimSpace(in.Word),
+		Phonetic:         strings.TrimSpace(in.Phonetic),
+		PhoneticUS:       strings.TrimSpace(in.PhoneticUS),
+		PhoneticUK:       strings.TrimSpace(in.PhoneticUK),
 		Translation:      strings.TrimSpace(in.Translation),
 		TranslationShort: strings.TrimSpace(in.TranslationShort),
-		PartOfSpeech:    strings.TrimSpace(in.PartOfSpeech),
-		Definition:      strings.TrimSpace(in.Definition),
-		ExampleSentence: strings.TrimSpace(in.ExampleSentence),
-		Notes:           strings.TrimSpace(in.Notes),
+		PartOfSpeech:     strings.TrimSpace(in.PartOfSpeech),
+		Definition:       strings.TrimSpace(in.Definition),
+		ExampleSentence:  strings.TrimSpace(in.ExampleSentence),
+		Notes:            strings.TrimSpace(in.Notes),
 	}
 	if err := checkRuneLen(out.Word, UserWordWordMaxRunes); err != nil {
 		return UserWordFields{}, err
