@@ -18,7 +18,7 @@ import (
 	"github.com/LingByte/CloudStepsGo/pkg/imagegen"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/ling-base/common/logger"
-	response "github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

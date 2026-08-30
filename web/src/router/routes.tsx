@@ -8,7 +8,6 @@ import CheckIn from "../pages/CheckIn";
 import VocabularyTest from "../pages/VocabularyTest";
 import VocabularyTestTesting from "../pages/VocabularyTestTesting";
 import VocabularyTestResult from "../pages/VocabularyTestResult";
-import TestRecords from "../pages/TestRecords";
 import Feedback from "../pages/Feedback";
 import Settings from "../pages/Settings";
 import MaterialSelection from "../pages/MaterialSelection";
@@ -149,14 +148,6 @@ export const router = createBrowserRouter(
     element: (
       <RequireAuth>
         <ReviewWordList />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/test-records",
-    element: (
-      <RequireAuth>
-        <TestRecords />
       </RequireAuth>
     ),
   },

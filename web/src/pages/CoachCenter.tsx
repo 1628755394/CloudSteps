@@ -1,5 +1,4 @@
 import {
-  ClipboardList,
   Settings2,
   ChevronRight,
   CalendarCheck,
@@ -92,13 +91,6 @@ export default function CoachCenter() {
 
   const featureList = useMemo(() => {
     const base = [
-      {
-        id: 2,
-        icon: ClipboardList,
-        label: "词汇测试记录",
-        tint: "sky" as const,
-        path: "/test-records",
-      },
       {
         id: 4,
         icon: MessageCircle,

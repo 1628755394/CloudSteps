@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
-	response "github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	lbstores "github.com/LingByte/ling-base/stores"
 	"github.com/gin-gonic/gin"
 )

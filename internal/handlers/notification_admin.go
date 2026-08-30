@@ -13,7 +13,7 @@ import (
 	notify2 "github.com/LingByte/CloudStepsGo/pkg/notify"
 	"github.com/LingByte/ling-base/apidocs/humax"
 
-	response "github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )

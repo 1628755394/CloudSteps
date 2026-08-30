@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	response "github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

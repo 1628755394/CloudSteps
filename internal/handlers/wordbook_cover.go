@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/pkg/imagegen"
-	response "github.com/LingByte/CloudStepsGo/pkg/response"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 )
 
