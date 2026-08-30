@@ -1,4 +1,4 @@
-import { Volume2, Check, X, BookOpen, Shuffle, PanelTop, Type } from "lucide-react";
+import { Volume2, Check, X, BookOpen, Shuffle, PanelTop, Type, LayoutGrid } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
@@ -9,8 +9,6 @@ import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 import {
   WordCardPanel,
-  WordMarkStatsBar,
-  WordViewModeToggle,
   isWordCardTapped,
   markWordCardClass,
   markWordCardStyle,
@@ -496,159 +494,173 @@ export default function PostTrainingCheck() {
         defaultStorageKey={`study-note:global:${wordBookId}`}
         defaultTitle="随心记"
       >
-        <div className="pb-28 md:pb-20">
-        <WordMarkStatsBar
-          correctCount={correctCount}
-          wrongCount={wrongCount}
-          total={words.length}
-        />
-        {viewMode === "card" ? (
-          <WordCardPanel
-            words={words}
-            index={cardIndex}
-            onIndexChange={setCardIndex}
-            playingId={playingId}
-            onPlay={handlePlayAudio}
-            onWordClick={handleWordClick}
-            onStatus={handleStatusClick}
-            amplifyDetail={detailMode}
-            onDetailClose={() => setDetailWord(null)}
-            noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
-          />
-        ) : (
-          <div className="space-y-3 mb-6">
-            {words.map((word) => (
-              <div
-                key={word.id}
-                className={`rounded-xl p-4 shadow-sm transition-all cursor-pointer ${markWordCardClass(
-                  word.status,
-                  isWordCardTapped(word, playingId, word.id)
-                )}`}
-                style={markWordCardStyle(word.status, isWordCardTapped(word, playingId, word.id))}
-                onClick={() => {
-                  if (spellMode) {
-                    openSpellDialog(word);
-                  } else {
-                    handleWordClick(word);
-                  }
-                }}
-              >
-                <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1">
-                  <div>
-                    {spellMode ? (
-                      <span className={`${PRACTICE_WORD_CLASS} tracking-widest text-[#A0AEC0] select-none`}>
-                        {"■".repeat(Math.max(3, Math.ceil(word.word.length * 0.7)))}
-                      </span>
-                    ) : (
-                      <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
-                        {word.word}
-                      </span>
-                    )}
-                    {word.showTranslation && (
-                      <div className="mt-1 animate-in fade-in slide-in-from-top-1">
-                        {word.phonetic ? (
-                          <p className="text-sm text-[#718096] font-mono">{word.phonetic}</p>
-                        ) : null}
-                        {word.translation ? (
-                          <p className={PRACTICE_TRANS_CLASS}>{word.translation}</p>
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <StudyNoteLauncher
-                      storageKey={`study-note:word:${wordBookId}:${word.id}`}
-                      title={`笔记 · ${word.word}`}
-                      label="笔记"
-                      className="h-9 px-2"
-                    />
-                  </div>
-                  <CloudButton
-                    type="button"
-                    variant="ghost"
-                    size="iconRound"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePlayAudio(word);
-                      setWords((prev) =>
-                        prev.map((w) =>
-                          w.id === word.id
-                            ? { ...w, heard: true }
-                            : { ...w, heard: false, showTranslation: false }
-                        )
-                      );
-                    }}
-                  >
-                    <Volume2
-                      size={20}
-                      className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
-                    />
-                  </CloudButton>
-                  <CloudButton
-                    type="button"
-                    variant={word.status === "correct" ? "mint" : "ghost"}
-                    size="iconRound"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStatusClick(word.id, "correct");
-                    }}
-                  >
-                    <Check size={20} />
-                  </CloudButton>
-                  <CloudButton
-                    type="button"
-                    variant={word.status === "wrong" ? "destructive" : "ghost"}
-                    size="iconRound"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStatusClick(word.id, "wrong");
-                    }}
-                  >
-                    <X size={20} />
-                  </CloudButton>
-                </div>
-                </div>
-                {detailMode && word.showTranslation && (
-                  <WordDetailPanel
-                    wordId={word.id}
-                    wordText={word.word}
-                    variant="inline"
-                    onClose={() => setDetailWord(null)}
-                  />
-                )}
-              </div>
-            ))}
+        <div className="pb-28 md:pb-20 px-4 pt-3">
+          {/* 统计条 */}
+          <div className="mb-4 rounded-xl bg-white border border-[#E2E8F0] px-4 py-3 shadow-sm">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[#718096]">
+                正确: <span className="text-[#4ECDC4] font-semibold">{correctCount}</span>
+                {" / "}
+                错误: <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
+              </span>
+              <span className="text-[#718096]">
+                正确率: <span className="text-[#4ECDC4] font-semibold">{words.length > 0 ? Math.round((correctCount / words.length) * 100) : 0}%</span>
+              </span>
+            </div>
           </div>
-        )}
+
+          {viewMode === "card" ? (
+            <WordCardPanel
+              words={words}
+              index={cardIndex}
+              onIndexChange={setCardIndex}
+              playingId={playingId}
+              onPlay={handlePlayAudio}
+              onWordClick={handleWordClick}
+              onStatus={handleStatusClick}
+              amplifyDetail={detailMode}
+              onDetailClose={() => setDetailWord(null)}
+              noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
+            />
+          ) : (
+            <div className="space-y-3 mb-6">
+              {words.map((word) => (
+                <div
+                  key={word.id}
+                  className="rounded-xl bg-white p-4 shadow-sm border border-[#E2E8F0]"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1 cursor-pointer" onClick={() => {
+                      if (spellMode) {
+                        openSpellDialog(word);
+                      } else {
+                        handleWordClick(word);
+                      }
+                    }}>
+                      {spellMode ? (
+                        <span className={`${PRACTICE_WORD_CLASS} tracking-widest text-[#A0AEC0] select-none`}>
+                          {"■".repeat(Math.max(3, Math.ceil(word.word.length * 0.7)))}
+                        </span>
+                      ) : (
+                        <span className={`${PRACTICE_WORD_CLASS} text-foreground`}>
+                          {word.word}
+                        </span>
+                      )}
+                      {word.showTranslation && (
+                        <div className="mt-1 animate-in fade-in slide-in-from-top-1">
+                          {word.phonetic ? (
+                            <p className="text-sm text-[#718096] font-mono">{word.phonetic}</p>
+                          ) : null}
+                          {word.translation ? (
+                            <p className={PRACTICE_TRANS_CLASS}>{word.translation}</p>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <StudyNoteLauncher
+                          storageKey={`study-note:word:${wordBookId}:${word.id}`}
+                          title={`笔记 · ${word.word}`}
+                          label="笔记"
+                          className="h-8 px-2.5 text-[11px]"
+                        />
+                      </div>
+                      <CloudButton
+                        type="button"
+                        variant="ghost"
+                        size="iconRound"
+                        className="size-9"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePlayAudio(word);
+                          setWords((prev) =>
+                            prev.map((w) =>
+                              w.id === word.id
+                                ? { ...w, heard: true }
+                                : { ...w, heard: false, showTranslation: false }
+                            )
+                          );
+                        }}
+                      >
+                        <Volume2
+                          size={18}
+                          className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+                        />
+                      </CloudButton>
+                      <CloudButton
+                        type="button"
+                        variant={word.status === "correct" ? "mint" : "ghost"}
+                        size="iconRound"
+                        className="size-9"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusClick(word.id, "correct");
+                        }}
+                      >
+                        <Check size={18} />
+                      </CloudButton>
+                      <CloudButton
+                        type="button"
+                        variant={word.status === "wrong" ? "destructive" : "ghost"}
+                        size="iconRound"
+                        className="size-9"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusClick(word.id, "wrong");
+                        }}
+                      >
+                        <X size={18} />
+                      </CloudButton>
+                    </div>
+                  </div>
+                  {detailMode && word.showTranslation && (
+                    <WordDetailPanel
+                      wordId={word.id}
+                      wordText={word.word}
+                      variant="inline"
+                      onClose={() => setDetailWord(null)}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </NoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 py-3 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-2 shrink-0">
               <CloudButton
                 type="button"
                 variant={note.open ? "brand" : "outline"}
-                size="pill"
+                size="sm"
                 onClick={() => note.setOpen((value) => !value)}
                 aria-label="打开随心记"
                 title="打开随心记"
               >
-                <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
+                <PanelTop size={14} className={note.open ? "text-white" : "text-[#c45c78]"} />
                 随心记
               </CloudButton>
-              <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-                <Shuffle size={16} />
+              <CloudButton
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode((v) => (v === "list" ? "card" : "list"))}
+              >
+                <LayoutGrid size={14} />
+                词卡
+              </CloudButton>
+              <CloudButton variant="outline" size="sm" onClick={handleShuffle}>
+                <Shuffle size={14} />
                 乱序
               </CloudButton>
               <CloudButton
+                type="button"
                 variant={detailMode ? "brand" : "outline"}
-                size="pill"
+                size="sm"
                 onClick={() => {
                   setDetailMode((v) => {
                     if (v) setDetailWord(null);
@@ -656,50 +668,51 @@ export default function PostTrainingCheck() {
                   });
                 }}
               >
-                <BookOpen size={16} />
+                <BookOpen size={14} />
                 拓展
               </CloudButton>
               <CloudButton
+                type="button"
                 variant={spellMode ? "brand" : "outline"}
-                size="pill"
+                size="sm"
                 onClick={() => setSpellMode((v) => !v)}
               >
-                <Type size={16} />
+                <Type size={14} />
                 拼写
               </CloudButton>
             </div>
-            <div className="flex items-center gap-2 w-full md:w-auto min-w-0 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <CloudButton
-                variant="mint"
-                size="pill"
-                className="shrink-0 max-sm:px-3"
+                type="button"
+                variant="mintOutline"
+                size="sm"
+                className="shrink-0"
                 onClick={() => markNextFive("correct")}
               >
-                <Check size={16} />
-                <span className="hidden sm:inline">5个正确</span>
-                <span className="sm:hidden">5✓</span>
+                <Check size={14} />
+                5个正确
               </CloudButton>
               <CloudButton
+                type="button"
                 variant="destructive"
-                size="pill"
-                className="shrink-0 max-sm:px-3"
+                size="sm"
+                className="shrink-0"
                 onClick={() => markNextFive("wrong")}
               >
-                <X size={16} />
-                <span className="hidden sm:inline">5个错误</span>
-                <span className="sm:hidden">5✗</span>
+                <X size={14} />
+                5个错误
               </CloudButton>
               <CloudButton
                 type="button"
                 variant="brand"
-                size="pill"
-                className="flex-1 min-w-0 truncate md:flex-none"
+                size="sm"
+                className="shrink-0"
                 onClick={handleSubmit}
                 disabled={!allMarked || submitting}
                 loading={submitting}
                 loadingText="提交中…"
               >
-                {submitLabel}
+                提交并完成训练
               </CloudButton>
             </div>
           </div>
