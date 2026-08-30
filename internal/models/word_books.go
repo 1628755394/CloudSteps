@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
+	common "github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
 
@@ -32,7 +33,7 @@ func (WordLite) TableName() string { return constants.TABLE_WORDS }
 
 // WordBook 词库
 type WordBook struct {
-	BaseModel
+	common.BaseModel
 	Name           string     `json:"name" gorm:"size:128;not null;comment:词库名称"`
 	Description    string     `json:"description" gorm:"type:text;comment:词库描述"`
 	Level          string     `json:"level" gorm:"size:10;index;comment:适用等级 A1/A2/B1/B2/C1"`
@@ -66,7 +67,7 @@ func (WordBook) TableName() string { return constants.TABLE_WORD_BOOKS }
 
 // Word 单词
 type Word struct {
-	BaseModel
+	common.BaseModel
 	WordBookID       uint   `json:"wordBookId" gorm:"index;index:idx_wordbook_sort;not null;comment:所属词库ID"`
 	Word             string `json:"word" gorm:"size:128;not null;index;comment:英文单词"`
 	Phonetic         string `json:"phonetic" gorm:"size:128;comment:音标"`
@@ -141,7 +142,7 @@ const (
 
 // WordBookProgress 词库学习进度
 type WordBookProgress struct {
-	BaseModel
+	common.BaseModel
 	UserID        uint       `json:"userId" gorm:"index;not null;comment:用户ID"`
 	WordBookID    uint       `json:"wordBookId" gorm:"index;not null;comment:词库ID"`
 	TotalWords    int        `json:"totalWords" gorm:"default:0;comment:总词数"`
@@ -159,7 +160,7 @@ func (WordBookProgress) TableName() string { return "word_book_progress" }
 
 // UserWordProgress 用户单词学习进度
 type UserWordProgress struct {
-	BaseModel
+	common.BaseModel
 	UserID       uint       `json:"userId" gorm:"index;not null;comment:用户ID"`
 	WordID       uint       `json:"wordId" gorm:"index;not null;comment:单词ID"`
 	WordBookID   uint       `json:"wordBookId" gorm:"index;not null;comment:词库ID"`
@@ -337,7 +338,7 @@ func UpdateWordBook(db *gorm.DB, id uint, vals map[string]any) error {
 }
 
 // DeleteWordBook 硬删除词库：直接删除词库行以及相关数据。
-// 注意：这里使用 Unscoped，确保不再依赖 is_deleted 软删除逻辑。
+// 注意：这里使用 Unscoped，硬删除词库及相关数据（与 DeletedAt 软删无关）。
 func DeleteWordBook(db *gorm.DB, id uint, operator string) error {
 	_ = operator // operator currently only used for soft delete audit; keep signature compatibility
 
@@ -376,7 +377,7 @@ func SetWordBookActive(db *gorm.DB, id uint, active bool) error {
 func SyncWordBookCount(db *gorm.DB, wordBookID uint) error {
 	var cnt int64
 	if err := db.Model(&Word{}).
-		Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive).
+		Where("word_book_id = ?", wordBookID).
 		Count(&cnt).Error; err != nil {
 		return err
 	}
@@ -390,13 +391,12 @@ func SyncAllWordBookCounts(db *gorm.DB) (int64, error) {
 		LEFT JOIN (
 			SELECT word_book_id, COUNT(*) AS cnt
 			FROM %s
-			WHERE is_deleted = ?
+			WHERE deleted_at IS NULL
 			GROUP BY word_book_id
 		) t ON t.word_book_id = wb.id
 		SET wb.word_count = COALESCE(t.cnt, 0)
-		WHERE wb.is_deleted = ?
-	`, constants.TABLE_WORD_BOOKS, constants.TABLE_WORDS),
-		SoftDeleteStatusActive, SoftDeleteStatusActive)
+		WHERE wb.deleted_at IS NULL
+	`, constants.TABLE_WORD_BOOKS, constants.TABLE_WORDS))
 	return res.RowsAffected, res.Error
 }
 
@@ -432,7 +432,7 @@ func BatchCreateWords(db *gorm.DB, words []Word) error {
 // GetWordByID 按 ID 查单词
 func GetWordByID(db *gorm.DB, id uint) (*Word, error) {
 	var word Word
-	if err := db.Where("is_deleted = ?", SoftDeleteStatusActive).First(&word, id).Error; err != nil {
+	if err := db.First(&word, id).Error; err != nil {
 		return nil, err
 	}
 	return &word, nil
@@ -440,7 +440,7 @@ func GetWordByID(db *gorm.DB, id uint) (*Word, error) {
 
 // ListWords 分页查词库下的单词
 func ListWords(db *gorm.DB, wordBookID uint, keyword string, page, size int) ([]Word, int64, error) {
-	q := db.Model(&Word{}).Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive)
+	q := db.Model(&Word{}).Where("word_book_id = ?", wordBookID)
 	if keyword != "" {
 		like := "%" + keyword + "%"
 		q = q.Where(
@@ -464,7 +464,7 @@ func ListWords(db *gorm.DB, wordBookID uint, keyword string, page, size int) ([]
 // GetAllWords 获取词库全部单词（不分页，用于学习流程）
 func GetAllWords(db *gorm.DB, wordBookID uint) ([]Word, error) {
 	var words []Word
-	if err := db.Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive).
+	if err := db.Where("word_book_id = ?", wordBookID).
 		Order("sort_order ASC, id ASC").Find(&words).Error; err != nil {
 		return nil, err
 	}
@@ -477,7 +477,7 @@ func GetWordsByIDs(db *gorm.DB, ids []uint) ([]Word, error) {
 		return nil, nil
 	}
 	var words []Word
-	if err := db.Where("id IN ? AND is_deleted = ?", ids, SoftDeleteStatusActive).Find(&words).Error; err != nil {
+	if err := db.Where("id IN ?", ids).Find(&words).Error; err != nil {
 		return nil, err
 	}
 	return words, nil
@@ -491,13 +491,10 @@ func UpdateWord(db *gorm.DB, id uint, vals map[string]any) error {
 // DeleteWord 软删除单词，并同步词库计数
 func DeleteWord(db *gorm.DB, id uint, operator string) error {
 	var word Word
-	if err := db.Where("is_deleted = ?", SoftDeleteStatusActive).First(&word, id).Error; err != nil {
+	if err := db.First(&word, id).Error; err != nil {
 		return err
 	}
-	if err := db.Model(&Word{}).Where("id = ?", id).Updates(map[string]any{
-		"is_deleted": SoftDeleteStatusDeleted,
-		"update_by":  operator,
-	}).Error; err != nil {
+	if err := db.Delete(&word).Error; err != nil {
 		return err
 	}
 	return db.Model(&WordBook{}).Where("id = ?", word.WordBookID).
@@ -531,7 +528,7 @@ func BatchDeleteWords(db *gorm.DB, ids []uint) error {
 func WordExists(db *gorm.DB, wordBookID uint, word string) (bool, error) {
 	var cnt int64
 	err := db.Model(&Word{}).
-		Where("word_book_id = ? AND is_deleted = ? AND LOWER(word) = LOWER(?)", wordBookID, SoftDeleteStatusActive, word).
+		Where("word_book_id = ? AND LOWER(word) = LOWER(?)", wordBookID, word).
 		Count(&cnt).Error
 	return cnt > 0, err
 }
@@ -541,7 +538,7 @@ func WordExists(db *gorm.DB, wordBookID uint, word string) (bool, error) {
 // ListWordBooksWithSearch 分页+关键词搜索词库列表（替代 ListWordBooks 的全量加载）
 // ownerUserID：>0 时按自定义词库过滤；group=custom 仅返回该用户私有词库，其它分组排除所有自定义词库。
 func ListWordBooksWithSearch(db *gorm.DB, keyword, level, category, group string, onlyActive bool, page, size int, ownerUserID uint) ([]WordBook, int64, error) {
-	q := db.Model(&WordBook{}).Where("is_deleted = ?", SoftDeleteStatusActive)
+	q := db.Model(&WordBook{})
 	if onlyActive {
 		q = q.Where("is_active = ?", true)
 	}
@@ -631,7 +628,7 @@ func GroupNames() []map[string]string {
 
 // ListWordsLite 轻量分页查单词（只 SELECT 学习所需字段，不加载 40+ 列）
 func ListWordsLite(db *gorm.DB, wordBookID uint, keyword string, page, size int) ([]WordLite, int64, error) {
-	q := db.Model(&WordLite{}).Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive)
+	q := db.Model(&WordLite{}).Where("word_book_id = ?", wordBookID)
 	if keyword != "" {
 		like := "%" + keyword + "%"
 		q = q.Where("word LIKE ? OR translation LIKE ? OR part_of_speech LIKE ?", like, like, like)
@@ -652,7 +649,7 @@ func ListWordsLite(db *gorm.DB, wordBookID uint, keyword string, page, size int)
 // GetWordLiteByID 轻量查询单个单词
 func GetWordLiteByID(db *gorm.DB, id uint) (*WordLite, error) {
 	var word WordLite
-	if err := db.Where("is_deleted = ?", SoftDeleteStatusActive).First(&word, id).Error; err != nil {
+	if err := db.First(&word, id).Error; err != nil {
 		return nil, err
 	}
 	return &word, nil
@@ -664,7 +661,7 @@ func GetWordsLiteByIDs(db *gorm.DB, ids []uint) ([]WordLite, error) {
 		return nil, nil
 	}
 	var words []WordLite
-	if err := db.Where("id IN ? AND is_deleted = ?", ids, SoftDeleteStatusActive).
+	if err := db.Where("id IN ?", ids).
 		Order("sort_order ASC, id ASC").Find(&words).Error; err != nil {
 		return nil, err
 	}
@@ -675,7 +672,7 @@ func GetWordsLiteByIDs(db *gorm.DB, ids []uint) ([]WordLite, error) {
 // 替代 Offset(screenProgress)，避免大偏移量性能下降
 func GetNextWordAfterCursor(db *gorm.DB, wordBookID uint, afterSortOrder int, afterID uint) (*Word, error) {
 	var word Word
-	q := db.Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive)
+	q := db.Where("word_book_id = ?", wordBookID)
 	if afterID > 0 {
 		q = q.Where("(sort_order > ? OR (sort_order = ? AND id > ?))", afterSortOrder, afterSortOrder, afterID)
 	}
@@ -697,8 +694,8 @@ func GetWordCountByBookID(db *gorm.DB, wordBookID uint) (int64, error) {
 // ListStudyWordsLite 学习列表轻量查询：用 NOT EXISTS 排除已学单词。
 // shuffle=true 时用 seed 做 Fisher–Yates 全量乱序后分页（同 seed 翻页稳定；换 seed 完全重排）。
 func ListStudyWordsLite(db *gorm.DB, wordBookID uint, userID uint, page, size int, shuffle bool, seed int64) ([]WordLite, int64, error) {
-	baseWhere := "word_book_id = ? AND is_deleted = ? AND NOT EXISTS (SELECT 1 FROM user_word_states WHERE user_id = ? AND word_id = words.id AND learn_status IN ('learned','mastered'))"
-	args := []any{wordBookID, SoftDeleteStatusActive, userID}
+	baseWhere := "word_book_id = ? AND NOT EXISTS (SELECT 1 FROM user_word_states WHERE user_id = ? AND word_id = words.id AND learn_status IN ('learned','mastered'))"
+	args := []any{wordBookID, userID}
 
 	var total int64
 	if err := db.Model(&WordLite{}).Where(baseWhere, args...).Count(&total).Error; err != nil {
@@ -769,7 +766,7 @@ func ListStudyWordsLite(db *gorm.DB, wordBookID uint, userID uint, page, size in
 // GetWordIDsByBookID 获取词库全部单词 ID（用于选词库时的懒初始化，只 Pluck ID 不创建状态）
 func GetWordIDsByBookID(db *gorm.DB, wordBookID uint) ([]uint, error) {
 	var ids []uint
-	if err := db.Model(&Word{}).Where("word_book_id = ? AND is_deleted = ?", wordBookID, SoftDeleteStatusActive).
+	if err := db.Model(&Word{}).Where("word_book_id = ?", wordBookID).
 		Order("sort_order ASC, id ASC").Pluck("id", &ids).Error; err != nil {
 		return nil, err
 	}

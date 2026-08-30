@@ -5,15 +5,17 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/internal/sysmetrics"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/CloudStepsGo/pkg/sysmetrics"
+	"github.com/LingByte/ling-base/apidocs/humax"
+
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 )
 
-func (h *Handlers) registerMetricsRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerMetricsRoutes(r *humax.Group) {
 	g := r.Group("metrics")
-	g.Use(models.AuthRequired, adminOnly())
+	g.Use(auth.Required, auth.AdminRequired)
 	{
 		g.GET("/daily", h.handleAdminDailyMetrics)
 		g.GET("/live", h.handleAdminLiveMetrics)

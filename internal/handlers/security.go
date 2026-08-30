@@ -1,28 +1,30 @@
 package handlers
 
 import (
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"strconv"
 	"strings"
 
+	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/middleware"
+	middleware "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func (h *Handlers) registerSecurityRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerSecurityRoutes(r *humax.Group) {
 	security := r.Group("security")
-	security.Use(models.AuthRequired, adminOnly())
+	security.Use(middleware.Required, middleware.AdminRequired)
 	{
 		security.GET("/operation-logs", h.handleAdminListOperationLogs)
 		security.GET("/operation-logs/:id", h.handleAdminGetOperationLog)
 	}
 
-	authAdmin := r.Group(config.GlobalConfig.Server.AuthPrefix)
-	authAdmin.Use(models.AuthRequired, adminOnly())
+	authAdmin := r.Group(configs.Global.Server.AuthPrefix)
+	authAdmin.Use(middleware.Required, middleware.AdminRequired)
 	{
 		authAdmin.GET("/login-history", h.handleAdminListLoginHistory)
 		authAdmin.GET("/login-history/:id", h.handleAdminGetLoginHistory)
@@ -46,7 +48,7 @@ func parsePageParams(c *gin.Context) (page, pageSize int) {
 
 // GET /security/operation-logs
 func (h *Handlers) handleAdminListOperationLogs(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	page, pageSize := parsePageParams(c)
 
 	query := db.Model(&middleware.OperationLog{})
@@ -86,7 +88,7 @@ func (h *Handlers) handleAdminListOperationLogs(c *gin.Context) {
 
 // GET /security/operation-logs/:id
 func (h *Handlers) handleAdminGetOperationLog(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
 		response.Fail(c, "invalid id", err)
@@ -103,7 +105,7 @@ func (h *Handlers) handleAdminGetOperationLog(c *gin.Context) {
 
 // GET /auth/login-history
 func (h *Handlers) handleAdminListLoginHistory(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	page, pageSize := parsePageParams(c)
 
 	query := db.Model(&models.LoginHistory{})
@@ -147,7 +149,7 @@ func (h *Handlers) handleAdminListLoginHistory(c *gin.Context) {
 
 // GET /auth/login-history/:id
 func (h *Handlers) handleAdminGetLoginHistory(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil || id <= 0 {
 		response.Fail(c, "invalid id", err)

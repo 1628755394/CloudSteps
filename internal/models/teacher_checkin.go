@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	common "github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -50,7 +51,7 @@ func CheckInRewardPreview() []CheckInRewardTier {
 
 // TeacherCheckIn 老师每日签到一行（用户量小，直接用日期行记录即可）。
 type TeacherCheckIn struct {
-	BaseModel
+	common.BaseModel
 	TeacherID      uint      `json:"teacherId" gorm:"uniqueIndex:idx_teacher_checkin_day;not null"`
 	CheckInDate    time.Time `json:"checkInDate" gorm:"type:date;uniqueIndex:idx_teacher_checkin_day;not null"`
 	GrantedMinutes int       `json:"grantedMinutes" gorm:"not null;default:0"`
@@ -126,8 +127,8 @@ func nextRewardStep(streak int, checkedToday bool) (*int, *int) {
 
 func findCheckInOn(db *gorm.DB, teacherID uint, day time.Time) (*TeacherCheckIn, error) {
 	var row TeacherCheckIn
-	err := db.Where("teacher_id = ? AND check_in_date = ? AND is_deleted = ?",
-		teacherID, localDateOnly(day), SoftDeleteStatusActive).First(&row).Error
+	err := db.Where("teacher_id = ? AND check_in_date = ?",
+		teacherID, localDateOnly(day)).First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -139,7 +140,7 @@ func findCheckInOn(db *gorm.DB, teacherID uint, day time.Time) (*TeacherCheckIn,
 
 func latestCheckIn(db *gorm.DB, teacherID uint) (*TeacherCheckIn, error) {
 	var row TeacherCheckIn
-	err := db.Where("teacher_id = ? AND is_deleted = ?", teacherID, SoftDeleteStatusActive).
+	err := db.Where("teacher_id = ?", teacherID).
 		Order("check_in_date DESC, id DESC").First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
@@ -170,8 +171,8 @@ func countYearCheckIns(db *gorm.DB, teacherID uint, year int) (int, error) {
 	end := time.Date(year+1, 1, 1, 0, 0, 0, 0, time.Local)
 	var n int64
 	err := db.Model(&TeacherCheckIn{}).
-		Where("teacher_id = ? AND is_deleted = ? AND check_in_date >= ? AND check_in_date < ?",
-			teacherID, SoftDeleteStatusActive, start, end).
+		Where("teacher_id = ? AND check_in_date >= ? AND check_in_date < ?",
+		teacherID, start, end).
 		Count(&n).Error
 	return int(n), err
 }
@@ -180,7 +181,7 @@ func longestCheckInStreak(db *gorm.DB, teacherID uint) (int, error) {
 	var maxStreak int
 	err := db.Model(&TeacherCheckIn{}).
 		Select("COALESCE(MAX(streak), 0)").
-		Where("teacher_id = ? AND is_deleted = ?", teacherID, SoftDeleteStatusActive).
+		Where("teacher_id = ?", teacherID).
 		Scan(&maxStreak).Error
 	return maxStreak, err
 }
@@ -192,8 +193,8 @@ func monthCheckInMask(db *gorm.DB, teacherID uint, monthStart time.Time, days in
 	}
 	monthEnd := monthStart.AddDate(0, 1, 0)
 	var rows []TeacherCheckIn
-	if err := db.Where("teacher_id = ? AND is_deleted = ? AND check_in_date >= ? AND check_in_date < ?",
-		teacherID, SoftDeleteStatusActive, monthStart, monthEnd).
+	if err := db.Where("teacher_id = ? AND check_in_date >= ? AND check_in_date < ?",
+		teacherID, monthStart, monthEnd).
 		Find(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -404,7 +405,7 @@ func AddTeacherTeachingPoolMinutes(db *gorm.DB, teacherID uint, minutes int) err
 		return err
 	}
 	res := db.Model(&TeacherTeachingPool{}).
-		Where("id = ? AND is_deleted = ?", pool.ID, SoftDeleteStatusActive).
+		Where("id = ?", pool.ID).
 		Updates(map[string]any{
 			"remaining_minutes":       gorm.Expr("remaining_minutes + ?", minutes),
 			"total_allocated_minutes": gorm.Expr("total_allocated_minutes + ?", minutes),

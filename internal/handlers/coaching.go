@@ -2,6 +2,11 @@ package handlers
 
 import (
 	"errors"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,16 +14,15 @@ import (
 	"unicode"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerCoachingRoutes(r *humax.Group) {
 	adminG := r.Group("coaching")
-	adminG.Use(models.AuthRequired, h.requireAdmin)
+	adminG.Use(auth.Required, auth.AdminRequired)
 	{
 		adminG.GET("/appointments", h.coachingAdminListAppointments)
 		adminG.GET("/appointments/:id", h.coachingAdminGetAppointment)
@@ -35,7 +39,7 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 	}
 
 	t := r.Group("teacher/coaching")
-	t.Use(models.AuthRequired, h.requireTeacherOrAdmin)
+	t.Use(auth.Required, h.requireTeacherOrAdmin)
 	{
 		t.GET("/week", h.coachingTeacherWeek)
 		t.GET("/completed", h.coachingTeacherCompleted)
@@ -64,7 +68,7 @@ func (h *Handlers) registerCoachingRoutes(r *gin.RouterGroup) {
 	}
 
 	s := r.Group("student/coaching")
-	s.Use(models.AuthRequired, h.requireStudentOrAdmin)
+	s.Use(auth.Required, h.requireStudentOrAdmin)
 	{
 		s.GET("/week", h.coachingStudentWeek)
 	}
@@ -79,20 +83,18 @@ func coachingIsTeacherRole(u *models.User) bool {
 }
 
 func (h *Handlers) requireTeacherOrAdmin(c *gin.Context) {
-	u := models.CurrentUser(c)
+	u := auth.CurrentUser(c)
 	if u == nil || (!coachingIsTeacherRole(u) && !u.IsAdmin()) {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "需要老师或管理员权限"})
-		c.Abort()
+		response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("需要老师或管理员权限"))
 		return
 	}
 	c.Next()
 }
 
 func (h *Handlers) requireStudentOrAdmin(c *gin.Context) {
-	u := models.CurrentUser(c)
+	u := auth.CurrentUser(c)
 	if u == nil || (!u.IsStudent() && !u.IsAdmin()) {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "需要学员或管理员权限"})
-		c.Abort()
+		response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("需要学员或管理员权限"))
 		return
 	}
 	c.Next()
@@ -105,7 +107,7 @@ func coachingDateOnly(t time.Time) time.Time {
 
 func coachingGetQuota(db *gorm.DB, teacherID, studentID uint) (models.StudentTeacherCoachingQuota, error) {
 	var q models.StudentTeacherCoachingQuota
-	err := db.Where("teacher_id = ? AND student_id = ? AND is_deleted = ?", teacherID, studentID, 0).First(&q).Error
+	err := db.Where("teacher_id = ? AND student_id = ?", teacherID, studentID).First(&q).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return models.StudentTeacherCoachingQuota{TeacherID: teacherID, StudentID: studentID, RemainingMinutes: 60}, gorm.ErrRecordNotFound
 	}
@@ -120,7 +122,7 @@ func coachingGetOrCreateUsagePeriod(tx *gorm.DB, teacherID uint, ref time.Time) 
 	periodEnd := periodStart.AddDate(0, 1, 0)
 
 	var p models.TeacherCoachingUsagePeriod
-	err := tx.Where("teacher_id = ? AND period_start = ? AND is_deleted = ?", teacherID, periodStart, 0).First(&p).Error
+	err := tx.Where("teacher_id = ? AND period_start = ?", teacherID, periodStart).First(&p).Error
 	if err == nil {
 		return &p, nil
 	}
@@ -139,7 +141,7 @@ func coachingGetOrCreateUsagePeriod(tx *gorm.DB, teacherID uint, ref time.Time) 
 func coachingAppointmentConflicts(db *gorm.DB, ap *models.CoachingAppointment, excludeID uint) error {
 	date := coachingDateOnly(ap.ScheduledDate)
 	base := db.Model(&models.CoachingAppointment{}).
-		Where("is_deleted = ? AND status NOT IN ?", 0, []string{models.CoachingStatusCancelled}).
+		Where("status NOT IN ?", []string{models.CoachingStatusCancelled}).
 		Where("scheduled_date = ?", date)
 	if excludeID > 0 {
 		base = base.Where("id <> ?", excludeID)
@@ -177,7 +179,7 @@ func coachingAppointmentConflicts(db *gorm.DB, ap *models.CoachingAppointment, e
 
 func coachingLoadUserRoles(db *gorm.DB, id uint, want string) error {
 	var u models.User
-	if err := db.Select("id", "role").Where("id = ? AND is_deleted = ?", id, 0).First(&u).Error; err != nil {
+	if err := db.Select("id", "role").Where("id = ?", id).First(&u).Error; err != nil {
 		return err
 	}
 	if want == "teacher" && !coachingIsTeacherRole(&u) {
@@ -192,21 +194,21 @@ func coachingLoadUserRoles(db *gorm.DB, id uint, want string) error {
 // --- Admin ---
 
 func (h *Handlers) coachingAdminListAppointments(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	from := c.Query("from")
 	to := c.Query("to")
 	if from == "" || to == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "需要 from、to（YYYY-MM-DD）"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("需要 from、to（YYYY-MM-DD）"))
 		return
 	}
 	tFrom, err := time.ParseInLocation("2006-01-02", from, time.Local)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "from 日期格式错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("from 日期格式错误"))
 		return
 	}
 	tTo, err := time.ParseInLocation("2006-01-02", to, time.Local)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "to 日期格式错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("to 日期格式错误"))
 		return
 	}
 
@@ -224,7 +226,7 @@ func (h *Handlers) coachingAdminListAppointments(c *gin.Context) {
 	}
 
 	base := db.Model(&models.CoachingAppointment{}).
-		Where("is_deleted = 0 AND scheduled_date >= ? AND scheduled_date <= ?", coachingDateOnly(tFrom), coachingDateOnly(tTo))
+		Where("scheduled_date >= ? AND scheduled_date <= ?", coachingDateOnly(tFrom), coachingDateOnly(tTo))
 	if tid := c.Query("teacherId"); tid != "" {
 		if v, _ := strconv.Atoi(tid); v > 0 {
 			base = base.Where("teacher_id = ?", v)
@@ -262,17 +264,17 @@ func (h *Handlers) coachingAdminListAppointments(c *gin.Context) {
 }
 
 func (h *Handlers) coachingAdminGetAppointment(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无效 id"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效 id"))
 		return
 	}
 	var ap models.CoachingAppointment
-	if err := db.Where("id = ? AND is_deleted = 0", id).
+	if err := db.Where("id = ?", id).
 		Preload("Teacher").Preload("Student").Preload("Session").
 		First(&ap).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "排课不存在"})
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
 		return
 	}
 	response.SuccessMsg(c, "ok", ap)
@@ -289,28 +291,28 @@ type coachingAdminApptBody struct {
 }
 
 func (h *Handlers) coachingAdminCreateAppointment(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var body coachingAdminApptBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	sd, err := time.ParseInLocation("2006-01-02", body.ScheduledDate, time.Local)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "scheduledDate 格式错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("scheduledDate 格式错误"))
 		return
 	}
 	dur, err := models.CoachingDurationMinutes(body.StartTime, body.EndTime)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "开始/结束时间无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("开始/结束时间无效"))
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.TeacherID, "teacher"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.StudentID, "student"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	ap := models.CoachingAppointment{
@@ -319,7 +321,7 @@ func (h *Handlers) coachingAdminCreateAppointment(c *gin.Context) {
 		DurationMinutes: dur, Status: models.CoachingStatusScheduled, Title: body.Title, Notes: body.Notes,
 	}
 	if err := coachingAppointmentConflicts(db, &ap, 0); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := db.Create(&ap).Error; err != nil {
@@ -336,42 +338,42 @@ func (h *Handlers) coachingAdminCreateAppointment(c *gin.Context) {
 }
 
 func (h *Handlers) coachingAdminUpdateAppointment(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无效 id"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效 id"))
 		return
 	}
 	var ap models.CoachingAppointment
-	if err := db.Where("id = ? AND is_deleted = 0", id).First(&ap).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "排课不存在"})
+	if err := db.Where("id = ?", id).First(&ap).Error; err != nil {
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
 		return
 	}
 	if ap.Status == models.CoachingStatusCompleted || ap.Status == models.CoachingStatusInProgress {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "进行中或已完成的排课不可修改时段"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("进行中或已完成的排课不可修改时段"))
 		return
 	}
 	var body coachingAdminApptBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	sd, err := time.ParseInLocation("2006-01-02", body.ScheduledDate, time.Local)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "scheduledDate 格式错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("scheduledDate 格式错误"))
 		return
 	}
 	dur, err := models.CoachingDurationMinutes(body.StartTime, body.EndTime)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "开始/结束时间无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("开始/结束时间无效"))
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.TeacherID, "teacher"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.StudentID, "student"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	ap.TeacherID = body.TeacherID
@@ -383,7 +385,7 @@ func (h *Handlers) coachingAdminUpdateAppointment(c *gin.Context) {
 	ap.Title = body.Title
 	ap.Notes = body.Notes
 	if err := coachingAppointmentConflicts(db, &ap, ap.ID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := db.Save(&ap).Error; err != nil {
@@ -400,9 +402,9 @@ func (h *Handlers) coachingAdminUpdateAppointment(c *gin.Context) {
 }
 
 func (h *Handlers) coachingAdminDeleteAppointment(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
-	if err := db.Model(&models.CoachingAppointment{}).Where("id = ?", id).Update("is_deleted", 1).Error; err != nil {
+	if err := db.Delete(&models.CoachingAppointment{}, id).Error; err != nil {
 		response.Fail(c, "删除失败", err.Error())
 		return
 	}
@@ -412,9 +414,9 @@ func (h *Handlers) coachingAdminDeleteAppointment(c *gin.Context) {
 }
 
 func (h *Handlers) coachingAdminListQuotas(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var list []models.StudentTeacherCoachingQuota
-	tx := db.Where("is_deleted = 0 AND student_id <> teacher_id").
+	tx := db.Where("student_id <> teacher_id").
 		Preload("Teacher").Preload("Student").Order("teacher_id, student_id")
 	if tid := c.Query("teacherId"); tid != "" {
 		if v, _ := strconv.Atoi(tid); v > 0 {
@@ -440,27 +442,27 @@ type coachingQuotaBody struct {
 }
 
 func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var body coachingQuotaBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	if body.RemainingMinutes < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "remainingMinutes 不能为负"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("remainingMinutes 不能为负"))
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.TeacherID, "teacher"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.StudentID, "student"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 
 	var q models.StudentTeacherCoachingQuota
-	err := db.Where("teacher_id = ? AND student_id = ? AND is_deleted = 0", body.TeacherID, body.StudentID).First(&q).Error
+	err := db.Where("teacher_id = ? AND student_id = ?", body.TeacherID, body.StudentID).First(&q).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		q = models.StudentTeacherCoachingQuota{
 			TeacherID: body.TeacherID, StudentID: body.StudentID,
@@ -495,8 +497,8 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 }
 
 func (h *Handlers) coachingAdminListTeacherPools(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	tx := db.Where("is_deleted = 0").Preload("Teacher").Order("teacher_id")
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	tx := db.Model(&models.CoachingAppointment{}).Preload("Teacher").Order("teacher_id")
 	if tid := c.Query("teacherId"); tid != "" {
 		if v, _ := strconv.Atoi(tid); v > 0 {
 			tx = tx.Where("teacher_id = ?", v)
@@ -516,18 +518,18 @@ type coachingTeacherPoolBody struct {
 }
 
 func (h *Handlers) coachingAdminUpsertTeacherPool(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var body coachingTeacherPoolBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	if body.RemainingMinutes < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "remainingMinutes 不能为负"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("remainingMinutes 不能为负"))
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.TeacherID, "teacher"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -555,14 +557,14 @@ func (h *Handlers) coachingAdminUpsertTeacherPool(c *gin.Context) {
 }
 
 func (h *Handlers) coachingAdminListUsagePeriods(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	limit := 50
 	if l := c.Query("limit"); l != "" {
 		if v, _ := strconv.Atoi(l); v > 0 && v <= 200 {
 			limit = v
 		}
 	}
-	tx := db.Where("is_deleted = 0").Preload("Teacher").Order("period_start DESC")
+	tx := db.Model(&models.CoachingAppointment{}).Preload("Teacher").Order("period_start DESC")
 	if tidStr := c.Query("teacherId"); tidStr != "" {
 		if tid, _ := strconv.Atoi(tidStr); tid > 0 {
 			tx = tx.Where("teacher_id = ?", tid)
@@ -584,24 +586,24 @@ type coachingUsagePeriodBody struct {
 }
 
 func (h *Handlers) coachingAdminPutUsagePeriod(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var body coachingUsagePeriodBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	var coachUser models.User
-	if err := db.Select("id", "role").Where("id = ? AND is_deleted = 0", body.TeacherID).First(&coachUser).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "用户不存在"})
+	if err := db.Select("id", "role").Where("id = ?", body.TeacherID).First(&coachUser).Error; err != nil {
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("用户不存在"))
 		return
 	}
 	if !coachingIsTeacherRole(&coachUser) {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "用户不是老师/陪练角色"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("用户不是老师/陪练角色"))
 		return
 	}
 	t, err := time.ParseInLocation("2006-01", body.Month, time.Local)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "month 格式应为 YYYY-MM"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("month 格式应为 YYYY-MM"))
 		return
 	}
 	y, m, _ := t.Date()
@@ -609,7 +611,7 @@ func (h *Handlers) coachingAdminPutUsagePeriod(c *gin.Context) {
 	periodEnd := periodStart.AddDate(0, 1, 0)
 
 	var row models.TeacherCoachingUsagePeriod
-	err = db.Where("teacher_id = ? AND period_start = ? AND is_deleted = 0", body.TeacherID, periodStart).First(&row).Error
+	err = db.Where("teacher_id = ? AND period_start = ?", body.TeacherID, periodStart).First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		row = models.TeacherCoachingUsagePeriod{
 			TeacherID: body.TeacherID, PeriodStart: periodStart, PeriodEnd: periodEnd,
@@ -622,7 +624,7 @@ func (h *Handlers) coachingAdminPutUsagePeriod(c *gin.Context) {
 			row.UsedMinutes = *body.UsedMinutes
 		}
 		if row.CapMinutes < 0 || row.UsedMinutes < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "分钟数不能为负"})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("分钟数不能为负"))
 			return
 		}
 		if err := db.Create(&row).Error; err != nil {
@@ -642,20 +644,20 @@ func (h *Handlers) coachingAdminPutUsagePeriod(c *gin.Context) {
 	updates := map[string]any{}
 	if body.CapMinutes != nil {
 		if *body.CapMinutes < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "capMinutes 不能为负"})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("capMinutes 不能为负"))
 			return
 		}
 		updates["cap_minutes"] = *body.CapMinutes
 	}
 	if body.UsedMinutes != nil {
 		if *body.UsedMinutes < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "usedMinutes 不能为负"})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("usedMinutes 不能为负"))
 			return
 		}
 		updates["used_minutes"] = *body.UsedMinutes
 	}
 	if len(updates) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "至少提供 capMinutes 或 usedMinutes"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("至少提供 capMinutes 或 usedMinutes"))
 		return
 	}
 	if err := db.Model(&row).Updates(updates).Error; err != nil {
@@ -679,7 +681,7 @@ func coachingWeekItems(db *gorm.DB, teacherID, studentID uint, weekRef string) (
 	mon, sun := models.CoachingWeekMondaySunday(d, time.Local)
 
 	var list []models.CoachingAppointment
-	tx := db.Where("is_deleted = 0 AND scheduled_date >= ? AND scheduled_date <= ?", coachingDateOnly(mon), coachingDateOnly(sun)).
+	tx := db.Where("scheduled_date >= ? AND scheduled_date <= ?", coachingDateOnly(mon), coachingDateOnly(sun)).
 		Preload("Teacher").Preload("Student").Preload("Session").
 		Order("scheduled_date, start_time")
 	if teacherID > 0 {
@@ -695,8 +697,8 @@ func coachingWeekItems(db *gorm.DB, teacherID, studentID uint, weekRef string) (
 }
 
 func (h *Handlers) coachingTeacherWeek(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	date := c.Query("date")
 	if date == "" {
 		date = time.Now().In(time.Local).Format("2006-01-02")
@@ -709,7 +711,7 @@ func (h *Handlers) coachingTeacherWeek(c *gin.Context) {
 			}
 		}
 		if tid == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "管理员查询周课表请传 teacherId"})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("管理员查询周课表请传 teacherId"))
 			return
 		}
 	} else {
@@ -717,17 +719,17 @@ func (h *Handlers) coachingTeacherWeek(c *gin.Context) {
 	}
 	list, err := coachingWeekItems(db, tid, 0, date)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "日期无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("日期无效"))
 		return
 	}
 	response.SuccessMsg(c, "ok", gin.H{"schedules": coachingToWeekDTO(list)})
 }
 
 func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	_ = models.RepairTeacherCoachingRelations(db, tid)
@@ -749,8 +751,8 @@ func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 	includeSelf := strings.TrimSpace(c.Query("includeSelf")) == "1" ||
 		strings.EqualFold(strings.TrimSpace(c.Query("includeSelf")), "true")
 	tx := db.Model(&models.StudentTeacherCoachingQuota{}).
-		Joins("INNER JOIN users ON users.id = student_teacher_coaching_quotas.student_id AND users.is_deleted = ?", models.SoftDeleteStatusActive).
-		Where("student_teacher_coaching_quotas.teacher_id = ? AND student_teacher_coaching_quotas.is_deleted = 0", tid)
+		Joins("INNER JOIN users ON users.id = student_teacher_coaching_quotas.student_id AND users.deleted_at IS NULL").
+		Where("student_teacher_coaching_quotas.teacher_id = ?", tid)
 	if !includeSelf {
 		tx = tx.Where("student_teacher_coaching_quotas.student_id != ?", tid)
 	}
@@ -797,10 +799,10 @@ func (h *Handlers) coachingTeacherListQuotas(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherGetMyPool(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	_ = models.RepairTeacherCoachingRelations(db, tid)
@@ -821,8 +823,8 @@ func (h *Handlers) coachingTeacherGetMyPool(c *gin.Context) {
 }
 
 func (h *Handlers) coachingStudentWeek(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	date := c.Query("date")
 	if date == "" {
 		date = time.Now().In(time.Local).Format("2006-01-02")
@@ -835,7 +837,7 @@ func (h *Handlers) coachingStudentWeek(c *gin.Context) {
 			}
 		}
 		if sid == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "管理员查询周课表请传 studentId"})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("管理员查询周课表请传 studentId"))
 			return
 		}
 	} else {
@@ -843,7 +845,7 @@ func (h *Handlers) coachingStudentWeek(c *gin.Context) {
 	}
 	list, err := coachingWeekItems(db, 0, sid, date)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "日期无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("日期无效"))
 		return
 	}
 	response.SuccessMsg(c, "ok", gin.H{"schedules": coachingToWeekDTO(list)})
@@ -979,31 +981,31 @@ func coachingUsernameFromDisplayName(db *gorm.DB, displayName string) (string, e
 }
 
 func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	var body coachingTeacherCreateStudentBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	name := strings.TrimSpace(body.DisplayName)
 	if name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "请填写学生姓名"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请填写学生姓名"))
 		return
 	}
 	if body.StudyHours < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学时不能为负"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学时不能为负"))
 		return
 	}
 
 	remaining := body.StudyHours * 60
 	username, err := coachingUsernameFromDisplayName(db, name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "msg": "生成账号失败，请重试"})
+		response.AbortWithStatusJSON(c, http.StatusInternalServerError, errors.New("生成账号失败，请重试"))
 		return
 	}
 
@@ -1012,7 +1014,7 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 		pwd = coachingDefaultStudentPassword
 	}
 	if len(pwd) < 6 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "密码至少 6 位"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("密码至少 6 位"))
 		return
 	}
 	student := models.User{
@@ -1061,15 +1063,15 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 		return
 	}
 	var body coachingTeacherSetStudentPasswordBody
@@ -1078,7 +1080,7 @@ func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
 	var quota models.StudentTeacherCoachingQuota
 	if err := db.Where("teacher_id = ? AND student_id = ?", tid, sid).First(&quota).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "该学员不在你的名下"})
+			response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("该学员不在你的名下"))
 			return
 		}
 		response.Fail(c, "查询失败", err.Error())
@@ -1087,7 +1089,7 @@ func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
 
 	var user models.User
 	if err := db.First(&user, sid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "学员不存在"})
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("学员不存在"))
 		return
 	}
 
@@ -1096,7 +1098,7 @@ func (h *Handlers) coachingTeacherSetStudentPassword(c *gin.Context) {
 		pwd = coachingDefaultStudentPassword
 	}
 	if len(pwd) < 6 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "密码至少 6 位"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("密码至少 6 位"))
 		return
 	}
 	if err := models.ResetPassword(db, &user, pwd); err != nil {
@@ -1118,32 +1120,32 @@ type coachingTeacherSetStudentReviewCurveBody struct {
 }
 
 func (h *Handlers) coachingTeacherSetStudentReviewCurve(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 		return
 	}
 	var body coachingTeacherSetStudentReviewCurveBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数无效"))
 		return
 	}
 	preset := string(models.NormalizeReviewCurvePreset(body.ReviewCurvePreset))
 
 	if err := coachingTeacherHasStudentPair(db, tid, uint(sid)); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 
 	var user models.User
 	if err := db.First(&user, sid).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "学员不存在"})
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("学员不存在"))
 		return
 	}
 	if err := models.UpdateUser(db, &user, map[string]any{"review_curve_preset": preset}); err != nil {
@@ -1166,30 +1168,30 @@ func (h *Handlers) coachingTeacherSetStudentReviewCurve(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherRemoveStudent(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 		return
 	}
 	if models.IsSelfCoachingPair(tid, uint(sid)) {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无法移除自练额度"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无法移除自练额度"))
 		return
 	}
 	if err := coachingTeacherHasStudentPair(db, tid, uint(sid)); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 
 	var q models.StudentTeacherCoachingQuota
-	if err := db.Where("teacher_id = ? AND student_id = ? AND is_deleted = 0", tid, sid).First(&q).Error; err != nil {
+	if err := db.Where("teacher_id = ? AND student_id = ?", tid, sid).First(&q).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "学员不在你的名下"})
+			response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("学员不在你的名下"))
 			return
 		}
 		response.Fail(c, "查询失败", err.Error())
@@ -1197,15 +1199,11 @@ func (h *Handlers) coachingTeacherRemoveStudent(c *gin.Context) {
 	}
 
 	op := ""
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		op = u.Username
 	}
 	q.SoftDelete(op)
-	if err := db.Model(&q).Updates(map[string]any{
-		"is_deleted": q.IsDeleted,
-		"update_by":  q.UpdateBy,
-		"updated_at": q.UpdatedAt,
-	}).Error; err != nil {
+	if err := db.Save(&q).Error; err != nil {
 		response.Fail(c, "移除失败", err.Error())
 		return
 	}
@@ -1217,10 +1215,10 @@ func (h *Handlers) coachingTeacherRemoveStudent(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	from := c.Query("from")
@@ -1232,12 +1230,12 @@ func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
 	}
 	tFrom, err := time.ParseInLocation("2006-01-02", from, time.Local)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "from 日期格式错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("from 日期格式错误"))
 		return
 	}
 	tTo, err := time.ParseInLocation("2006-01-02", to, time.Local)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "to 日期格式错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("to 日期格式错误"))
 		return
 	}
 	page := 1
@@ -1256,7 +1254,7 @@ func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
 
 	var total int64
 	base := db.Model(&models.CoachingAppointment{}).
-		Where("is_deleted = 0 AND teacher_id = ? AND status = ?", tid, models.CoachingStatusCompleted).
+		Where("teacher_id = ? AND status = ?", tid, models.CoachingStatusCompleted).
 		Where("scheduled_date >= ? AND scheduled_date <= ?", coachingDateOnly(tFrom), coachingDateOnly(tTo))
 	if err := base.Count(&total).Error; err != nil {
 		response.Fail(c, "查询失败", err.Error())
@@ -1280,16 +1278,16 @@ func (h *Handlers) coachingTeacherCompleted(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherSearchStudents(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	q := strings.TrimSpace(c.Query("q"))
 	if len(q) < 2 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "搜索关键词至少 2 个字符"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("搜索关键词至少 2 个字符"))
 		return
 	}
 	like := "%" + q + "%"
 	var users []models.User
 	if err := db.Select("id", "username", "display_name", "phone", "role").
-		Where("is_deleted = 0 AND role = ?", "student").
+		Where("role = ?", "student").
 		Where("username LIKE ? OR display_name LIKE ? OR phone LIKE ?", like, like, like).
 		Order("display_name, username").
 		Limit(20).
@@ -1310,28 +1308,28 @@ func (h *Handlers) coachingTeacherSearchStudents(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	var body coachingTeacherQuotaBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	if body.RemainingMinutes < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "remainingMinutes 不能为负"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("remainingMinutes 不能为负"))
 		return
 	}
 	if err := coachingLoadUserRoles(db, body.StudentID, "student"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 
 	var q models.StudentTeacherCoachingQuota
-	err := db.Where("teacher_id = ? AND student_id = ? AND is_deleted = 0", tid, body.StudentID).First(&q).Error
+	err := db.Where("teacher_id = ? AND student_id = ?", tid, body.StudentID).First(&q).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		q = models.StudentTeacherCoachingQuota{
 			TeacherID: tid, StudentID: body.StudentID,
@@ -1368,29 +1366,29 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	var body coachingTeacherApptBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "请先添加该学员后再排课"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请先添加该学员后再排课"))
 		return
 	}
 	sd, err := time.ParseInLocation("2006-01-02", body.ScheduledDate, time.Local)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "scheduledDate 格式错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("scheduledDate 格式错误"))
 		return
 	}
 	dur, err := models.CoachingDurationMinutes(body.StartTime, body.EndTime)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "开始/结束时间无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("开始/结束时间无效"))
 		return
 	}
 	ap := models.CoachingAppointment{
@@ -1399,7 +1397,7 @@ func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
 		DurationMinutes: dur, Status: models.CoachingStatusScheduled, Title: body.Title, Notes: body.Notes,
 	}
 	if err := coachingAppointmentConflicts(db, &ap, 0); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := db.Create(&ap).Error; err != nil {
@@ -1416,43 +1414,43 @@ func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无效 id"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效 id"))
 		return
 	}
 	var ap models.CoachingAppointment
-	if err := db.Where("id = ? AND is_deleted = 0 AND teacher_id = ?", id, tid).First(&ap).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "排课不存在"})
+	if err := db.Where("id = ? AND teacher_id = ?", id, tid).First(&ap).Error; err != nil {
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
 		return
 	}
 	if ap.Status == models.CoachingStatusCompleted || ap.Status == models.CoachingStatusInProgress {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "进行中或已完成的排课不可修改"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("进行中或已完成的排课不可修改"))
 		return
 	}
 	var body coachingTeacherApptBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "请先添加该学员后再排课"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请先添加该学员后再排课"))
 		return
 	}
 	sd, err := time.ParseInLocation("2006-01-02", body.ScheduledDate, time.Local)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "scheduledDate 格式错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("scheduledDate 格式错误"))
 		return
 	}
 	dur, err := models.CoachingDurationMinutes(body.StartTime, body.EndTime)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "开始/结束时间无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("开始/结束时间无效"))
 		return
 	}
 	ap.StudentID = body.StudentID
@@ -1463,7 +1461,7 @@ func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
 	ap.Title = body.Title
 	ap.Notes = body.Notes
 	if err := coachingAppointmentConflicts(db, &ap, ap.ID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := db.Save(&ap).Error; err != nil {
@@ -1480,23 +1478,23 @@ func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherDeleteAppointment(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
 	var ap models.CoachingAppointment
-	if err := db.Where("id = ? AND is_deleted = 0 AND teacher_id = ?", id, tid).First(&ap).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "排课不存在"})
+	if err := db.Where("id = ? AND teacher_id = ?", id, tid).First(&ap).Error; err != nil {
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
 		return
 	}
 	if ap.Status == models.CoachingStatusInProgress {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "上课中的排课不可删除"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("上课中的排课不可删除"))
 		return
 	}
-	if err := db.Model(&ap).Update("is_deleted", 1).Error; err != nil {
+	if err := db.Delete(&ap).Error; err != nil {
 		response.Fail(c, "删除失败", err.Error())
 		return
 	}
@@ -1506,16 +1504,16 @@ func (h *Handlers) coachingTeacherDeleteAppointment(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherStart(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	var ap models.CoachingAppointment
-	if err := db.Where("id = ? AND is_deleted = 0", id).First(&ap).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "排课不存在"})
+	if err := db.Where("id = ?", id).First(&ap).Error; err != nil {
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
 		return
 	}
 	if coachingIsTeacherRole(user) && !user.IsAdmin() && ap.TeacherID != user.ID {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "无权操作此排课"})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("无权操作此排课"))
 		return
 	}
 	if ap.Status != models.CoachingStatusScheduled {
@@ -1523,12 +1521,12 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 			response.SuccessMsg(c, "ok", gin.H{"appointment": ap, "message": "已在上课中"})
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "当前状态不可开始"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("当前状态不可开始"))
 		return
 	}
 	q, err := coachingGetQuota(db, ap.TeacherID, ap.StudentID)
 	if errors.Is(err, gorm.ErrRecordNotFound) || q.RemainingMinutes <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "陪练剩余时长不足，无法开始上课"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("陪练剩余时长不足，无法开始上课"))
 		return
 	}
 	if err != nil {
@@ -1537,12 +1535,12 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 	}
 	now := time.Now()
 	if err := models.CoachingCanStartAt(&ap, now, time.Local); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := coachingTeacherPoolAllowsStart(db, ap.TeacherID); err != nil {
 		if errors.Is(err, errCoachingTeacherPoolEmpty) {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 			return
 		}
 		response.Fail(c, "查询老师计量失败", err.Error())
@@ -1564,23 +1562,23 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 
 	var ap models.CoachingAppointment
-	if err := db.Where("id = ? AND is_deleted = 0", id).First(&ap).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "排课不存在"})
+	if err := db.Where("id = ?", id).First(&ap).Error; err != nil {
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("排课不存在"))
 		return
 	}
 	if coachingIsTeacherRole(user) && !user.IsAdmin() && ap.TeacherID != user.ID {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "无权操作此排课"})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("无权操作此排课"))
 		return
 	}
 
 	rec, apCompleted, err := coachingCompleteAppointment(db, uint(id), time.Now(), c, false)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	response.SuccessMsg(c, "ok", gin.H{"session": rec, "appointment": apCompleted})
@@ -1593,15 +1591,15 @@ type coachingPracticeStartBody struct {
 
 // coachingTeacherStartPractice 无排课练习开课：为所选学员创建临时课次并立即开始，结束时走普通下课扣额度。
 func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	var body coachingPracticeStartBody
 	if err := c.ShouldBindJSON(&body); err != nil || body.StudentID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "请选择学员"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请选择学员"))
 		return
 	}
 	planned := body.PlannedMinutes
@@ -1613,12 +1611,12 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	}
 
 	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "请先添加该学员后再练习"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请先添加该学员后再练习"))
 		return
 	}
 	q, err := coachingGetQuota(db, tid, body.StudentID)
 	if errors.Is(err, gorm.ErrRecordNotFound) || q.RemainingMinutes <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "陪练剩余时长不足，无法开始练习"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("陪练剩余时长不足，无法开始练习"))
 		return
 	}
 	if err != nil {
@@ -1629,7 +1627,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	now := time.Now().In(time.Local)
 	if err := coachingTeacherPoolAllowsStart(db, tid); err != nil {
 		if errors.Is(err, errCoachingTeacherPoolEmpty) {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 			return
 		}
 		response.Fail(c, "查询老师计量失败", err.Error())
@@ -1638,7 +1636,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 
 	// 已有进行中课次：同学员复用；其他学员则提示先下课
 	var inProgress []models.CoachingAppointment
-	if err := db.Where("is_deleted = 0 AND teacher_id = ? AND status = ?", tid, models.CoachingStatusInProgress).
+	if err := db.Where("teacher_id = ? AND status = ?", tid, models.CoachingStatusInProgress).
 		Find(&inProgress).Error; err != nil {
 		response.Fail(c, "查询上课中课次失败", err.Error())
 		return
@@ -1663,10 +1661,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code": 400,
-			"msg":  "当前已有其他学员的上课中课次，请先结束后再开始练习",
-		})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("当前已有其他学员的上课中课次，请先结束后再开始练习"))
 		return
 	}
 
@@ -1678,7 +1673,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	}
 	dur, err := models.CoachingDurationMinutes(startHm, endHm)
 	if err != nil || dur < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "练习时段无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("练习时段无效"))
 		return
 	}
 

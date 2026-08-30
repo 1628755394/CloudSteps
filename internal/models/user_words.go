@@ -5,7 +5,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
+	common "github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
 
@@ -31,7 +32,7 @@ var (
 // UserWord is a per-user overlay of a Word. Display prefers these fields
 // when present; the canonical Word row is not mutated until an admin adopts it.
 type UserWord struct {
-	BaseModel
+	common.BaseModel
 	UserID          uint   `json:"userId" gorm:"uniqueIndex:uidx_user_word_overlay;not null"`
 	WordID          uint   `json:"wordId" gorm:"uniqueIndex:uidx_user_word_overlay;index;not null"`
 	WordBookID      uint   `json:"wordBookId" gorm:"index;not null"`
@@ -259,7 +260,7 @@ func OverlayWordLites(db *gorm.DB, userID uint, words []WordLite) {
 		return
 	}
 	var rows []UserWord
-	if err := db.Where("user_id = ? AND word_id IN ? AND is_deleted = ?", userID, ids, SoftDeleteStatusActive).
+	if err := db.Where("user_id = ? AND word_id IN ?", userID, ids).
 		Find(&rows).Error; err != nil || len(rows) == 0 {
 		return
 	}
@@ -279,7 +280,7 @@ func OverlayWord(db *gorm.DB, userID uint, w *Word) {
 		return
 	}
 	var row UserWord
-	if err := db.Where("user_id = ? AND word_id = ? AND is_deleted = ?", userID, w.ID, SoftDeleteStatusActive).
+	if err := db.Where("user_id = ? AND word_id = ?", userID, w.ID).
 		First(&row).Error; err != nil {
 		return
 	}
@@ -288,7 +289,7 @@ func OverlayWord(db *gorm.DB, userID uint, w *Word) {
 
 func GetUserWord(db *gorm.DB, userID, wordID uint) (*UserWord, error) {
 	var row UserWord
-	if err := db.Where("user_id = ? AND word_id = ? AND is_deleted = ?", userID, wordID, SoftDeleteStatusActive).
+	if err := db.Where("user_id = ? AND word_id = ?", userID, wordID).
 		First(&row).Error; err != nil {
 		return nil, err
 	}
@@ -322,7 +323,7 @@ func UpsertUserWord(db *gorm.DB, userID uint, word *Word, fields UserWordFields,
 	if err != nil {
 		return nil, err
 	}
-	row.IsDeleted = SoftDeleteStatusActive
+	row.Restore(operator)
 	row.WordBookID = word.WordBookID
 	row.Status = UserWordStatusPending
 	row.applyFields(normalized)
@@ -335,14 +336,12 @@ func UpsertUserWord(db *gorm.DB, userID uint, word *Word, fields UserWordFields,
 
 func DeleteUserWord(db *gorm.DB, userID, wordID uint, operator string) error {
 	var row UserWord
-	if err := db.Where("user_id = ? AND word_id = ? AND is_deleted = ?", userID, wordID, SoftDeleteStatusActive).
+	if err := db.Where("user_id = ? AND word_id = ?", userID, wordID).
 		First(&row).Error; err != nil {
 		return err
 	}
-	return db.Model(&row).Updates(map[string]any{
-		"is_deleted": SoftDeleteStatusDeleted,
-		"update_by":  operator,
-	}).Error
+	row.SoftDelete(operator)
+	return db.Save(&row).Error
 }
 
 func AdoptUserWord(db *gorm.DB, row *UserWord, operator string) error {

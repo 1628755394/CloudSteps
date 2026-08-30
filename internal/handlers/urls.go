@@ -1,16 +1,15 @@
 package handlers
 
 import (
-	"net/http"
-
-	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/internal/sysmetrics"
-	"github.com/LingByte/CloudStepsGo/internal/voice"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/middleware"
+	"github.com/LingByte/CloudStepsGo/internal/configs"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
+	middleware "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/CloudStepsGo/pkg/sysmetrics"
+	"github.com/LingByte/CloudStepsGo/pkg/voice"
+	"github.com/LingByte/ling-base/apidocs/humax"
 	"github.com/LingByte/ling-base/cache/lru"
 	lbconfig "github.com/LingByte/ling-base/common/config"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -32,10 +31,14 @@ func NewHandlers(db *gorm.DB, cache *lru.Cache[string, any], configStore *lbconf
 	}
 }
 
-func (h *Handlers) Register(engine *gin.Engine) {
-	r := engine.Group(config.GlobalConfig.Server.APIPrefix)
+// Register 通过 humax 注册业务路由（Gin 执行 + OpenAPI 文档）。
+func (h *Handlers) Register(engine *gin.Engine, api huma.API) {
+	prefix := "/api"
+	if configs.Global != nil && configs.Global.Server.APIPrefix != "" {
+		prefix = configs.Global.Server.APIPrefix
+	}
+	r := humax.NewGroup(api, engine, prefix)
 
-	// Register Global Singleton DB + Config Store
 	r.Use(middleware.InjectDB(h.db))
 	if h.configStore != nil {
 		r.Use(func(c *gin.Context) {
@@ -47,9 +50,8 @@ func (h *Handlers) Register(engine *gin.Engine) {
 		r.Use(h.sysMetrics.Middleware())
 	}
 
-	// Apply global middlewares (rate limiting, timeout, circuit breaker, operation log)
-	middleware.ApplyGlobalMiddlewares(r)
-	// Register Business Module Routes
+	middleware.ApplyGlobalMiddlewares(r.Gin())
+
 	h.registerAuthRoutes(r)
 	h.registerAdminUserRoutes(r)
 	h.registerSecurityRoutes(r)
@@ -71,14 +73,4 @@ func (h *Handlers) Register(engine *gin.Engine) {
 	h.registerScenarioDialogueRoutes(r)
 	h.registerTTSRoutes(r)
 	h.registerMetricsRoutes(r)
-}
-
-func (h *Handlers) requireAdmin(c *gin.Context) {
-	user := models.CurrentUser(c)
-	if user == nil || !user.IsAdmin() {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "需要管理员权限"})
-		c.Abort()
-		return
-	}
-	c.Next()
 }

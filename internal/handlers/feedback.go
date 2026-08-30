@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"github.com/LingByte/ling-base/apidocs/humax"
 	"errors"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"strconv"
 	"strings"
 	"time"
@@ -41,9 +43,9 @@ type feedbackTicketDTO struct {
 	Replies          []feedbackReplyDTO `json:"replies,omitempty"`
 }
 
-func (h *Handlers) registerFeedbackRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerFeedbackRoutes(r *humax.Group) {
 	g := r.Group("feedback")
-	g.Use(models.AuthRequired)
+	g.Use(auth.Required)
 	{
 		g.GET("", h.handleListMyFeedback)
 		g.POST("", h.handleCreateFeedback)
@@ -53,7 +55,7 @@ func (h *Handlers) registerFeedbackRoutes(r *gin.RouterGroup) {
 }
 
 func (h *Handlers) handleCreateFeedback(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -76,14 +78,14 @@ func (h *Handlers) handleCreateFeedback(c *gin.Context) {
 }
 
 func (h *Handlers) handleListMyFeedback(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "未登录", nil)
 		return
 	}
 	page, pageSize := parsePageParams(c)
 	q := h.db.Model(&models.FeedbackTicket{}).
-		Where("user_id = ? AND is_deleted = ?", user.ID, models.SoftDeleteStatusActive)
+		Where("user_id = ?", user.ID)
 
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
@@ -108,7 +110,7 @@ func (h *Handlers) handleListMyFeedback(c *gin.Context) {
 }
 
 func (h *Handlers) handleGetMyFeedback(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -126,7 +128,7 @@ func (h *Handlers) handleGetMyFeedback(c *gin.Context) {
 }
 
 func (h *Handlers) handleReplyMyFeedback(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -159,7 +161,7 @@ func (h *Handlers) findOwnedFeedback(c *gin.Context, userID uint) (*models.Feedb
 		return nil, false
 	}
 	var ticket models.FeedbackTicket
-	if err := h.db.Where("id = ? AND user_id = ? AND is_deleted = ?", id, userID, models.SoftDeleteStatusActive).
+	if err := h.db.Where("id = ? AND user_id = ?", id, userID).
 		First(&ticket).Error; err != nil {
 		response.Fail(c, "工单不存在", err)
 		return nil, false
@@ -169,7 +171,7 @@ func (h *Handlers) findOwnedFeedback(c *gin.Context, userID uint) (*models.Feedb
 
 func loadFeedbackReplies(db *gorm.DB, ticketID uint) ([]models.FeedbackReply, error) {
 	var replies []models.FeedbackReply
-	err := db.Where("ticket_id = ? AND is_deleted = ?", ticketID, models.SoftDeleteStatusActive).
+	err := db.Where("ticket_id = ?", ticketID).
 		Order("id ASC").Find(&replies).Error
 	return replies, err
 }

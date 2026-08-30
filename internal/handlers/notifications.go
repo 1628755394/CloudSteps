@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"github.com/LingByte/ling-base/apidocs/humax"
 	"fmt"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,24 +15,24 @@ import (
 )
 
 // registerNotificationRoutes Notification Module
-func (h *Handlers) registerNotificationRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerNotificationRoutes(r *humax.Group) {
 	notificationGroup := r.Group("notification")
 	{
-		notificationGroup.GET("unread-count", models.AuthRequired, h.handleUnReadNotificationCount)
+		notificationGroup.GET("unread-count", auth.Required, h.handleUnReadNotificationCount)
 
-		notificationGroup.GET("", models.AuthRequired, h.handleListNotifications)
+		notificationGroup.GET("", auth.Required, h.handleListNotifications)
 
-		notificationGroup.POST("readAll", models.AuthRequired, h.handleAllNotifications)
+		notificationGroup.POST("readAll", auth.Required, h.handleAllNotifications)
 
-		notificationGroup.PUT("/read/:id", models.AuthRequired, h.handleMarkNotificationAsRead)
+		notificationGroup.PUT("/read/:id", auth.Required, h.handleMarkNotificationAsRead)
 
-		notificationGroup.DELETE("/:id", models.AuthRequired, h.handleDeleteNotification)
+		notificationGroup.DELETE("/:id", auth.Required, h.handleDeleteNotification)
 
 		// Batch delete notifications
-		notificationGroup.POST("/batch-delete", models.AuthRequired, h.handleBatchDeleteNotifications)
+		notificationGroup.POST("/batch-delete", auth.Required, h.handleBatchDeleteNotifications)
 
 		// Get all notification IDs (for select all functionality)
-		notificationGroup.GET("/all-ids", models.AuthRequired, h.handleGetAllNotificationIds)
+		notificationGroup.GET("/all-ids", auth.Required, h.handleGetAllNotificationIds)
 	}
 }
 
@@ -69,7 +71,7 @@ func toAPINotifications(msgs []inbox.Message) []apiNotification {
 
 // GetUnReadNotificationCount get user unread notification count
 func (h *Handlers) handleUnReadNotificationCount(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 
 	users, err := models.GetUserByUsername(h.db, user.Username)
 	if err != nil {
@@ -87,7 +89,7 @@ func (h *Handlers) handleUnReadNotificationCount(c *gin.Context) {
 
 // ListNotifications list user notifications
 func (h *Handlers) handleListNotifications(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User is not logged in.", nil)
 	}
@@ -140,7 +142,7 @@ func (h *Handlers) handleListNotifications(c *gin.Context) {
 
 // AllNotifications mark all notifications as read
 func (h *Handlers) handleAllNotifications(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User is not logged in.", nil)
 	}
@@ -154,7 +156,7 @@ func (h *Handlers) handleAllNotifications(c *gin.Context) {
 
 // handleMarkNotificationAsRead marks specified notification as read
 func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User is not logged in.", nil)
 		return
@@ -185,7 +187,7 @@ func (h *Handlers) handleMarkNotificationAsRead(c *gin.Context) {
 }
 
 func (h *Handlers) handleDeleteNotification(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User is not logged in.", nil)
 		return
@@ -206,7 +208,7 @@ func (h *Handlers) handleDeleteNotification(c *gin.Context) {
 
 // handleBatchDeleteNotifications batch deletes notifications
 func (h *Handlers) handleBatchDeleteNotifications(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User is not logged in.", nil)
 		return
@@ -245,7 +247,7 @@ func (h *Handlers) handleBatchDeleteNotifications(c *gin.Context) {
 
 // handleGetAllNotificationIds gets all notification IDs (for select all functionality)
 func (h *Handlers) handleGetAllNotificationIds(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User is not logged in.", nil)
 		return

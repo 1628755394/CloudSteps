@@ -3,12 +3,13 @@ package models
 import (
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
+	common "github.com/LingByte/ling-base/common"
 )
 
 // UserWordBook 用户选择的词库
 type UserWordBook struct {
-	BaseModel
+	common.BaseModel
 	UserID      uint       `json:"userId" gorm:"uniqueIndex:uidx_user_wordbook;not null"`
 	WordBookID  uint       `json:"wordBookId" gorm:"uniqueIndex:uidx_user_wordbook;not null"`
 	Status      string     `json:"status" gorm:"size:20;default:'active'"`
@@ -22,7 +23,7 @@ func (UserWordBook) TableName() string { return constants.TABLE_USER_WORD_BOOKS 
 
 // UserWordState 用户-单词学习状态（核心）
 type UserWordState struct {
-	BaseModel
+	common.BaseModel
 	UserID       uint       `json:"userId" gorm:"uniqueIndex:uidx_user_word;index:idx_user_book_status;index:idx_user_book_screen;not null"`
 	WordID       uint       `json:"wordId" gorm:"uniqueIndex:uidx_user_word;not null"`
 	WordBookID   uint       `json:"wordBookId" gorm:"index:idx_user_book_status;index:idx_user_book_screen;not null"`
@@ -40,7 +41,7 @@ func (UserWordState) TableName() string { return constants.TABLE_USER_WORD_STATE
 
 // ReviewQueue 每个用户每个单词一条“当前待复习任务”
 type ReviewQueue struct {
-	BaseModel
+	common.BaseModel
 	UserID          uint      `json:"userId" gorm:"uniqueIndex:uidx_user_word_queue;index:idx_user_due;index:idx_user_book_due;index:idx_user_status_due;not null"`
 	WordID          uint      `json:"wordId" gorm:"uniqueIndex:uidx_user_word_queue;not null"`
 	WordBookID      uint      `json:"wordBookId" gorm:"index:idx_user_book_due;not null"`

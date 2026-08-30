@@ -3,6 +3,10 @@ package handlers
 import (
 	"errors"
 	"fmt"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"net/http"
 	"sort"
 	"strconv"
@@ -10,7 +14,6 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -45,7 +48,7 @@ type studentActivityListItem struct {
 }
 
 func coachingCoachingTeacherID(c *gin.Context) uint {
-	u := models.CurrentUser(c)
+	u := auth.CurrentUser(c)
 	if u == nil {
 		return 0
 	}
@@ -63,7 +66,7 @@ func coachingCoachingTeacherID(c *gin.Context) uint {
 func coachingTeacherHasStudentPair(db *gorm.DB, teacherID, studentID uint) error {
 	var n int64
 	if err := db.Model(&models.StudentTeacherCoachingQuota{}).
-		Where("teacher_id = ? AND student_id = ? AND is_deleted = 0", teacherID, studentID).
+		Where("teacher_id = ? AND student_id = ?", teacherID, studentID).
 		Count(&n).Error; err != nil {
 		return err
 	}
@@ -320,20 +323,20 @@ func coachingBuildStudentActivityFeed(db *gorm.DB, teacherID, studentID uint) ([
 }
 
 func (h *Handlers) coachingTeacherStudentVocabRecords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid64, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid64 == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 		return
 	}
 	sid := uint(sid64)
 	if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 
@@ -436,94 +439,94 @@ func (h *Handlers) coachingTeacherStudentVocabRecords(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherStudentVocabRecordDetail(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid64, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid64 == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 		return
 	}
 	sid := uint(sid64)
 	if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 	rid, err := strconv.Atoi(c.Param("recordId"))
 	if err != nil || rid <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "记录 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("记录 ID 无效"))
 		return
 	}
 	var record models.VocabTestRecord
 	if err := db.Scopes(vocabTestOwnedByStudent(sid)).
 		Where("id = ?", rid).
 		First(&record).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "记录不存在"})
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("记录不存在"))
 		return
 	}
 	response.SuccessMsg(c, "ok", record)
 }
 
 func (h *Handlers) coachingTeacherStudentCoachingSessionDetail(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid64, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid64 == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 		return
 	}
 	sid := uint(sid64)
 	if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 	sessID, err := strconv.Atoi(c.Param("sessionId"))
 	if err != nil || sessID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "会话 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("会话 ID 无效"))
 		return
 	}
 	var rec models.CoachingSessionRecord
 	if err := db.Preload("Appointment").
 		Where("id = ? AND student_id = ? AND teacher_id = ?", sessID, sid, tid).
 		First(&rec).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "记录不存在"})
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("记录不存在"))
 		return
 	}
 	response.SuccessMsg(c, "ok", rec)
 }
 
 func (h *Handlers) coachingTeacherStudentStudySessionDetail(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid64, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid64 == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 		return
 	}
 	sid := uint(sid64)
 	if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 	sessID, err := strconv.Atoi(c.Param("sessionId"))
 	if err != nil || sessID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "会话 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("会话 ID 无效"))
 		return
 	}
 	var rec models.StudySession
 	if err := db.Where("id = ? AND user_id = ?", sessID, sid).First(&rec).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "记录不存在"})
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("记录不存在"))
 		return
 	}
 	var wb models.WordBook

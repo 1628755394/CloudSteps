@@ -82,7 +82,6 @@ func mustCreateUserAt(t *testing.T, db *gorm.DB, username string, at time.Time, 
 	u := User{Username: username, Role: role, Source: source}
 	u.CreatedAt = at
 	u.UpdatedAt = at
-	u.IsDeleted = SoftDeleteStatusActive
 	if err := db.Create(&u).Error; err != nil {
 		t.Fatal(err)
 	}

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/common/logger"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -30,17 +30,17 @@ type batchAudioFilters struct {
 }
 
 type batchAudioJob struct {
-	mu        sync.Mutex
-	Status    string            `json:"status"`
-	Total     int               `json:"total"`
-	Processed int               `json:"processed"`
-	Success   int               `json:"success"`
-	Failed    int               `json:"failed"`
-	Error     string            `json:"error,omitempty"`
-	Filters   batchAudioFilters `json:"filters,omitempty"`
-	StartedAt time.Time         `json:"startedAt,omitempty"`
-	FinishedAt time.Time        `json:"finishedAt,omitempty"`
-	cancel    context.CancelFunc
+	mu         sync.Mutex
+	Status     string            `json:"status"`
+	Total      int               `json:"total"`
+	Processed  int               `json:"processed"`
+	Success    int               `json:"success"`
+	Failed     int               `json:"failed"`
+	Error      string            `json:"error,omitempty"`
+	Filters    batchAudioFilters `json:"filters,omitempty"`
+	StartedAt  time.Time         `json:"startedAt,omitempty"`
+	FinishedAt time.Time         `json:"finishedAt,omitempty"`
+	cancel     context.CancelFunc
 }
 
 var vocabBatchAudioJob = &batchAudioJob{Status: batchAudioIdle}

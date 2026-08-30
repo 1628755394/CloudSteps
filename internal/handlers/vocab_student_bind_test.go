@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -140,7 +140,7 @@ func submitVocabRaw(t *testing.T, db *gorm.DB, user *models.User, q models.Vocab
 	req := httptest.NewRequest(http.MethodPost, "/vocab/submit", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	c.Request = req
-	c.Set(constants.DbField, db)
+	c.Set(lbconstants.DbField, db)
 	c.Set(constants.UserField, user)
 	h := &Handlers{}
 	h.handleVocabTestSubmit(c)
@@ -171,7 +171,7 @@ func vocabRecordsForStudent(t *testing.T, db *gorm.DB, teacher *models.User, stu
 	)
 	c.Request = req
 	c.Params = gin.Params{{Key: "studentId", Value: fmt.Sprintf("%d", studentID)}}
-	c.Set(constants.DbField, db)
+	c.Set(lbconstants.DbField, db)
 	c.Set(constants.UserField, teacher)
 	h := &Handlers{}
 	h.coachingTeacherStudentVocabRecords(c)

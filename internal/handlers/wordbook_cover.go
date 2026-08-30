@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -31,7 +32,7 @@ func (h *Handlers) adminWordBookCoverDefaults(c *gin.Context) {
 func (h *Handlers) adminWordBookCoverTest(c *gin.Context) {
 	cfg := imagegen.FromGlobal()
 	if strings.TrimSpace(cfg.APIKey) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "未配置 IMAGE_GEN_API_KEY"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("未配置 IMAGE_GEN_API_KEY"))
 		return
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Minute)

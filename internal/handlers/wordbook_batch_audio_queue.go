@@ -27,11 +27,11 @@ type wordBookBatchAudioPayload struct {
 }
 
 var (
-	wordBookBatchAudioQueueMu sync.Mutex
-	wordBookBatchAudioQ       queue.Queue
-	wordBookBatchAudioSched   *queue.Scheduler
-	wordBookBatchAudioDB      *gorm.DB
-	wordBookBatchAudioWorkers int
+	wordBookBatchAudioQueueMu    sync.Mutex
+	wordBookBatchAudioQ          queue.Queue
+	wordBookBatchAudioSched      *queue.Scheduler
+	wordBookBatchAudioDB         *gorm.DB
+	wordBookBatchAudioWorkers    int
 	wordBookBatchAudioRootCancel context.CancelFunc
 )
 

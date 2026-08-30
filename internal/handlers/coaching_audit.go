@@ -3,11 +3,13 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"strconv"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -20,7 +22,7 @@ const (
 	coachingAuditAppointmentUpdate = "appointment_update"
 	coachingAuditAppointmentDelete = "appointment_delete"
 	coachingAuditQuotaUpsert       = "quota_upsert"
-	coachingAuditQuotaRemove     = "quota_remove"
+	coachingAuditQuotaRemove       = "quota_remove"
 	coachingAuditUsagePeriodPut    = "usage_period_put"
 	coachingAuditSessionStart      = "session_start"
 	coachingAuditSessionEnd        = "session_end"
@@ -39,7 +41,7 @@ func coachingTeacherPoolAllowsStart(db *gorm.DB, teacherID uint) error {
 }
 
 func coachingWriteCoachingAudit(db *gorm.DB, c *gin.Context, action, targetType string, targetID, appointmentID uint, summary string, detail map[string]any) {
-	u := models.CurrentUser(c)
+	u := auth.CurrentUser(c)
 	if u == nil {
 		return
 	}
@@ -101,7 +103,7 @@ type coachingAuditLogOut struct {
 }
 
 func (h *Handlers) coachingAdminListAuditLogs(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	if page < 1 {

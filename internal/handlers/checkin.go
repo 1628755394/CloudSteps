@@ -1,18 +1,21 @@
 package handlers
 
 import (
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func (h *Handlers) registerCheckInRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerCheckInRoutes(r *humax.Group) {
 	g := r.Group("teacher/checkin")
-	g.Use(models.AuthRequired, h.requireTeacherOrAdmin)
+	g.Use(auth.Required, h.requireTeacherOrAdmin)
 	{
 		g.GET("", h.handleTeacherCheckInStatus)
 		g.POST("", h.handleTeacherCheckIn)
@@ -22,33 +25,33 @@ func (h *Handlers) registerCheckInRoutes(r *gin.RouterGroup) {
 func (h *Handlers) handleTeacherCheckInStatus(c *gin.Context) {
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "checkin.not_logged_in", nil)
 		return
 	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	st, err := models.GetTeacherCheckInStatus(db, tid, time.Now())
 	if err != nil {
-		response.Fail(c, "查询失败", err.Error())
+		response.FailI18n(c, "checkin.query_failed", err.Error())
 		return
 	}
-	response.SuccessMsg(c, "ok", st)
+	response.SuccessI18n(c, "common.ok", st)
 }
 
 func (h *Handlers) handleTeacherCheckIn(c *gin.Context) {
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		response.Fail(c, "未登录", nil)
+		response.FailI18n(c, "checkin.not_logged_in", nil)
 		return
 	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	res, err := models.DoTeacherCheckIn(db, tid, time.Now())
 	if err != nil {
-		response.Fail(c, "签到失败", err.Error())
+		response.FailI18n(c, "checkin.query_failed", err.Error())
 		return
 	}
-	msg := "签到成功"
+	msgKey := "checkin.ok"
 	if res.AlreadyCheckedIn {
-		msg = "今日已签到"
+		msgKey = "checkin.already"
 	}
-	response.SuccessMsg(c, msg, res)
+	response.SuccessI18n(c, msgKey, res)
 }

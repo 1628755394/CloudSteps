@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -41,7 +41,7 @@ func TestCoachingAdminGetAppointment_returnsNamesAndSession(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/coaching/appointments/"+strconv.Itoa(int(ap.ID)), nil)
 	c.Params = gin.Params{{Key: "id", Value: strconv.Itoa(int(ap.ID))}}
-	c.Set(constants.DbField, db)
+	c.Set(lbconstants.DbField, db)
 	h := &Handlers{}
 	h.coachingAdminGetAppointment(c)
 	if w.Code != http.StatusOK {
@@ -92,7 +92,7 @@ func TestCoachingAdminListAppointments_filtersByStatus(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/coaching/appointments?from=2026-08-01&to=2026-08-31&status=completed&page=1&pageSize=20", nil)
-	c.Set(constants.DbField, db)
+	c.Set(lbconstants.DbField, db)
 	h := &Handlers{}
 	h.coachingAdminListAppointments(c)
 	if w.Code != http.StatusOK {

@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"github.com/LingByte/ling-base/apidocs/humax"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"strconv"
 	"strings"
 	"time"
@@ -27,9 +29,9 @@ type adminUserWordDTO struct {
 	UpdatedAt    time.Time             `json:"updatedAt"`
 }
 
-func (h *Handlers) registerUserWordAdminRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerUserWordAdminRoutes(r *humax.Group) {
 	admin := r.Group("admin")
-	admin.Use(models.AuthRequired, adminOnly())
+	admin.Use(auth.Required, auth.AdminRequired)
 	g := admin.Group("user-words")
 	{
 		g.GET("", h.handleAdminListUserWords)
@@ -45,7 +47,7 @@ func (h *Handlers) handleAdminListUserWords(c *gin.Context) {
 	userID := strings.TrimSpace(c.Query("userId"))
 	keyword := strings.TrimSpace(c.Query("keyword"))
 
-	q := h.db.Model(&models.UserWord{}).Where("is_deleted = ?", models.SoftDeleteStatusActive)
+	q := h.db.Model(&models.UserWord{})
 	if status == models.UserWordStatusPending || status == models.UserWordStatusAdopted || status == models.UserWordStatusDismissed {
 		q = q.Where("status = ?", status)
 	}
@@ -91,7 +93,7 @@ func (h *Handlers) handleAdminGetUserWord(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminAdoptUserWord(c *gin.Context) {
-	admin := models.CurrentUser(c)
+	admin := auth.CurrentUser(c)
 	if admin == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -110,7 +112,7 @@ func (h *Handlers) handleAdminAdoptUserWord(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminDismissUserWord(c *gin.Context) {
-	admin := models.CurrentUser(c)
+	admin := auth.CurrentUser(c)
 	if admin == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -138,7 +140,7 @@ func (h *Handlers) findAdminUserWord(c *gin.Context) (*models.UserWord, bool) {
 		return nil, false
 	}
 	var row models.UserWord
-	if err := h.db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&row).Error; err != nil {
+	if err := h.db.Where("id = ?", id).First(&row).Error; err != nil {
 		response.Fail(c, "记录不存在", err)
 		return nil, false
 	}

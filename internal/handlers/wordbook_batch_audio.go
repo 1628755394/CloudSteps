@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/audio"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	response "github.com/LingByte/ling-base/common/response/gin"
+	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
 	"github.com/LingByte/ling-base/common/logger"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -315,7 +315,7 @@ type wordBookBatchAudioReq struct {
 
 // adminBatchWordBookAudio POST /wordbooks/:id/words/batch-audio
 func (h *Handlers) adminBatchWordBookAudio(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	bookID, err := parseBookIDParam(c)
 	if err != nil || bookID == 0 {
 		response.Fail(c, "无效词库 ID", nil)
@@ -461,7 +461,7 @@ func runWordBookBatchAudioJob(ctx context.Context, db *gorm.DB, bookID uint, key
 				zap.Error(err),
 			)
 		} else {
-			cleaned := audio.DeduplicateSlots(audioURL)
+			cleaned := utils.DeduplicateSlots(audioURL)
 			if err := db.Model(&models.Word{}).
 				Where("id = ?", w.ID).
 				Update("audio_url", cleaned).Error; err != nil {

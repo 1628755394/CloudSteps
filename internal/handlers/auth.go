@@ -13,99 +13,96 @@ import (
 	"strings"
 	"time"
 
-	CloudStepsGo "github.com/LingByte/CloudStepsGo"
+	"github.com/LingByte/CloudStepsGo/pkg/notify"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
+	"github.com/LingByte/CloudStepsGo/internal/configs"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/internal/notify"
-	"github.com/LingByte/CloudStepsGo/pkg/authvalidate"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	"github.com/LingByte/CloudStepsGo/pkg/middleware"
+	middleware "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	"github.com/LingByte/ling-base/captcha"
 	common "github.com/LingByte/ling-base/common"
 	lbconfig "github.com/LingByte/ling-base/common/config"
 	"github.com/LingByte/ling-base/common/geoip"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/common/random"
 	response "github.com/LingByte/ling-base/common/response/gin"
-	"github.com/LingByte/ling-base/common/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 // registerAuthRoutes User Module
-func (h *Handlers) registerAuthRoutes(r *gin.RouterGroup) {
-	auth := r.Group(config.GlobalConfig.Server.AuthPrefix)
+func (h *Handlers) registerAuthRoutes(r *humax.Group) {
+	authG := r.Group(configs.Global.Server.AuthPrefix)
 	// IP-based auth throttle (ling-base); covers unauthenticated login/register
 	// where the global RateLimiter endpoint buckets require a user id.
 	authLimit := middleware.AuthRateLimiter(30, time.Minute, 30)
 	{
-		auth.POST("/register", authLimit, h.handleUserSignup)
-		auth.POST("/register/email", authLimit, h.handleUserSignupByEmail)
-		auth.POST("/send/email", authLimit, h.handleSendEmailCode)
+		authG.POST("/register", authLimit, h.handleUserSignup)
+		authG.POST("/register/email", authLimit, h.handleUserSignupByEmail)
+		authG.POST("/send/email", authLimit, h.handleSendEmailCode)
 
 		// captcha
-		auth.GET("/captcha", h.handleGetCaptcha)
-		auth.POST("/captcha/verify", authLimit, h.handleVerifyCaptcha)
+		authG.GET("/captcha", h.handleGetCaptcha)
+		authG.POST("/captcha/verify", authLimit, h.handleVerifyCaptcha)
 
 		// password encryption salt
-		auth.GET("/salt", h.handleGetSalt)
+		authG.GET("/salt", h.handleGetSalt)
 
 		// login
-		auth.POST("/login/password", authLimit, h.handleUserSigninByPassword)
-		auth.POST("/login/email", authLimit, h.handleUserSigninByEmail)
+		authG.POST("/login/password", authLimit, h.handleUserSigninByPassword)
+		authG.POST("/login/email", authLimit, h.handleUserSigninByEmail)
 
 		// logout
-		auth.GET("/logout", models.AuthRequired, h.handleUserLogout)
-		auth.GET("/info", models.AuthRequired, h.handleUserInfo)
+		authG.GET("/logout", middleware.Required, h.handleUserLogout)
+		authG.GET("/info", middleware.Required, h.handleUserInfo)
 
 		// password management
-		auth.POST("/reset-password", authLimit, h.handleResetPassword)
-		auth.POST("/reset-password/confirm", authLimit, h.handleResetPasswordConfirm)
-		auth.POST("/change-password", models.AuthRequired, h.handleChangePassword)
-		auth.POST("/change-password/email", models.AuthRequired, h.handleChangePasswordByEmail)
+		authG.POST("/reset-password", authLimit, h.handleResetPassword)
+		authG.POST("/reset-password/confirm", authLimit, h.handleResetPasswordConfirm)
+		authG.POST("/change-password", middleware.Required, h.handleChangePassword)
+		authG.POST("/change-password/email", middleware.Required, h.handleChangePasswordByEmail)
 
 		// email verification
-		auth.GET("/verify-email", h.handleVerifyEmail)
-		auth.POST("/send-email-verification", models.AuthRequired, h.handleSendEmailVerification)
+		authG.GET("/verify-email", h.handleVerifyEmail)
+		authG.POST("/send-email-verification", middleware.Required, h.handleSendEmailVerification)
 
 		// bind email (for password-registered users to bind an email)
-		auth.POST("/bind-email", models.AuthRequired, h.handleBindEmail)
-		auth.POST("/send/bind-email", models.AuthRequired, h.handleSendBindEmailCode)
-
-		// phone verification
-		auth.POST("/verify-phone", models.AuthRequired, h.handleVerifyPhone)
-		auth.POST("/send-phone-verification", models.AuthRequired, h.handleSendPhoneVerification)
+		authG.POST("/bind-email", middleware.Required, h.handleBindEmail)
+		authG.POST("/send/bind-email", middleware.Required, h.handleSendBindEmailCode)
 
 		// user management
-		auth.PUT("/update", models.AuthRequired, h.handleUserUpdate)
-		auth.PUT("/update/preferences", models.AuthRequired, h.handleUserUpdatePreferences)
-		auth.POST("/update/basic/info", models.AuthRequired, h.handleUserUpdateBasicInfo)
+		authG.PUT("/update", middleware.Required, h.handleUserUpdate)
+		authG.PUT("/update/preferences", middleware.Required, h.handleUserUpdatePreferences)
+		authG.POST("/update/basic/info", middleware.Required, h.handleUserUpdateBasicInfo)
 
 		// notification settings
-		auth.PUT("/notification-settings", models.AuthRequired, h.handleUpdateNotificationSettings)
+		authG.PUT("/notification-settings", middleware.Required, h.handleUpdateNotificationSettings)
 
 		// user preferences
-		auth.PUT("/user-preferences", models.AuthRequired, h.handleUpdateUserPreferences)
+		authG.PUT("/user-preferences", middleware.Required, h.handleUpdateUserPreferences)
 
 		// user stats
-		auth.GET("/stats", models.AuthRequired, h.handleGetUserStats)
+		authG.GET("/stats", middleware.Required, h.handleGetUserStats)
 
 		// avatar upload (replace existing avatar)
-		auth.POST("/avatar/upload", models.AuthRequired, h.handleUploadAvatar)
+		authG.POST("/avatar/upload", middleware.Required, h.handleUploadAvatar)
 
 		// user activity logs
-		auth.GET("/activity", models.AuthRequired, h.handleGetUserActivity)
+		authG.GET("/activity", middleware.Required, h.handleGetUserActivity)
 
 		// self-service account deactivation
-		auth.POST("/deactivate", models.AuthRequired, h.handleUserDeactivateAccount)
+		authG.POST("/deactivate", middleware.Required, h.handleUserDeactivateAccount)
 	}
 }
 
 // handleUserLogout handle user logout
 func (h *Handlers) handleUserLogout(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user != nil {
 		models.Logout(c, user)
 	}
@@ -119,8 +116,8 @@ func (h *Handlers) handleUserLogout(c *gin.Context) {
 
 // handleUserDeactivateAccount POST /auth/deactivate — 用户自助注销账号。
 func (h *Handlers) handleUserDeactivateAccount(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "未登录", errors.New("unauthorized"))
 		return
@@ -148,7 +145,7 @@ func (h *Handlers) handleUserDeactivateAccount(c *gin.Context) {
 
 // handleUserInfo handle user info
 func (h *Handlers) handleUserInfo(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -171,30 +168,30 @@ func (h *Handlers) handleUserInfo(c *gin.Context) {
 func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	var form models.UserOperatorForm
 	if err := c.BindJSON(&form); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if form.Username == "" && form.Email != "" {
 		form.Username = form.Email
 	}
-	if err := authvalidate.PrepareEmailCodeLogin(&form); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
+	if err := utils.PrepareEmailCodeLogin(&form); err != nil {
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(utils.AbortMessage(err)))
 		return
 	}
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
 	// 1. 图形验证码验证
 	if captcha.GlobalManager != nil {
 		if form.CaptchaID == "" || form.CaptchaType == "" {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
 			return
 		}
 
 		err := captcha.ValidatePayload(form.CaptchaID, form.CaptchaType, form.CaptchaValue)
 		if err != nil {
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
 			return
 		}
 	}
@@ -210,7 +207,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	// 从缓存中获取验证码
 	cachedCode, errCache := h.cache.Get(context.Background(), form.Username)
 	if errCache != nil || cachedCode != form.Code {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid verification code"))
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("invalid verification code"))
 		return
 	}
 
@@ -220,7 +217,7 @@ func (h *Handlers) handleUserSigninByUsername(c *gin.Context) {
 	// 4. 检查用户是否允许登录（激活、启用等）
 	err = models.CheckUserAllowLogin(db, user)
 	if err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusForbidden, err)
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 
@@ -310,15 +307,15 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 		form.Username = form.Email
 	}
 	if form.AuthToken == "" {
-		if err := authvalidate.PreparePasswordLogin(&form); err != nil {
-			response.Fail(c, authvalidate.AbortMessage(err), err)
+		if err := utils.PreparePasswordLogin(&form); err != nil {
+			response.Fail(c, utils.AbortMessage(err), err)
 			return
 		}
 	}
 
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
 	// 1. 获取用户
 	var user *models.User
@@ -457,14 +454,14 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 func (h *Handlers) handleUserSignup(c *gin.Context) {
 	var form models.RegisterUserForm
 	if err := c.BindJSON(&form); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 
 	clientIP := c.ClientIP()
 
-	if err := authvalidate.PreparePasswordRegister(&form); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
+	if err := utils.PreparePasswordRegister(&form); err != nil {
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(utils.AbortMessage(err)))
 		return
 	}
 
@@ -474,7 +471,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "captcha required")
 			}
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
 			return
 		}
 
@@ -483,7 +480,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid captcha")
 			}
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
 			return
 		}
 	}
@@ -496,17 +493,17 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 			if utils.IsRegistrationThrottleError(err) {
 				status = http.StatusTooManyRequests
 			}
-			CloudStepsGo.AbortWithJSONError(c, status, err)
+			response.AbortWithStatusJSON(c, status, err)
 			return
 		}
 	}
 
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if models.IsExistsByUsername(db, form.Username) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "username already exists")
 		}
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("username has exists"))
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("username has exists"))
 		return
 	}
 
@@ -526,7 +523,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
 		}
 		logger.Warn("create user failed", zap.String("username", form.Username), zap.Error(err))
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -567,7 +564,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 
 	err = models.CheckUserAllowLogin(db, user)
 	if err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusForbidden, err)
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 	models.Login(c, user)
@@ -581,14 +578,14 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	var form models.UserOperatorForm
 	if err := c.BindJSON(&form); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 
 	clientIP := c.ClientIP()
 
-	if err := authvalidate.PrepareEmailRegister(&form); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
+	if err := utils.PrepareEmailRegister(&form); err != nil {
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(utils.AbortMessage(err)))
 		return
 	}
 
@@ -598,7 +595,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "captcha required")
 			}
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请完成图形验证码"))
 			return
 		}
 
@@ -607,7 +604,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 			if utils.GlobalRegistrationGuard != nil {
 				utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid captcha")
 			}
-			CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("验证码错误，请重新输入"))
 			return
 		}
 	}
@@ -620,17 +617,17 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 			if utils.IsRegistrationThrottleError(err) {
 				status = http.StatusTooManyRequests
 			}
-			CloudStepsGo.AbortWithJSONError(c, status, err)
+			response.AbortWithStatusJSON(c, status, err)
 			return
 		}
 	}
 
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if models.IsExistsByUsername(db, form.Username) || models.IsExistsByEmail(db, form.Username) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "username already exists")
 		}
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("username has exists"))
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("username has exists"))
 		return
 	}
 	// 从缓存中获取验证码（假设你使用的是 util.GlobalCache）
@@ -640,7 +637,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "invalid verification code")
 		}
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid verification code"))
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("invalid verification code"))
 		return
 	}
 
@@ -663,7 +660,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
 		}
 		logger.Warn("create user failed", zap.Any("email", form.Username), zap.Error(err))
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -706,7 +703,7 @@ func (h *Handlers) handleUserUpdate(c *gin.Context) {
 		return
 	}
 
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	vals := make(map[string]interface{})
 
 	if req.Username != "" {
@@ -778,7 +775,7 @@ func (h *Handlers) handleUserUpdateBasicInfo(c *gin.Context) {
 		response.Fail(c, "Invalid request", err)
 		return
 	}
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	vals := make(map[string]interface{})
 
 	if req.WifiName != "" {
@@ -827,7 +824,7 @@ func (h *Handlers) handleUserUpdatePreferences(c *gin.Context) {
 		return
 	}
 
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if err := models.UpdateUser(h.db, user, vals); err != nil {
 		response.Fail(c, "update user failed", err)
 		return
@@ -875,7 +872,7 @@ func (h *Handlers) handleChangePassword(c *gin.Context) {
 		return
 	}
 
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User not found", errors.New("user not found"))
 		return
@@ -918,7 +915,7 @@ func (h *Handlers) handleChangePasswordByEmail(c *gin.Context) {
 		return
 	}
 
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "用户未找到", errors.New("user not found"))
 		return
@@ -1028,7 +1025,7 @@ func (h *Handlers) handleVerifyEmail(c *gin.Context) {
 
 // handleSendEmailVerification 发送邮箱验证邮件 - 已移除邮箱功能
 func (h *Handlers) handleSendEmailVerification(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User not found", errors.New("user not found"))
 		return
@@ -1052,12 +1049,12 @@ func (h *Handlers) handleSendBindEmailCode(c *gin.Context) {
 		return
 	}
 	email := strings.ToLower(strings.TrimSpace(req.Email))
-	if err := authvalidate.PrepareSendEmailCode(&models.SendEmailVerifyEmail{Email: email}); err != nil {
-		response.Fail(c, authvalidate.AbortMessage(err), err)
+	if err := utils.PrepareSendEmailCode(&models.SendEmailVerifyEmail{Email: email}); err != nil {
+		response.Fail(c, utils.AbortMessage(err), err)
 		return
 	}
 
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User not found", errors.New("user not found"))
 		return
@@ -1094,8 +1091,8 @@ func (h *Handlers) handleBindEmail(c *gin.Context) {
 	}
 	email := strings.ToLower(strings.TrimSpace(form.Email))
 	code := strings.TrimSpace(form.Code)
-	if err := authvalidate.PrepareSendEmailCode(&models.SendEmailVerifyEmail{Email: email}); err != nil {
-		response.Fail(c, authvalidate.AbortMessage(err), err)
+	if err := utils.PrepareSendEmailCode(&models.SendEmailVerifyEmail{Email: email}); err != nil {
+		response.Fail(c, utils.AbortMessage(err), err)
 		return
 	}
 	if code == "" {
@@ -1103,7 +1100,7 @@ func (h *Handlers) handleBindEmail(c *gin.Context) {
 		return
 	}
 
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User not found", errors.New("user not found"))
 		return
@@ -1138,32 +1135,6 @@ func (h *Handlers) handleBindEmail(c *gin.Context) {
 	response.SuccessMsg(c, "绑定成功", gin.H{"email": user.Email})
 }
 
-// handleVerifyPhone 验证手机
-func (h *Handlers) handleVerifyPhone(c *gin.Context) {
-	var form struct {
-		Code string `json:"code" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&form); err != nil {
-		response.Fail(c, "Invalid request", err)
-		return
-	}
-
-	user := models.CurrentUser(c)
-	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
-		return
-	}
-
-	err := models.VerifyPhone(h.db, user, form.Code)
-	if err != nil {
-		response.Fail(c, "Invalid verification code", err)
-		return
-	}
-
-	response.SuccessMsg(c, "Phone verified successfully", nil)
-}
-
 // handleGetSalt 获取随机盐（用于密码加密）
 func (h *Handlers) handleGetSalt(c *gin.Context) {
 	// 生成随机盐（32字符）
@@ -1184,37 +1155,6 @@ func (h *Handlers) handleGetSalt(c *gin.Context) {
 	})
 }
 
-// handleSendPhoneVerification 发送手机验证码
-func (h *Handlers) handleSendPhoneVerification(c *gin.Context) {
-	user := models.CurrentUser(c)
-	if user == nil {
-		response.Fail(c, "User not found", errors.New("user not found"))
-		return
-	}
-
-	if user.Phone == "" {
-		response.Fail(c, "Phone number not set", errors.New("phone number not set"))
-		return
-	}
-
-	if user.PhoneVerified {
-		response.Fail(c, "Phone already verified", errors.New("phone already verified"))
-		return
-	}
-
-	token, err := models.GeneratePhoneVerifyToken(h.db, user)
-	if err != nil {
-		response.Fail(c, "Failed to generate verification code", err)
-		return
-	}
-
-	// 这里可以集成短信服务发送验证码
-	// 目前只是记录日志
-	logger.Info("Phone verification code", zap.String("phone", user.Phone), zap.String("code", token))
-
-	response.SuccessMsg(c, "Verification code sent", nil)
-}
-
 // handleUpdateNotificationSettings 更新通知设置
 func (h *Handlers) handleUpdateNotificationSettings(c *gin.Context) {
 	var settings map[string]bool
@@ -1224,7 +1164,7 @@ func (h *Handlers) handleUpdateNotificationSettings(c *gin.Context) {
 		return
 	}
 
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User not found", errors.New("user not found"))
 		return
@@ -1248,7 +1188,7 @@ func (h *Handlers) handleUpdateUserPreferences(c *gin.Context) {
 		return
 	}
 
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User not found", errors.New("user not found"))
 		return
@@ -1271,7 +1211,7 @@ func (h *Handlers) handleUpdateUserPreferences(c *gin.Context) {
 
 // handleGetUserStats 获取用户统计信息
 func (h *Handlers) handleGetUserStats(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User not found", errors.New("user not found"))
 		return
@@ -1290,7 +1230,7 @@ func (h *Handlers) handleGetUserStats(c *gin.Context) {
 
 // handleUploadAvatar 处理用户头像上传（服务端校验大小并统一压缩为 JPEG）
 func (h *Handlers) handleUploadAvatar(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := middleware.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "User not found", errors.New("user not found"))
 		return
@@ -1390,11 +1330,11 @@ func sendHashMail(db *gorm.DB, user *models.User, signame, expireKey, defaultExp
 func (h *Handlers) handleSendEmailCode(c *gin.Context) {
 	var req models.SendEmailVerifyEmail
 	if err := c.BindJSON(&req); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
-	if err := authvalidate.PrepareSendEmailCode(&req); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New(authvalidate.AbortMessage(err)))
+	if err := utils.PrepareSendEmailCode(&req); err != nil {
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(utils.AbortMessage(err)))
 		return
 	}
 	req.UserAgent = c.Request.UserAgent()
@@ -1519,9 +1459,9 @@ func (h *Handlers) handleGetUserActivity(c *gin.Context) {
 		},
 	})
 }
-func (h *Handlers) registerAdminUserRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerAdminUserRoutes(r *humax.Group) {
 	users := r.Group("users")
-	users.Use(models.AuthRequired, adminOnly())
+	users.Use(middleware.Required, middleware.AdminRequired)
 	{
 		users.GET("", h.handleAdminListUsers)
 		users.POST("", h.handleAdminCreateUser)
@@ -1531,22 +1471,9 @@ func (h *Handlers) registerAdminUserRoutes(r *gin.RouterGroup) {
 	}
 }
 
-// adminOnly 仅允许 admin 角色访问
-func adminOnly() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		user := models.CurrentUser(c)
-		if user == nil || !user.IsAdmin() {
-			response.Fail(c, "forbidden", errors.New("admin only"))
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
-}
-
 // GET /users?page=1&pageSize=20&search=&role=&enabled=
 func (h *Handlers) handleAdminListUsers(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
@@ -1563,7 +1490,7 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 
 	query := db.Model(&models.User{})
 	if !includeDeleted {
-		query = query.Where("is_deleted = ?", models.SoftDeleteStatusActive)
+		query = query
 	}
 
 	if search != "" {
@@ -1600,7 +1527,7 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 
 // GET /users/:id
 func (h *Handlers) handleAdminGetUser(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		response.Fail(c, "invalid id", err)
@@ -1618,7 +1545,7 @@ func (h *Handlers) handleAdminGetUser(c *gin.Context) {
 
 // POST /users
 func (h *Handlers) handleAdminCreateUser(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
 	var req struct {
 		Username    string  `json:"username" binding:"required"`
@@ -1682,7 +1609,7 @@ func (h *Handlers) handleAdminCreateUser(c *gin.Context) {
 
 // PUT /users/:id
 func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		response.Fail(c, "invalid id", err)
@@ -1690,7 +1617,7 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&user).Error; err != nil {
+	if err := db.Where("id = ?", id).First(&user).Error; err != nil {
 		response.Fail(c, "用户不存在", err)
 		return
 	}
@@ -1757,21 +1684,21 @@ func (h *Handlers) handleAdminUpdateUser(c *gin.Context) {
 
 // DELETE /users/:id
 func (h *Handlers) handleAdminDeleteUser(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		response.Fail(c, "invalid id", err)
 		return
 	}
 
-	currentUser := models.CurrentUser(c)
+	currentUser := middleware.CurrentUser(c)
 	if currentUser != nil && uint(id) == currentUser.ID {
 		response.Fail(c, "不能删除自己", errors.New("cannot delete yourself"))
 		return
 	}
 
 	var user models.User
-	if err := db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&user).Error; err != nil {
+	if err := db.Where("id = ?", id).First(&user).Error; err != nil {
 		response.Fail(c, "用户不存在", err)
 		return
 	}
@@ -1836,32 +1763,32 @@ func serializeUser(u *models.User) gin.H {
 		lastStudy = &t
 	}
 	return gin.H{
-		"id":            u.ID,
-		"username":      u.Username,
-		"email":         u.Email,
-		"account":       u.Username,
-		"displayName":   u.DisplayName,
-		"firstName":     u.FirstName,
-		"lastName":      u.LastName,
-		"role":          u.Role,
-		"phone":         u.Phone,
-		"locale":        u.Locale,
-		"enabled":       u.IsDeleted == models.SoftDeleteStatusActive,
-		"isDeleted":     u.IsDeleted == models.SoftDeleteStatusDeleted,
-		"isStaff":       u.Role == "admin",
-		"activated":     true,
-		"lastLogin":     lastLogin,
-		"lastLoginIP":   u.LastLoginIP,
-		"loginCount":    u.LoginCount,
-		"source":        u.Source,
-		"avatar":        u.Avatar,
-		"gender":        u.Gender,
-		"city":          u.City,
-		"region":        u.Region,
-		"streakDays":    u.StreakDays,
-		"lastStudyDate": lastStudy,
+		"id":                u.ID,
+		"username":          u.Username,
+		"email":             u.Email,
+		"account":           u.Username,
+		"displayName":       u.DisplayName,
+		"firstName":         u.FirstName,
+		"lastName":          u.LastName,
+		"role":              u.Role,
+		"phone":             u.Phone,
+		"locale":            u.Locale,
+		"enabled":           !u.DeletedAt.Valid,
+		"isDeleted":         u.DeletedAt.Valid,
+		"isStaff":           u.Role == "admin",
+		"activated":         true,
+		"lastLogin":         lastLogin,
+		"lastLoginIP":       u.LastLoginIP,
+		"loginCount":        u.LoginCount,
+		"source":            u.Source,
+		"avatar":            u.Avatar,
+		"gender":            u.Gender,
+		"city":              u.City,
+		"region":            u.Region,
+		"streakDays":        u.StreakDays,
+		"lastStudyDate":     lastStudy,
 		"reviewCurvePreset": models.NormalizeReviewCurvePreset(u.ReviewCurvePreset),
-		"createdAt":     u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		"updatedAt":     u.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"createdAt":         u.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"updatedAt":         u.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

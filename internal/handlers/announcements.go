@@ -2,20 +2,24 @@ package handlers
 
 import (
 	"fmt"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func (h *Handlers) registerAnnouncementRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerAnnouncementRoutes(r *humax.Group) {
 	user := r.Group("announcements")
-	user.Use(models.AuthRequired)
+	user.Use(auth.Required)
 	{
 		user.GET("/pending-popup", h.handleAnnouncementPendingPopup)
 		user.GET("", h.handleListPublishedAnnouncements)
@@ -24,7 +28,7 @@ func (h *Handlers) registerAnnouncementRoutes(r *gin.RouterGroup) {
 	}
 
 	admin := r.Group("admin/announcements")
-	admin.Use(models.AuthRequired, adminOnly())
+	admin.Use(auth.Required, auth.AdminRequired)
 	{
 		admin.GET("", h.handleAdminListAnnouncements)
 		admin.POST("", h.handleAdminCreateAnnouncement)
@@ -51,10 +55,10 @@ type announcementDTO struct {
 }
 
 type announcementReaderDTO struct {
-	UserID     uint      `json:"userId"`
-	UserName   string    `json:"userName"`
-	UserEmail  string    `json:"userEmail,omitempty"`
-	ReadAt     time.Time `json:"readAt"`
+	UserID    uint      `json:"userId"`
+	UserName  string    `json:"userName"`
+	UserEmail string    `json:"userEmail,omitempty"`
+	ReadAt    time.Time `json:"readAt"`
 }
 
 func toAnnouncementDTO(a *models.Announcement, read *bool, readCount *int64) announcementDTO {
@@ -86,12 +90,12 @@ func announcementOperator(user *models.User) string {
 }
 
 func (h *Handlers) handleAnnouncementPendingPopup(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "请先登录", nil)
 		return
 	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	list, err := models.ListUnreadPublishedAnnouncements(db, user.ID, 20)
 	if err != nil {
 		response.Fail(c, "查询失败", err)
@@ -114,14 +118,14 @@ func (h *Handlers) handleAnnouncementPendingPopup(c *gin.Context) {
 }
 
 func (h *Handlers) handleListPublishedAnnouncements(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "请先登录", nil)
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	list, readMap, total, err := models.ListPublishedAnnouncementsForUser(db, user.ID, page, pageSize)
 	if err != nil {
 		response.Fail(c, "查询失败", err)
@@ -141,7 +145,7 @@ func (h *Handlers) handleListPublishedAnnouncements(c *gin.Context) {
 }
 
 func (h *Handlers) handleGetPublishedAnnouncement(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "请先登录", nil)
 		return
@@ -151,7 +155,7 @@ func (h *Handlers) handleGetPublishedAnnouncement(c *gin.Context) {
 		response.Fail(c, "参数无效", nil)
 		return
 	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	row, err := models.GetAnnouncementByID(db, uint(id))
 	if err != nil || row.Status != models.AnnouncementStatusPublished {
 		response.Fail(c, "公告不存在", err)
@@ -160,7 +164,7 @@ func (h *Handlers) handleGetPublishedAnnouncement(c *gin.Context) {
 	read := false
 	var n int64
 	_ = db.Model(&models.AnnouncementRead{}).
-		Where("announcement_id = ? AND user_id = ? AND is_deleted = ?", row.ID, user.ID, models.SoftDeleteStatusActive).
+		Where("announcement_id = ? AND user_id = ?", row.ID, user.ID).
 		Count(&n).Error
 	if n > 0 {
 		read = true
@@ -169,7 +173,7 @@ func (h *Handlers) handleGetPublishedAnnouncement(c *gin.Context) {
 }
 
 func (h *Handlers) handleMarkAnnouncementRead(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "请先登录", nil)
 		return
@@ -179,7 +183,7 @@ func (h *Handlers) handleMarkAnnouncementRead(c *gin.Context) {
 		response.Fail(c, "参数无效", nil)
 		return
 	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	row, err := models.GetAnnouncementByID(db, uint(id))
 	if err != nil || row.Status != models.AnnouncementStatusPublished {
 		response.Fail(c, "公告不存在", err)
@@ -196,7 +200,7 @@ func (h *Handlers) handleAdminListAnnouncements(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	status := strings.TrimSpace(c.Query("status"))
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	list, total, err := models.ListAnnouncementsAdmin(db, status, page, pageSize)
 	if err != nil {
 		response.Fail(c, "查询失败", err)
@@ -216,7 +220,7 @@ func (h *Handlers) handleAdminListAnnouncements(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminCreateAnnouncement(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	var body struct {
 		Title    string `json:"title" binding:"required"`
 		Content  string `json:"content"`
@@ -227,7 +231,7 @@ func (h *Handlers) handleAdminCreateAnnouncement(c *gin.Context) {
 		response.Fail(c, "参数错误", err)
 		return
 	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	op := announcementOperator(user)
 	row := &models.Announcement{
 		Title:    body.Title,
@@ -255,7 +259,7 @@ func (h *Handlers) handleAdminCreateAnnouncement(c *gin.Context) {
 
 func (h *Handlers) handleAdminGetAnnouncement(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	row, err := models.GetAnnouncementByID(db, uint(id))
 	if err != nil {
 		response.Fail(c, "公告不存在", err)
@@ -274,7 +278,7 @@ func (h *Handlers) handleAdminListAnnouncementReaders(c *gin.Context) {
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "50"))
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if _, err := models.GetAnnouncementByID(db, uint(id)); err != nil {
 		response.Fail(c, "公告不存在", err)
 		return
@@ -324,7 +328,7 @@ func (h *Handlers) handleAdminListAnnouncementReaders(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminUpdateAnnouncement(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
 		response.Fail(c, "参数无效", nil)
@@ -354,7 +358,7 @@ func (h *Handlers) handleAdminUpdateAnnouncement(c *gin.Context) {
 	if body.Priority != nil {
 		vals["priority"] = *body.Priority
 	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if err := models.UpdateAnnouncement(db, uint(id), vals); err != nil {
 		response.Fail(c, "更新失败", err)
 		return
@@ -364,9 +368,9 @@ func (h *Handlers) handleAdminUpdateAnnouncement(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminPublishAnnouncement(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if err := models.PublishAnnouncement(db, uint(id), announcementOperator(user)); err != nil {
 		response.Fail(c, "发布失败", err)
 		return
@@ -376,9 +380,9 @@ func (h *Handlers) handleAdminPublishAnnouncement(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminUnpublishAnnouncement(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if err := models.UnpublishAnnouncement(db, uint(id), announcementOperator(user)); err != nil {
 		response.Fail(c, "取消发布失败", err)
 		return
@@ -388,9 +392,9 @@ func (h *Handlers) handleAdminUnpublishAnnouncement(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminDeleteAnnouncement(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	if err := models.DeleteAnnouncement(db, uint(id), announcementOperator(user)); err != nil {
 		response.Fail(c, "删除失败", err)
 		return

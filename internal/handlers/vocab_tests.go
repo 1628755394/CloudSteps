@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"io"
 	"math"
 	"net/http"
@@ -12,21 +16,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func (h *Handlers) registerVocabTestRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerVocabTestRoutes(r *humax.Group) {
 	vt := r.Group("vocab")
 	{
 		// 用户端（需登录）
 		user := vt.Group("")
-		user.Use(models.AuthRequired)
+		user.Use(auth.Required)
 		user.GET("/start", h.handleVocabTestStart)
 		user.POST("/next", h.handleVocabTestNext)
 		user.POST("/submit", h.handleVocabTestSubmit)
@@ -36,7 +39,7 @@ func (h *Handlers) registerVocabTestRoutes(r *gin.RouterGroup) {
 
 		// 管理端（需登录 + isStaff）
 		admin := vt.Group("")
-		admin.Use(models.AuthRequired, staffRequired)
+		admin.Use(auth.Required, auth.AdminRequired)
 		admin.POST("/questions", h.handleCreateQuestion)
 		admin.GET("/questions", h.handleListQuestions)
 		admin.PUT("/questions/:id", h.handleUpdateQuestion)
@@ -151,21 +154,10 @@ func nextLevelOf(level string) string {
 	return next[level]
 }
 
-// staffRequired 管理员中间件
-func staffRequired(c *gin.Context) {
-	user := models.CurrentUser(c)
-	if user == nil || user.Role != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "需要管理员权限"})
-		c.Abort()
-		return
-	}
-	c.Next()
-}
-
 // handleVocabTestStart GET /vocab-test/start
 func (h *Handlers) handleVocabTestStart(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 
 	// 每个等级各取 6 题，共 30 题（A1×6 + A2×6 + B1×6 + B2×6 + C1×6）
 	levels := []string{"A1", "A2", "B1", "B2", "C1"}
@@ -211,8 +203,8 @@ func (h *Handlers) handleVocabTestStart(c *gin.Context) {
 // 自适应模式：前端每答一题后调此接口，后端返回下一题
 // body: { lastQuestionId, correct: bool, currentDifficultyScore: int }
 func (h *Handlers) handleVocabTestNext(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 
 	var body struct {
 		LastQuestionID         uint   `json:"lastQuestionId"`
@@ -221,7 +213,7 @@ func (h *Handlers) handleVocabTestNext(c *gin.Context) {
 		AnsweredIDs            []uint `json:"answeredIds"` // 已答过的题ID，避免重复
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 
@@ -348,8 +340,8 @@ func (h *Handlers) handleVocabTestNext(c *gin.Context) {
 
 // handleVocabTestSubmit POST /vocab-test/submit
 func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 
 	var body struct {
 		StudentID uint `json:"studentId"`
@@ -359,22 +351,22 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 		} `json:"answers" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	studentID, err := resolveVocabTestStudentID(db, user, body.StudentID)
 	if err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 
 	if len(body.Answers) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "答案不能为空"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("答案不能为空"))
 		return
 	}
 
@@ -386,7 +378,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	var questions []models.VocabTestQuestion
 	db.Where("id IN ?", ids).Find(&questions)
 	if len(questions) != len(ids) {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "存在无效题目ID"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("存在无效题目ID"))
 		return
 	}
 
@@ -409,7 +401,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	for _, a := range body.Answers {
 		q, ok := qMap[a.QuestionID]
 		if !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "存在无效题目ID"})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("存在无效题目ID"))
 			return
 		}
 		ans := strings.TrimSpace(a.Answer)
@@ -501,8 +493,8 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 // handleVocabTestResult GET /vocab-test/result
 // 查看最新一次测试结果
 func (h *Handlers) handleVocabTestResult(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 
 	var record models.VocabTestRecord
 	if err := db.Where("user_id = ? AND is_latest = ?", user.ID, true).First(&record).Error; err != nil {
@@ -523,19 +515,19 @@ func (h *Handlers) handleVocabTestResult(c *gin.Context) {
 
 // handleCreateQuestion POST /vocab-test/admin/questions
 func (h *Handlers) handleCreateQuestion(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
 	var q models.VocabTestQuestion
 	if err := c.ShouldBindJSON(&q); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误: " + err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, fmt.Errorf("参数错误: %w", err))
 		return
 	}
 	if q.Word == "" || q.CorrectAnswer == "" || q.Level == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "word、correctAnswer、level 为必填项"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("word、correctAnswer、level 为必填项"))
 		return
 	}
 	if err := validateQuestionPayload(&q); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := db.Create(&q).Error; err != nil {
@@ -548,7 +540,7 @@ func (h *Handlers) handleCreateQuestion(c *gin.Context) {
 
 // handleListQuestions GET /vocab/questions?level=B1&page=1&pageSize=20&word=hi&withoutAudio=1
 func (h *Handlers) handleListQuestions(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
 	level := c.Query("level")
 	word := strings.TrimSpace(c.Query("word"))
@@ -603,7 +595,7 @@ func (h *Handlers) handleListQuestions(c *gin.Context) {
 
 // handleUpdateQuestion PUT /vocab-test/admin/questions/:id
 func (h *Handlers) handleUpdateQuestion(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id := c.Param("id")
 
 	var q models.VocabTestQuestion
@@ -614,11 +606,11 @@ func (h *Handlers) handleUpdateQuestion(c *gin.Context) {
 
 	var updates map[string]any
 	if err := c.ShouldBindJSON(&updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	if err := validateQuestionUpdate(updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	if err := db.Model(&q).Updates(updates).Error; err != nil {
@@ -635,7 +627,7 @@ func (h *Handlers) handleUpdateQuestion(c *gin.Context) {
 
 // handleDeleteQuestion DELETE /vocab-test/admin/questions/:id
 func (h *Handlers) handleDeleteQuestion(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id := c.Param("id")
 
 	if err := db.Delete(&models.VocabTestQuestion{}, id).Error; err != nil {
@@ -649,7 +641,7 @@ func (h *Handlers) handleDeleteQuestion(c *gin.Context) {
 // handlePurgeBadAudio POST /vocab/questions/purge-bad-audio
 // 检测题目音频是否可访问；无法返回正常音频的先删对象存储再清空 audio_url。
 func (h *Handlers) handlePurgeBadAudio(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
 	var questions []models.VocabTestQuestion
 	if err := db.Select("id, word, audio_url").
@@ -735,8 +727,8 @@ func vocabSingleAudioUsable(client *http.Client, raw string) bool {
 	abs := raw
 	if strings.HasPrefix(raw, "/") {
 		base := ""
-		if config.GlobalConfig != nil {
-			base = strings.TrimRight(config.GlobalConfig.Server.URL, "/")
+		if configs.Global != nil {
+			base = strings.TrimRight(configs.Global.Server.URL, "/")
 		}
 		if base == "" {
 			base = "http://127.0.0.1:7080"
@@ -755,8 +747,8 @@ func vocabSingleAudioUsable(client *http.Client, raw string) bool {
 			abs = pub
 		} else if strings.HasPrefix(pub, "/") {
 			base := "http://127.0.0.1:7080"
-			if config.GlobalConfig != nil && config.GlobalConfig.Server.URL != "" {
-				base = strings.TrimRight(config.GlobalConfig.Server.URL, "/")
+			if configs.Global != nil && configs.Global.Server.URL != "" {
+				base = strings.TrimRight(configs.Global.Server.URL, "/")
 			}
 			abs = base + pub
 		} else {
@@ -806,26 +798,26 @@ func vocabHTTPAudioOK(client *http.Client, url string) bool {
 // handleBatchCreateQuestions POST /vocab-test/admin/questions/batch
 // body: { questions: [{word, options, correctAnswer, level, difficultyScore}] }
 func (h *Handlers) handleBatchCreateQuestions(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
 	var body struct {
 		Questions []models.VocabTestQuestion `json:"questions" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	if len(body.Questions) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "题目列表不能为空"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("题目列表不能为空"))
 		return
 	}
 	if len(body.Questions) > 500 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "单次最多批量导入500题"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("单次最多批量导入500题"))
 		return
 	}
 	for i := range body.Questions {
 		if err := validateQuestionPayload(&body.Questions[i]); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": fmt.Sprintf("第 %d 条题目不合法：%s", i+1, err.Error())})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(fmt.Sprintf("第 %d 条题目不合法：%s", i+1, err.Error())))
 			return
 		}
 	}
@@ -1180,8 +1172,8 @@ func toInt(v any) (int, bool) {
 // handleVocabTestRecords GET /vocab-test/records?page=1&pageSize=10
 // 查看当前用户所有测试记录（分页，最新在前）
 func (h *Handlers) handleVocabTestRecords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 
 	page := 1
 	pageSize := 10
@@ -1215,8 +1207,8 @@ func (h *Handlers) handleVocabTestRecords(c *gin.Context) {
 
 // handleVocabTestRecordDetail GET /vocab-test/records/:id
 func (h *Handlers) handleVocabTestRecordDetail(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

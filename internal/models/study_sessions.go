@@ -3,11 +3,12 @@ package models
 import (
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
+	common "github.com/LingByte/ling-base/common"
 )
 
 type StudySession struct {
-	BaseModel
+	common.BaseModel
 	UserID       uint       `json:"userId" gorm:"index;index:idx_user_type_created;not null"`
 	WordBookID   uint       `json:"wordBookId" gorm:"index"`
 	SessionType  string     `json:"sessionType" gorm:"size:20;not null;index:idx_user_type_created"`
@@ -21,7 +22,7 @@ type StudySession struct {
 func (StudySession) TableName() string { return constants.TABLE_STUDY_SESSIONS }
 
 type SessionWord struct {
-	BaseModel
+	common.BaseModel
 	SessionID  uint       `json:"sessionId" gorm:"uniqueIndex:uidx_session_word;index;not null"`
 	WordID     uint       `json:"wordId" gorm:"uniqueIndex:uidx_session_word;not null"`
 	Remembered *bool      `json:"remembered"`

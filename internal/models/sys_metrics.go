@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

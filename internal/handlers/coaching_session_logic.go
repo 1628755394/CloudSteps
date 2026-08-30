@@ -20,7 +20,7 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 	}
 
 	var ap models.CoachingAppointment
-	if err := db.Where("id = ? AND is_deleted = 0", appointmentID).First(&ap).Error; err != nil {
+	if err := db.Where("id = ?", appointmentID).First(&ap).Error; err != nil {
 		return nil, nil, err
 	}
 	if ap.Status != models.CoachingStatusInProgress {
@@ -38,7 +38,7 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 	err := db.Transaction(func(tx *gorm.DB) error {
 		var q models.StudentTeacherCoachingQuota
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("teacher_id = ? AND student_id = ? AND is_deleted = 0", ap.TeacherID, ap.StudentID).
+			Where("teacher_id = ? AND student_id = ?", ap.TeacherID, ap.StudentID).
 			First(&q).Error; err != nil {
 			return err
 		}
@@ -69,7 +69,7 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 
 		var pool models.TeacherTeachingPool
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("teacher_id = ? AND is_deleted = 0", ap.TeacherID).
+			Where("teacher_id = ?", ap.TeacherID).
 			First(&pool).Error; err != nil {
 			return err
 		}
@@ -138,7 +138,7 @@ func CoachingAutoEndOverdueSessions(db *gorm.DB) (int, error) {
 	loc := time.Local
 	now := time.Now().In(loc)
 	var list []models.CoachingAppointment
-	if err := db.Where("is_deleted = 0 AND status = ?", models.CoachingStatusInProgress).Find(&list).Error; err != nil {
+	if err := db.Where("status = ?", models.CoachingStatusInProgress).Find(&list).Error; err != nil {
 		return 0, err
 	}
 	n := 0

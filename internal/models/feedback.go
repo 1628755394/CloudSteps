@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	common "github.com/LingByte/ling-base/common"
 )
 
 const (
@@ -29,7 +31,7 @@ var (
 // FeedbackTicket is a support conversation opened by a signed-in user.
 // The opening message lives on the ticket; later messages are FeedbackReply rows.
 type FeedbackTicket struct {
-	BaseModel
+	common.BaseModel
 	UserID           uint            `json:"userId" gorm:"index;not null"`
 	Content          string          `json:"content" gorm:"type:text;not null"`
 	Contact          string          `json:"contact,omitempty" gorm:"size:128"`
@@ -45,12 +47,12 @@ type FeedbackTicket struct {
 func (FeedbackTicket) TableName() string { return "feedback_tickets" }
 
 func (t *FeedbackTicket) CanReply() bool {
-	return t != nil && t.Status != FeedbackStatusClosed && !t.IsSoftDeleted()
+	return t != nil && t.Status != FeedbackStatusClosed && !t.DeletedAt.Valid
 }
 
 // FeedbackReply is one message on a feedback ticket, from the user or an admin.
 type FeedbackReply struct {
-	BaseModel
+	common.BaseModel
 	TicketID uint   `json:"ticketId" gorm:"index;not null"`
 	AuthorID uint   `json:"authorId" gorm:"index;not null"`
 	Role     string `json:"role" gorm:"size:16;not null"`

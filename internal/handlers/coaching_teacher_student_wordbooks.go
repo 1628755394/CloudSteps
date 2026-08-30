@@ -1,12 +1,16 @@
 package handlers
 
 import (
+	"errors"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -21,17 +25,17 @@ type teacherStudentWordBookItem struct {
 func coachingParseStudentID(c *gin.Context) (uint, bool) {
 	sid64, err := strconv.ParseUint(c.Param("studentId"), 10, 64)
 	if err != nil || sid64 == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 		return 0, false
 	}
 	return uint(sid64), true
 }
 
 func (h *Handlers) coachingTeacherListStudentWordBooks(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid, ok := coachingParseStudentID(c)
@@ -39,12 +43,12 @@ func (h *Handlers) coachingTeacherListStudentWordBooks(c *gin.Context) {
 		return
 	}
 	if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 
 	var links []models.UserWordBook
-	if err := db.Where("user_id = ? AND is_deleted = ?", sid, models.SoftDeleteStatusActive).
+	if err := db.Where("user_id = ?", sid).
 		Order("id ASC").
 		Find(&links).Error; err != nil {
 		response.Fail(c, "查询失败", err.Error())
@@ -61,7 +65,7 @@ func (h *Handlers) coachingTeacherListStudentWordBooks(c *gin.Context) {
 	}
 	var books []models.WordBook
 	_ = db.Select("id", "name", "word_count").
-		Where("id IN ? AND is_deleted = ?", ids, models.SoftDeleteStatusActive).
+		Where("id IN ?", ids).
 		Find(&books).Error
 	byID := make(map[uint]models.WordBook, len(books))
 	for _, b := range books {
@@ -89,10 +93,10 @@ func (h *Handlers) coachingTeacherListStudentWordBooks(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherAddStudentWordBook(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid, ok := coachingParseStudentID(c)
@@ -100,7 +104,7 @@ func (h *Handlers) coachingTeacherAddStudentWordBook(c *gin.Context) {
 		return
 	}
 	if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 
@@ -108,7 +112,7 @@ func (h *Handlers) coachingTeacherAddStudentWordBook(c *gin.Context) {
 		WordBookID uint `json:"wordBookId"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.WordBookID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "wordBookId 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("wordBookId 无效"))
 		return
 	}
 	if _, err := models.GetWordBookByID(db, body.WordBookID); err != nil {
@@ -134,9 +138,9 @@ func (h *Handlers) coachingTeacherAddStudentWordBook(c *gin.Context) {
 		response.Fail(c, "添加词库失败", err.Error())
 		return
 	} else {
+		uwb.Restore("")
 		updates := map[string]interface{}{
 			"status":     "active",
-			"is_deleted": models.SoftDeleteStatusActive,
 			"updated_at": now,
 		}
 		if uwb.StartedAt == nil {
@@ -162,10 +166,10 @@ func (h *Handlers) coachingTeacherAddStudentWordBook(c *gin.Context) {
 }
 
 func (h *Handlers) coachingTeacherRemoveStudentWordBook(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	tid := coachingCoachingTeacherID(c)
 	if tid == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "未登录"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
 		return
 	}
 	sid, ok := coachingParseStudentID(c)
@@ -173,33 +177,29 @@ func (h *Handlers) coachingTeacherRemoveStudentWordBook(c *gin.Context) {
 		return
 	}
 	if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
 	wbID64, err := strconv.ParseUint(c.Param("wordBookId"), 10, 64)
 	if err != nil || wbID64 == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "词库 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("词库 ID 无效"))
 		return
 	}
 	wbID := uint(wbID64)
 
 	var uwb models.UserWordBook
-	if err := db.Where("user_id = ? AND word_book_id = ? AND is_deleted = ?", sid, wbID, models.SoftDeleteStatusActive).
+	if err := db.Where("user_id = ? AND word_book_id = ?", sid, wbID).
 		First(&uwb).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "未分配该词库"})
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("未分配该词库"))
 		return
 	}
 	op := ""
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		op = u.Username
 	}
 	uwb.SoftDelete(op)
-	if err := db.Model(&uwb).Updates(map[string]interface{}{
-		"is_deleted": uwb.IsDeleted,
-		"update_by":  uwb.UpdateBy,
-		"updated_at": uwb.UpdatedAt,
-		"status":     "removed",
-	}).Error; err != nil {
+	uwb.Status = "removed"
+	if err := db.Save(&uwb).Error; err != nil {
 		response.Fail(c, "移除失败", err.Error())
 		return
 	}

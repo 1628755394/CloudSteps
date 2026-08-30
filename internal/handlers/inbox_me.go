@@ -1,11 +1,12 @@
 package handlers
 
 import (
+	"github.com/LingByte/ling-base/apidocs/humax"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/notification/inbox"
 	"github.com/gin-gonic/gin"
@@ -26,7 +27,7 @@ type meInboxBatchDeleteReq struct {
 	IDs []uint `json:"ids" binding:"required,min=1"`
 }
 
-func (h *Handlers) registerInboxMeRoutes(admin *gin.RouterGroup) {
+func (h *Handlers) registerInboxMeRoutes(admin *humax.Group) {
 	me := admin.Group("me/inbox-messages")
 	{
 		me.GET("/unread-count", h.handleMeInboxUnreadCount)
@@ -40,7 +41,7 @@ func (h *Handlers) registerInboxMeRoutes(admin *gin.RouterGroup) {
 }
 
 func currentUserIDStr(c *gin.Context) (string, bool) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		return "", false
 	}

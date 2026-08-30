@@ -3,7 +3,12 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"io"
 	"net/http"
 	"strconv"
@@ -12,11 +17,10 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/imagegen"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
-	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/LingByte/ling-base/common/logger"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -69,10 +73,10 @@ func (j *wordBookCoverJob) snapshot(includePreview bool) gin.H {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	out := gin.H{
-		"bookId":  j.BookID,
-		"status":  j.Status,
-		"saved":   j.Saved,
-		"error":   j.Error,
+		"bookId": j.BookID,
+		"status": j.Status,
+		"saved":  j.Saved,
+		"error":  j.Error,
 	}
 	if j.Prompt != "" {
 		out["prompt"] = j.Prompt
@@ -292,7 +296,7 @@ func parseCoverStartRequest(c *gin.Context, db *gorm.DB, book *models.WordBook) 
 		}
 	} else if referenceBookID > 0 {
 		var refBook models.WordBook
-		if err := db.Where("id = ? AND is_deleted = ?", referenceBookID, models.SoftDeleteStatusActive).First(&refBook).Error; err != nil {
+		if err := db.Where("id = ?", referenceBookID).First(&refBook).Error; err != nil {
 			return "", "", nil, "参考词库不存在"
 		}
 		coverURL := strings.TrimSpace(refBook.CoverURL)
@@ -318,16 +322,16 @@ func (h *Handlers) adminStartWordBookCover(c *gin.Context) {
 		response.Fail(c, "无效词库 ID", nil)
 		return
 	}
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var book models.WordBook
-	if err := db.Where("id = ? AND is_deleted = ?", bookID, models.SoftDeleteStatusActive).First(&book).Error; err != nil {
+	if err := db.Where("id = ?", bookID).First(&book).Error; err != nil {
 		response.Fail(c, "词库不存在", err)
 		return
 	}
 
 	cfg := imagegen.FromGlobal()
 	if strings.TrimSpace(cfg.APIKey) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "未配置图片生成（IMAGE_GEN_API_KEY）"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("未配置图片生成（IMAGE_GEN_API_KEY）"))
 		return
 	}
 
@@ -341,7 +345,7 @@ func (h *Handlers) adminStartWordBookCover(c *gin.Context) {
 
 	prompt, size, refImage, errMsg := parseCoverStartRequest(c, db, &book)
 	if errMsg != "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": errMsg})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New(errMsg))
 		return
 	}
 
@@ -405,8 +409,8 @@ func (h *Handlers) adminListWordBookCoverJobs(c *gin.Context) {
 
 // adminSaveWordBookCover POST — persist preview image as official cover.
 func (h *Handlers) adminSaveWordBookCover(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	bookID, err := parseBookIDParam(c)
 	if err != nil || bookID == 0 {
 		response.Fail(c, "无效词库 ID", nil)
@@ -417,12 +421,12 @@ func (h *Handlers) adminSaveWordBookCover(c *gin.Context) {
 	snap := job.snapshot(false)
 	status, _ := snap["status"].(string)
 	if status != wordBookCoverDone {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "请先生成封面预览"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("请先生成封面预览"))
 		return
 	}
 	previewURL, _ := snap["previewUrl"].(string)
 	if previewURL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "没有可保存的预览图"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("没有可保存的预览图"))
 		return
 	}
 
@@ -457,8 +461,8 @@ func (h *Handlers) adminSaveWordBookCover(c *gin.Context) {
 
 // adminClearWordBookCover POST — remove official cover (restore no-cover state).
 func (h *Handlers) adminClearWordBookCover(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	bookID, err := parseBookIDParam(c)
 	if err != nil || bookID == 0 {
 		response.Fail(c, "无效词库 ID", nil)
@@ -469,7 +473,7 @@ func (h *Handlers) adminClearWordBookCover(c *gin.Context) {
 	snap := job.snapshot(false)
 	status, _ := snap["status"].(string)
 	if isWordBookCoverActive(status) {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "封面生成进行中，请稍后再清除"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("封面生成进行中，请稍后再清除"))
 		return
 	}
 

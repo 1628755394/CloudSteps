@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"strconv"
 	"strings"
 
@@ -22,7 +23,7 @@ type userWordViewDTO struct {
 }
 
 func (h *Handlers) handleGetMyUserWord(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -40,7 +41,7 @@ func (h *Handlers) handleGetMyUserWord(c *gin.Context) {
 }
 
 func (h *Handlers) handleUpsertMyUserWord(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -63,7 +64,7 @@ func (h *Handlers) handleUpsertMyUserWord(c *gin.Context) {
 }
 
 func (h *Handlers) handleDeleteMyUserWord(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -123,15 +124,15 @@ func wordToFields(w *models.Word) models.UserWordFields {
 		return models.UserWordFields{}
 	}
 	return models.UserWordFields{
-		Word:            w.Word,
-		Phonetic:        w.Phonetic,
-		PhoneticUS:      w.PhoneticUS,
-		PhoneticUK:      w.PhoneticUK,
+		Word:             w.Word,
+		Phonetic:         w.Phonetic,
+		PhoneticUS:       w.PhoneticUS,
+		PhoneticUK:       w.PhoneticUK,
 		Translation:      w.Translation,
 		TranslationShort: w.TranslationShort,
-		PartOfSpeech:    w.PartOfSpeech,
-		Definition:      w.Definition,
-		ExampleSentence: w.ExampleSentence,
+		PartOfSpeech:     w.PartOfSpeech,
+		Definition:       w.Definition,
+		ExampleSentence:  w.ExampleSentence,
 	}
 }
 
@@ -140,16 +141,16 @@ func overlayToFields(u *models.UserWord) models.UserWordFields {
 		return models.UserWordFields{}
 	}
 	return models.UserWordFields{
-		Word:            u.Word,
-		Phonetic:        u.Phonetic,
-		PhoneticUS:      u.PhoneticUS,
-		PhoneticUK:      u.PhoneticUK,
+		Word:             u.Word,
+		Phonetic:         u.Phonetic,
+		PhoneticUS:       u.PhoneticUS,
+		PhoneticUK:       u.PhoneticUK,
 		Translation:      u.Translation,
 		TranslationShort: u.TranslationShort,
-		PartOfSpeech:    u.PartOfSpeech,
-		Definition:      u.Definition,
-		ExampleSentence: u.ExampleSentence,
-		Notes:           u.Notes,
+		PartOfSpeech:     u.PartOfSpeech,
+		Definition:       u.Definition,
+		ExampleSentence:  u.ExampleSentence,
+		Notes:            u.Notes,
 	}
 }
 
@@ -167,13 +168,13 @@ func userWordErrMsg(err error) string {
 }
 
 func overlayCurrentUserWord(c *gin.Context, db *gorm.DB, w *models.Word) {
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		models.OverlayWord(db, u.ID, w)
 	}
 }
 
 func overlayCurrentUserWordLites(c *gin.Context, db *gorm.DB, words []models.WordLite) {
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		models.OverlayWordLites(db, u.ID, words)
 	}
 }

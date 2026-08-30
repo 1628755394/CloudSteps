@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	common "github.com/LingByte/ling-base/common"
 )
 
 const (
@@ -14,7 +16,7 @@ const (
 
 // ScenarioDialogueScenario 预设对话场景
 type ScenarioDialogueScenario struct {
-	BaseModel
+	common.BaseModel
 	Slug        string `json:"slug" gorm:"size:64;uniqueIndex;not null;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
 	Name        string `json:"name" gorm:"size:128;not null;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
 	Description string `json:"description" gorm:"size:512;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
@@ -67,7 +69,7 @@ You are %s. The learner is a Chinese student practicing spoken English in the "%
 
 // ScenarioDialogueSession 用户场景对话会话
 type ScenarioDialogueSession struct {
-	BaseModel
+	common.BaseModel
 	UserID      uint       `json:"userId" gorm:"index;not null"`
 	ScenarioID  uint       `json:"scenarioId" gorm:"index;not null"`
 	Status      string     `json:"status" gorm:"size:20;default:'pending';index;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
@@ -95,7 +97,7 @@ func (ScenarioDialogueSession) TableName() string { return "scenario_dialogue_se
 
 // ScenarioDialogueTurn 对话轮次记录
 type ScenarioDialogueTurn struct {
-	BaseModel
+	common.BaseModel
 	SessionID        uint   `json:"sessionId" gorm:"index;not null"`
 	Role             string `json:"role" gorm:"size:16;not null;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
 	Content          string `json:"content" gorm:"type:longtext;charset:utf8mb4;collate:utf8mb4_unicode_ci"`

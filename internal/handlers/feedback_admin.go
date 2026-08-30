@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"github.com/LingByte/ling-base/apidocs/humax"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"strconv"
 	"strings"
 
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	common "github.com/LingByte/ling-base/common"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
@@ -19,9 +21,9 @@ type adminFeedbackTicketDTO struct {
 	UserEmail string `json:"userEmail,omitempty"`
 }
 
-func (h *Handlers) registerFeedbackAdminRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerFeedbackAdminRoutes(r *humax.Group) {
 	admin := r.Group("admin")
-	admin.Use(models.AuthRequired, adminOnly())
+	admin.Use(auth.Required, auth.AdminRequired)
 	g := admin.Group("feedbacks")
 	{
 		g.GET("", h.handleAdminListFeedback)
@@ -37,7 +39,7 @@ func (h *Handlers) handleAdminListFeedback(c *gin.Context) {
 	userID := strings.TrimSpace(c.Query("userId"))
 	keyword := strings.TrimSpace(c.Query("keyword"))
 
-	q := h.db.Model(&models.FeedbackTicket{}).Where("is_deleted = ?", models.SoftDeleteStatusActive)
+	q := h.db.Model(&models.FeedbackTicket{})
 	if status == models.FeedbackStatusOpen || status == models.FeedbackStatusClosed {
 		q = q.Where("status = ?", status)
 	}
@@ -89,7 +91,7 @@ func (h *Handlers) handleAdminGetFeedback(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminReplyFeedback(c *gin.Context) {
-	admin := models.CurrentUser(c)
+	admin := auth.CurrentUser(c)
 	if admin == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -124,7 +126,7 @@ func (h *Handlers) handleAdminReplyFeedback(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminCloseFeedback(c *gin.Context) {
-	admin := models.CurrentUser(c)
+	admin := auth.CurrentUser(c)
 	if admin == nil {
 		response.Fail(c, "未登录", nil)
 		return
@@ -166,7 +168,7 @@ func (h *Handlers) findAdminFeedback(c *gin.Context) (*models.FeedbackTicket, bo
 		return nil, false
 	}
 	var ticket models.FeedbackTicket
-	if err := h.db.Where("id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).First(&ticket).Error; err != nil {
+	if err := h.db.Where("id = ?", id).First(&ticket).Error; err != nil {
 		response.Fail(c, "工单不存在", err)
 		return nil, false
 	}

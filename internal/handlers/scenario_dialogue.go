@@ -1,26 +1,31 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/internal/voice"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	response "github.com/LingByte/ling-base/common/response/gin"
+	"github.com/LingByte/CloudStepsGo/pkg/voice"
 	"github.com/LingByte/ling-base/common/logger"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func (h *Handlers) registerScenarioDialogueRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerScenarioDialogueRoutes(r *humax.Group) {
 	sd := r.Group("scenario-dialogue")
-	sd.Use(models.AuthRequired)
+	sd.Use(auth.Required)
 	{
 		sd.GET("/scenarios", h.handleListScenarios)
 		sd.POST("/sessions", h.handleStartScenarioSession)
@@ -34,7 +39,7 @@ func (h *Handlers) registerScenarioDialogueRoutes(r *gin.RouterGroup) {
 
 	// Admin scenario management routes
 	admin := r.Group("admin/scenarios")
-	admin.Use(models.AuthRequired, h.requireAdmin)
+	admin.Use(auth.Required, auth.AdminRequired)
 	{
 		admin.GET("", h.handleAdminListScenarios)
 		admin.POST("", h.handleAdminCreateScenario)
@@ -66,26 +71,23 @@ func (h *Handlers) handleScenarioVoiceWS(c *gin.Context) {
 	}
 	userID, sessionID, ok := voice.ParseDeviceSessionID(deviceID)
 	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "无效的 device-id"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("无效的 device-id"))
 		return
 	}
 
 	var sess models.ScenarioDialogueSession
 	if err := h.db.Where("id = ? AND user_id = ?", sessionID, userID).First(&sess).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "会话不存在"})
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("会话不存在"))
 		return
 	}
 	if sess.Status == models.ScenarioSessionStatusCompleted {
-		c.JSON(http.StatusGone, gin.H{"code": 410, "msg": "会话已结束"})
+		response.AbortWithStatusJSON(c, http.StatusGone, errors.New("会话已结束"))
 		return
 	}
 
 	ready := voice.CheckReady()
 	if !ready.Ready {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"code": 503,
-			"msg":  ready.Hint,
-		})
+		response.AbortWithStatusJSON(c, http.StatusServiceUnavailable, errors.New(ready.Hint))
 		return
 	}
 
@@ -104,7 +106,7 @@ func (h *Handlers) handleVoiceReady(c *gin.Context) {
 }
 
 func (h *Handlers) handleListScenarios(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var scenarios []models.ScenarioDialogueScenario
 	if err := db.Where("enabled = ?", true).Order("sort_order asc, id asc").Find(&scenarios).Error; err != nil {
 		response.Fail(c, "获取场景列表失败", nil)
@@ -118,10 +120,10 @@ type startSessionReq struct {
 }
 
 func (h *Handlers) handleStartScenarioSession(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -158,7 +160,7 @@ func (h *Handlers) handleStartScenarioSession(c *gin.Context) {
 		},
 	})
 
-	apiPrefix := config.GlobalConfig.Server.APIPrefix
+	apiPrefix := configs.Global.Server.APIPrefix
 	if apiPrefix == "" {
 		apiPrefix = "/api"
 	}
@@ -176,10 +178,10 @@ func (h *Handlers) handleStartScenarioSession(c *gin.Context) {
 }
 
 func (h *Handlers) handleGetScenarioSession(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -196,10 +198,10 @@ func (h *Handlers) handleGetScenarioSession(c *gin.Context) {
 }
 
 func (h *Handlers) handleCompleteScenarioSession(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -287,10 +289,10 @@ func sessionWithDetail(sess models.ScenarioDialogueSession) gin.H {
 }
 
 func (h *Handlers) handleScenarioDialogueStats(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -354,10 +356,10 @@ type appendTurnReq struct {
 }
 
 func (h *Handlers) handleActivateScenarioSession(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
@@ -376,10 +378,10 @@ func (h *Handlers) handleActivateScenarioSession(c *gin.Context) {
 }
 
 func (h *Handlers) handleAppendScenarioTurn(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 	id, _ := strconv.Atoi(c.Param("id"))
@@ -503,7 +505,7 @@ func cleanSpecialChars(s string) string {
 // Admin scenario management handlers
 
 func (h *Handlers) handleAdminListScenarios(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var scenarios []models.ScenarioDialogueScenario
 	if err := db.Order("sort_order asc, id asc").Find(&scenarios).Error; err != nil {
 		response.Fail(c, "获取场景列表失败", nil)
@@ -525,7 +527,7 @@ type adminCreateScenarioReq struct {
 }
 
 func (h *Handlers) handleAdminCreateScenario(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	var req adminCreateScenarioReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(c, "参数错误", nil)
@@ -553,7 +555,7 @@ func (h *Handlers) handleAdminCreateScenario(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminUpdateScenario(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id == 0 {
 		response.Fail(c, "无效的场景ID", nil)
@@ -591,7 +593,7 @@ func (h *Handlers) handleAdminUpdateScenario(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminDeleteScenario(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id == 0 {
 		response.Fail(c, "无效的场景ID", nil)
@@ -607,7 +609,7 @@ func (h *Handlers) handleAdminDeleteScenario(c *gin.Context) {
 }
 
 func (h *Handlers) handleAdminToggleScenario(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id == 0 {
 		response.Fail(c, "无效的场景ID", nil)

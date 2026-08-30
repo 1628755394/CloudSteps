@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
-	response "github.com/LingByte/ling-base/common/response/gin"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
 	"github.com/LingByte/ling-base/common/logger"
+	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -130,7 +130,7 @@ func (j *wordBookPurgeAudioJob) finish(status, errMsg string) {
 
 // adminPurgeWordBookAudio POST /wordbooks/:id/words/purge-all-audio
 func (h *Handlers) adminPurgeWordBookAudio(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	bookID, err := parseBookIDParam(c)
 	if err != nil || bookID == 0 {
 		response.Fail(c, "无效词库 ID", nil)

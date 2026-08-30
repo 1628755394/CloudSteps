@@ -1,13 +1,17 @@
 package handlers
 
 import (
+	"errors"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -15,10 +19,10 @@ import (
 )
 
 func (h *Handlers) handleStudyLighthouse(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -36,10 +40,10 @@ func (h *Handlers) handleStudyLighthouse(c *gin.Context) {
 
 // handleStudyLighthouseWords GET /study/lighthouse/words?wordBookId=N&step=01|pending|mastered
 func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -64,7 +68,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	// 与九宫格 01 待学计数（词库总词数 - 已学词数）保持一致。
 	if step == "pending" && wordBookID > 0 {
 		joinClause := "FROM words w LEFT JOIN user_word_states uws ON uws.word_id = w.id AND uws.user_id = ?"
-		whereClause := "w.word_book_id = ? AND w.is_deleted = 0 AND (uws.id IS NULL OR uws.learn_status = 'pending')"
+		whereClause := "w.word_book_id = ? AND w.deleted_at IS NULL AND (uws.id IS NULL OR uws.learn_status = 'pending')"
 		queryArgs := []any{user.ID, uint(wordBookID)}
 
 		var total int64
@@ -104,7 +108,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	default:
 		stage, err := strconv.Atoi(step)
 		if err != nil || stage < 1 || stage > 7 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "step 参数无效，应为 today、01-07、pending 或 mastered"})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("step 参数无效，应为 today、01-07、pending 或 mastered"))
 			return
 		}
 		stateWhere = "uws.user_id = ? AND uws.learn_status IN ? AND uws.review_stage = ?"
@@ -129,7 +133,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 	dataSQL := `SELECT w.id, w.word_book_id, w.word, w.phonetic, w.phonetic_uk, w.phonetic_us,
 		w.translation, w.translation_short, w.part_of_speech, w.definition, w.audio_url, w.sort_order
 		FROM user_word_states uws
-		JOIN words w ON w.id = uws.word_id AND w.is_deleted = 0
+		JOIN words w ON w.id = uws.word_id AND w.deleted_at IS NULL
 		WHERE ` + stateWhere + `
 		ORDER BY w.sort_order ASC, w.id ASC
 		LIMIT ? OFFSET ?`
@@ -157,8 +161,8 @@ func pad2(n int) string {
 
 // handleStudyWords GET /study/words?wordBookId=N&page=1&pageSize=20&shuffle=0&seed=0
 func (h *Handlers) handleStudyWords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	wordBookID, _ := strconv.Atoi(c.Query("wordBookId"))
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
@@ -167,11 +171,11 @@ func (h *Handlers) handleStudyWords(c *gin.Context) {
 	seed, _ := strconv.ParseInt(c.DefaultQuery("seed", "0"), 10, 64)
 
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 	if wordBookID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "wordBookId 必填"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("wordBookId 必填"))
 		return
 	}
 
@@ -206,10 +210,10 @@ func (h *Handlers) handleStudyWords(c *gin.Context) {
 // handleStudySessionStart POST /study/session/start
 // body: { wordBookId, unknownIds: number[], knownIds?: number[], wordIds?: number[] }
 func (h *Handlers) handleStudySessionStart(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -220,7 +224,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 		WordIDs    []uint `json:"wordIds"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 
@@ -369,11 +373,11 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 // handleStudySessionComplete POST /study/session/:id/complete
 // body: { results: [{wordId, remembered: bool}] }
 func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	sessionID, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -384,7 +388,7 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 		} `json:"results" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 
@@ -477,11 +481,11 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 
 // handleStudySessionGet GET /study/session/:id
 func (h *Handlers) handleStudySessionGet(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	sessionID, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -495,7 +499,7 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	if session.UserID != user.ID {
 		tid := coachingCoachingTeacherID(c)
 		if tid == 0 || coachingTeacherHasStudentPair(db, tid, session.UserID) != nil {
-			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "无权查看该会话"})
+			response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("无权查看该会话"))
 			return
 		}
 	}
@@ -524,10 +528,10 @@ func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 //
 //	wordBookId, status(completed|in_progress), groupBy(bookDay=按词库+日聚合)
 func (h *Handlers) handleStudySessionsList(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -548,17 +552,17 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 	if sidStr := strings.TrimSpace(c.Query("studentId")); sidStr != "" {
 		sid64, err := strconv.ParseUint(sidStr, 10, 64)
 		if err != nil || sid64 == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 			return
 		}
 		sid := uint(sid64)
 		tid := coachingCoachingTeacherID(c)
 		if tid == 0 {
-			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "仅老师可查看学员记录"})
+			response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("仅老师可查看学员记录"))
 			return
 		}
 		if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+			response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 			return
 		}
 		// 正课会话记在老师账号：studentId 仅做权限校验
@@ -737,10 +741,10 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 // handleStudySessionsExportWords GET /study/sessions/export-words
 // 一次返回筛选条件下去重后的单词（英文 / 音标 / 中文释义），供导出。
 func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -752,17 +756,17 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 	if sidStr := strings.TrimSpace(c.Query("studentId")); sidStr != "" {
 		sid64, err := strconv.ParseUint(sidStr, 10, 64)
 		if err != nil || sid64 == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "学员 ID 无效"})
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("学员 ID 无效"))
 			return
 		}
 		sid := uint(sid64)
 		tid := coachingCoachingTeacherID(c)
 		if tid == 0 {
-			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "仅老师可查看学员记录"})
+			response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("仅老师可查看学员记录"))
 			return
 		}
 		if err := coachingTeacherHasStudentPair(db, tid, sid); err != nil {
-			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": err.Error()})
+			response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 			return
 		}
 		// 正课会话目前记在老师账号；传 studentId 仅做权限校验，仍导出老师侧会话词

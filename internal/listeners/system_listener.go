@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"sync"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
+	"github.com/LingByte/CloudStepsGo/internal/configs"
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	common "github.com/LingByte/ling-base/common"
 	"github.com/LingByte/ling-base/common/logger"
 	"go.uber.org/zap"
@@ -21,7 +21,7 @@ var (
 // InitSystemListeners initializes system listeners
 func InitSystemListeners() {
 	// Connect system initialization signal
-	common.Sig().Connect(models.SigInitSystemConfig, func(sender any, params ...any) {
+	common.Sig().Connect(constants.SigInitSystemConfig, func(sender any, params ...any) {
 		// Load SSL certificates
 		loadSSLCertificates()
 	})
@@ -31,13 +31,13 @@ func InitSystemListeners() {
 
 // loadSSLCertificates loads SSL certificates
 func loadSSLCertificates() {
-	if !config.GlobalConfig.Server.SSLEnabled {
+	if !configs.Global.Server.SSLEnabled {
 		logger.Info("SSL is disabled, skipping SSL certificate loading")
 		return
 	}
 
-	certFile := config.GlobalConfig.Server.SSLCertFile
-	keyFile := config.GlobalConfig.Server.SSLKeyFile
+	certFile := configs.Global.Server.SSLCertFile
+	keyFile := configs.Global.Server.SSLKeyFile
 
 	if certFile == "" || keyFile == "" {
 		logger.Warn("SSL enabled but certificate files not configured",
@@ -75,7 +75,7 @@ func GetSSLCertificate() (tls.Certificate, error) {
 
 // IsSSLEnabled checks if SSL is enabled and certificates are loaded
 func IsSSLEnabled() bool {
-	return config.GlobalConfig.Server.SSLEnabled && sslCertErr == nil
+	return configs.Global.Server.SSLEnabled && sslCertErr == nil
 }
 
 // GetTLSConfig gets TLS configuration

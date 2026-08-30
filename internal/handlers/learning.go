@@ -1,27 +1,32 @@
 package handlers
 
 import (
+	"errors"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-func (h *Handlers) registerLearningRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerLearningRoutes(r *humax.Group) {
 	learning := r.Group("learning")
-	learning.Use(models.AuthRequired)
+	learning.Use(auth.Required)
 	{
 		learning.POST("/learned", h.handleMarkLearnedWords)
 	}
 
 	study := r.Group("study")
-	study.Use(models.AuthRequired)
+	study.Use(auth.Required)
 	{
 		study.GET("/words", h.handleStudyWords)
 		study.GET("/lighthouse", h.handleStudyLighthouse)
@@ -34,7 +39,7 @@ func (h *Handlers) registerLearningRoutes(r *gin.RouterGroup) {
 	}
 
 	review := r.Group("review")
-	review.Use(models.AuthRequired)
+	review.Use(auth.Required)
 	{
 		review.GET("/today", h.handleReviewToday)
 		review.GET("/books", h.handleReviewBooks)
@@ -52,10 +57,10 @@ func (h *Handlers) registerLearningRoutes(r *gin.RouterGroup) {
 // handleMarkLearnedWords POST /learning/learned
 // body: { wordBookId: number, wordIds: number[] }
 func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -64,11 +69,11 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 		WordIDs    []uint `json:"wordIds" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	if len(body.WordIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "wordIds 不能为空"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("wordIds 不能为空"))
 		return
 	}
 
@@ -125,10 +130,10 @@ func (h *Handlers) handleMarkLearnedWords(c *gin.Context) {
 
 // handleReviewDue GET /review/due?wordBookId=1&limit=20
 func (h *Handlers) handleReviewDue(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -197,10 +202,10 @@ func (h *Handlers) handleReviewDue(c *gin.Context) {
 // handleReviewSubmit POST /review/submit
 // body: { results: [{ wordId: number, remembered: bool }] }
 func (h *Handlers) handleReviewSubmit(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -211,7 +216,7 @@ func (h *Handlers) handleReviewSubmit(c *gin.Context) {
 		} `json:"results" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || len(body.Results) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "参数错误"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 

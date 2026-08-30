@@ -1,12 +1,10 @@
 package listeners
 
 import (
-	"sync"
-
+	"github.com/LingByte/CloudStepsGo/internal/constants"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/internal/notify"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
-	common "github.com/LingByte/ling-base/common"
+	"github.com/LingByte/CloudStepsGo/pkg/notify"
+	"github.com/LingByte/ling-base/common"
 	"github.com/LingByte/ling-base/common/logger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -17,29 +15,18 @@ func InitFeedbackListeners(db *gorm.DB) {
 	if db == nil {
 		return
 	}
-	feedbackListenersOnce.Do(func() {
-		initFeedbackListeners(db)
-	})
-}
-
-var feedbackListenersOnce sync.Once
-
-func initFeedbackListeners(db *gorm.DB) {
-	connectAsync := func(event string, fn func(*gorm.DB, ...any)) {
-		common.Sig().Connect(event, func(_ any, params ...any) {
-			workDB := db
-			workParams := params
-			if n := len(params); n > 0 {
-				if passed, ok := params[n-1].(*gorm.DB); ok {
-					workDB = passed
-					workParams = params[:n-1]
-				}
+	common.Sig().Connect(constants.SigFeedbackAdminReplied, func(_ any, params ...any) {
+		workDB := db
+		workParams := params
+		if n := len(params); n > 0 {
+			if passed, ok := params[n-1].(*gorm.DB); ok {
+				workDB = passed
+				workParams = params[:n-1]
 			}
-			go fn(workDB, workParams...)
-		})
-	}
-	connectAsync(constants.SigFeedbackAdminReplied, deliverFeedbackReplyInbox)
-	logger.Info("feedback Sig listeners registered")
+		}
+		go deliverFeedbackReplyInbox(workDB, workParams...)
+	})
+	logger.Info("feedback module listener is already")
 }
 
 func deliverFeedbackReplyInbox(db *gorm.DB, params ...any) {

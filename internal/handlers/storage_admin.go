@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"github.com/LingByte/ling-base/apidocs/humax"
 	"errors"
 	"fmt"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	"io"
 	"net/http"
 	"path"
@@ -10,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	lbstores "github.com/LingByte/ling-base/stores"
@@ -19,9 +20,9 @@ import (
 
 const maxPreviewBytes int64 = 32 << 20
 
-func (h *Handlers) registerStorageAdminRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerStorageAdminRoutes(r *humax.Group) {
 	admin := r.Group("admin")
-	admin.Use(models.AuthRequired, adminOnly())
+	admin.Use(auth.Required, auth.AdminRequired)
 	st := admin.Group("storage")
 	{
 		st.GET("", h.handleStorageInfo)

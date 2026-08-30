@@ -8,10 +8,12 @@ import (
 	"strings"
 	"time"
 
-	CloudStepsGo "github.com/LingByte/CloudStepsGo"
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/CloudStepsGo/pkg/utils"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/audio"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -80,7 +82,7 @@ func (p adminWordPayload) toWord(bookID uint) models.Word {
 		TranslationShort: p.TranslationShort,
 		ExampleSentence:  p.ExampleSentence,
 		ExampleSentences: p.ExampleSentences,
-		AudioURL:         audio.DeduplicateSlots(p.AudioURL),
+		AudioURL:         utils.DeduplicateSlots(p.AudioURL),
 		ImageURL:         p.ImageURL,
 		VideoURL:         p.VideoURL,
 		Difficulty:       diff,
@@ -109,9 +111,9 @@ func (p adminWordPayload) toWord(bookID uint) models.Word {
 	}
 }
 
-func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
+func (h *Handlers) registerWordBookRoutes(r *humax.Group) {
 	wb := r.Group("wordbooks")
-	wb.Use(models.AuthRequired)
+	wb.Use(auth.Required)
 	{
 		wb.GET("", h.handleListWordBooks)
 		h.registerCustomWordBookRoutes(wb)
@@ -127,7 +129,7 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 		wb.GET("/:id/screen/status", h.handleScreenStatus)
 
 		admin := wb.Group("")
-		admin.Use(h.requireAdmin)
+		admin.Use(auth.AdminRequired)
 		{
 			admin.GET("/list", h.adminListWordBooks)
 			admin.GET("/batch-audio/jobs", h.adminListWordBookBatchAudioJobs)
@@ -158,7 +160,7 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 
 	// 单词详情（按 word ID 查询完整词典数据）
 	words := r.Group("words")
-	words.Use(models.AuthRequired)
+	words.Use(auth.Required)
 	{
 		words.GET("/:id/user-word", h.handleGetMyUserWord)
 		words.PUT("/:id/user-word", h.handleUpsertMyUserWord)
@@ -168,7 +170,7 @@ func (h *Handlers) registerWordBookRoutes(r *gin.RouterGroup) {
 }
 
 func (h *Handlers) handleListWordBooks(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	level := c.Query("level")
 	keyword := strings.TrimSpace(c.Query("keyword"))
 	category := c.Query("category")
@@ -183,7 +185,7 @@ func (h *Handlers) handleListWordBooks(c *gin.Context) {
 	}
 
 	var ownerUID uint
-	if u := models.CurrentUser(c); u != nil {
+	if u := auth.CurrentUser(c); u != nil {
 		ownerUID = u.ID
 	}
 
@@ -203,7 +205,7 @@ func (h *Handlers) handleListWordBooks(c *gin.Context) {
 }
 
 func (h *Handlers) handleGetWordBook(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	book, err := models.GetWordBookByID(db, uint(id))
 	if err != nil {
@@ -211,7 +213,7 @@ func (h *Handlers) handleGetWordBook(c *gin.Context) {
 		return
 	}
 	if book.OwnerUserID > 0 {
-		u := models.CurrentUser(c)
+		u := auth.CurrentUser(c)
 		if u == nil || u.ID != book.OwnerUserID {
 			response.Fail(c, "无权访问该词库", nil)
 			return
@@ -222,14 +224,14 @@ func (h *Handlers) handleGetWordBook(c *gin.Context) {
 
 // handleGetWordDetail GET /words/:id — 返回单个单词的完整词典数据
 func (h *Handlers) handleGetWordDetail(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "单词 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("单词 ID 无效"))
 		return
 	}
 	var word models.Word
-	if err := db.Where("id = ? AND is_deleted = 0", id).First(&word).Error; err != nil {
+	if err := db.Where("id = ?", id).First(&word).Error; err != nil {
 		response.Fail(c, "单词不存在", err)
 		return
 	}
@@ -240,26 +242,26 @@ func (h *Handlers) handleGetWordDetail(c *gin.Context) {
 // handleListWordBookWords GET /wordbooks/:id/words?page=&pageSize=&keyword=
 // 登录用户浏览词库单词（不含管理端编辑能力）
 func (h *Handlers) handleListWordBookWords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "词库 ID 无效"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("词库 ID 无效"))
 		return
 	}
 	book, err := models.GetWordBookByID(db, uint(id))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": "词库不存在"})
+		response.AbortWithStatusJSON(c, http.StatusNotFound, errors.New("词库不存在"))
 		return
 	}
 	if book.OwnerUserID > 0 {
-		u := models.CurrentUser(c)
+		u := auth.CurrentUser(c)
 		if u == nil || u.ID != book.OwnerUserID {
-			c.JSON(http.StatusForbidden, gin.H{"code": 403, "msg": "无权访问该词库"})
+			response.AbortWithStatusJSON(c, http.StatusForbidden, errors.New("无权访问该词库"))
 			return
 		}
 	}
 	if !book.IsActive {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "msg": "词库已下架"})
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("词库已下架"))
 		return
 	}
 	page := 1
@@ -290,11 +292,11 @@ func (h *Handlers) handleListWordBookWords(c *gin.Context) {
 }
 
 func (h *Handlers) handleSelectWordBook(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -320,11 +322,11 @@ func (h *Handlers) handleSelectWordBook(c *gin.Context) {
 }
 
 func (h *Handlers) handleGetWordBookProgress(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -358,11 +360,11 @@ func (h *Handlers) handleGetWordBookProgress(c *gin.Context) {
 }
 
 func (h *Handlers) handleScreenNext(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -379,7 +381,7 @@ func (h *Handlers) handleScreenNext(c *gin.Context) {
 	// 游标分页：用 ScreenProgress 作为已筛数量，通过 LIMIT + OFFSET 1 获取下一条
 	// 对于大词库，这里仍用 Offset 但只取 1 条，MySQL 会利用索引快速定位
 	var word models.Word
-	err := db.Where("word_book_id = ? AND is_deleted = ?", id, models.SoftDeleteStatusActive).
+	err := db.Where("word_book_id = ?").
 		Order("sort_order ASC, id ASC").
 		Offset(uwb.ScreenProgress).
 		Limit(1).
@@ -403,11 +405,11 @@ func (h *Handlers) handleScreenNext(c *gin.Context) {
 }
 
 func (h *Handlers) handleScreenSubmit(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -416,7 +418,7 @@ func (h *Handlers) handleScreenSubmit(c *gin.Context) {
 		Result string `json:"result" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 
@@ -470,11 +472,11 @@ func (h *Handlers) handleScreenSubmit(c *gin.Context) {
 }
 
 func (h *Handlers) handleScreenStatus(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"code": 401, "msg": "authorization required"})
+		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("authorization required"))
 		return
 	}
 
@@ -506,7 +508,7 @@ func (h *Handlers) handleScreenStatus(c *gin.Context) {
 }
 
 func (h *Handlers) adminListWordBooks(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	if page < 1 {
@@ -522,7 +524,6 @@ func (h *Handlers) adminListWordBooks(c *gin.Context) {
 	sourceName := strings.TrimSpace(c.Query("sourceName"))
 
 	q := db.Model(&models.WordBook{}).
-		Where("is_deleted = ?", models.SoftDeleteStatusActive).
 		Order("sort_order ASC, id DESC")
 	if keyword != "" {
 		q = q.Where("name LIKE ?", "%"+keyword+"%")
@@ -578,14 +579,14 @@ func (h *Handlers) adminListWordBooks(c *gin.Context) {
 }
 
 func (h *Handlers) adminRecountWordBookCount(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	bookID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || bookID == 0 {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("invalid word book id"))
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("invalid word book id"))
 		return
 	}
 	var book models.WordBook
-	if err := db.Where("id = ? AND is_deleted = ?", bookID, models.SoftDeleteStatusActive).First(&book).Error; err != nil {
+	if err := db.Where("id = ?", bookID).First(&book).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Fail(c, "词库不存在", nil)
 		} else {
@@ -607,8 +608,8 @@ func (h *Handlers) adminRecountWordBookCount(c *gin.Context) {
 }
 
 func (h *Handlers) adminCreateWordBook(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	var body struct {
 		Name            string `json:"name" binding:"required"`
 		Description     string `json:"description"`
@@ -624,7 +625,7 @@ func (h *Handlers) adminCreateWordBook(c *gin.Context) {
 		LicenseNote     string `json:"licenseNote"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	isActive := true
@@ -663,8 +664,8 @@ func (h *Handlers) adminCreateWordBook(c *gin.Context) {
 }
 
 func (h *Handlers) adminUpdateWordBook(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	if _, err := models.GetWordBookByID(db, uint(id)); err != nil {
 		response.Fail(c, "词库不存在", err)
@@ -672,7 +673,7 @@ func (h *Handlers) adminUpdateWordBook(c *gin.Context) {
 	}
 	var body map[string]any
 	if err := c.ShouldBindJSON(&body); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	// Prevent client from tampering audit fields
@@ -699,8 +700,8 @@ func (h *Handlers) adminUpdateWordBook(c *gin.Context) {
 }
 
 func (h *Handlers) adminDeleteWordBook(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	operator := ""
 	if user != nil {
@@ -720,7 +721,7 @@ func (h *Handlers) adminDeleteWordBook(c *gin.Context) {
 }
 
 func (h *Handlers) adminListWords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "30"))
@@ -735,12 +736,12 @@ func (h *Handlers) adminListWords(c *gin.Context) {
 }
 
 func (h *Handlers) adminCreateWord(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	var body adminWordPayload
 	if err := c.ShouldBindJSON(&body); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	word := body.toWord(uint(id))
@@ -786,8 +787,8 @@ func operatorName(user *models.User) string {
 
 // handleUpdateWordBookWord PUT /wordbooks/:id/words/:wid — 管理员或自定义词书所有者
 func (h *Handlers) handleUpdateWordBookWord(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	bookID, _ := strconv.Atoi(c.Param("id"))
 	wid, _ := strconv.Atoi(c.Param("wid"))
 	if bookID <= 0 || wid <= 0 {
@@ -810,7 +811,7 @@ func (h *Handlers) handleUpdateWordBookWord(c *gin.Context) {
 	}
 	var body map[string]any
 	if err := c.ShouldBindJSON(&body); err != nil {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, err)
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 	delete(body, "createBy")
@@ -824,7 +825,7 @@ func (h *Handlers) handleUpdateWordBookWord(c *gin.Context) {
 		body["update_by"] = op
 	}
 	if v, ok := body["audioUrl"]; ok {
-		body["audio_url"] = audio.DeduplicateSlots(strings.TrimSpace(fmt.Sprint(v)))
+		body["audio_url"] = utils.DeduplicateSlots(strings.TrimSpace(fmt.Sprint(v)))
 		delete(body, "audioUrl")
 	}
 	if v, ok := body["translationShort"]; ok {
@@ -849,8 +850,8 @@ func (h *Handlers) handleUpdateWordBookWord(c *gin.Context) {
 
 // handleDeleteWordBookWord DELETE /wordbooks/:id/words/:wid — 管理员或自定义词书所有者
 func (h *Handlers) handleDeleteWordBookWord(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	bookID, _ := strconv.Atoi(c.Param("id"))
 	wid, _ := strconv.Atoi(c.Param("wid"))
 	if bookID <= 0 || wid <= 0 {
@@ -881,7 +882,7 @@ func (h *Handlers) handleDeleteWordBookWord(c *gin.Context) {
 
 // adminCheckWords POST {adminPrefix}/wordbooks/:id/words/check
 func (h *Handlers) adminCheckWords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	id, _ := strconv.Atoi(c.Param("id"))
 	var body struct {
 		Words []string `json:"words"`
@@ -892,21 +893,21 @@ func (h *Handlers) adminCheckWords(c *gin.Context) {
 	}
 	var existing []string
 	db.Model(&models.Word{}).
-		Where("word_book_id = ? AND is_deleted = ? AND word IN ?", id, models.SoftDeleteStatusActive, body.Words).
+		Where("word_book_id = ? AND word IN ?", id, body.Words).
 		Pluck("word", &existing)
 	response.SuccessMsg(c, "success", gin.H{"duplicates": existing})
 }
 
 // adminBatchCreateWords POST {adminPrefix}/wordbooks/:id/words/batch
 func (h *Handlers) adminBatchCreateWords(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
-	user := models.CurrentUser(c)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
 	id, _ := strconv.Atoi(c.Param("id"))
 	var body struct {
 		Words []adminWordPayload `json:"words"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || len(body.Words) == 0 {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
 	words := make([]models.Word, 0, len(body.Words))
@@ -932,7 +933,7 @@ func (h *Handlers) adminBatchCreateWords(c *gin.Context) {
 		words = append(words, word)
 	}
 	if len(words) == 0 {
-		CloudStepsGo.AbortWithJSONError(c, http.StatusBadRequest, errors.New("没有可导入的数据"))
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("没有可导入的数据"))
 		return
 	}
 	if err := models.BatchCreateWords(db, words); err != nil {
@@ -944,7 +945,7 @@ func (h *Handlers) adminBatchCreateWords(c *gin.Context) {
 
 // adminDeduplicateWordBookAudio POST /wordbooks/:id/words/deduplicate-audio
 func (h *Handlers) adminDeduplicateWordBookAudio(c *gin.Context) {
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	bookID, err := strconv.Atoi(c.Param("id"))
 	if err != nil || bookID <= 0 {
 		response.Fail(c, "无效词库 ID", nil)
@@ -962,7 +963,7 @@ func (h *Handlers) adminDeduplicateWordBookAudio(c *gin.Context) {
 	checked := len(words)
 	updated := 0
 	for _, w := range words {
-		cleaned := audio.DeduplicateSlots(w.AudioURL)
+		cleaned := utils.DeduplicateSlots(w.AudioURL)
 		if cleaned == w.AudioURL {
 			continue
 		}

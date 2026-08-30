@@ -19,12 +19,25 @@ func newUsersSoftDeleteTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func TestCheckUserAllowLoginRejectsDeletedUser(t *testing.T) {
-	db := newUsersSoftDeleteTestDB(t)
-	user := User{BaseModel: BaseModel{IsDeleted: SoftDeleteStatusDeleted}, Username: "deleted", Role: RoleStudent}
+func createSoftDeletedUser(t *testing.T, db *gorm.DB, username, role string) User {
+	t.Helper()
+	user := User{Username: username, Role: role}
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user: %v", err)
 	}
+	if err := db.Delete(&user).Error; err != nil {
+		t.Fatalf("soft delete user: %v", err)
+	}
+	var deleted User
+	if err := db.Unscoped().First(&deleted, user.ID).Error; err != nil {
+		t.Fatalf("reload deleted user: %v", err)
+	}
+	return deleted
+}
+
+func TestCheckUserAllowLoginRejectsDeletedUser(t *testing.T) {
+	db := newUsersSoftDeleteTestDB(t)
+	user := createSoftDeletedUser(t, db, "deleted", RoleStudent)
 	if err := CheckUserAllowLogin(db, &user); err == nil {
 		t.Fatal("expected deleted user to be rejected")
 	}
@@ -32,10 +45,7 @@ func TestCheckUserAllowLoginRejectsDeletedUser(t *testing.T) {
 
 func TestGetUserByUsernameExcludesDeleted(t *testing.T) {
 	db := newUsersSoftDeleteTestDB(t)
-	user := User{BaseModel: BaseModel{IsDeleted: SoftDeleteStatusDeleted}, Username: "gone", Role: RoleTeacher}
-	if err := db.Create(&user).Error; err != nil {
-		t.Fatalf("create user: %v", err)
-	}
+	_ = createSoftDeletedUser(t, db, "gone", RoleTeacher)
 	if _, err := GetUserByUsername(db, "gone"); err == nil {
 		t.Fatal("expected deleted username lookup to fail")
 	}
@@ -47,10 +57,7 @@ func TestGetUserByUsernameExcludesDeleted(t *testing.T) {
 
 func TestCreateUser_newAccountAfterSoftDelete(t *testing.T) {
 	db := newUsersSoftDeleteTestDB(t)
-	deleted := User{BaseModel: BaseModel{IsDeleted: SoftDeleteStatusDeleted}, Username: "reuse@example.com", Role: RoleTeacher}
-	if err := db.Create(&deleted).Error; err != nil {
-		t.Fatalf("create deleted user: %v", err)
-	}
+	deleted := createSoftDeletedUser(t, db, "reuse@example.com", RoleTeacher)
 	if IsExistsByUsername(db, "reuse@example.com") {
 		t.Fatal("deleted username should not count as existing")
 	}
@@ -97,10 +104,10 @@ func TestSoftDeleteTeacherWithStudents(t *testing.T) {
 
 	assertDeleted := func(id uint) {
 		var u User
-		if err := db.First(&u, id).Error; err != nil {
+		if err := db.Unscoped().First(&u, id).Error; err != nil {
 			t.Fatalf("load user %d: %v", id, err)
 		}
-		if u.IsDeleted != SoftDeleteStatusDeleted {
+		if !u.DeletedAt.Valid {
 			t.Fatalf("user %d should be deleted", id)
 		}
 	}
@@ -109,7 +116,7 @@ func TestSoftDeleteTeacherWithStudents(t *testing.T) {
 		if err := db.First(&u, id).Error; err != nil {
 			t.Fatalf("load user %d: %v", id, err)
 		}
-		if u.IsDeleted != SoftDeleteStatusActive {
+		if u.DeletedAt.Valid {
 			t.Fatalf("user %d should remain active", id)
 		}
 	}
@@ -121,7 +128,7 @@ func TestSoftDeleteTeacherWithStudents(t *testing.T) {
 
 	var activeQuotas int64
 	db.Model(&StudentTeacherCoachingQuota{}).
-		Where("teacher_id = ? AND is_deleted = ?", teacher.ID, SoftDeleteStatusActive).
+		Where("teacher_id = ?", teacher.ID).
 		Count(&activeQuotas)
 	if activeQuotas != 0 {
 		t.Fatalf("expected no active quotas for deleted teacher, got %d", activeQuotas)
@@ -159,20 +166,20 @@ func TestSoftDeleteUser_clearsCoachingBalances(t *testing.T) {
 	if err := SoftDeleteUser(db, student.ID, "self"); err != nil {
 		t.Fatalf("soft delete student: %v", err)
 	}
-	if err := db.First(&quota, quota.ID).Error; err != nil {
+	if err := db.Unscoped().First(&quota, quota.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 	if quota.RemainingMinutes != 0 || quota.TotalAllocatedMinutes != 0 {
 		t.Fatalf("quota not cleared: %+v", quota)
 	}
-	if quota.IsDeleted != SoftDeleteStatusDeleted {
+	if !quota.DeletedAt.Valid {
 		t.Fatal("quota should be soft-deleted")
 	}
 
 	if err := SoftDeleteTeacherWithStudents(db, teacher.ID, "admin"); err != nil {
 		t.Fatalf("soft delete teacher: %v", err)
 	}
-	if err := db.First(&pool, pool.ID).Error; err != nil {
+	if err := db.Unscoped().First(&pool, pool.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 	if pool.RemainingMinutes != 0 || pool.TotalAllocatedMinutes != 0 {

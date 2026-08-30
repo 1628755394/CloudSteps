@@ -2,19 +2,22 @@ package handlers
 
 import (
 	"fmt"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	"github.com/LingByte/ling-base/apidocs/humax"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
+
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/LingByte/CloudStepsGo/internal/customwordbook"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/constants"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func (h *Handlers) registerCustomWordBookRoutes(wb *gin.RouterGroup) {
+func (h *Handlers) registerCustomWordBookRoutes(wb *humax.Group) {
 	// 必须在 /:id 之前注册
 	wb.POST("/custom/enrich", h.handleEnrichCustomWordBook)
 	wb.POST("/custom", h.handleCreateCustomWordBook)
@@ -22,21 +25,21 @@ func (h *Handlers) registerCustomWordBookRoutes(wb *gin.RouterGroup) {
 
 // StartCustomWordEnrichCache 启动自定义词书补全用的词条内存缓存
 func StartCustomWordEnrichCache(db *gorm.DB) {
-	customwordbook.StartEnrichCacheLoader(db)
+	models.StartEnrichCacheLoader(db)
 }
 
 type customCreateBody struct {
-	Name  string                      `json:"name" binding:"required"`
-	Words []customwordbook.ParsedWord `json:"words" binding:"required"`
+	Name  string              `json:"name" binding:"required"`
+	Words []models.ParsedWord `json:"words" binding:"required"`
 }
 
 type customEnrichBody struct {
-	Words []customwordbook.ParsedWord `json:"words" binding:"required"`
+	Words []models.ParsedWord `json:"words" binding:"required"`
 }
 
 // handleEnrichCustomWordBook 根据内存词条缓存回填缺失的释义/音标（前端本地解析后调用）
 func (h *Handlers) handleEnrichCustomWordBook(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "请先登录", nil)
 		return
@@ -46,7 +49,7 @@ func (h *Handlers) handleEnrichCustomWordBook(c *gin.Context) {
 		response.Fail(c, "参数错误", err)
 		return
 	}
-	items := customwordbook.MergeDedup(body.Words)
+	items := models.MergeDedup(body.Words)
 	if len(items) == 0 {
 		response.Fail(c, "词表为空", nil)
 		return
@@ -59,7 +62,7 @@ func (h *Handlers) handleEnrichCustomWordBook(c *gin.Context) {
 }
 
 func (h *Handlers) handleCreateCustomWordBook(c *gin.Context) {
-	user := models.CurrentUser(c)
+	user := auth.CurrentUser(c)
 	if user == nil {
 		response.Fail(c, "请先登录", nil)
 		return
@@ -78,13 +81,13 @@ func (h *Handlers) handleCreateCustomWordBook(c *gin.Context) {
 		response.Fail(c, "词书名称过长", nil)
 		return
 	}
-	words := customwordbook.MergeDedup(body.Words)
+	words := models.MergeDedup(body.Words)
 	if len(words) == 0 {
 		response.Fail(c, "词表为空，请先导入单词", nil)
 		return
 	}
 
-	db := c.MustGet(constants.DbField).(*gorm.DB)
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	now := time.Now()
 	book := models.WordBook{
 		Name:           name,
@@ -143,7 +146,7 @@ func (h *Handlers) handleCreateCustomWordBook(c *gin.Context) {
 	response.SuccessMsg(c, "创建成功", book)
 }
 
-func enrichParsedWords(items []customwordbook.ParsedWord) []customwordbook.ParsedWord {
+func enrichParsedWords(items []models.ParsedWord) []models.ParsedWord {
 	// 只查内存缓存，未命中不回源 DB
-	return customwordbook.EnrichFromCache(items)
+	return models.EnrichFromCache(items)
 }
