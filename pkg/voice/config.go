@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/LingByte/CloudStepsGo/pkg/config"
+	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/ling-base/common"
 )
 
@@ -63,14 +63,14 @@ func LoadRealtimeConfig() (map[string]any, error) {
 	}
 
 	// GlobalConfig fallback (loaded at startup from .env)
-	if config.GlobalConfig != nil {
+	if configs.Global != nil {
 		if apiKey == "" {
-			if k := strings.TrimSpace(config.GlobalConfig.Services.LLM.APIKey); k != "" {
+			if k := strings.TrimSpace(configs.Global.Services.LLM.APIKey); k != "" {
 				cfg["api_key"] = k
 			}
 		}
 		if _, ok := cfg["model"]; !ok {
-			if m := strings.TrimSpace(config.GlobalConfig.Services.LLM.Model); m != "" {
+			if m := strings.TrimSpace(configs.Global.Services.LLM.Model); m != "" {
 				cfg["model"] = m
 			}
 		}

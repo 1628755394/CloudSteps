@@ -1,4 +1,4 @@
-package models
+package notify
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
 
@@ -16,7 +17,7 @@ const (
 )
 
 type MailTemplate struct {
-	BaseModel
+	common.BaseModel
 	Code        string `json:"code" gorm:"uniqueIndex:idx_mail_tpl_code_locale_type;size:64;not null;comment:模板编码"`
 	Name        string `json:"name" gorm:"size:128;not null;comment:模板名称"`
 	ChannelType string `json:"channelType" gorm:"uniqueIndex:idx_mail_tpl_code_locale_type;size:16;not null;default:email;comment:email|inbox"`
@@ -206,7 +207,7 @@ func SplitLegacyMailTemplates(db *gorm.DB) error {
 		return err
 	}
 	var legacy []MailTemplate
-	if err := db.Where("channel_type = ? AND is_deleted = ?", NotificationTemplateTypeEmail, SoftDeleteStatusActive).
+	if err := db.Where("channel_type = ?", NotificationTemplateTypeEmail).
 		Find(&legacy).Error; err != nil {
 		return err
 	}
@@ -242,7 +243,7 @@ func SplitLegacyMailTemplates(db *gorm.DB) error {
 }
 
 func activeTemplate(db *gorm.DB) *gorm.DB {
-	return db.Where("is_deleted = ?", SoftDeleteStatusActive)
+	return db
 }
 
 func ListMailTemplatesPage(db *gorm.DB, page, size int, channelType string) ([]MailTemplate, int64, error) {
@@ -323,8 +324,6 @@ func SaveMailTemplate(db *gorm.DB, tpl *MailTemplate) error {
 }
 
 func DeleteMailTemplateByID(db *gorm.DB, id uint) (int64, error) {
-	res := db.Model(&MailTemplate{}).Where("id = ?", id).Updates(map[string]any{
-		"is_deleted": SoftDeleteStatusDeleted,
-	})
+	res := db.Delete(&MailTemplate{}, id)
 	return res.RowsAffected, res.Error
 }

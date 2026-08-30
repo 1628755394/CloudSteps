@@ -1,4 +1,4 @@
-package customwordbook
+package models
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/ling-base/common/logger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -159,9 +158,9 @@ func loadEnrichCache(db *gorm.DB) {
 			break
 		}
 		var part []row
-		err := db.WithContext(ctx).Model(&models.Word{}).
+		err := db.WithContext(ctx).Model(&Word{}).
 			Select("id, word, phonetic, phonetic_us, translation, translation_short").
-			Where("is_deleted = ? AND id > ?", models.SoftDeleteStatusActive, lastID).
+			Where("id > ?", lastID).
 			Where("(phonetic <> '' OR phonetic_us <> '' OR translation <> '' OR translation_short <> '')").
 			Order("id ASC").
 			Limit(enrichScanBatch).

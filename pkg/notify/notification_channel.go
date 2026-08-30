@@ -1,4 +1,4 @@
-package models
+package notify
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/LingByte/ling-base/common"
 	"gorm.io/gorm"
 )
 
@@ -33,7 +34,7 @@ const (
 
 // NotificationChannel is a configurable notification outlet (email).
 type NotificationChannel struct {
-	BaseModel
+	common.BaseModel
 	Type       string `json:"type" gorm:"size:32;not null;uniqueIndex:idx_notify_type_code;index:idx_notify_ch_type_sort,priority:1;comment:渠道类型"`
 	Code       string `json:"code,omitempty" gorm:"size:64;not null;uniqueIndex:idx_notify_type_code;comment:渠道编码"`
 	Name       string `json:"name" gorm:"size:128;not null;comment:显示名称"`
@@ -59,7 +60,7 @@ type EmailChannelFormView struct {
 }
 
 func activeChannel(db *gorm.DB) *gorm.DB {
-	return db.Where("is_deleted = ?", SoftDeleteStatusActive)
+	return db
 }
 
 func ListNotificationChannels(db *gorm.DB, channelType string, page, pageSize int) ([]NotificationChannel, int64, error) {

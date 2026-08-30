@@ -1,4 +1,4 @@
-package customwordbook
+package models
 
 import "testing"
 

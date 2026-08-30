@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/notification/email"
 	"github.com/LingByte/ling-base/notification/inbox"
@@ -135,12 +134,12 @@ func (m *Mailer) SendRaw(ctx context.Context, to, subject, htmlBody string) erro
 		logger.Error("notification: send failed",
 			zap.String("to", to), zap.String("subject", subject),
 			zap.Uint("userId", m.userID), zap.Error(err))
-		_, _ = models.CreateFailedMailLog(m.db, m.userID, "multi", channelSummary(cfgs), to, subject, htmlBody, err.Error(), 0, m.ip)
+		_, _ = CreateFailedMailLog(m.db, m.userID, "multi", channelSummary(cfgs), to, subject, htmlBody, err.Error(), 0, m.ip)
 		return err
 	}
 	kind := providers[0].Kind()
 	status := initialMailStatus(kind)
-	_, dbErr := models.CreateMailLog(m.db, m.userID, kind, channelLabel(cfgs[0]), to, subject, htmlBody, "", status, m.ip)
+	_, dbErr := CreateMailLog(m.db, m.userID, kind, channelLabel(cfgs[0]), to, subject, htmlBody, "", status, m.ip)
 	if dbErr != nil {
 		logger.Error("notification: mail log create failed",
 			zap.String("to", to), zap.Error(dbErr))
@@ -169,7 +168,7 @@ func (m *Mailer) recordPreflightFailure(to, subject, htmlBody, channelLabel, err
 	if m == nil || m.db == nil {
 		return
 	}
-	if _, dbErr := models.CreateFailedMailLog(m.db, m.userID, "none", channelLabel, to, subject, htmlBody, errMsg, 0, m.ip); dbErr != nil {
+	if _, dbErr := CreateFailedMailLog(m.db, m.userID, "none", channelLabel, to, subject, htmlBody, errMsg, 0, m.ip); dbErr != nil {
 		logger.Error("notification: preflight failed mail_log create failed",
 			zap.String("to", to), zap.String("subject", subject), zap.Error(dbErr))
 	}

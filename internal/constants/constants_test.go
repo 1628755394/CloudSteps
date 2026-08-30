@@ -19,7 +19,7 @@ func TestConstants(t *testing.T) {
 	// Test database related constants
 	assert.Equal(t, "DB_DRIVER", ENV_DB_DRIVER, "ENV_DB_DRIVER should be 'DB_DRIVER'")
 	assert.Equal(t, "DSN", ENV_DSN, "ENV_DSN should be 'DSN'")
-	assert.Equal(t, "_ling_db", DbField, "DbField should match ling-base common/constants.DbField")
+	assert.Equal(t, "_ling_db", DbField, "DbField should match ling-base common/lbconstants.DbField")
 	assert.Equal(t, "_CloudStepsGo_uid", UserField, "UserField should be '_CloudStepsGo_uid'")
 	assert.Equal(t, "_CloudStepsGo_gid", GroupField, "GroupField should be '_CloudStepsGo_gid'")
 	assert.Equal(t, "_CloudStepsGo_tz", TzField, "TzField should be '_CloudStepsGo_tz'")
@@ -40,8 +40,4 @@ func TestConstants(t *testing.T) {
 	assert.Equal(t, "SITE_TERMS_URL", KEY_SITE_TERMS_URL, "KEY_SITE_TERMS_URL should be 'SITE_TERMS_URL'")
 	assert.Equal(t, "SITE_PRIVACY_URL", KEY_SITE_PRIVACY_URL, "KEY_SITE_PRIVACY_URL should be 'SITE_PRIVACY_URL'")
 	assert.Equal(t, "USER_ACTIVATED", KEY_USER_ACTIVATED, "KEY_USER_ACTIVATED should be 'USER_ACTIVATED'")
-
-	// Test static related constants
-	assert.Equal(t, "STATIC_PREFIX", ENV_STATIC_PREFIX, "ENV_STATIC_PREFIX should be 'STATIC_PREFIX'")
-	assert.Equal(t, "STATIC_ROOT", ENV_STATIC_ROOT, "ENV_STATIC_ROOT should be 'STATIC_ROOT'")
 }

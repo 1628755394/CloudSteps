@@ -5,11 +5,13 @@ import (
 	"sync"
 	"time"
 
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/ling-base/common/logger"
 	"github.com/LingByte/ling-base/common/stats"
 	ginstats "github.com/LingByte/ling-base/common/stats/gin"
 	"github.com/LingByte/ling-base/common/stats/memory"
-	"github.com/LingByte/ling-base/common/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -73,7 +75,7 @@ func NewWithFlush(db *gorm.DB, every time.Duration) *Service {
 func (s *Service) Middleware() gin.HandlerFunc {
 	statsMw := ginstats.Middleware(s.wm, ginstats.Config{
 		GetUserID: func(c *gin.Context) string {
-			u := models.CurrentUser(c)
+			u := auth.CurrentUser(c)
 			if u == nil || u.ID == 0 {
 				return ""
 			}

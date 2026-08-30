@@ -10,8 +10,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/CloudStepsGo/internal/models"
-	"github.com/LingByte/CloudStepsGo/pkg/config"
 	"github.com/LingByte/ling-base/common/logger"
 	relay "github.com/LingByte/ling-base/relay"
 	"github.com/LingByte/ling-base/relay/channel/openai"
@@ -366,7 +366,7 @@ func buildReviewSummary(d ReviewDetail) string {
 }
 
 func generateAIReview(ctx context.Context, scenario *models.ScenarioDialogueScenario, turns []models.ScenarioDialogueTurn, detail ReviewDetail) string {
-	if config.GlobalConfig == nil || strings.TrimSpace(config.GlobalConfig.Services.LLM.APIKey) == "" {
+	if configs.Global == nil || strings.TrimSpace(configs.Global.Services.LLM.APIKey) == "" {
 		return ""
 	}
 	var transcript strings.Builder
@@ -391,9 +391,9 @@ func generateAIReview(ctx context.Context, scenario *models.ScenarioDialogueScen
 		detail.WordsPerMinute, detail.ExplicitCorrections+detail.ImplicitCorrections,
 		detail.ChineseTurnCount, transcript.String())
 
-	apiKey := strings.TrimSpace(config.GlobalConfig.Services.LLM.APIKey)
-	baseURL := normalizeLLMBaseURL(config.GlobalConfig.Services.LLM.BaseURL)
-	model := strings.TrimSpace(config.GlobalConfig.Services.LLM.Model)
+	apiKey := strings.TrimSpace(configs.Global.Services.LLM.APIKey)
+	baseURL := normalizeLLMBaseURL(configs.Global.Services.LLM.BaseURL)
+	model := strings.TrimSpace(configs.Global.Services.LLM.Model)
 	if model == "" {
 		model = "gpt-4o-mini"
 	}

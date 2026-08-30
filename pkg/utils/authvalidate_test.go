@@ -1,4 +1,4 @@
-package authvalidate
+package utils
 
 import (
 	"testing"

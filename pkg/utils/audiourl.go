@@ -1,4 +1,4 @@
-package audio
+package utils
 
 import "strings"
 
@@ -116,13 +116,4 @@ func RewritePronunciationSlots(raw, slot0, slot1 string) string {
 		parts = parts[:WordAudioSlotCount]
 	}
 	return trimTrailingEmptySlots(parts)
-}
-
-func EachSlot(raw string, fn func(url string)) {
-	for _, p := range SplitSlots(raw) {
-		u := strings.TrimSpace(p)
-		if u != "" {
-			fn(u)
-		}
-	}
 }
