@@ -47,7 +47,7 @@ export default function VocabularyTest() {
     <FlowPageShell className="min-h-dvh bg-gray-50">
       <TopBar title={t("vocab_test.title")} onBack={handleBack} />
 
-      <div className="flex min-h-[calc(100dvh-2.75rem)] w-full min-w-0 items-center justify-center px-4 sm:px-6 py-6">
+      <div className="flex min-h-[calc(100dvh-2.75rem-1.5rem)] w-full min-w-0 items-center justify-center px-4 sm:px-6 mt-6">
         <div className="w-full max-w-md min-w-0 flex flex-col items-center text-center">
           <div className="mb-4">
             <h2 className="text-base font-semibold text-[#2D3748] mb-1.5">{t("vocab_test.measure_your_vocab")}</h2>

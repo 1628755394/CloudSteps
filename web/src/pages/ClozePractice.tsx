@@ -14,6 +14,8 @@ import {
   Typography,
 } from "@arco-design/web-react";
 import { IconLeft } from "@arco-design/web-react/icon";
+import { ArrowRight } from "lucide-react";
+import { CloudButton } from "../components/cloudsteps";
 import {
   getClozePassage,
   listClozePassages,
@@ -233,7 +235,7 @@ export default function ClozePractice() {
       )}
 
       {phase === "list" && (
-        <div className="flex-1 min-h-0 overflow-auto px-3 py-3">
+        <div className="flex-1 min-h-0 overflow-auto px-3 mt-6">
           {loadingList || loadingPassage ? (
             <div className="flex justify-center py-16">
               <Spin tip={t("common.loading")} />
@@ -291,7 +293,7 @@ export default function ClozePractice() {
       )}
 
       {phase === "result" && result && (
-        <div className="flex-1 min-h-0 overflow-auto px-4 py-6 flex items-start justify-center">
+        <div className="flex-1 min-h-0 overflow-auto px-4 mt-6 flex items-start justify-center">
           <Card className="w-full max-w-md !rounded-2xl shadow-sm">
             <Result
               status={result.score === 100 ? "success" : "info"}
@@ -347,7 +349,7 @@ export default function ClozePractice() {
 
       {phase === "practice" && passage && (
         <>
-          <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-28">
+          <div className="flex-1 min-h-0 overflow-auto px-3 mt-6 pb-28">
             <Card className="!rounded-xl shadow-sm !mb-3" title={t("practice.passage")}>
               <div className="text-[#2D3748] leading-8 text-[15px]">
                 {renderPassageWithBlanks(passage.content, answers, blankNoToId)}
@@ -391,7 +393,7 @@ export default function ClozePractice() {
             )}
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-3">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-3 hidden sm:block">
             <Button
               type="primary"
               long
@@ -408,6 +410,19 @@ export default function ClozePractice() {
                   })}
             </Button>
           </div>
+
+          <CloudButton
+            type="button"
+            variant="brand"
+            size="iconRound"
+            onClick={() => void onSubmit()}
+            disabled={!allAnswered || submitting}
+            loading={submitting}
+            className="fixed right-3 bottom-20 z-50 size-11 shadow-lg sm:hidden"
+            aria-label={t("practice.submit")}
+          >
+            <ArrowRight size={20} />
+          </CloudButton>
         </>
       )}
     </div>

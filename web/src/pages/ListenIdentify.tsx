@@ -17,7 +17,7 @@ import { playFirstWordAudio } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { applyUserWordView } from "../components/WordEditControls";
-import { StudyNoteLauncher } from "../components/StudyNotePanel";
+
 import { useTranslation } from "react-i18next";
 
 type ListenWord = {
@@ -143,7 +143,7 @@ export default function ListenIdentify() {
 
   const renderRevealed = (w: ListenWord, opts?: { card?: boolean }) => (
     <>
-      <div className={`${opts?.card ? PRACTICE_CARD_WORD_CLASS : PRACTICE_WORD_CLASS} ${opts?.card ? "" : "mb-1"}`}>
+      <div className={`${opts?.card ? PRACTICE_CARD_WORD_CLASS : PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors ${opts?.card ? "" : "mb-1"}`}>
         {w.word}
       </div>
       {w.phonetic ? (
@@ -185,7 +185,7 @@ export default function ListenIdentify() {
             }`}
           >
             <Volume2
-              size={20}
+              size={18}
               className={
                 playingId === w.id
                   ? "text-[#4ECDC4] animate-pulse"
@@ -203,14 +203,7 @@ export default function ListenIdentify() {
             )}
             {showAnswer && renderRevealed(w)}
           </div>
-          <div onClick={(e) => e.stopPropagation()}>
-            <StudyNoteLauncher
-              storageKey={wordNoteKey(w.id)}
-              title={t("practice.note_title", { word: w.word })}
-              label={t("practice.note")}
-              className="h-9 px-2"
-            />
-          </div>
+
         </div>
         {detailMode && showAnswer && (
           <div className="mt-3" onClick={(e) => e.stopPropagation()}>
@@ -324,31 +317,23 @@ export default function ListenIdentify() {
                   size="iconRound"
                   disabled={cardIndex >= words.length - 1}
                   onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
-                  className="absolute right-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
+                  className="fixed sm:absolute right-2 top-1/2 z-50 sm:z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
                   aria-label={t("practice.next")}
                 >
                   <ChevronRight size={24} />
                 </CloudButton>
               </div>
               <div className="flex items-center justify-center gap-3 border-t border-border/60 px-4 py-4">
-                <div onClick={(e) => e.stopPropagation()}>
-                  <StudyNoteLauncher
-                    storageKey={wordNoteKey(cardWord.id)}
-                    title={t("practice.note_title", { word: cardWord.word })}
-                    label={t("practice.note")}
-                    className="h-9 px-2"
-                  />
-                </div>
                 <CloudButton
                   type="button"
                   variant="ghost"
                   size="iconRound"
-                  className="size-12"
+                  className="size-8 sm:size-9"
                   onClick={() => handlePlayFirstAudio(cardWord)}
                   aria-label={t("practice.play_audio")}
                 >
                   <Volume2
-                    size={22}
+                    size={18}
                     className={
                       playingId === cardWord.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"
                     }
@@ -376,31 +361,36 @@ export default function ListenIdentify() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
-          <div className="flex gap-2 flex-wrap">
-            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-              <Shuffle size={16} />
-              {t("practice.shuffle")}
-            </CloudButton>
-            <CloudButton
-              variant={detailMode ? "brand" : "outline"}
-              size="pill"
-              onClick={() => setDetailMode((v) => !v)}
-            >
-              <BookOpen size={16} />
-              {t("practice.expand")}
-            </CloudButton>
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
+        <div className="max-w-5xl mx-auto w-full">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto">
+              <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">
+                <Shuffle size={15} />
+                <span className="hidden sm:inline">{t("practice.shuffle")}</span>
+              </CloudButton>
+              <CloudButton
+                variant={detailMode ? "brand" : "outline"}
+                size="pill"
+                onClick={() => setDetailMode((v) => !v)}
+                className="max-sm:px-2 max-sm:text-xs"
+              >
+                <BookOpen size={15} />
+                <span className="hidden sm:inline">{t("practice.expand")}</span>
+              </CloudButton>
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <CloudButton
+                variant="brand"
+                size="iconRound"
+                onClick={() => navigate("/flash-review")}
+                aria-label={t("practice.next")}
+              >
+                <ArrowRight size={20} />
+              </CloudButton>
+            </div>
           </div>
-          <CloudButton
-            variant="brand"
-            size="iconRound"
-            className="size-12 shrink-0"
-            onClick={() => navigate("/flash-review")}
-          >
-            <ArrowRight size={24} />
-          </CloudButton>
         </div>
       </div>
     </div>

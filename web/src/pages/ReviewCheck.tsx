@@ -1,4 +1,4 @@
-import { Volume2, Check, X, Shuffle, BookOpen, PanelTop } from "lucide-react";
+import { Volume2, Check, X, Shuffle, BookOpen, PanelTop, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
@@ -17,10 +17,10 @@ import {
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { StudyNoteLauncher } from "../components/StudyNotePanel";
-import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
+
+import { NoteSplitLayout } from "../components/NoteSplitLayout";
+import { useNote } from "../components/NoteContext";
 import { applyUserWordView } from "../components/WordEditControls";
-import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 
 import { startReviewSession } from "../api/review";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
@@ -62,7 +62,7 @@ export default function ReviewCheck() {
   };
 
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
-  const note = useSplitScreenNote("lb_reviewcheck_note_width");
+  const note = useNote();
   const [sessionId, setSessionId] = useState<number>(0);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
@@ -242,15 +242,9 @@ export default function ReviewCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <StudyNoteSplitLayout
-        open={note.open}
-        isDesktop={note.isDesktop}
-        side={note.side}
-        width={note.width}
-        storageKey={`study-note:global:${wordBookId}`}
-        onClose={() => note.setOpen(false)}
-        onSideChange={note.setSide}
-        onResize={note.startResize}
+      <NoteSplitLayout
+        defaultStorageKey={`study-note:global:${wordBookId}`}
+        defaultTitle="随心记"
       >
         {loading && (
           <p className="text-center text-[#718096] py-12">{t("practice.loading")}</p>
@@ -317,48 +311,45 @@ export default function ReviewCheck() {
                     style={markWordCardStyle(word.status, isWordCardTapped(word))}
                     onClick={() => handleWordClick(word)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-1">
-                        <span className={PRACTICE_WORD_CLASS}>{word.word}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <StudyNoteLauncher
-                            storageKey={`study-note:word:${wordBookId}:${word.id}`}
-                            title={t("practice.note_title", { word: word.word })}
-                            label={t("practice.note")}
-                            className="h-9 px-2"
-                          />
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="min-w-0">
+                          <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>{word.word}</span>
                         </div>
+                      </div>
+                      <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
                         <CloudButton
                           type="button"
                           variant="ghost"
                           size="iconRound"
+                          className="size-8 sm:size-9"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Volume2 size={20} className="text-[#4ECDC4]" />
+                          <Volume2 size={18} className="text-[#4ECDC4]" />
                         </CloudButton>
                         <CloudButton
                           type="button"
                           variant={word.status === "correct" ? "mint" : "ghost"}
                           size="iconRound"
+                          className="size-8 sm:size-9"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleStatusClick(word.id, "correct");
                           }}
                         >
-                          <Check size={20} />
+                          <Check size={18} />
                         </CloudButton>
                         <CloudButton
                           type="button"
                           variant={word.status === "wrong" ? "destructive" : "ghost"}
                           size="iconRound"
+                          className="size-8 sm:size-9"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleStatusClick(word.id, "wrong");
                           }}
                         >
-                          <X size={20} />
+                          <X size={18} />
                         </CloudButton>
                       </div>
                     </div>
@@ -378,69 +369,70 @@ export default function ReviewCheck() {
             )}
           </>
         )}
-      </StudyNoteSplitLayout>
+      </NoteSplitLayout>
 
       {showList && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-          <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-              <CloudButton
-                type="button"
-                variant={note.open ? "brand" : "outline"}
-                size="pill"
-                onClick={() => note.setOpen((value) => !value)}
-                aria-label={t("practice.open_free_note")}
-                title={t("practice.open_free_note")}
-              >
-                <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
-              {t("practice.free_note")}
-              </CloudButton>
-              <CloudButton
-                variant={detailMode ? "brand" : "outline"}
-                size="pill"
-                onClick={() => {
-                  setDetailMode((v) => {
-                    if (v) setDetailWord(null);
-                    return !v;
-                  });
-                }}
-              >
-                <BookOpen size={16} />
-              {t("practice.expand")}
-              </CloudButton>
+        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
+          <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto">
+                <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+                <CloudButton
+                  type="button"
+                  variant={note.open ? "brand" : "outline"}
+                  size="pill"
+                  onClick={() => note.setOpen((value) => !value)}
+                  aria-label={t("practice.open_free_note")}
+                  title={t("practice.open_free_note")}
+                  className="max-sm:px-2 max-sm:text-xs"
+                >
+                  <PanelTop size={15} className={note.open ? "text-white" : "text-[#c45c78]"} />
+                  <span className="hidden sm:inline">{t("practice.free_note")}</span>
+                </CloudButton>
+                <CloudButton
+                  variant={detailMode ? "brand" : "outline"}
+                  size="pill"
+                  onClick={() => {
+                    setDetailMode((v) => {
+                      if (v) setDetailWord(null);
+                      return !v;
+                    });
+                  }}
+                  className="max-sm:px-2 max-sm:text-xs"
+                >
+                  <BookOpen size={15} />
+                  <span className="hidden sm:inline">{t("practice.expand")}</span>
+                </CloudButton>
+              </div>
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">
+                  <Shuffle size={15} />
+                  <span className="hidden sm:inline">{t("practice.shuffle")}</span>
+                </CloudButton>
+                <CloudButton variant="outline" size="pill" onClick={handleSelectAll} className="max-sm:px-2 max-sm:text-xs">
+                  {t("practice.select_all")}
+                </CloudButton>
+                <CloudButton
+                  type="button"
+                  variant="brand"
+                  size="iconRound"
+                  onClick={handleSubmit}
+                  disabled={markedWords.length === 0 || submitting}
+                  loading={submitting}
+                  aria-label={t("practice.start_study")}
+                >
+                  <ArrowRight size={20} />
+                </CloudButton>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-                <Shuffle size={16} />
-              {t("practice.shuffle")}
-              </CloudButton>
-              <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
-              {t("practice.select_all")}
-              </CloudButton>
-            </div>
-          </div>
-          <CloudButton
-            variant="brand"
-            size="pill"
-            className={`w-full ${markedWords.length === 0 ? "opacity-80" : ""}`}
-            onClick={handleSubmit}
-            disabled={submitting}
-            loading={submitting}
-            loadingText={t("practice.preparing")}
-          >
-            {t("practice.start_study")}
-            {markedWords.length > 0 ? ` (${markedWords.length})` : ""}
-          </CloudButton>
-          {hint && (
-            <p className="text-center text-xs text-amber-600 mt-2">{hint}</p>
-          )}
-          {!hint && markedWords.length === 0 && (
-            <p className="text-center text-xs text-[#A0AEC0] mt-2">
-              {t("practice.hint_select_review")}
-            </p>
-          )}
+            {hint && (
+              <p className="text-center text-xs text-amber-600 mt-2">{hint}</p>
+            )}
+            {!hint && markedWords.length === 0 && (
+              <p className="text-center text-xs text-[#A0AEC0] mt-2">
+                {t("practice.hint_select_review")}
+              </p>
+            )}
           </div>
         </div>
       )}

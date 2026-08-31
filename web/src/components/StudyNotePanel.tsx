@@ -25,7 +25,6 @@ import {
   X,
 } from "lucide-react";
 import { LeaferCanvas, LeaferCanvasHandle, Tool } from "./LeaferCanvas";
-import { CloudButton } from "./cloudsteps";
 
 type BrushStyle = "fountain" | "pencil" | "highlighter";
 
@@ -59,12 +58,12 @@ export function StudyNoteLauncher({ storageKey, title, label, className = "" }: 
     <>
       <button
         type="button"
-        className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
+        className={`inline-flex h-9 items-center justify-center rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
         onClick={() => setOpen(true)}
         title={t("studyNote.open", { label: resolvedLabel })}
       >
         <BookOpen size={15} />
-        {resolvedLabel}
+        {resolvedLabel && <span className="hidden sm:inline">{resolvedLabel}</span>}
       </button>
       {open && (
         <StudyNotePanel
@@ -87,7 +86,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title, subtitle = ""
   const [note, setNote] = useState<NoteData>(() => loadNote(storageKey));
   const sidePos = side;
   const [width, setWidth] = useState(initialPanelWidth);
-  const [fontSize, setFontSize] = useState(28);
+  const [fontSize, setFontSize] = useState(20);
   const [color, setColor] = useState("#25344a");
   const [fill, setFill] = useState("#fff8e8");
   const [tool, setTool] = useState<Tool>("select");
@@ -184,7 +183,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title, subtitle = ""
     persist();
   };
 
-  const button = (activeState = false) => `flex h-8 w-8 items-center justify-center rounded-lg ${activeState ? "bg-[#d8cdb8] text-[#25344a]" : "text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a]"}`;
+  const button = (activeState = false) => `flex h-7 w-7 items-center justify-center rounded-lg ${activeState ? "bg-[#d8cdb8] text-[#25344a]" : "text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a]"}`;
 
   const startEdgeResize = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -209,7 +208,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title, subtitle = ""
         {Array.from({ length: 8 }).map((_, index) => (
           <span
             key={index}
-            className="block h-8 w-12 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[4px_0_0_#5c9bd7]"
+            className="block h-7 w-10 rounded-full border-2 border-[#172033] bg-[#a9d9f7] shadow-[4px_0_0_#5c9bd7]"
           />
         ))}
       </div>
@@ -221,17 +220,26 @@ export function StudyNotePanel({ open, onClose, storageKey, title, subtitle = ""
       >
         <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[22px]">
           {/* Title bar */}
-          <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-2 text-[#25344a] sm:h-10 sm:gap-2 sm:pl-11 sm:pr-3">
+          <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-0 text-[#25344a] sm:h-10 sm:gap-2 sm:pl-11 sm:pr-0">
             <span className="truncate text-base font-bold sm:text-lg">{resolvedTitle}</span>
             <span className="hidden truncate text-xs text-[#9b927f] sm:inline">{t("studyNote.subtitle")}</span>
             <button
               type="button"
-              className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
               onClick={() => setToolbarVisible((v) => !v)}
               title={toolbarVisible ? t("annotation.collapseTools") : t("annotation.expandTools")}
               aria-label={toolbarVisible ? t("annotation.collapseTools") : t("annotation.expandTools")}
             >
               <PanelLeft size={16} />
+            </button>
+            <button
+              type="button"
+              className="ml-auto flex h-8 w-8 -mr-1 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#c45c78] sm:-mr-1"
+              onClick={onClose}
+              title={t("annotation.close")}
+              aria-label={t("annotation.close")}
+            >
+              <X size={18} />
             </button>
           </div>
 
@@ -253,7 +261,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title, subtitle = ""
                     }}
                     title={t("studyNote.bgColor")}
                   >
-                    <PaintBucket size={16} />
+                    <PaintBucket size={14} />
                   </button>
                   {bgPopupOpen && (
                     <>
@@ -314,7 +322,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title, subtitle = ""
                     }}
                     title={t("annotation.pen")}
                   >
-                    <Pencil size={16} />
+                    <Pencil size={14} />
                   </button>
                   {penPopupOpen && (
                     <>
@@ -444,7 +452,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title, subtitle = ""
                     }}
                     title={t("annotation.eraser")}
                   >
-                    <Eraser size={16} />
+                    <Eraser size={14} />
                   </button>
                   {eraserPopupOpen && (
                     <>
@@ -527,7 +535,6 @@ export function StudyNotePanel({ open, onClose, storageKey, title, subtitle = ""
                 <div className="contents">
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title={sidePos === "right" ? t("annotation.dockLeft") : t("annotation.dockRight")} aria-label={sidePos === "right" ? t("annotation.dockLeftShort") : t("annotation.dockRightShort")}>{sidePos === "right" ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}</button>
                   <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { closePopups(); clearCanvas(); }} title={t("annotation.clear")} aria-label={t("annotation.clear")}><Trash2 size={16} /></button>
-                  <CloudButton type="button" variant="ghost" size="iconRound" onClick={onClose} className="h-8 w-8 text-[#25344a]" aria-label={t("annotation.close")}><X size={16} /></CloudButton>
                 </div>
               </div>
             )}

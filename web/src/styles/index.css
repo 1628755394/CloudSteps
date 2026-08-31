@@ -137,3 +137,11 @@ input[type="month"]::-webkit-calendar-picker-indicator {
     --cell-size: 18px;
   }
 }
+
+/* Leafer 文字编辑器：隐藏默认边框（如使用内置编辑器时） */
+.leafer-text-editor {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}

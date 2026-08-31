@@ -300,7 +300,7 @@ export default function VocabularyTestTesting() {
     <div className="h-dvh w-full min-w-0 flex flex-col bg-gray-50 overflow-hidden">
       <TopBar title={t("vocab_test.title")} onBack={handleBack} />
 
-      <main className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto overflow-x-hidden flex flex-col px-4 py-3 max-w-6xl mx-auto">
+      <main className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto overflow-x-hidden flex flex-col px-4 mt-6 max-w-6xl mx-auto">
         <div className="shrink-0 flex items-center gap-2 mb-3 max-w-5xl mx-auto w-full min-w-0">
           <div className="text-[#4ECDC4] text-sm font-semibold tabular-nums">
             {answeredCount > 0

@@ -14,6 +14,8 @@ import {
   Typography,
 } from "@arco-design/web-react";
 import { IconLeft } from "@arco-design/web-react/icon";
+import { ArrowRight } from "lucide-react";
+import { CloudButton } from "../components/cloudsteps";
 import {
   getGrammarLesson,
   listGrammarLessons,
@@ -179,7 +181,7 @@ export default function GrammarAnalysis() {
       )}
 
       {phase === "list" && (
-        <div className="flex-1 min-h-0 overflow-auto px-3 py-3">
+        <div className="flex-1 min-h-0 overflow-auto px-3 mt-6">
           {loadingList || loadingLesson ? (
             <div className="flex justify-center py-16">
               <Spin tip={t("common.loading")} />
@@ -243,7 +245,7 @@ export default function GrammarAnalysis() {
 
       {phase === "learn" && lesson && (
         <>
-          <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-24">
+          <div className="flex-1 min-h-0 overflow-auto px-3 mt-6 pb-24">
             <Card className="!rounded-xl shadow-sm !mb-3" title={t("grammar.explanation")}>
               <div
                 className="grammar-html-content !text-[#2D3748] leading-7"
@@ -266,7 +268,7 @@ export default function GrammarAnalysis() {
               </Card>
             )}
           </div>
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-3">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-3 hidden sm:block">
             <Button
               type="primary"
               long
@@ -280,11 +282,26 @@ export default function GrammarAnalysis() {
               {lesson.questions?.length ? t("grammar.start_practice") : t("grammar.no_questions")}
             </Button>
           </div>
+
+          <CloudButton
+            type="button"
+            variant="brand"
+            size="iconRound"
+            disabled={!lesson.questions?.length}
+            onClick={() => {
+              startedAtRef.current = Date.now();
+              setPhase("practice");
+            }}
+            className="fixed right-3 bottom-20 z-50 size-11 shadow-lg sm:hidden"
+            aria-label={t("grammar.start_practice")}
+          >
+            <ArrowRight size={20} />
+          </CloudButton>
         </>
       )}
 
       {phase === "result" && result && (
-        <div className="flex-1 min-h-0 overflow-auto px-4 py-6 flex items-start justify-center">
+        <div className="flex-1 min-h-0 overflow-auto px-4 mt-6 flex items-start justify-center">
           <Card className="w-full max-w-md !rounded-2xl shadow-sm">
             <Result
               status={result.score === 100 ? "success" : "info"}
@@ -340,7 +357,7 @@ export default function GrammarAnalysis() {
 
       {phase === "practice" && lesson && (
         <>
-          <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-24">
+          <div className="flex-1 min-h-0 overflow-auto px-3 mt-6 pb-24">
             <Space direction="vertical" size={12} className="w-full">
               {lesson.questions.map((q, idx) => (
                 <Card
@@ -371,7 +388,7 @@ export default function GrammarAnalysis() {
               ))}
             </Space>
           </div>
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-3">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-3 hidden sm:block">
             <Button
               type="primary"
               long
@@ -388,6 +405,19 @@ export default function GrammarAnalysis() {
                   })}
             </Button>
           </div>
+
+          <CloudButton
+            type="button"
+            variant="brand"
+            size="iconRound"
+            onClick={() => void onSubmit()}
+            disabled={!allAnswered || submitting}
+            loading={submitting}
+            className="fixed right-3 bottom-20 z-50 size-11 shadow-lg sm:hidden"
+            aria-label={t("practice.submit")}
+          >
+            <ArrowRight size={20} />
+          </CloudButton>
         </>
       )}
     </div>

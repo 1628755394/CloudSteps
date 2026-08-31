@@ -102,7 +102,7 @@ export default function VocabularyTestResult() {
     <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-gray-50 pb-20">
       <TopBar title={t("vocab_test.result_title")} onBack={handleBack} />
 
-      <div className="px-4 sm:px-6 py-4">
+      <div className="px-4 sm:px-6 mt-6">
         {loading ? (
           <div className="max-w-3xl mx-auto text-center text-[#718096] py-16">
             {t("vocab_test.result_loading")}

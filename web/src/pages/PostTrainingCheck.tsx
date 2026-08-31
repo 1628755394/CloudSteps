@@ -1,6 +1,7 @@
-import { Volume2, Check, X, BookOpen, Shuffle, PanelTop } from "lucide-react";
+import { Volume2, Check, X, BookOpen, Shuffle, PanelTop, Type, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AnnotationLayer } from "../components/AnnotationLayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
@@ -17,7 +18,7 @@ import {
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { StudyNoteLauncher } from "../components/StudyNotePanel";
+
 import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
 import { applyUserWordView } from "../components/WordEditControls";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
@@ -41,7 +42,6 @@ import {
   type StudyCheckPhase,
 } from "../utils/studyBatchFlow";
 import { clearReviewPracticeSession, getReviewReturnPath } from "../utils/reviewPractice";
-import { useTranslation } from "react-i18next";
 import { formatApiMessage } from "../utils/apiMessage";
 
 type CheckWord = {
@@ -92,6 +92,10 @@ export default function PostTrainingCheck() {
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
+  const [spellMode, setSpellMode] = useState(false);
+  const [spellTarget, setSpellTarget] = useState<CheckWord | null>(null);
+  const [spellInput, setSpellInput] = useState("");
+  const [spellResult, setSpellResult] = useState<"correct" | "wrong" | null>(null);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
@@ -154,6 +158,29 @@ export default function PostTrainingCheck() {
     abortRef.current = abort;
   };
 
+  const openSpellDialog = (word: CheckWord) => {
+    setSpellTarget(word);
+    setSpellInput("");
+    setSpellResult(null);
+  };
+
+  const closeSpellDialog = () => {
+    setSpellTarget(null);
+    setSpellInput("");
+    setSpellResult(null);
+  };
+
+  const handleSpellSubmit = () => {
+    if (!spellTarget) return;
+    const isCorrect = spellInput.trim().toLowerCase() === spellTarget.word.trim().toLowerCase();
+    setSpellResult(isCorrect ? "correct" : "wrong");
+    if (isCorrect) {
+      handleStatusClick(spellTarget.id, "correct");
+    } else {
+      handleStatusClick(spellTarget.id, "wrong");
+    }
+  };
+
   const handleBack = () => {
     if (mode === "review") {
       navigate(getReviewReturnPath("/word-training"));
@@ -214,6 +241,10 @@ export default function PostTrainingCheck() {
   };
 
   const handleWordClick = (word: CheckWord) => {
+    if (spellMode) {
+      openSpellDialog(word);
+      return;
+    }
     const next = nextWordTapState({
       showTranslation: !!word.showTranslation,
       heard: !!word.heard,
@@ -229,7 +260,7 @@ export default function PostTrainingCheck() {
         if (w.id === word.id) {
           return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
-        // 只亮当前点的词：清掉其它词的点词态
+        // 只亮当前点的词：清掉其它词的点词状态
         return { ...w, heard: false, showTranslation: false };
       })
     );
@@ -509,12 +540,22 @@ export default function PostTrainingCheck() {
                 style={markWordCardStyle(word.status, isWordCardTapped(word, playingId, word.id))}
                 onClick={() => handleWordClick(word)}
               >
-                <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1">
-                  <div>
-                    <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
-                      {word.word}
-                    </span>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="min-w-0">
+                    {spellMode ? (
+                      <span
+                        className={`${PRACTICE_WORD_CLASS} inline-block select-none rounded-sm bg-[#4ECDC4] align-text-bottom`}
+                        style={{
+                          width: `${Math.max(3, Math.min(12, word.word.length))}ch`,
+                          height: "1.1em",
+                        }}
+                      />
+                    ) : (
+                      <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
+                        {word.word}
+                      </span>
+                    )}
                     {word.showTranslation && (
                       <div className="mt-1 animate-in fade-in slide-in-from-top-1">
                         {word.phonetic ? (
@@ -527,19 +568,12 @@ export default function PostTrainingCheck() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <StudyNoteLauncher
-                      storageKey={`study-note:word:${wordBookId}:${word.id}`}
-                      title={t("practice.note_title", { word: word.word })}
-                      label={t("practice.note")}
-                      className="h-9 px-2"
-                    />
-                  </div>
+                <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
                   <CloudButton
                     type="button"
                     variant="ghost"
                     size="iconRound"
+                    className="size-8 sm:size-9"
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePlayAudio(word);
@@ -553,7 +587,7 @@ export default function PostTrainingCheck() {
                     }}
                   >
                     <Volume2
-                      size={20}
+                      size={18}
                       className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
                     />
                   </CloudButton>
@@ -561,23 +595,25 @@ export default function PostTrainingCheck() {
                     type="button"
                     variant={word.status === "correct" ? "mint" : "ghost"}
                     size="iconRound"
+                    className="size-8 sm:size-9"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleStatusClick(word.id, "correct");
                     }}
                   >
-                    <Check size={20} />
+                    <Check size={18} />
                   </CloudButton>
                   <CloudButton
                     type="button"
                     variant={word.status === "wrong" ? "destructive" : "ghost"}
                     size="iconRound"
+                    className="size-8 sm:size-9"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleStatusClick(word.id, "wrong");
                     }}
                   >
-                    <X size={20} />
+                    <X size={18} />
                   </CloudButton>
                 </div>
                 </div>
@@ -596,10 +632,10 @@ export default function PostTrainingCheck() {
         </div>
       </StudyNoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <CloudButton
                 type="button"
                 variant={note.open ? "brand" : "outline"}
@@ -607,14 +643,15 @@ export default function PostTrainingCheck() {
                 onClick={() => note.setOpen((value) => !value)}
                 aria-label={t("practice.open_free_note")}
                 title={t("practice.open_free_note")}
+                className="max-sm:px-2 max-sm:text-xs"
               >
-                <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
-              {t("practice.free_note")}
+                <PanelTop size={15} className={note.open ? "text-white" : "text-[#c45c78]"} />
+              <span className="hidden sm:inline">{t("practice.free_note")}</span>
               </CloudButton>
               <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-                <Shuffle size={16} />
-              {t("practice.shuffle")}
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">
+                <Shuffle size={15} />
+              <span className="hidden sm:inline">{t("practice.shuffle")}</span>
               </CloudButton>
               <CloudButton
                 variant={detailMode ? "brand" : "outline"}
@@ -625,29 +662,40 @@ export default function PostTrainingCheck() {
                     return !v;
                   });
                 }}
+                className="max-sm:px-2 max-sm:text-xs"
               >
-                <BookOpen size={16} />
-              {t("practice.expand")}
+                <BookOpen size={15} />
+              <span className="hidden sm:inline">{t("practice.expand")}</span>
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant={spellMode ? "brand" : "outline"}
+                size="pill"
+                onClick={() => setSpellMode((v) => !v)}
+                className="max-sm:px-2 max-sm:text-xs"
+              >
+                <Type size={15} />
+                {t("practice.spell")}
               </CloudButton>
             </div>
-            <div className="flex items-center gap-2 w-full md:w-auto min-w-0 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full md:w-auto min-w-0 shrink-0">
               <CloudButton
                 variant="mintOutline"
                 size="pill"
-                className="shrink-0 max-sm:px-3"
+                className="shrink-0 max-sm:px-2 max-sm:text-xs"
                 onClick={() => markNextFive("correct")}
               >
-                <Check size={16} />
+                <Check size={15} />
                 <span className="hidden sm:inline">{t("practice.mark_five_correct")}</span>
                 <span className="sm:hidden">5✓</span>
               </CloudButton>
               <CloudButton
                 variant="destructive"
                 size="pill"
-                className="shrink-0 max-sm:px-3"
+                className="shrink-0 max-sm:px-2 max-sm:text-xs"
                 onClick={() => markNextFive("wrong")}
               >
-                <X size={16} />
+                <X size={15} />
                 <span className="hidden sm:inline">{t("practice.mark_five_wrong")}</span>
                 <span className="sm:hidden">5✗</span>
               </CloudButton>
@@ -655,7 +703,7 @@ export default function PostTrainingCheck() {
                 type="button"
                 variant="brand"
                 size="pill"
-                className="flex-1 min-w-0 truncate md:flex-none"
+                className="hidden sm:flex flex-1 min-w-0 truncate md:flex-none"
                 onClick={handleSubmit}
                 disabled={!allMarked || submitting}
                 loading={submitting}
@@ -667,6 +715,124 @@ export default function PostTrainingCheck() {
           </div>
         </div>
       </div>
+
+      <CloudButton
+        type="button"
+        variant="brand"
+        size="iconRound"
+        onClick={handleSubmit}
+        disabled={!allMarked || submitting}
+        className="fixed right-3 bottom-16 z-50 size-11 shadow-lg sm:hidden"
+        aria-label={t("practice.submit")}
+      >
+        <ArrowRight size={20} />
+      </CloudButton>
+
+      {spellTarget && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={closeSpellDialog}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 max-w-md w-full mx-auto space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-foreground">{t("practice.spell_title")}</h3>
+              {spellTarget.translation && (
+                <p className="text-sm text-muted-foreground mt-1">{spellTarget.translation}</p>
+              )}
+              {spellTarget.phonetic && (
+                <p className="text-sm text-[#718096] font-mono mt-0.5">{spellTarget.phonetic}</p>
+              )}
+            </div>
+
+            {spellTarget.audioUrl && (
+              <div className="flex justify-center">
+                <CloudButton
+                  type="button"
+                  variant="ghost"
+                  size="iconRound"
+                  onClick={() => handlePlayAudio(spellTarget)}
+                >
+                  <Volume2
+                    size={24}
+                    className={playingId === spellTarget.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+                  />
+                </CloudButton>
+              </div>
+            )}
+
+            {spellResult === null ? (
+              <>
+                <input
+                  type="text"
+                  value={spellInput}
+                  onChange={(e) => setSpellInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSpellSubmit();
+                  }}
+                  placeholder={t("practice.spell_input_placeholder")}
+                  autoFocus
+                  className="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground focus:outline-none focus:border-primary"
+                />
+                <div className="flex gap-3 mt-4">
+                  <CloudButton
+                    type="button"
+                    variant="outline"
+                    size="pill"
+                    className="flex-1"
+                    onClick={closeSpellDialog}
+                  >
+                    {t("practice.cancel")}
+                  </CloudButton>
+                  <CloudButton
+                    type="button"
+                    variant="brand"
+                    size="pill"
+                    className="flex-1"
+                    onClick={handleSpellSubmit}
+                    disabled={!spellInput.trim()}
+                  >
+                    {t("practice.spell_confirm")}
+                  </CloudButton>
+                </div>
+              </>
+            ) : (
+              <>
+                <div
+                  className={`text-center rounded-xl py-4 ${
+                    spellResult === "correct"
+                      ? "bg-[#4ECDC4]/10 text-[#4ECDC4]"
+                      : "bg-[#FF6B6B]/10 text-[#FF6B6B]"
+                  }`}
+                >
+                  <p className="text-2xl font-bold mb-1">
+                    {spellResult === "correct" ? t("practice.spell_correct") : t("practice.spell_wrong")}
+                  </p>
+                  <p className="text-sm text-foreground">
+                    {t("practice.spell_correct_answer", { answer: spellTarget.word })}
+                  </p>
+                  {spellResult === "wrong" && spellInput.trim() && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t("practice.spell_your_input", { input: spellInput.trim() })}
+                    </p>
+                  )}
+                </div>
+                <CloudButton
+                  type="button"
+                  variant="brand"
+                  size="pill"
+                  className="w-full"
+                  onClick={closeSpellDialog}
+                >
+                  {t("practice.spell_continue")}
+                </CloudButton>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </FlowPageShell>
   );
 }

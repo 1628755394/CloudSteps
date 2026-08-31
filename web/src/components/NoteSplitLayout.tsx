@@ -1,33 +1,17 @@
-import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { useTranslation } from "react-i18next";
 import { StudyNotePanel } from "./StudyNotePanel";
-
-type NoteSide = "left" | "right";
+import { useNote } from "./NoteContext";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 type Props = {
   children: ReactNode;
-  open: boolean;
-  isDesktop: boolean;
-  side: NoteSide;
-  width: number;
-  storageKey: string;
-  onClose: () => void;
-  onSideChange: (side: NoteSide) => void;
-  onResize: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  defaultStorageKey?: string;
+  defaultTitle?: string;
 };
 
-export function StudyNoteSplitLayout({
-  children,
-  open,
-  isDesktop,
-  side,
-  width,
-  storageKey,
-  onClose,
-  onSideChange,
-  onResize,
-}: Props) {
-  const { t } = useTranslation();
+export function NoteSplitLayout({ children, defaultStorageKey = "", defaultTitle = "随心记" }: Props) {
+  const { open, setOpen, side, setSide, width, isDesktop, startResize, storageKey } = useNote();
+
+  const key = storageKey || defaultStorageKey;
   const split = open && isDesktop;
 
   return (
@@ -54,9 +38,9 @@ export function StudyNoteSplitLayout({
                 side === "right" ? "lg:order-2" : "lg:order-1"
               }`}
               style={{ width: "10px", flexShrink: 0 }}
-              onPointerDown={onResize}
-              title={t("studyNote.resizeWidth")}
-              aria-label={t("studyNote.resizeWidth")}
+              onPointerDown={startResize}
+              title="拖动调整随心记宽度"
+              aria-label="拖动调整随心记宽度"
             >
               <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 transition-all group-hover:w-1.5 group-hover:bg-[#4ECDC4]/60" />
             </div>
@@ -66,12 +50,12 @@ export function StudyNoteSplitLayout({
             >
               <StudyNotePanel
                 open={open}
-                onClose={onClose}
-                storageKey={storageKey}
-                title={t("studyNote.title")}
+                onClose={() => setOpen(false)}
+                storageKey={key}
+                title={defaultTitle}
                 side={side}
                 split
-                onSideChange={onSideChange}
+                onSideChange={setSide}
               />
             </div>
           </>
@@ -80,11 +64,11 @@ export function StudyNoteSplitLayout({
       {open && !isDesktop && (
         <StudyNotePanel
           open={open}
-          onClose={onClose}
-          storageKey={storageKey}
-          title={t("studyNote.title")}
+          onClose={() => setOpen(false)}
+          storageKey={key}
+          title={defaultTitle}
           side={side}
-          onSideChange={onSideChange}
+          onSideChange={setSide}
         />
       )}
     </>

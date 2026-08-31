@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { Volume2, Check, X, BookOpen, PanelTop } from "lucide-react";
+import { Volume2, Check, X, BookOpen, PanelTop, ArrowRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getReviewToday, startReviewSession, completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
@@ -23,7 +23,7 @@ import { WordDetailPanel } from "../components/WordDetailPanel";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
-import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
+import { StudyNotePanel } from "../components/StudyNotePanel";
 import { useTranslation } from "react-i18next";
 import { formatApiMessage } from "../utils/apiMessage";
 
@@ -284,7 +284,7 @@ export default function ReviewWordList() {
       />
 
       {/* Split container: word content + note panel on the same layer. */}
-      <div className={`box-border min-h-[calc(100dvh-9.5rem)] px-4 pt-3 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
+      <div className={`box-border min-h-[calc(100dvh-11rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}>
         {/* Word content pane */}
         <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
@@ -336,7 +336,7 @@ export default function ReviewWordList() {
                       : ""
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-start gap-2.5 flex-1 min-w-0">
                       <span className="text-[#A0AEC0] text-xs mt-1 tabular-nums w-5 shrink-0">
                         {index + 1}
@@ -359,23 +359,15 @@ export default function ReviewWordList() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <StudyNoteLauncher
-                          storageKey={`study-note:word:${wordBookId}:${item.id}`}
-                          title={t("practice.note_title", { word: item.word })}
-                          label={t("practice.note")}
-                          className="h-9 px-2"
-                        />
-                      </div>
+                    <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
                       <CloudButton
                         type="button"
                         variant="ghost"
                         size="iconRound"
                         onClick={() => handlePlayAudio(item)}
-                        className={playingId === item.id ? "text-[#4ECDC4]" : "text-[#55A3FF]"}
+                        className={`size-8 sm:size-9 ${playingId === item.id ? "text-[#4ECDC4]" : "text-[#55A3FF]"}`}
                       >
-                        <Volume2 size={20} className={playingId === item.id ? "animate-pulse" : ""} />
+                        <Volume2 size={18} className={playingId === item.id ? "animate-pulse" : ""} />
                       </CloudButton>
                       {!viewOnly && (
                         <>
@@ -383,6 +375,7 @@ export default function ReviewWordList() {
                             type="button"
                             variant={item.status === "correct" ? "mint" : "ghost"}
                             size="iconRound"
+                            className="size-8 sm:size-9"
                             onClick={() => handleStatusClick(item.id, "correct")}
                           >
                             <Check size={18} />
@@ -391,6 +384,7 @@ export default function ReviewWordList() {
                             type="button"
                             variant={item.status === "wrong" ? "destructive" : "ghost"}
                             size="iconRound"
+                            className="size-8 sm:size-9"
                             onClick={() => handleStatusClick(item.id, "wrong")}
                           >
                             <X size={18} />
@@ -458,12 +452,12 @@ export default function ReviewWordList() {
           onSideChange={setNoteSide}
         />
       )}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-2.5">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {!viewOnly && (
               <>
-                <CloudButton type="button" variant="outline" size="pill" onClick={markAllCorrect}>
+                <CloudButton type="button" variant="outline" size="pill" onClick={markAllCorrect} className="max-sm:px-2 max-sm:text-xs">
                   {t("practice.mark_all_known")}
                 </CloudButton>
                 <CloudButton
@@ -472,6 +466,7 @@ export default function ReviewWordList() {
                   size="pill"
                   onClick={clearMarks}
                   disabled={markedCount === 0}
+                  className="max-sm:px-2 max-sm:text-xs"
                 >
                   {t("practice.clear")}
                 </CloudButton>
@@ -484,8 +479,10 @@ export default function ReviewWordList() {
               size="pill"
               onClick={() => setGlobalNoteOpen(true)}
               aria-label={t("practice.open_free_note")}
+              className="max-sm:px-2 max-sm:text-xs"
             >
-              {t("practice.free_note")}
+              <PanelTop size={15} className={globalNoteOpen ? "text-white" : "text-[#c45c78]"} />
+              <span className="hidden sm:inline">{t("practice.free_note")}</span>
             </CloudButton>
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
@@ -498,26 +495,29 @@ export default function ReviewWordList() {
                   return !v;
                 });
               }}
+              className="max-sm:px-2 max-sm:text-xs"
             >
-              <BookOpen size={16} />
-              {t("practice.expand")}
+              <BookOpen size={15} />
+              <span className="hidden sm:inline">{t("practice.expand")}</span>
             </CloudButton>
           </div>
           {!viewOnly && (
             <>
-              <CloudButton
-                type="button"
-                variant="brand"
-                size="pill"
-                onClick={handleSubmit}
-                disabled={submitting || !allMarked}
-                loading={submitting}
-                loadingText={t("practice.submitting")}
-                className={`w-full ${!allMarked && words.length > 0 ? "opacity-80" : ""}`}
-              >
-                {t("practice.submit_review")}
-                {words.length > 0 ? ` (${markedCount}/${words.length})` : ""}
-              </CloudButton>
+              <div className="flex items-center gap-1.5 sm:gap-2 w-full">
+                <CloudButton
+                  type="button"
+                  variant="brand"
+                  size="pill"
+                  onClick={handleSubmit}
+                  disabled={submitting || !allMarked}
+                  loading={submitting}
+                  loadingText={t("practice.submitting")}
+                  className={`hidden sm:flex flex-1 min-w-0 truncate ${!allMarked && words.length > 0 ? "opacity-80" : ""}`}
+                >
+                  {t("practice.submit_review")}
+                  {words.length > 0 ? ` (${markedCount}/${words.length})` : ""}
+                </CloudButton>
+              </div>
               {hint && (
                 <p className="text-center text-xs text-amber-600 px-1 animate-in fade-in">{hint}</p>
               )}
@@ -535,6 +535,21 @@ export default function ReviewWordList() {
           )}
         </div>
       </div>
+
+      {!viewOnly && (
+        <CloudButton
+          type="button"
+          variant="brand"
+          size="iconRound"
+          onClick={handleSubmit}
+          disabled={!allMarked || submitting}
+          className="fixed right-3 bottom-16 z-50 size-11 shadow-lg sm:hidden"
+          aria-label={t("practice.submit_review")}
+        >
+          <ArrowRight size={20} />
+        </CloudButton>
+      )}
+
     </FlowPageShell>
   );
 }
