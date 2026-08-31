@@ -180,8 +180,9 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   // ---- Helpers for text layout ----
   const getTextWidth = useCallback((): number => {
     const el = containerRef.current;
-    const w = el ? el.clientWidth - TEXT_MARGIN * 2 : 400;
-    return Math.max(w, MIN_TEXT_WIDTH);
+    if (!el) return 800;
+    const rect = el.getBoundingClientRect();
+    return Math.max(Math.floor(rect.width - TEXT_MARGIN * 2), MIN_TEXT_WIDTH);
   }, []);
   const createStrokePath = useCallback((
     pts: Pt[],
@@ -963,7 +964,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           style={{
             left: `${textOverlay.x}px`,
             top: `${textOverlay.y}px`,
-            width: `${textOverlay.width}px`,
+            width: "100%",
             color: color,
             fontSize: `${fontSize}px`,
             fontFamily: "inherit",
