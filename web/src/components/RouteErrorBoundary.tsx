@@ -44,22 +44,45 @@ export function RouteErrorBoundary() {
   return (
     <div className="min-h-screen bg-[#F7F9FC] flex items-center justify-center p-6">
       <div className="w-full max-w-md flex flex-col items-center text-center">
-        {/* 空状态插画 */}
-        <div className="mb-5 flex items-center justify-center w-20 h-20 rounded-full bg-[#EDF2F7]">
+        {/* 迷路小猫插画 */}
+        <div className="mb-5 flex items-center justify-center w-28 h-28 rounded-full bg-gradient-to-br from-[#EDF2F7] to-[#E2E8F0]">
           <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
+            width="72"
+            height="72"
+            viewBox="0 0 120 120"
             fill="none"
-            stroke="#A0AEC0"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M8 15s1.5-2 4-2 4 2 4 2" />
-            <line x1="9" y1="9" x2="9.01" y2="9" />
-            <line x1="15" y1="9" x2="15.01" y2="9" />
+            {/* 小猫身体 */}
+            <ellipse cx="60" cy="78" rx="26" ry="20" fill="#F6B042" />
+            {/* 小猫头部 */}
+            <circle cx="60" cy="52" r="22" fill="#F6B042" />
+            {/* 耳朵 */}
+            <path d="M42 40 L38 24 L52 36 Z" fill="#F6B042" />
+            <path d="M78 40 L82 24 L68 36 Z" fill="#F6B042" />
+            <path d="M43 37 L41 28 L49 35 Z" fill="#FFD9A0" />
+            <path d="M77 37 L79 28 L71 35 Z" fill="#FFD9A0" />
+            {/* 眼睛（迷茫的小圆点） */}
+            <circle cx="51" cy="52" r="2.5" fill="#2D3748" />
+            <circle cx="69" cy="52" r="2.5" fill="#2D3748" />
+            {/* 鼻子 */}
+            <path d="M58 58 L60 61 L62 58 Z" fill="#E8718E" />
+            {/* 嘴巴（困惑的小表情） */}
+            <path d="M60 61 Q56 65 53 63" stroke="#2D3748" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            <path d="M60 61 Q64 65 67 63" stroke="#2D3748" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            {/* 胡须 */}
+            <line x1="40" y1="56" x2="48" y2="57" stroke="#D4A032" strokeWidth="1" strokeLinecap="round" />
+            <line x1="40" y1="60" x2="48" y2="60" stroke="#D4A032" strokeWidth="1" strokeLinecap="round" />
+            <line x1="80" y1="56" x2="72" y2="57" stroke="#D4A032" strokeWidth="1" strokeLinecap="round" />
+            <line x1="80" y1="60" x2="72" y2="60" stroke="#D4A032" strokeWidth="1" strokeLinecap="round" />
+            {/* 头顶问号 */}
+            <text x="60" y="20" textAnchor="middle" fontSize="16" fontWeight="700" fill="#A0AEC0">?</text>
+            {/* 小地图 */}
+            <rect x="88" y="70" width="20" height="16" rx="2" fill="#fff" stroke="#CBD5E0" strokeWidth="1.2" />
+            <path d="M92 78 L98 74 L104 78" stroke="#4ECDC4" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            <circle cx="98" cy="74" r="1.5" fill="#E8718E" />
+            {/* 尾巴 */}
+            <path d="M86 82 Q96 78 94 68" stroke="#F6B042" strokeWidth="6" strokeLinecap="round" fill="none" />
           </svg>
         </div>
 
