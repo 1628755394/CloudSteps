@@ -35,7 +35,7 @@ interface Props {
 interface Pt { x: number; y: number }
 
 // ---- Document-like text layout constants ----
-const TEXT_MARGIN = 8;
+const TEXT_MARGIN = 0;
 const TEXT_FIRST_ROW = 8;
 const MIN_TEXT_WIDTH = 240;
 
