@@ -514,7 +514,6 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                 </div>
                 <button className={button(tool === "circle")} onClick={() => activateTool("circle")} title="圆形"><CircleIcon size={14} /></button>
                 <button className={button(tool === "rect")} onClick={() => activateTool("rect")} title="矩形"><SquareIcon size={14} /></button>
-                <button className={button()} onClick={() => { closePopups(); addText(); }} title="添加文字（居中）"><Type size={14} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
                 <button className={button()} onClick={undo} title="撤销（上一步）" aria-label="撤销"><Undo2 size={14} /></button>
                 <button className={button()} onClick={redo} title="重做（下一步）" aria-label="重做"><Redo2 size={14} /></button>

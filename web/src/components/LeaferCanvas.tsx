@@ -601,6 +601,37 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     el.addEventListener("pointercancel", onPointerUp);
     el.addEventListener("contextmenu", onContextMenu);
     window.addEventListener("keydown", onKeyDown);
+
+    // Double-click on canvas to create text at that position and start typing
+    const onDblClick = (e: MouseEvent) => {
+      const app = appRef.current;
+      const layer = drawLayerRef.current;
+      if (!app || !layer) return;
+      // Only create new text when double-clicking empty canvas area (not existing text)
+      if (e.target !== el) return;
+      const pt = getPoint(e as unknown as PointerEvent);
+      const text = new Text({
+        text: "",
+        x: pt.x,
+        y: pt.y,
+        fill: colorRef.current,
+        fontSize: fontSizeRef.current,
+        editable: true,
+        draggable: true,
+      });
+      layer.add(text);
+      pushUndo();
+      onContentChange?.();
+      text.on("dblclick", () => {
+        app.editor.target = text;
+        (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
+      });
+      app.editor.target = text;
+      setTimeout(() => {
+        (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
+      }, 50);
+    };
+    el.addEventListener("dblclick", onDblClick);
     // 编辑器拖动平移结束（MoveEvent.END）与缩放/旋转拖动结束（DragEvent.END）
     // 都会冒泡到 app；在此时合并位移，保证笔迹不变量。
     // 操作幂等：合并后 x/y 归零，重复触发不会二次位移。
@@ -613,6 +644,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("pointercancel", onPointerUp);
       el.removeEventListener("contextmenu", onContextMenu);
+      el.removeEventListener("dblclick", onDblClick);
       window.removeEventListener("keydown", onKeyDown);
       app.off(LeaferMoveEvent.END, onStrokeDragEnd);
       app.off(LeaferDragEvent.END, onStrokeDragEnd);
@@ -633,7 +665,10 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     app.editor.hittable = canDrag;
     app.tree.hittable = canDrag;
     for (const child of drawLayerRef.current?.children || []) {
-      (child as unknown as { draggable: boolean }).draggable = canDrag;
+      const isText = (child as unknown as { tag?: string }).tag === "Text";
+      // Text elements are always hittable/draggable for double-click editing
+      (child as unknown as { draggable: boolean }).draggable = canDrag || isText;
+      (child as unknown as { hittable: boolean }).hittable = true;
     }
     if (!canDrag) {
       app.editor.target = undefined;
