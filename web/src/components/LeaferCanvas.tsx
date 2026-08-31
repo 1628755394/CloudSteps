@@ -732,8 +732,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         // Edit existing text
         startTextEditing(foundText.x, foundText.y, foundText.id, foundText.text);
       } else {
-        // Create new text at click position
-        startTextEditing(pt.x, pt.y);
+        // Create new text at click x, always start from first row (top, y=8)
+        startTextEditing(pt.x, 8);
       }
     };
 
