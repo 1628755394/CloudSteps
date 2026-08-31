@@ -159,3 +159,14 @@ cache:
   type: local
   localMaxSize: 1000
   localDefaultTTL: 5m
+
+wechat:
+  enabled: true
+  token: "heathcetide"
+  appId: ""          # 公众号 AppID（兼容模式解密与客服消息需要）
+  appSecret: ""
+  encodingAESKey: "9kzzvCyvgDLS890mB0AYSS5rcK8UaKBsd85nPk6Owp5"
+  encryptMode: compatible   # plain | compatible | safe
+  loginSessionTTL: 5m
+  loginCodeTTL: 10m
+  # 消息推送 URL: https://h5.lingecho.com/api/auth/wechat/mp/message

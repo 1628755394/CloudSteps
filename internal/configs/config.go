@@ -36,6 +36,7 @@ type Config struct {
 	TTS            TTSConfig            `yaml:"tts"`
 	Realtime       RealtimeConfig       `yaml:"realtime"`
 	Cache          CacheConfig          `yaml:"cache"`
+	Wechat         WechatConfig         `yaml:"wechat"`
 }
 
 type AppConfig struct {
@@ -230,6 +231,18 @@ type CacheConfig struct {
 	Type            string `yaml:"type"`
 	LocalMaxSize    int    `yaml:"localMaxSize"`
 	LocalDefaultTTL string `yaml:"localDefaultTTL"`
+}
+
+// WechatConfig 微信公众号登录（关注 + 验证码 + 网页轮询）。
+type WechatConfig struct {
+	Enabled          bool          `yaml:"enabled"`
+	Token            string        `yaml:"token"`
+	AppID            string        `yaml:"appId"`
+	AppSecret        string        `yaml:"appSecret"`
+	EncodingAESKey   string        `yaml:"encodingAESKey"`
+	EncryptMode      string        `yaml:"encryptMode"` // plain | compatible | safe
+	LoginSessionTTL  time.Duration `yaml:"loginSessionTTL"`
+	LoginCodeTTL     time.Duration `yaml:"loginCodeTTL"`
 }
 
 // Default 默认配置（无密钥）。
@@ -555,5 +568,20 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if v := os.Getenv("SESSION_SECRET"); v != "" {
 		cfg.Auth.SessionSecret = v
+	}
+	if v := os.Getenv("WECHAT_ENABLED"); v != "" {
+		cfg.Wechat.Enabled = strings.EqualFold(v, "true") || v == "1"
+	}
+	if v := os.Getenv("WECHAT_TOKEN"); v != "" {
+		cfg.Wechat.Token = v
+	}
+	if v := os.Getenv("WECHAT_APP_ID"); v != "" {
+		cfg.Wechat.AppID = v
+	}
+	if v := os.Getenv("WECHAT_APP_SECRET"); v != "" {
+		cfg.Wechat.AppSecret = v
+	}
+	if v := os.Getenv("WECHAT_ENCODING_AES_KEY"); v != "" {
+		cfg.Wechat.EncodingAESKey = v
 	}
 }
