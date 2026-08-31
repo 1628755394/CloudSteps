@@ -245,7 +245,7 @@ export default function CheckIn() {
               </p>
             </div>
 
-            <div className="overflow-x-auto -mx-1 px-1">
+            <div className="overflow-x-auto -mx-1 px-1 flex justify-center">
               <div className="inline-block min-w-full">
                 {/* 月份标签行 */}
                 <div className="flex gap-[4px] mb-1.5 pl-7 relative h-3.5">

@@ -28,6 +28,7 @@ import PostTrainingCheck from "../pages/PostTrainingCheck";
 import ListenIdentify from "../pages/ListenIdentify";
 import CreateAntiForgetting from "../pages/CreateAntiForgetting";
 import Notifications from "../pages/Notifications";
+import Announcements from "../pages/Announcements";
 import Login from "../pages/Login";
 import Forbidden from "../pages/Forbidden";
 import ProfileEdit from "../pages/ProfileEdit";
@@ -116,6 +117,7 @@ export const router = createBrowserRouter(
       },
       { path: "profile/edit", element: <ProfileEdit /> },
       { path: "notifications", element: <Notifications /> },
+      { path: "announcements", element: <Announcements /> },
     ],
   },
   // 独立页面（不使用Layout）
