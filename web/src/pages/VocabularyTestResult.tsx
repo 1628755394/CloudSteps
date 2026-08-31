@@ -15,6 +15,7 @@ import {
   type VocabTestResultPayload,
 } from "../components/VocabTestResultView";
 import { TopBar } from "../components/TopBar";
+import { isValidSnowflakeId, normalizeSnowflakeId } from "../utils/json-snowflake";
 
 function normalizeVocabResult(raw: any): VocabTestResultPayload | null {
   const data = raw?.record || raw;
@@ -37,9 +38,9 @@ export default function VocabularyTestResult() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const studentId = Number(searchParams.get("studentId") || 0);
-  const recordId = Number(searchParams.get("recordId") || 0);
-  const isHistory = studentId > 0 && recordId > 0;
+  const studentId = normalizeSnowflakeId(searchParams.get("studentId"));
+  const recordId = normalizeSnowflakeId(searchParams.get("recordId"));
+  const isHistory = isValidSnowflakeId(studentId) && isValidSnowflakeId(recordId);
   const [result, setResult] = useState<VocabTestResultPayload | null>(null);
   const [loading, setLoading] = useState(true);
 

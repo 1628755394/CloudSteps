@@ -23,6 +23,7 @@ import {
   studentLabelFromQuota,
 } from "../utils/trainingStudent";
 import { shouldShowCoachOnboarding, setCoachOnboardingUiActive } from "../utils/coachOnboarding";
+import { sameSnowflakeId } from "../utils/json-snowflake";
 import { showToast } from "../utils/toast";
 
 import { kickoffVocabTestPrefetch } from "../utils/vocabTestCache";
@@ -62,7 +63,7 @@ export default function WordBooks() {
           return;
         }
         const saved = getTrainingStudent();
-        const selected = (saved?.id && rows.find((row) => row.studentId === saved.id)) || rows[0];
+        const selected = (saved?.id && rows.find((row) => sameSnowflakeId(row.studentId, saved.id))) || rows[0];
         if (selected) {
           setStudentId(String(selected.studentId));
           setTrainingStudent(String(selected.studentId), studentLabelFromQuota(selected));
@@ -135,7 +136,7 @@ export default function WordBooks() {
                 showSearch={studentOptions.length > 4}
                 disabled={loadingStudents || studentOptions.length === 0}
                 onChange={(value) => {
-                  const row = students.find((item) => String(item.studentId) === value);
+                  const row = students.find((item) => sameSnowflakeId(item.studentId, value));
                   if (!row) return;
                   setStudentId(String(row.studentId));
                   setTrainingStudent(String(row.studentId), studentLabelFromQuota(row));
