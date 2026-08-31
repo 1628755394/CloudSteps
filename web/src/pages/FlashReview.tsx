@@ -379,7 +379,7 @@ export default function FlashReview() {
                   className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center"
                   onClick={() => handleWordTap(visibleWords[cardIndex])}
                 >
-                  <div className={PRACTICE_CARD_WORD_CLASS}>
+                  <div className={`${PRACTICE_CARD_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
                     {visibleWords[cardIndex].word}
                   </div>
                   {renderMeaning(visibleWords[cardIndex], { centered: true })}

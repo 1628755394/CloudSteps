@@ -542,7 +542,7 @@ export default function PostTrainingCheck() {
                           {"■".repeat(Math.max(3, Math.ceil(word.word.length * 0.7)))}
                         </span>
                       ) : (
-                        <span className={`${PRACTICE_WORD_CLASS} text-foreground`}>
+                        <span className={`${PRACTICE_WORD_CLASS} text-foreground hover:text-[#4ECDC4] transition-colors`}>
                           {word.word}
                         </span>
                       )}

@@ -142,7 +142,7 @@ export default function ListenIdentify() {
 
   const renderRevealed = (w: ListenWord, opts?: { card?: boolean }) => (
     <>
-      <div className={`${opts?.card ? PRACTICE_CARD_WORD_CLASS : PRACTICE_WORD_CLASS} ${opts?.card ? "" : "mb-1"}`}>
+      <div className={`${opts?.card ? PRACTICE_CARD_WORD_CLASS : PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors ${opts?.card ? "" : "mb-1"}`}>
         {w.word}
       </div>
       {w.phonetic ? (

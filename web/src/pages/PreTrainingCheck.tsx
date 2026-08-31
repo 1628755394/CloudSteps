@@ -382,7 +382,7 @@ export default function PreTrainingCheck() {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="min-w-0">
-            <span className={`${PRACTICE_WORD_CLASS} transition-colors`}>
+            <span className={`${PRACTICE_WORD_CLASS} transition-colors hover:text-[#4ECDC4]`}>
               {word.word}
             </span>
             {word.showTranslation && (

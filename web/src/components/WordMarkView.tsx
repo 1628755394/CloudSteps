@@ -206,7 +206,7 @@ export function WordCardPanel({
             className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center outline-none"
             onClick={() => onWordClick(word)}
           >
-            <h2 className={`${PRACTICE_CARD_WORD_CLASS} text-center`}>
+            <h2 className={`${PRACTICE_CARD_WORD_CLASS} text-center hover:text-[#4ECDC4] transition-colors`}>
               {word.word}
             </h2>
             {word.showTranslation && (

@@ -338,7 +338,7 @@ export default function WordPractice() {
                   className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center"
                   onClick={() => handleWordTap(cardWord)}
                 >
-                  <div className={PRACTICE_CARD_WORD_CLASS}>{cardWord.word}</div>
+                  <div className={`${PRACTICE_CARD_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>{cardWord.word}</div>
                   {renderReveal(cardWord)}
                 </button>
                 <CloudButton
@@ -409,7 +409,7 @@ export default function WordPractice() {
                     onClick={() => handleWordTap(word)}
                     className="flex-1 cursor-pointer pr-3"
                   >
-                    <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{word.word}</div>
+                    <div className={`${PRACTICE_WORD_CLASS} mb-1 hover:text-[#4ECDC4] transition-colors`}>{word.word}</div>
                     {renderReveal(word)}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">

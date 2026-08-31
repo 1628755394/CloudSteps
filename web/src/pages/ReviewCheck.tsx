@@ -310,7 +310,7 @@ export default function ReviewCheck() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
-                        <span className={PRACTICE_WORD_CLASS}>{word.word}</span>
+                        <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>{word.word}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <div onClick={(e) => e.stopPropagation()}>
