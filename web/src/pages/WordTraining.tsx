@@ -147,7 +147,7 @@ export default function WordTraining() {
         const saved = getTrainingStudent();
         const selected =
           (saved?.id && rows.find((row) => row.studentId === saved.id)) || rows[0];
-        setTrainingStudent(selected.studentId, studentLabelFromQuota(selected));
+        setTrainingStudent(String(selected.studentId), studentLabelFromQuota(selected));
         setStudentId(String(selected.studentId));
         setCoachGate("ready");
       } catch {

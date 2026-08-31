@@ -15,6 +15,13 @@ function storage(): Storage | null {
   }
 }
 
+function normalizeStudentId(raw: string | number | null | undefined): string {
+  if (raw == null) return "";
+  const text = String(raw).trim();
+  if (!text || text === "0") return "";
+  return text;
+}
+
 function migrateFromSession() {
   const ls = storage();
   if (!ls) return;
@@ -30,30 +37,31 @@ function migrateFromSession() {
   }
 }
 
-export function getTrainingStudent(): { id: number; name: string } | null {
+export function getTrainingStudent(): { id: string; name: string } | null {
   migrateFromSession();
   try {
     const store = storage();
-    const id = Number(store?.getItem(ID_KEY) || sessionStorage.getItem(ID_KEY) || 0);
+    const id = normalizeStudentId(store?.getItem(ID_KEY) || sessionStorage.getItem(ID_KEY));
     const name =
       store?.getItem(NAME_KEY) ||
       sessionStorage.getItem(NAME_KEY) ||
       sessionStorage.getItem(LEGACY_NAME_KEY) ||
       "";
-    if (id > 0 && name) return { id, name };
-    if (name) return { id: id > 0 ? id : 0, name };
+    if (id && name) return { id, name };
+    if (name) return { id, name };
     return null;
   } catch {
     return null;
   }
 }
 
-export function setTrainingStudent(id: number, name: string) {
+export function setTrainingStudent(id: string | number, name: string) {
   try {
+    const idStr = normalizeStudentId(id);
     const store = storage();
-    if (id > 0) {
-      store?.setItem(ID_KEY, String(id));
-      sessionStorage.setItem(ID_KEY, String(id));
+    if (idStr) {
+      store?.setItem(ID_KEY, idStr);
+      sessionStorage.setItem(ID_KEY, idStr);
     } else {
       store?.removeItem(ID_KEY);
       sessionStorage.removeItem(ID_KEY);
@@ -61,7 +69,7 @@ export function setTrainingStudent(id: number, name: string) {
     store?.setItem(NAME_KEY, name);
     sessionStorage.setItem(NAME_KEY, name);
     sessionStorage.setItem(LEGACY_NAME_KEY, name);
-    window.dispatchEvent(new CustomEvent("lb-training-student", { detail: { id, name } }));
+    window.dispatchEvent(new CustomEvent("lb-training-student", { detail: { id: idStr, name } }));
   } catch {
     // ignore
   }
@@ -81,7 +89,7 @@ export function clearTrainingStudent() {
 }
 
 export function studentLabelFromQuota(row: {
-  studentId: number;
+  studentId: string | number;
   student?: { displayName?: string; username?: string; email?: string };
 }) {
   const s = row.student;

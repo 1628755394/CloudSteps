@@ -8,7 +8,7 @@ export type PracticeBillingLink = {
   appointmentId: number;
   /** 是否由练习定时创建/接管且结束时应下课结账 */
   owned: boolean;
-  studentId: number;
+  studentId: string;
   studentName: string;
 };
 
@@ -51,7 +51,7 @@ export async function beginPracticeBilling(durationMin: number): Promise<Practic
     return {
       appointmentId: apptId,
       owned,
-      studentId: Number(data?.studentId) || student.id,
+      studentId: String(data?.studentId || student.id),
       studentName: name,
     };
   } catch (e: unknown) {

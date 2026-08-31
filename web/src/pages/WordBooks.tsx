@@ -65,7 +65,7 @@ export default function WordBooks() {
         const selected = (saved?.id && rows.find((row) => row.studentId === saved.id)) || rows[0];
         if (selected) {
           setStudentId(String(selected.studentId));
-          setTrainingStudent(selected.studentId, studentLabelFromQuota(selected));
+          setTrainingStudent(String(selected.studentId), studentLabelFromQuota(selected));
         }
       })
       .catch(() => {
@@ -138,7 +138,7 @@ export default function WordBooks() {
                   const row = students.find((item) => String(item.studentId) === value);
                   if (!row) return;
                   setStudentId(String(row.studentId));
-                  setTrainingStudent(row.studentId, studentLabelFromQuota(row));
+                  setTrainingStudent(String(row.studentId), studentLabelFromQuota(row));
                 }}
               />
             </div>
