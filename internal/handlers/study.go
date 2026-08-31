@@ -24,14 +24,14 @@ func (h *Handlers) handleStudyLighthouse(c *gin.Context) {
 		return
 	}
 
-	wordBookID, _ := strconv.Atoi(c.Query("wordBookId"))
-	cacheKey := lighthouseCacheKey(user.ID, wordBookID)
+	wordBookID := parseQueryUintID(c.Query("wordBookId"))
+	cacheKey := lighthouseCacheKey(user.ID, int(wordBookID))
 	if cached, ok := getCachedLighthouse(cacheKey); ok {
 		response.SuccessI18n(c, "common.success", cached)
 		return
 	}
 
-	payload := computeStudyLighthouse(db, user.ID, wordBookID)
+	payload := computeStudyLighthouse(db, user.ID, int(wordBookID))
 	setCachedLighthouse(cacheKey, payload)
 	response.SuccessI18n(c, "common.success", payload)
 }
@@ -45,7 +45,7 @@ func (h *Handlers) handleStudyLighthouseWords(c *gin.Context) {
 		return
 	}
 
-	wordBookID, _ := strconv.Atoi(c.Query("wordBookId"))
+	wordBookID := parseQueryUintID(c.Query("wordBookId"))
 	step := c.Query("step")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "50"))
@@ -161,7 +161,7 @@ func pad2(n int) string {
 func (h *Handlers) handleStudyWords(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
-	wordBookID, _ := strconv.Atoi(c.Query("wordBookId"))
+	wordBookID := parseQueryUintID(c.Query("wordBookId"))
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	shuffleQ := strings.ToLower(strings.TrimSpace(c.DefaultQuery("shuffle", "0")))
@@ -188,7 +188,7 @@ func (h *Handlers) handleStudyWords(c *gin.Context) {
 		seed = time.Now().UnixNano()
 	}
 
-	words, total, err := models.ListStudyWordsLite(db, uint(wordBookID), user.ID, page, pageSize, shuffle, seed)
+	words, total, err := models.ListStudyWordsLite(db, wordBookID, user.ID, page, pageSize, shuffle, seed)
 	if err != nil {
 		response.FailI18n(c, "common.query_failed", err)
 		return
@@ -220,10 +220,23 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 		UnknownIDs []uint `json:"unknownIds"`
 		KnownIDs   []uint `json:"knownIds"`
 		WordIDs    []uint `json:"wordIds"`
+		StudentID  string `json:"studentId"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.FailI18n(c, "common.invalid_params", nil)
 		return
+	}
+
+	sessionStudentID := uint(0)
+	if strings.TrimSpace(body.StudentID) != "" {
+		targetUser, err := reviewResolveTargetUser(db, user, body.StudentID)
+		if err != nil {
+			response.AbortWithStatusJSON(c, http.StatusForbidden, err)
+			return
+		}
+		if targetUser.ID != user.ID {
+			sessionStudentID = targetUser.ID
+		}
 	}
 
 	unknownIDs := body.UnknownIDs
@@ -333,6 +346,7 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 	// Create session
 	session := models.StudySession{
 		UserID:      user.ID,
+		StudentID:   sessionStudentID,
 		WordBookID:  body.WordBookID,
 		SessionType: "learn",
 		Status:      "in_progress",
