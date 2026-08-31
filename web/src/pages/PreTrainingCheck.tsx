@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import { getStudyWords, startStudySession } from "../api/study";
+import { getTrainingStudent } from "../utils/trainingStudent";
 import { AnnotationLayer } from "../components/AnnotationLayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
@@ -337,7 +338,13 @@ export default function PreTrainingCheck() {
 
     setStarting(true);
     try {
-      const res = await startStudySession({ wordBookId, knownIds, unknownIds });
+      const trainingStudent = getTrainingStudent();
+      const res = await startStudySession({
+        wordBookId,
+        knownIds,
+        unknownIds,
+        ...(trainingStudent?.id ? { studentId: trainingStudent.id } : {}),
+      });
       const sessionId = res.data?.sessionId;
       const sessionWords = res.data?.words;
       if (res.data?.finished || !Array.isArray(sessionWords) || sessionWords.length === 0) {
