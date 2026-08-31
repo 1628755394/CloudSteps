@@ -211,7 +211,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
             <span className="hidden truncate text-[11px] text-[#9b927f] sm:inline">随心笔记</span>
             <button
               type="button"
-              className="ml-auto flex h-6 w-6 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
+              className="flex h-6 w-6 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
               onClick={() => setToolbarVisible((v) => !v)}
               title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
               aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
@@ -220,7 +220,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
             </button>
             <button
               type="button"
-              className="flex h-8 w-8 -mr-1 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#c45c78] sm:-mr-1"
+              className="ml-auto flex h-8 w-8 -mr-1 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#c45c78] sm:-mr-1"
               onClick={onClose}
               title="关闭"
               aria-label="关闭"
