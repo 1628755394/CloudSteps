@@ -538,9 +538,13 @@ export default function PostTrainingCheck() {
                       }
                     }}>
                       {spellMode ? (
-                        <span className={`${PRACTICE_WORD_CLASS} tracking-widest text-[#A0AEC0] select-none`}>
-                          {"■".repeat(Math.max(3, Math.ceil(word.word.length * 0.7)))}
-                        </span>
+                        <span
+                          className={`${PRACTICE_WORD_CLASS} inline-block select-none rounded-sm bg-[#4ECDC4] align-text-bottom`}
+                          style={{
+                            width: `${Math.max(3, Math.ceil(word.word.length * 0.7))}ch`,
+                            height: "1.1em",
+                          }}
+                        />
                       ) : (
                         <span className={`${PRACTICE_WORD_CLASS} text-foreground hover:text-[#4ECDC4] transition-colors`}>
                           {word.word}
