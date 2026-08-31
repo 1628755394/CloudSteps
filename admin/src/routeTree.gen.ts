@@ -28,6 +28,7 @@ import { Route as ClerkAuthenticatedRouteRouteImport } from './routes/clerk/_aut
 import { Route as ClerkauthRouteRouteImport } from './routes/clerk/(auth)/route'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedWordbooksIndexRouteImport } from './routes/_authenticated/wordbooks/index'
+import { Route as AuthenticatedWechatMpArticlesIndexRouteImport } from './routes/_authenticated/wechat-mp-articles/index'
 import { Route as AuthenticatedVocabRecordsIndexRouteImport } from './routes/_authenticated/vocab-records/index'
 import { Route as AuthenticatedVocabQuestionsIndexRouteImport } from './routes/_authenticated/vocab-questions/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
@@ -158,6 +159,12 @@ const AuthenticatedWordbooksIndexRoute =
   AuthenticatedWordbooksIndexRouteImport.update({
     id: '/wordbooks/',
     path: '/wordbooks/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedWechatMpArticlesIndexRoute =
+  AuthenticatedWechatMpArticlesIndexRouteImport.update({
+    id: '/wechat-mp-articles/',
+    path: '/wechat-mp-articles/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedVocabRecordsIndexRoute =
@@ -428,6 +435,7 @@ export interface FileRoutesByFullPath {
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
   '/vocab-records/': typeof AuthenticatedVocabRecordsIndexRoute
+  '/wechat-mp-articles/': typeof AuthenticatedWechatMpArticlesIndexRoute
   '/wordbooks/': typeof AuthenticatedWordbooksIndexRoute
   '/settings/login-history/': typeof AuthenticatedSettingsLoginHistoryIndexRoute
   '/settings/operation-logs/': typeof AuthenticatedSettingsOperationLogsIndexRoute
@@ -482,6 +490,7 @@ export interface FileRoutesByTo {
   '/users': typeof AuthenticatedUsersIndexRoute
   '/vocab-questions': typeof AuthenticatedVocabQuestionsIndexRoute
   '/vocab-records': typeof AuthenticatedVocabRecordsIndexRoute
+  '/wechat-mp-articles': typeof AuthenticatedWechatMpArticlesIndexRoute
   '/wordbooks': typeof AuthenticatedWordbooksIndexRoute
   '/settings/login-history': typeof AuthenticatedSettingsLoginHistoryIndexRoute
   '/settings/operation-logs': typeof AuthenticatedSettingsOperationLogsIndexRoute
@@ -541,6 +550,7 @@ export interface FileRoutesById {
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
   '/_authenticated/vocab-records/': typeof AuthenticatedVocabRecordsIndexRoute
+  '/_authenticated/wechat-mp-articles/': typeof AuthenticatedWechatMpArticlesIndexRoute
   '/_authenticated/wordbooks/': typeof AuthenticatedWordbooksIndexRoute
   '/_authenticated/settings/login-history/': typeof AuthenticatedSettingsLoginHistoryIndexRoute
   '/_authenticated/settings/operation-logs/': typeof AuthenticatedSettingsOperationLogsIndexRoute
@@ -598,6 +608,7 @@ export interface FileRouteTypes {
     | '/users/'
     | '/vocab-questions/'
     | '/vocab-records/'
+    | '/wechat-mp-articles/'
     | '/wordbooks/'
     | '/settings/login-history/'
     | '/settings/operation-logs/'
@@ -652,6 +663,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/vocab-questions'
     | '/vocab-records'
+    | '/wechat-mp-articles'
     | '/wordbooks'
     | '/settings/login-history'
     | '/settings/operation-logs'
@@ -710,6 +722,7 @@ export interface FileRouteTypes {
     | '/_authenticated/users/'
     | '/_authenticated/vocab-questions/'
     | '/_authenticated/vocab-records/'
+    | '/_authenticated/wechat-mp-articles/'
     | '/_authenticated/wordbooks/'
     | '/_authenticated/settings/login-history/'
     | '/_authenticated/settings/operation-logs/'
@@ -865,6 +878,13 @@ declare module '@tanstack/react-router' {
       path: '/wordbooks'
       fullPath: '/wordbooks/'
       preLoaderRoute: typeof AuthenticatedWordbooksIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/wechat-mp-articles/': {
+      id: '/_authenticated/wechat-mp-articles/'
+      path: '/wechat-mp-articles'
+      fullPath: '/wechat-mp-articles/'
+      preLoaderRoute: typeof AuthenticatedWechatMpArticlesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/vocab-records/': {
@@ -1188,6 +1208,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedVocabQuestionsIndexRoute: typeof AuthenticatedVocabQuestionsIndexRoute
   AuthenticatedVocabRecordsIndexRoute: typeof AuthenticatedVocabRecordsIndexRoute
+  AuthenticatedWechatMpArticlesIndexRoute: typeof AuthenticatedWechatMpArticlesIndexRoute
   AuthenticatedWordbooksIndexRoute: typeof AuthenticatedWordbooksIndexRoute
 }
 
@@ -1228,6 +1249,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedVocabQuestionsIndexRoute: AuthenticatedVocabQuestionsIndexRoute,
   AuthenticatedVocabRecordsIndexRoute: AuthenticatedVocabRecordsIndexRoute,
+  AuthenticatedWechatMpArticlesIndexRoute:
+    AuthenticatedWechatMpArticlesIndexRoute,
   AuthenticatedWordbooksIndexRoute: AuthenticatedWordbooksIndexRoute,
 }
 
