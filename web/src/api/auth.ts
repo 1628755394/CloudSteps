@@ -398,3 +398,35 @@ export const bindEmail = async (email: string, code: string): Promise<ApiRespons
 export const deactivateAccount = async (): Promise<ApiResponse<null>> => {
   return post<null>('/auth/deactivate')
 }
+
+export type WechatLoginStatus = 'pending' | 'confirmed' | 'expired'
+
+export interface WechatLoginSessionData {
+  sessionId: string
+  loginCode?: string
+  expiresIn: number
+  qrUrl?: string
+}
+
+export interface WechatLoginStatusData {
+  status: WechatLoginStatus
+  token?: string
+  user?: User
+}
+
+export const startWechatLoginSession = async (): Promise<ApiResponse<WechatLoginSessionData>> => {
+  return post<WechatLoginSessionData>('/auth/wechat/login/session')
+}
+
+export const verifyWechatLoginCode = async (payload: {
+  sessionId: string
+  code: string
+}): Promise<ApiResponse<{ status: WechatLoginStatus }>> => {
+  return post<{ status: WechatLoginStatus }>('/auth/wechat/login/verify', payload)
+}
+
+export const pollWechatLoginStatus = async (
+  sessionId: string,
+): Promise<ApiResponse<WechatLoginStatusData>> => {
+  return get<WechatLoginStatusData>(`/auth/wechat/login/status?sessionId=${encodeURIComponent(sessionId)}`)
+}
