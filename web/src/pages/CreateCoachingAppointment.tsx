@@ -197,7 +197,7 @@ export default function CreateCoachingAppointment() {
   };
 
   const onSubmit = async () => {
-    const sid = Number(studentId);
+    const sid = studentId;
     if (!sid) {
       showToast.warning(t("create_appointment.select_student_warn"));
       return;
@@ -341,7 +341,7 @@ export default function CreateCoachingAppointment() {
             <MobileSelectSheet
               title={t("create_appointment.repeat_title")}
               value={repeat}
-              options={[...REPEAT_OPTIONS]}
+              options={[...repeatOptions(t)]}
               onChange={(v) => setRepeat(v || "none")}
               trigger={
                 <SettingsRow label={t("create_appointment.repeat")} value={selectedRepeatLabel} />
