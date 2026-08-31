@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import {
   Button,
@@ -21,10 +22,12 @@ import {
   type ReadingPassageListItem,
   type ReadingSubmitResult,
 } from "../api/reading";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type Phase = "list" | "practice" | "result";
 
 export default function ReadingComprehension() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("list");
   const [loadingList, setLoadingList] = useState(true);
@@ -44,17 +47,15 @@ export default function ReadingComprehension() {
     try {
       const res = await listReadingPassages({ page: 1, pageSize: 50 });
       if (res.code !== 200) {
-        setErr(res.msg || "加载文章列表失败");
+        setErr(formatApiMessage(res.msg, "reading.load_list_failed"));
         setPassages([]);
         return;
       }
       setPassages(Array.isArray(res.data?.list) ? res.data.list : []);
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "加载文章列表失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "reading.load_list_failed"));
       setPassages([]);
     } finally {
       setLoadingList(false);
@@ -80,7 +81,7 @@ export default function ReadingComprehension() {
     try {
       const res = await getReadingPassage(id);
       if (res.code !== 200 || !res.data) {
-        setErr(res.msg || "加载文章失败");
+        setErr(formatApiMessage(res.msg, "reading.load_passage_failed"));
         return;
       }
       setPassage(res.data);
@@ -89,11 +90,9 @@ export default function ReadingComprehension() {
       startedAtRef.current = Date.now();
       setPhase("practice");
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "加载文章失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "reading.load_passage_failed"));
     } finally {
       setLoadingPassage(false);
     }
@@ -117,18 +116,16 @@ export default function ReadingComprehension() {
       };
       const res = await submitReadingPassage(passage.id, payload);
       if (res.code !== 200 || !res.data) {
-        setErr(res.msg || "提交失败");
+        setErr(formatApiMessage(res.msg, "practice.submit_failed"));
         return;
       }
       setResult(res.data);
       setPhase("result");
       void loadList();
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "提交失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "practice.submit_failed"));
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +158,7 @@ export default function ReadingComprehension() {
           <Button type="text" shape="circle" icon={<IconLeft />} onClick={headerBack} />
           <div className="min-w-0 flex-1">
             <Typography.Text className="!font-medium !text-[#2D3748]">
-              阅读理解
+              {t("reading.title")}
             </Typography.Text>
             {phase === "practice" && passage && (
               <Typography.Text type="secondary" className="block !text-xs truncate">
@@ -170,7 +167,7 @@ export default function ReadingComprehension() {
             )}
             {phase === "list" && (
               <Typography.Text type="secondary" className="block !text-xs">
-                选择一篇文章开始练习
+                {t("reading.subtitle_list")}
               </Typography.Text>
             )}
           </div>
@@ -193,11 +190,11 @@ export default function ReadingComprehension() {
         <div className="flex-1 min-h-0 overflow-auto px-3 py-3">
           {loadingList || loadingPassage ? (
             <div className="flex justify-center py-16">
-              <Spin tip="加载中…" />
+              <Spin tip={t("common.loading")} />
             </div>
           ) : passages.length === 0 ? (
             <Card className="!rounded-xl">
-              <Empty description="暂无已发布的阅读文章，请先运行后端 seed" />
+              <Empty description={t("reading.empty_list")} />
             </Card>
           ) : (
             <Space direction="vertical" size={10} className="w-full">
@@ -228,13 +225,21 @@ export default function ReadingComprehension() {
                         </Typography.Paragraph>
                       )}
                       <Typography.Text type="secondary" className="!text-xs">
-                        {p.questionCount ?? 0} 题 · 约 {p.estimatedMinutes ?? 5} 分钟
-                        {typeof p.wordCount === "number" ? ` · ${p.wordCount} 词` : ""}
+                        {typeof p.wordCount === "number"
+                          ? t("practice.questions_meta_words", {
+                              count: p.questionCount ?? 0,
+                              minutes: p.estimatedMinutes ?? 5,
+                              words: p.wordCount,
+                            })
+                          : t("practice.questions_meta", {
+                              count: p.questionCount ?? 0,
+                              minutes: p.estimatedMinutes ?? 5,
+                            })}
                       </Typography.Text>
                     </div>
                     {typeof p.lastScore === "number" && (
                       <Tag color={p.lastScore >= 80 ? "green" : "orangered"}>
-                        上次 {p.lastScore}分
+                        {t("practice.last_score", { score: p.lastScore })}
                       </Tag>
                     )}
                   </div>
@@ -251,7 +256,10 @@ export default function ReadingComprehension() {
             <Result
               status={result.score === 100 ? "success" : "info"}
               title={`${result.correctCount} / ${result.questionCount}`}
-              subTitle={`得分 ${result.score} 分 · 用时 ${result.durationSec} 秒`}
+              subTitle={t("practice.score_subtitle", {
+                score: result.score,
+                seconds: result.durationSec,
+              })}
             />
             <div className="space-y-3 mt-2">
               {(result.details || []).map((d, idx) => (
@@ -267,28 +275,32 @@ export default function ReadingComprehension() {
                     {idx + 1}. {d.stem}
                   </div>
                   <div className="text-[#718096]">
-                    你的答案：{d.answer || "未作答"}
+                    {t("practice.your_answer", {
+                      answer: d.answer || t("practice.no_answer"),
+                    })}
                     {!d.correct && (
                       <span className="ml-2 text-[#4ECDC4]">
-                        正确答案：{d.rightAnswer}
+                        {t("practice.correct_answer", { answer: d.rightAnswer })}
                       </span>
                     )}
                   </div>
                   {d.explanation && (
-                    <div className="text-xs text-[#A0AEC0] mt-1">解析：{d.explanation}</div>
+                    <div className="text-xs text-[#A0AEC0] mt-1">
+                      {t("practice.explanation", { text: d.explanation })}
+                    </div>
                   )}
                 </div>
               ))}
             </div>
             <Space className="mt-5 w-full justify-center">
-              <Button onClick={backToList}>返回列表</Button>
+              <Button onClick={backToList}>{t("practice.back_to_list")}</Button>
               <Button
                 type="primary"
                 onClick={() => {
                   if (result.passageId) void openPassage(result.passageId);
                 }}
               >
-                再做一次
+                {t("practice.try_again")}
               </Button>
             </Space>
           </Card>
@@ -300,7 +312,7 @@ export default function ReadingComprehension() {
           <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-24">
             <Card
               className="!rounded-xl shadow-sm !mb-3"
-              title={<span className="text-sm font-semibold">Passage</span>}
+              title={<span className="text-sm font-semibold">{t("practice.passage")}</span>}
               extra={
                 <Typography.Text type="secondary" className="!text-xs">
                   {passage.level}
@@ -353,8 +365,11 @@ export default function ReadingComprehension() {
               onClick={() => void onSubmit()}
             >
               {allAnswered
-                ? "提交答案"
-                : `请完成全部题目（${answeredCount}/${totalQuestions}）`}
+                ? t("practice.submit")
+                : t("practice.complete_all_questions", {
+                    answered: answeredCount,
+                    total: totalQuestions,
+                  })}
             </Button>
           </div>
         </>

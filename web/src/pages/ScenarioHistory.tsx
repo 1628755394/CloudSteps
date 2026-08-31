@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Button, Empty, Progress, Spin, Typography } from "@arco-design/web-react";
 import { IconLeft, IconCalendar, IconClockCircle } from "@arco-design/web-react/icon";
@@ -6,6 +7,7 @@ import { getSpeakingStats, SpeakingStats } from "@/api/scenarioDialogue";
 import { ScenarioIcon } from "@/components/ScenarioIcon";
 
 export default function ScenarioHistory() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [stats, setStats] = useState<SpeakingStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +23,7 @@ export default function ScenarioHistory() {
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "-";
     const date = new Date(dateStr);
-    return date.toLocaleDateString("zh-CN", {
+    return date.toLocaleDateString(i18n.language === "zh-CN" ? "zh-CN" : "en-US", {
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
@@ -32,7 +34,7 @@ export default function ScenarioHistory() {
   if (loading) {
     return (
       <div className="h-dvh flex items-center justify-center bg-gray-50">
-        <Spin tip="加载历史记录..." />
+        <Spin tip={t("scenario.loading_history")} />
       </div>
     );
   }
@@ -40,9 +42,9 @@ export default function ScenarioHistory() {
   if (!stats || stats.totalSessions === 0) {
     return (
       <div className="h-dvh flex flex-col items-center justify-center gap-3 bg-gray-50">
-        <Empty description="暂无对话记录" />
+        <Empty description={t("scenario.no_history")} />
         <Button type="primary" onClick={() => navigate("/scenario-dialogues")}>
-          开始练习
+          {t("scenario.start_practice")}
         </Button>
       </div>
     );
@@ -60,31 +62,31 @@ export default function ScenarioHistory() {
             className="-ml-1"
           />
           <Typography.Title heading={6} className="!m-0 flex-1 text-center !text-sm !font-semibold text-[#2D3748] -ml-8">
-            对话历史
+            {t("scenario.history_title")}
           </Typography.Title>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5 pb-6">
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
-          <div className="text-sm font-medium text-[#2D3748] mb-2.5">练习统计</div>
+          <div className="text-sm font-medium text-[#2D3748] mb-2.5">{t("scenario.stats_title")}</div>
           <div className="grid grid-cols-2 gap-2">
-            <StatCell label="总练习次数" value={String(stats.totalSessions)} color="#4ECDC4" />
-            <StatCell label="总时长（分钟）" value={String(Math.round(stats.totalMinutes))} color="#55A3FF" />
-            <StatCell label="平均综合分" value={String(stats.avgOverallScore)} color="#66BB6A" />
-            <StatCell label="累计纠错" value={String(stats.totalCorrections)} color="#FF9800" />
+            <StatCell label={t("scenario.total_sessions")} value={String(stats.totalSessions)} color="#4ECDC4" />
+            <StatCell label={t("scenario.total_duration_min")} value={String(Math.round(stats.totalMinutes))} color="#55A3FF" />
+            <StatCell label={t("scenario.avg_overall")} value={String(stats.avgOverallScore)} color="#66BB6A" />
+            <StatCell label={t("scenario.total_corrections")} value={String(stats.totalCorrections)} color="#FF9800" />
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-3.5 space-y-2.5">
-          <div className="text-sm font-medium text-[#2D3748]">平均分数</div>
-          <ScoreBar label="流利度" score={stats.avgFluencyScore} color="#4ECDC4" />
-          <ScoreBar label="准确度" score={stats.avgAccuracyScore} color="#55A3FF" />
-          <ScoreBar label="发音" score={stats.avgPronunciationScore} color="#66BB6A" />
+          <div className="text-sm font-medium text-[#2D3748]">{t("scenario.avg_scores")}</div>
+          <ScoreBar label={t("scenario.fluency")} score={stats.avgFluencyScore} color="#4ECDC4" />
+          <ScoreBar label={t("scenario.accuracy")} score={stats.avgAccuracyScore} color="#55A3FF" />
+          <ScoreBar label={t("scenario.pronunciation")} score={stats.avgPronunciationScore} color="#66BB6A" />
         </div>
 
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
-          <div className="text-sm font-medium text-[#2D3748] mb-2">最近练习</div>
+          <div className="text-sm font-medium text-[#2D3748] mb-2">{t("scenario.recent_practice")}</div>
           <div className="space-y-2">
             {stats.recentSessions.map((session) => (
               <button
@@ -100,7 +102,7 @@ export default function ScenarioHistory() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium text-[#2D3748] truncate">
-                        {session.scenario?.name || "未知场景"}
+                        {session.scenario?.name || t("scenario.unknown_scenario")}
                       </div>
                       <div className="flex items-center gap-1 text-[11px] text-[#718096] mt-0.5">
                         <IconCalendar />
@@ -110,15 +112,17 @@ export default function ScenarioHistory() {
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-base font-bold text-[#2D3748] tabular-nums">{session.overallScore}</div>
-                    <div className="text-[11px] text-[#718096]">综合分</div>
+                    <div className="text-[11px] text-[#718096]">{t("scenario.overall_score")}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#A0AEC0]">
                   <span className="inline-flex items-center gap-1">
                     <IconClockCircle />
-                    {Math.max(1, Math.round(session.durationSec / 60))} 分钟
+                    {t("scenario.minutes", {
+                      count: Math.max(1, Math.round(session.durationSec / 60)),
+                    })}
                   </span>
-                  <span>{session.turnCount} 轮对话</span>
+                  <span>{t("scenario.turns", { count: session.turnCount })}</span>
                 </div>
                 {session.reviewSummary && (
                   <div className="mt-1.5 text-[11px] text-[#718096] line-clamp-2">{session.reviewSummary}</div>
@@ -129,7 +133,7 @@ export default function ScenarioHistory() {
         </div>
 
         <Button long type="primary" onClick={() => navigate("/scenario-dialogues")}>
-          继续练习
+          {t("scenario.continue_practice")}
         </Button>
       </div>
     </div>

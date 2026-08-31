@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Button, Empty, Message, Spin, Tag, Typography } from "@arco-design/web-react";
 import { IconLeft, IconVoice, IconDashboard } from "@arco-design/web-react/icon";
@@ -13,6 +14,7 @@ import {
   VoiceReadyStatus,
 } from "../api/scenarioDialogue";
 import { ScenarioIcon } from "../components/ScenarioIcon";
+import { formatApiMessage } from "../utils/apiMessage";
 
 const difficultyColor: Record<string, string> = {
   easy: "green",
@@ -20,19 +22,23 @@ const difficultyColor: Record<string, string> = {
   hard: "orangered",
 };
 
-const difficultyLabel: Record<string, string> = {
-  easy: "入门",
-  medium: "进阶",
-  hard: "挑战",
-};
-
 export default function ScenarioSelection() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [stats, setStats] = useState<SpeakingStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<number | null>(null);
   const [voiceReady, setVoiceReady] = useState<VoiceReadyStatus | null>(null);
+
+  const difficultyLabel = (key: string) => {
+    const map: Record<string, string> = {
+      easy: t("scenario.difficulty.easy"),
+      medium: t("scenario.difficulty.medium"),
+      hard: t("scenario.difficulty.hard"),
+    };
+    return map[key] || key;
+  };
 
   useEffect(() => {
     Promise.all([listScenarios(), getSpeakingStats(), getVoiceReady()])
@@ -59,10 +65,10 @@ export default function ScenarioSelection() {
           },
         });
       } else {
-        Message.error(res.msg || "创建会话失败");
+        Message.error(formatApiMessage(res.msg, "scenario.create_session_failed"));
       }
     } catch {
-      Message.error("创建会话失败");
+      Message.error(formatApiMessage(undefined, "scenario.create_session_failed"));
     } finally {
       setStarting(null);
     }
@@ -83,19 +89,19 @@ export default function ScenarioSelection() {
             heading={6}
             className="!m-0 flex-1 text-center !text-base !font-semibold text-foreground -ml-8"
           >
-            场景对话
+            {t("scenario.title")}
           </Typography.Title>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <p className="text-center text-sm text-muted-foreground leading-relaxed">
-          选择场景 → 语音对话 → 实时纠错 → 课后复盘
+          {t("scenario.tagline")}
         </p>
 
         {voiceReady && !voiceReady.ready && (
           <div className="rounded-xl border border-warning/30 bg-tint-cream px-3.5 py-3 text-sm text-charcoal">
-            <p className="font-medium mb-0.5 text-warning">语音服务未就绪</p>
+            <p className="font-medium mb-0.5 text-warning">{t("scenario.voice_not_ready")}</p>
             <p className="text-muted-foreground text-xs leading-relaxed">{voiceReady.hint}</p>
           </div>
         )}
@@ -105,7 +111,7 @@ export default function ScenarioSelection() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                 <IconDashboard className="text-primary" />
-                口语能力概览
+                {t("scenario.speaking_overview")}
               </div>
               <Button
                 type="text"
@@ -113,7 +119,7 @@ export default function ScenarioSelection() {
                 className="!text-primary"
                 onClick={() => navigate("/scenario-dialogues/history")}
               >
-                查看历史
+                {t("scenario.view_history")}
               </Button>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
@@ -121,19 +127,19 @@ export default function ScenarioSelection() {
                 <div className="text-xl font-semibold text-primary tabular-nums">
                   {stats.avgOverallScore}
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">综合分</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{t("scenario.overall_score")}</div>
               </div>
               <div className="rounded-xl bg-tint-sky px-2 py-3">
                 <div className="text-xl font-semibold text-secondary-brand tabular-nums">
                   {stats.totalSessions}
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">练习次数</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{t("scenario.practice_count")}</div>
               </div>
               <div className="rounded-xl bg-surface-soft px-2 py-3">
                 <div className="text-xl font-semibold text-success tabular-nums">
                   {Math.round(stats.totalMinutes)}
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5">累计分钟</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{t("scenario.total_minutes")}</div>
               </div>
             </div>
           </CloudCard>
@@ -141,10 +147,10 @@ export default function ScenarioSelection() {
 
         {loading ? (
           <div className="flex justify-center py-16">
-            <Spin tip="加载场景中..." />
+            <Spin tip={t("scenario.loading_scenarios")} />
           </div>
         ) : scenarios.length === 0 ? (
-          <Empty description="暂无可用场景" />
+          <Empty description={t("scenario.no_scenarios")} />
         ) : (
           <div className="space-y-2.5">
             {scenarios.map((s) => (
@@ -163,14 +169,14 @@ export default function ScenarioSelection() {
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-foreground truncate">{s.name}</span>
                       <Tag size="small" color={difficultyColor[s.difficulty] || "gray"}>
-                        {difficultyLabel[s.difficulty] || s.difficulty}
+                        {difficultyLabel(s.difficulty)}
                       </Tag>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
                       {s.description}
                     </p>
                     {starting === s.id && (
-                      <p className="text-xs text-primary mt-1.5">正在准备对话...</p>
+                      <p className="text-xs text-primary mt-1.5">{t("scenario.preparing_dialogue")}</p>
                     )}
                   </div>
                   <IconVoice className="text-success shrink-0 mt-1" />

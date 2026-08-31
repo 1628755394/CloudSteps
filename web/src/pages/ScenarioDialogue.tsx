@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router";
 import { Alert, Button, Message, Typography } from "@arco-design/web-react";
 import {
@@ -13,6 +14,7 @@ import { useRealtimeVoice } from "@/hooks/useRealtimeVoice";
 import { activateSession, completeSession, Scenario, VoiceReadyStatus } from "@/api/scenarioDialogue";
 import { ScenarioIcon } from "@/components/ScenarioIcon";
 import { buildWebSocketURL } from "@/config/apiConfig";
+import { formatApiMessage } from "@/utils/apiMessage";
 
 interface LocationState {
   sessionId: number;
@@ -23,6 +25,7 @@ interface LocationState {
 }
 
 export default function ScenarioDialogue() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as LocationState | null;
@@ -55,7 +58,7 @@ export default function ScenarioDialogue() {
       return;
     }
     if (state.voiceReady && !state.voiceReady.ready) {
-      setConnectError(state.voiceReady.hint || "语音服务未配置");
+      setConnectError(state.voiceReady.hint || t("scenario.voice_not_configured"));
       return;
     }
     setConnectError("");
@@ -73,10 +76,10 @@ export default function ScenarioDialogue() {
       if (res.code === 200) {
         navigate(`/scenario-review/${state.sessionId}`, { replace: true });
       } else {
-        Message.error(res.msg || "结束会话失败");
+        Message.error(formatApiMessage(res.msg, "scenario.end_session_failed"));
       }
     } catch {
-      Message.error("结束会话失败");
+      Message.error(formatApiMessage(undefined, "scenario.end_session_failed"));
     } finally {
       setEnding(false);
     }
@@ -85,7 +88,7 @@ export default function ScenarioDialogue() {
   const handleInterrupt = () => {
     if (!voice.isConnected) return;
     voice.interrupt();
-    Message.info("已打断 AI");
+    Message.info(t("scenario.interrupted"));
   };
 
   const handleMute = () => {
@@ -96,11 +99,11 @@ export default function ScenarioDialogue() {
   if (!state) return null;
 
   const statusLabel: Record<string, string> = {
-    idle: "准备中",
-    connecting: "连接中...",
-    connected: voice.muted ? "已静音 — AI 正在陪练" : "对话中 — AI 会先开口",
-    disconnected: "已断开",
-    error: "连接失败",
+    idle: t("scenario.status.idle"),
+    connecting: t("scenario.status.connecting"),
+    connected: voice.muted ? t("scenario.status.connected_muted") : t("scenario.status.connected"),
+    disconnected: t("scenario.status.disconnected"),
+    error: t("scenario.status.error"),
   };
 
   return (
@@ -128,12 +131,12 @@ export default function ScenarioDialogue() {
         {(connectError || voice.status === "error") && (
           <Alert
             type="error"
-            title="语音连接失败"
+            title={t("scenario.voice_connect_failed")}
             content={
               <div className="space-y-2 text-xs">
-                <p className="whitespace-pre-wrap">{connectError || "realtime init failed"}</p>
+                <p className="whitespace-pre-wrap">{connectError || t("scenario.status.error")}</p>
                 <Button size="mini" type="outline" status="danger" onClick={() => { setConnectError(""); voice.connect(); }}>
-                  重试连接
+                  {t("scenario.retry_connect")}
                 </Button>
               </div>
             }
@@ -143,7 +146,7 @@ export default function ScenarioDialogue() {
         <div className="bg-card rounded-xl border border-border p-4">
           <div className="flex items-center gap-1.5 mb-1.5 text-xs text-muted-foreground">
             <IconMessage />
-            你说
+            {t("scenario.you_say")}
           </div>
           <Typography.Paragraph className="!mb-0 text-sm text-charcoal min-h-[2rem] leading-relaxed">
             {voice.userText || "..."}
@@ -153,16 +156,16 @@ export default function ScenarioDialogue() {
         <div className="bg-card rounded-xl border border-primary/35 p-4">
           <div className="flex items-center gap-1.5 mb-1.5 text-xs text-muted-foreground">
             <IconVoice />
-            AI 陪练
+            {t("scenario.ai_coach")}
           </div>
           <Typography.Paragraph className="!mb-0 text-sm text-charcoal min-h-[2rem] whitespace-pre-wrap leading-relaxed">
-            {voice.assistantText || (voice.status === "connected" ? "AI 正在准备开场..." : "...")}
+            {voice.assistantText || (voice.status === "connected" ? t("scenario.ai_preparing") : "...")}
           </Typography.Paragraph>
         </div>
 
         {corrections.length > 0 && (
           <div className="rounded-xl border border-warning/30 bg-tint-cream p-3.5">
-            <p className="text-xs font-medium text-warning mb-1.5">实时纠错</p>
+            <p className="text-xs font-medium text-warning mb-1.5">{t("scenario.realtime_correction")}</p>
             {corrections.map((c, i) => (
               <p key={i} className="text-xs text-charcoal mb-1 line-clamp-3 leading-relaxed">{c}</p>
             ))}
@@ -182,7 +185,7 @@ export default function ScenarioDialogue() {
               icon={<IconSound />}
               className="!w-12 !h-12"
             />
-            <span className="text-[11px] text-muted-foreground">打断</span>
+            <span className="text-[11px] text-muted-foreground">{t("scenario.interrupt")}</span>
           </div>
 
           <div className="flex flex-col items-center gap-1">
@@ -196,7 +199,9 @@ export default function ScenarioDialogue() {
               icon={<IconPoweroff />}
               className="!w-14 !h-14"
             />
-            <span className="text-[11px] text-muted-foreground">{ending ? "生成中" : "结束"}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {ending ? t("scenario.generating") : t("scenario.end")}
+            </span>
           </div>
 
           <div className="flex flex-col items-center gap-1">
@@ -210,11 +215,13 @@ export default function ScenarioDialogue() {
               icon={voice.muted ? <IconMute /> : <IconVoice />}
               className="!w-12 !h-12"
             />
-            <span className="text-[11px] text-muted-foreground">{voice.muted ? "已静音" : "静音"}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {voice.muted ? t("scenario.muted") : t("scenario.mute")}
+            </span>
           </div>
         </div>
         <p className="text-center text-[11px] text-muted-soft mt-2">
-          {ending ? "正在生成复盘..." : "结束对话后可查看复盘报告"}
+          {ending ? t("scenario.generating_review") : t("scenario.end_for_review")}
         </p>
       </div>
     </div>
