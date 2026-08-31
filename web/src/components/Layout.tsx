@@ -5,7 +5,6 @@ import {
   Home,
   RefreshCw,
   Users,
-  Library,
   BookOpen,
   Menu,
   X,
@@ -23,7 +22,6 @@ import { teacherAvatarSrc } from "../utils/avatar";
 const navItems = [
   { path: "/", label: "首页", icon: Home },
   { path: "/lesson-prep", label: "备课", icon: BookOpen },
-  { path: "/word-books", label: "其他功能", icon: Library },
   { path: "/anti-forgetting", label: "抗遗忘", icon: RefreshCw },
   { path: "/coach-center", label: "陪练中心", icon: Users },
 ];
