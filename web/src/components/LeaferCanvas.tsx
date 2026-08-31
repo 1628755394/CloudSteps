@@ -62,6 +62,15 @@ interface Snapshot {
   strokePoints: Record<string, number[][]>;
 }
 
+// ---- Text overlay state ----
+interface TextOverlay {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  isNew: boolean;
+}
+
 export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function LeaferCanvas(
   { tool, color, brushWidth, eraserWidth, eraserTrailColor, eraserTrailOpacity, brushStyle, background, fontSize, storageKey, onContentChange },
   ref,
@@ -89,7 +98,11 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   const redoStackRef = useRef<Snapshot[]>([]);
   const strokePointsMap = useRef<Map<string, Pt[]>>(new Map());
   const strokeIdCounter = useRef(0);
+  const textIdCounter = useRef(0);
+  const textMapRef = useRef<Map<string, Text>>(new Map());
   const [eraserCursor, setEraserCursor] = useState<{ x: number; y: number; show: boolean }>({ x: 0, y: 0, show: false });
+  const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
+  const overlayRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Keep refs in sync
   useEffect(() => { toolRef.current = tool; }, [tool]);
@@ -141,6 +154,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     strokePointsMap.current.clear();
     for (const [id, pts] of Object.entries(snap.strokePoints)) {
       strokePointsMap.current.set(id, pts.map(([x, y]) => ({ x, y })));
+    }
+    // Rebuild text map
+    textMapRef.current.clear();
+    for (const child of [...(layer.children || [])]) {
+      const tid = (child as unknown as { id?: string }).id;
+      if (tid && tid.startsWith("text-") && child instanceof Text) {
+        textMapRef.current.set(tid, child);
+      }
     }
     onContentChange?.();
   }, [onContentChange]);
@@ -209,6 +230,78 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     appRef.current?.tree.forceUpdate();
   }, []);
 
+  // ---- Create a Leafer Text element ----
+  const createTextElement = useCallback((x: number, y: number, text: string): string => {
+    const layer = drawLayerRef.current;
+    if (!layer) return "";
+    const id = `text-${textIdCounter.current++}`;
+    const textEl = new Text({
+      id,
+      text,
+      x,
+      y,
+      fill: colorRef.current,
+      fontSize: fontSizeRef.current,
+      draggable: true,
+    });
+    layer.add(textEl);
+    textMapRef.current.set(id, textEl);
+    return id;
+  }, []);
+
+  // ---- Update text element content ----
+  const updateTextContent = useCallback((id: string, text: string) => {
+    const textEl = textMapRef.current.get(id);
+    if (!textEl) return;
+    textEl.text = text;
+    appRef.current?.tree.forceUpdate();
+  }, []);
+
+  // ---- Remove text element ----
+  const removeTextElement = useCallback((id: string) => {
+    const textEl = textMapRef.current.get(id);
+    if (!textEl) return;
+    textEl.remove();
+    textMapRef.current.delete(id);
+    appRef.current?.tree.forceUpdate();
+  }, []);
+
+  // ---- Finish text editing: save or remove if empty ----
+  const finishTextEditing = useCallback(() => {
+    setTextOverlay((current) => {
+      if (!current) return null;
+      const trimmed = current.text.trim();
+      if (trimmed) {
+        if (current.isNew) {
+          // Create new text element
+          createTextElement(current.x, current.y, trimmed);
+        } else {
+          // Update existing
+          updateTextContent(current.id, trimmed);
+        }
+        pushUndo();
+        onContentChange?.();
+      } else if (!current.isNew) {
+        // Remove empty existing text
+        removeTextElement(current.id);
+        pushUndo();
+        onContentChange?.();
+      }
+      return null;
+    });
+  }, [createTextElement, updateTextContent, removeTextElement, pushUndo, onContentChange]);
+
+  // ---- Start text editing at position ----
+  const startTextEditing = useCallback((x: number, y: number, existingId?: string, existingText?: string) => {
+    setTextOverlay({
+      id: existingId || "",
+      x,
+      y,
+      text: existingText || "",
+      isNew: !existingId,
+    });
+  }, []);
+
   // ---- Init Leafer app ----
   useEffect(() => {
     if (!containerRef.current) return;
@@ -262,6 +355,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
             if (parsed.strokePoints) {
               for (const [id, pts] of Object.entries(parsed.strokePoints) as [string, number[][]][]) {
                 strokePointsMap.current.set(id, pts.map(([x, y]) => ({ x, y })));
+              }
+            }
+            // Rebuild text map
+            textMapRef.current.clear();
+            for (const child of [...drawLayer.children]) {
+              const tid = (child as unknown as { id?: string }).id;
+              if (tid && tid.startsWith("text-") && child instanceof Text) {
+                textMapRef.current.set(tid, child);
               }
             }
           }
@@ -361,33 +462,6 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       const pt = getPoint(e);
 
       if (t === "select") return;
-
-      if (t === "text") {
-        // Add text at top-left, no visible border, double-click to edit
-        const text = new Text({
-          text: "",
-          x: 16,
-          y: 8,
-          fill: colorRef.current,
-          fontSize: fontSizeRef.current,
-          editable: true,
-          draggable: true,
-        });
-        drawLayer.add(text);
-        pushUndo();
-        onContentChange?.();
-        // Double-click to enter edit mode
-        text.on("dblclick", () => {
-          app.editor.target = text;
-          (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
-        });
-        // Enter edit mode immediately for typing
-        app.editor.target = text;
-        setTimeout(() => {
-          (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
-        }, 50);
-        return;
-      }
 
       if (t === "circle" || t === "rect") {
         shapeStartRef.current = pt;
@@ -587,11 +661,42 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       for (const item of [...list]) {
         const id = (item as unknown as { id?: string }).id;
         if (id) strokePointsMap.current.delete(id);
+        if (id && textMapRef.current.has(id)) textMapRef.current.delete(id);
         item.remove();
       }
       editor.target = undefined;
       pushUndo();
       onContentChange?.();
+    };
+
+    // ---- Double-click to create/edit text using HTML overlay ----
+    const onDblClick = (e: MouseEvent) => {
+      const layer = drawLayerRef.current;
+      if (!layer) return;
+      const pt = getPoint(e);
+
+      // Check if double-clicking on an existing text element
+      // Try to find a text element near the click point
+      let foundText: { id: string; text: string; x: number; y: number } | null = null;
+      for (const [tid, textEl] of textMapRef.current) {
+        const tx = (textEl as unknown as { x: number }).x;
+        const ty = (textEl as unknown as { y: number }).y;
+        const tw = (textEl as unknown as { width: number }).width || 100;
+        const th = (textEl as unknown as { height: number }).height || fontSizeRef.current;
+        // Check if click is within text bounds (with some padding)
+        if (pt.x >= tx - 4 && pt.x <= tx + tw + 4 && pt.y >= ty - 4 && pt.y <= ty + th + 4) {
+          foundText = { id: tid, text: textEl.text || "", x: tx, y: ty };
+          break;
+        }
+      }
+
+      if (foundText) {
+        // Edit existing text
+        startTextEditing(foundText.x, foundText.y, foundText.id, foundText.text);
+      } else {
+        // Create new text at click position
+        startTextEditing(pt.x, pt.y);
+      }
     };
 
     const el = containerRef.current;
@@ -600,38 +705,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     el.addEventListener("pointerup", onPointerUp);
     el.addEventListener("pointercancel", onPointerUp);
     el.addEventListener("contextmenu", onContextMenu);
-    window.addEventListener("keydown", onKeyDown);
-
-    // Double-click on canvas to create text at that position and start typing
-    const onDblClick = (e: MouseEvent) => {
-      const app = appRef.current;
-      const layer = drawLayerRef.current;
-      if (!app || !layer) return;
-      // Only create new text when double-clicking empty canvas area (not existing text)
-      if (e.target !== el) return;
-      const pt = getPoint(e as unknown as PointerEvent);
-      const text = new Text({
-        text: "",
-        x: pt.x,
-        y: pt.y,
-        fill: colorRef.current,
-        fontSize: fontSizeRef.current,
-        editable: true,
-        draggable: true,
-      });
-      layer.add(text);
-      pushUndo();
-      onContentChange?.();
-      text.on("dblclick", () => {
-        app.editor.target = text;
-        (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
-      });
-      app.editor.target = text;
-      setTimeout(() => {
-        (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
-      }, 50);
-    };
     el.addEventListener("dblclick", onDblClick);
+    window.addEventListener("keydown", onKeyDown);
     // 编辑器拖动平移结束（MoveEvent.END）与缩放/旋转拖动结束（DragEvent.END）
     // 都会冒泡到 app；在此时合并位移，保证笔迹不变量。
     // 操作幂等：合并后 x/y 归零，重复触发不会二次位移。
@@ -653,9 +728,21 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       appRef.current = null;
       drawLayerRef.current = null;
       strokePointsMap.current.clear();
+      textMapRef.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
+
+  // ---- Auto-focus the text overlay when it appears ----
+  useEffect(() => {
+    if (textOverlay && overlayRef.current) {
+      const ta = overlayRef.current;
+      // Focus and place cursor at end
+      ta.focus();
+      const len = ta.value.length;
+      ta.setSelectionRange(len, len);
+    }
+  }, [textOverlay]);
 
   // ---- Tool mode switching ----
   useEffect(() => {
@@ -665,10 +752,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     app.editor.hittable = canDrag;
     app.tree.hittable = canDrag;
     for (const child of drawLayerRef.current?.children || []) {
-      const isText = (child as unknown as { tag?: string }).tag === "Text";
-      // Text elements are always hittable/draggable for double-click editing
-      (child as unknown as { draggable: boolean }).draggable = canDrag || isText;
-      (child as unknown as { hittable: boolean }).hittable = true;
+      (child as unknown as { draggable: boolean }).draggable = canDrag;
     }
     if (!canDrag) {
       app.editor.target = undefined;
@@ -714,6 +798,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
             strokePointsMap.current.set(id, pts.map(([x, y]) => ({ x, y })));
           }
         }
+        // Rebuild text map
+        textMapRef.current.clear();
+        for (const child of [...(layer.children || [])]) {
+          const tid = (child as unknown as { id?: string }).id;
+          if (tid && tid.startsWith("text-") && child instanceof Text) {
+            textMapRef.current.set(tid, child);
+          }
+        }
         undoStackRef.current = [captureSnapshot()];
         redoStackRef.current = [];
         onContentChange?.();
@@ -743,6 +835,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       pushUndo();
       layer.removeAll(true);
       strokePointsMap.current.clear();
+      textMapRef.current.clear();
       appRef.current?.editor && (appRef.current.editor.target = undefined);
       appRef.current?.tree.forceUpdate();
       onContentChange?.();
@@ -754,33 +847,11 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       }
     },
     addTextAtCenter: () => {
-      const app = appRef.current;
       const layer = drawLayerRef.current;
-      if (!app || !layer) return;
-      const text = new Text({
-        text: "",
-        x: 16,
-        y: 8,
-        fill: colorRef.current,
-        fontSize: fontSizeRef.current,
-        editable: true,
-        draggable: true,
-      });
-      layer.add(text);
-      pushUndo();
-      onContentChange?.();
-      // Double-click to edit
-      text.on("dblclick", () => {
-        app.editor.target = text;
-        (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
-      });
-      // Enter edit mode immediately for typing
-      app.editor.target = text;
-      setTimeout(() => {
-        (text as unknown as { textEditor?: { enter: () => void } }).textEditor?.enter();
-      }, 50);
+      if (!layer) return;
+      startTextEditing(16, 8);
     },
-  }), [captureSnapshot, restoreSnapshot, pushUndo, onContentChange]);
+  }), [captureSnapshot, restoreSnapshot, pushUndo, onContentChange, startTextEditing]);
 
   return (
     <div className="relative h-full w-full touch-none select-none">
@@ -802,6 +873,45 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
             left: `${eraserCursor.x - eraserWidth / 2}px`,
             top: `${eraserCursor.y - eraserWidth / 2}px`,
           }}
+        />
+      )}
+      {/* Text editing overlay: transparent textarea, no border, looks like typing on canvas */}
+      {textOverlay && (
+        <textarea
+          ref={overlayRef}
+          value={textOverlay.text}
+          onChange={(e) => setTextOverlay((prev) => prev ? { ...prev, text: e.target.value } : null)}
+          onBlur={finishTextEditing}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              finishTextEditing();
+            }
+            // Enter without shift = finish (single line text)
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              finishTextEditing();
+            }
+          }}
+          className="absolute z-50 resize-none overflow-hidden border-none bg-transparent outline-none"
+          style={{
+            left: `${textOverlay.x}px`,
+            top: `${textOverlay.y}px`,
+            color: color,
+            fontSize: `${fontSize}px`,
+            fontFamily: "inherit",
+            lineHeight: "1.3",
+            minWidth: "20px",
+            minHeight: `${fontSize * 1.3}px`,
+            width: "auto",
+            padding: "0",
+            margin: "0",
+            caretColor: color,
+            boxShadow: "none",
+            whiteSpace: "pre",
+          }}
+          rows={1}
+          autoFocus
         />
       )}
     </div>

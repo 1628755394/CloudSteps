@@ -138,11 +138,10 @@ input[type="month"]::-webkit-calendar-picker-indicator {
   }
 }
 
-/* Leafer 文字编辑器：无边框、无背景，看起来像直接在画布上打字 */
+/* Leafer 文字编辑器：隐藏默认边框（如使用内置编辑器时） */
 .leafer-text-editor {
   border: none !important;
   outline: none !important;
   background: transparent !important;
   box-shadow: none !important;
-  caret-color: currentColor;
 }
