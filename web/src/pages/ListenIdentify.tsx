@@ -10,13 +10,16 @@ import {
   markWordCardStyle,
   type WordViewMode,
 } from "../components/WordMarkView";
-import { ArrowRight, Volume2, Shuffle, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, Volume2, Shuffle, BookOpen, ChevronLeft, ChevronRight, PanelTop } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { playFirstWordAudio } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { applyUserWordView } from "../components/WordEditControls";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
+import { NoteSplitLayout } from "../components/NoteSplitLayout";
+import { useNote } from "../components/NoteContext";
 
 import { useTranslation } from "react-i18next";
 
@@ -34,6 +37,7 @@ type ListenWord = {
 export default function ListenIdentify() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const note = useNote();
   const [words, setWords] = useState<ListenWord[]>([]);
   const [annotationOpen, setAnnotationOpen] = useState(false);
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
@@ -203,7 +207,15 @@ export default function ListenIdentify() {
             )}
             {showAnswer && renderRevealed(w)}
           </div>
-
+          <div onClick={(e) => e.stopPropagation()}>
+            <StudyNoteLauncher
+              storageKey={wordNoteKey(w.id)}
+              title={t("practice.note_title", { word: w.word })}
+              label={t("practice.note")}
+              className="h-9 px-2"
+              onOpen={() => note.openNote(wordNoteKey(w.id), t("practice.note_title", { word: w.word }))}
+            />
+          </div>
         </div>
         {detailMode && showAnswer && (
           <div className="mt-3" onClick={(e) => e.stopPropagation()}>
@@ -256,6 +268,10 @@ export default function ListenIdentify() {
         onOpenChange={setAnnotationOpen}
       />
 
+      <NoteSplitLayout
+        defaultStorageKey={`study-note:global:${wordBookId}`}
+        defaultTitle={t("practice.free_note")}
+      >
       <div className="px-4 mt-6 max-w-5xl mx-auto w-full pb-28">
         <div className="text-center text-sm text-[#718096] mb-6">{t("practice.batch_group", { current: batchIdx + 1, total: totalBatches })}</div>
 
@@ -324,6 +340,15 @@ export default function ListenIdentify() {
                 </CloudButton>
               </div>
               <div className="flex items-center justify-center gap-3 border-t border-border/60 px-4 py-4">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StudyNoteLauncher
+                    storageKey={wordNoteKey(cardWord.id)}
+                    title={t("practice.note_title", { word: cardWord.word })}
+                    label={t("practice.note")}
+                    className="h-9 px-2"
+                    onOpen={() => note.openNote(wordNoteKey(cardWord.id), t("practice.note_title", { word: cardWord.word }))}
+                  />
+                </div>
                 <CloudButton
                   type="button"
                   variant="ghost"
@@ -360,6 +385,7 @@ export default function ListenIdentify() {
           </div>
         )}
       </div>
+      </NoteSplitLayout>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
         <div className="max-w-5xl mx-auto w-full">
@@ -378,6 +404,17 @@ export default function ListenIdentify() {
               >
                 <BookOpen size={15} />
                 <span className="hidden sm:inline">{t("practice.expand")}</span>
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant={note.open ? "brand" : "outline"}
+                size="pill"
+                onClick={() => (note.open ? note.setOpen(false) : note.openNote(`study-note:global:${wordBookId}`, t("practice.free_note")))}
+                aria-label={t("practice.open_free_note")}
+                className="max-sm:px-2 max-sm:text-xs"
+              >
+                <PanelTop size={15} className={note.open ? "text-white" : "text-[#c45c78]"} />
+                <span className="hidden sm:inline">{t("practice.free_note")}</span>
               </CloudButton>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
