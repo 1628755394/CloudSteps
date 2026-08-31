@@ -1,0 +1,5 @@
+style(web): 手机端前进按钮靠近底部工具栏
+
+- WordPractice、ListenIdentify、FlashReview、PostTrainingCheck、PreTrainingCheck、ReviewCheck、ReviewWordList
+- 浮动箭头按钮从 bottom-20 调整为 bottom-16
+- ReviewCheck 修复 JSX 片段结构

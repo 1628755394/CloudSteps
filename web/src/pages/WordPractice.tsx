@@ -564,7 +564,7 @@ export default function WordPractice() {
         variant="brand"
         size="iconRound"
         onClick={handleNext}
-        className="fixed right-3 bottom-20 z-50 size-12 shadow-lg sm:hidden"
+        className="fixed right-3 bottom-16 z-50 size-12 shadow-lg sm:hidden"
         aria-label={t("practice.next")}
       >
         <ArrowRight size={24} />

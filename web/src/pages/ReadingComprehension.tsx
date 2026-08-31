@@ -14,6 +14,8 @@ import {
   Typography,
 } from "@arco-design/web-react";
 import { IconLeft } from "@arco-design/web-react/icon";
+import { ArrowRight } from "lucide-react";
+import { CloudButton } from "../components/cloudsteps";
 import {
   getReadingPassage,
   listReadingPassages,
@@ -355,7 +357,7 @@ export default function ReadingComprehension() {
             </Space>
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-3">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-3 hidden sm:block">
             <Button
               type="primary"
               long
@@ -372,6 +374,19 @@ export default function ReadingComprehension() {
                   })}
             </Button>
           </div>
+
+          <CloudButton
+            type="button"
+            variant="brand"
+            size="iconRound"
+            onClick={() => void onSubmit()}
+            disabled={!allAnswered || submitting}
+            loading={submitting}
+            className="fixed right-3 bottom-20 z-50 size-11 shadow-lg sm:hidden"
+            aria-label={t("practice.submit")}
+          >
+            <ArrowRight size={20} />
+          </CloudButton>
         </>
       )}
     </div>

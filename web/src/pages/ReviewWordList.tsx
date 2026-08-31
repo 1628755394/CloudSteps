@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { Volume2, Check, X, BookOpen, PanelTop } from "lucide-react";
+import { Volume2, Check, X, BookOpen, PanelTop, ArrowRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getReviewToday, startReviewSession, completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
@@ -452,7 +452,7 @@ export default function ReviewWordList() {
           onSideChange={setNoteSide}
         />
       )}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-2 sm:py-3 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-2.5">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {!viewOnly && (
@@ -512,7 +512,7 @@ export default function ReviewWordList() {
                   disabled={submitting || !allMarked}
                   loading={submitting}
                   loadingText={t("practice.submitting")}
-                  className={`flex-1 min-w-0 truncate ${!allMarked && words.length > 0 ? "opacity-80" : ""}`}
+                  className={`hidden sm:flex flex-1 min-w-0 truncate ${!allMarked && words.length > 0 ? "opacity-80" : ""}`}
                 >
                   {t("practice.submit_review")}
                   {words.length > 0 ? ` (${markedCount}/${words.length})` : ""}
@@ -535,6 +535,21 @@ export default function ReviewWordList() {
           )}
         </div>
       </div>
+
+      {!viewOnly && (
+        <CloudButton
+          type="button"
+          variant="brand"
+          size="iconRound"
+          onClick={handleSubmit}
+          disabled={!allMarked || submitting}
+          className="fixed right-3 bottom-16 z-50 size-11 shadow-lg sm:hidden"
+          aria-label={t("practice.submit_review")}
+        >
+          <ArrowRight size={20} />
+        </CloudButton>
+      )}
+
     </FlowPageShell>
   );
 }

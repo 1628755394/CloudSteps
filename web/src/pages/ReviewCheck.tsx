@@ -1,4 +1,4 @@
-import { Volume2, Check, X, Shuffle, BookOpen, PanelTop } from "lucide-react";
+import { Volume2, Check, X, Shuffle, BookOpen, PanelTop, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AnnotationLayer } from "../components/AnnotationLayer";
@@ -371,8 +371,8 @@ export default function ReviewCheck() {
         )}
       </NoteSplitLayout>
 
-      {showList && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-2 sm:py-3 shadow-lg">
+      {showList && (<>
+        <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
           <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-2.5">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -418,7 +418,7 @@ export default function ReviewCheck() {
               <CloudButton
                 variant="brand"
                 size="pill"
-                className={`flex-1 min-w-0 truncate ${markedWords.length === 0 ? "opacity-80" : ""}`}
+                className={`hidden sm:flex flex-1 min-w-0 truncate ${markedWords.length === 0 ? "opacity-80" : ""}`}
                 onClick={handleSubmit}
                 disabled={submitting}
                 loading={submitting}
@@ -438,7 +438,19 @@ export default function ReviewCheck() {
             )}
           </div>
         </div>
-      )}
+
+        <CloudButton
+          type="button"
+          variant="brand"
+          size="iconRound"
+          onClick={handleSubmit}
+          disabled={markedWords.length === 0 || submitting}
+          className="fixed right-3 bottom-16 z-50 size-11 shadow-lg sm:hidden"
+          aria-label={t("practice.start_study")}
+        >
+          <ArrowRight size={20} />
+        </CloudButton>
+      </>)}
     </FlowPageShell>
   );
 }

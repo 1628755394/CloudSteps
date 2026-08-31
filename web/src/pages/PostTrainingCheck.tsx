@@ -1,4 +1,4 @@
-import { Volume2, Check, X, BookOpen, Shuffle, PanelTop, Type } from "lucide-react";
+import { Volume2, Check, X, BookOpen, Shuffle, PanelTop, Type, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -632,7 +632,7 @@ export default function PostTrainingCheck() {
         </div>
       </StudyNoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-2 sm:py-3 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -703,7 +703,7 @@ export default function PostTrainingCheck() {
                 type="button"
                 variant="brand"
                 size="pill"
-                className="flex-1 min-w-0 truncate md:flex-none"
+                className="hidden sm:flex flex-1 min-w-0 truncate md:flex-none"
                 onClick={handleSubmit}
                 disabled={!allMarked || submitting}
                 loading={submitting}
@@ -715,6 +715,18 @@ export default function PostTrainingCheck() {
           </div>
         </div>
       </div>
+
+      <CloudButton
+        type="button"
+        variant="brand"
+        size="iconRound"
+        onClick={handleSubmit}
+        disabled={!allMarked || submitting}
+        className="fixed right-3 bottom-16 z-50 size-11 shadow-lg sm:hidden"
+        aria-label={t("practice.submit")}
+      >
+        <ArrowRight size={20} />
+      </CloudButton>
 
       {spellTarget && (
         <div
