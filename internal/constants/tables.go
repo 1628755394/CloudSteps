@@ -58,6 +58,8 @@ const (
 	TABLE_ANNOUNCEMENTS      = "announcements"
 	TABLE_ANNOUNCEMENT_READS = "announcement_reads"
 
+	TABLE_WECHAT_MP_ARTICLES = "wechat_mp_articles"
+
 	// ── 反馈 ──
 	TABLE_FEEDBACK_TICKETS = "feedback_tickets"
 	TABLE_FEEDBACK_REPLIES = "feedback_replies"
