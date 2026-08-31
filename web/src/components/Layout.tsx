@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import {
   Home,
   RefreshCw,
@@ -19,18 +20,20 @@ import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
 import { useThemeStore, type LayoutMode } from "../stores/themeStore";
 import { teacherAvatarSrc } from "../utils/avatar";
 
-const navItems = [
-  { path: "/", label: "首页", icon: Home },
-  { path: "/lesson-prep", label: "备课", icon: BookOpen },
-  { path: "/anti-forgetting", label: "抗遗忘", icon: RefreshCw },
-  { path: "/coach-center", label: "陪练中心", icon: Users },
-];
+const navItemDefs = [
+  { path: "/", labelKey: "nav.home", icon: Home },
+  { path: "/lesson-prep", labelKey: "nav.lesson_prep", icon: BookOpen },
+  { path: "/anti-forgetting", labelKey: "nav.anti_forgetting", icon: RefreshCw },
+  { path: "/coach-center", labelKey: "nav.coach_center", icon: Users },
+] as const;
+
+type NavItem = (typeof navItemDefs)[number] & { label: string };
 
 function BottomNav({
   items,
   pathname,
 }: {
-  items: typeof navItems;
+  items: NavItem[];
   pathname: string;
 }) {
   return (
@@ -84,25 +87,29 @@ function SidebarPanel({
   avatarSrc,
   onNavigate,
   className = "",
+  officialCoachingLabel,
+  avatarAlt,
 }: {
-  items: typeof navItems;
+  items: NavItem[];
   pathname: string;
   greetingText: string;
   userName: string;
   avatarSrc: string;
   onNavigate?: () => void;
   className?: string;
+  officialCoachingLabel: string;
+  avatarAlt: string;
 }) {
   return (
     <div className={className}>
       <div className="mb-6">
         <div className="inline-flex items-center gap-2 px-2.5 py-0.5 bg-primary-soft rounded-lg mb-2 ml-[50px]">
-          <span className="text-xs text-primary font-semibold">正式陪练</span>
+          <span className="text-xs text-primary font-semibold">{officialCoachingLabel}</span>
         </div>
         <div className="flex items-center gap-2.5">
           <CloudImageWithFallback
             src={avatarSrc}
-            alt={userName || "头像"}
+            alt={avatarAlt}
             className="size-10 rounded-full object-cover border border-border bg-card"
           />
           <div>
@@ -118,6 +125,7 @@ function SidebarPanel({
 
 export function Layout() {
   const location = useLocation();
+  const { t } = useTranslation();
   const layout = useThemeStore((s) => s.layout) as LayoutMode;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userRole = useAuthStore((s) => s.user?.role);
@@ -127,10 +135,18 @@ export function Layout() {
 
   const greetingText = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  }, []);
+    if (hour < 12) return t("nav.greeting_morning");
+    if (hour < 18) return t("nav.greeting_afternoon");
+    return t("nav.greeting_evening");
+  }, [t]);
+
+  const navItems = useMemo<NavItem[]>(
+    () => navItemDefs.map((item) => ({ ...item, label: t(item.labelKey) })),
+    [t],
+  );
+
+  const avatarAlt = userName || t("ui.avatar");
+  const officialCoachingLabel = t("nav.official_coaching");
 
   const mobileMenuCloseTimerRef = useRef<number | null>(null);
   const [mobileMenuMounted, setMobileMenuMounted] = useState(false);
@@ -238,6 +254,8 @@ export function Layout() {
             greetingText={greetingText}
             userName={userName}
             avatarSrc={avatarSrc}
+            officialCoachingLabel={officialCoachingLabel}
+            avatarAlt={avatarAlt}
           />
         </aside>
       )}
@@ -264,9 +282,11 @@ export function Layout() {
               pathname={location.pathname}
               greetingText={greetingText}
               userName={userName}
-              avatarSrc={avatarSrc}
-              onNavigate={closeMobileMenu}
-            />
+            avatarSrc={avatarSrc}
+            onNavigate={closeMobileMenu}
+            officialCoachingLabel={officialCoachingLabel}
+            avatarAlt={avatarAlt}
+          />
           </aside>
         </div>
       )}

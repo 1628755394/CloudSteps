@@ -29,7 +29,7 @@ type SurfaceTone = {
 };
 
 type AccentPreset = {
-  label: string;
+  labelKey: string;
   hex: string;
   deep: string;
   light: SurfaceTone;
@@ -38,7 +38,7 @@ type AccentPreset = {
 
 export const ACCENT_PRESETS: Record<AccentPresetKey, AccentPreset> = {
   mint: {
-    label: "薄荷绿",
+    labelKey: "settings.accent_mint",
     hex: "#4ECDC4",
     deep: "#3DB8B0",
     light: {
@@ -63,7 +63,7 @@ export const ACCENT_PRESETS: Record<AccentPresetKey, AccentPreset> = {
     },
   },
   sky: {
-    label: "天空蓝",
+    labelKey: "settings.accent_sky",
     hex: "#55A3FF",
     deep: "#3D8FE6",
     light: {
@@ -88,7 +88,7 @@ export const ACCENT_PRESETS: Record<AccentPresetKey, AccentPreset> = {
     },
   },
   violet: {
-    label: "罗兰紫",
+    labelKey: "settings.accent_violet",
     hex: "#8B7FD8",
     deep: "#7366C4",
     light: {
@@ -113,7 +113,7 @@ export const ACCENT_PRESETS: Record<AccentPresetKey, AccentPreset> = {
     },
   },
   coral: {
-    label: "珊瑚红",
+    labelKey: "settings.accent_coral",
     hex: "#FF6B6B",
     deep: "#E85555",
     light: {
@@ -138,7 +138,7 @@ export const ACCENT_PRESETS: Record<AccentPresetKey, AccentPreset> = {
     },
   },
   white: {
-    label: "经典白",
+    labelKey: "settings.accent_white",
     hex: "#6B7280",
     deep: "#4B5563",
     light: {
@@ -164,15 +164,15 @@ export const ACCENT_PRESETS: Record<AccentPresetKey, AccentPreset> = {
   },
 };
 
-export const LAYOUT_PRESETS: Record<LayoutMode, { label: string; desc: string }> = {
-  sidebar: { label: "侧栏", desc: "桌面左侧导航，移动端底部导航" },
-  bottom: { label: "底栏", desc: "全端底部导航，无左侧栏" },
+export const LAYOUT_PRESETS: Record<LayoutMode, { labelKey: string; descKey: string }> = {
+  sidebar: { labelKey: "settings.sidebar", descKey: "settings.sidebar_desc" },
+  bottom: { labelKey: "settings.bottom", descKey: "settings.bottom_desc" },
 };
 
-export const THEME_MODE_PRESETS: Record<ThemeMode, { label: string }> = {
-  light: { label: "浅色" },
-  dark: { label: "深色" },
-  system: { label: "跟随系统" },
+export const THEME_MODE_PRESETS: Record<ThemeMode, { labelKey: string }> = {
+  light: { labelKey: "settings.light" },
+  dark: { labelKey: "settings.dark" },
+  system: { labelKey: "settings.system" },
 };
 
 interface ThemeState {

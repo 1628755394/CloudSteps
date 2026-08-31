@@ -1,4 +1,5 @@
 import { get, post, put, ApiResponse } from '../utils/request'
+import i18n from '../i18n'
 
 export interface ApiNotification {
   id: number
@@ -64,7 +65,7 @@ export const markAllNotificationsRead = async (): Promise<ApiResponse<null>> => 
 
 export const markNotificationRead = async (id: number): Promise<ApiResponse<null>> => {
   if (!Number.isFinite(id) || id <= 0) {
-    return Promise.reject({ code: 400, msg: '无效的通知 ID' })
+    return Promise.reject({ code: 400, msg: i18n.t('notification.invalid_id') })
   }
   return put<null>(`/notification/read/${id}`)
 }
