@@ -146,6 +146,7 @@ func (s *HTTPServer) Start(ctx context.Context) error {
 			"/docs", "/openapi",
 			"/api/auth/login", "/api/auth/register", "/api/auth/captcha", "/api/auth/salt",
 			"/api/auth/send", "/api/auth/reset-password", "/api/auth/verify-email",
+			"/api/auth/wechat/mp/message",
 		)))
 	}
 

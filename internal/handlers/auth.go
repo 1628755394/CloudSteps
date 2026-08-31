@@ -57,6 +57,13 @@ func (h *Handlers) registerAuthRoutes(r *humax.Group) {
 		authG.POST("/login/password", authLimit, h.handleUserSigninByPassword)
 		authG.POST("/login/email", authLimit, h.handleUserSigninByEmail)
 
+		// WeChat official account login (follow + verification code + poll)
+		authG.POST("/wechat/login/session", authLimit, h.handleWechatLoginStartSession)
+		authG.GET("/wechat/login/status", authLimit, h.handleWechatLoginStatus)
+		authG.POST("/wechat/login/verify", authLimit, h.handleWechatLoginVerify)
+		authG.GET("/wechat/mp/message", h.handleWechatMPMessageVerify)
+		authG.POST("/wechat/mp/message", h.handleWechatMPMessage)
+
 		// logout
 		authG.GET("/logout", middleware.Required, h.handleUserLogout)
 		authG.GET("/info", middleware.Required, h.handleUserInfo)
