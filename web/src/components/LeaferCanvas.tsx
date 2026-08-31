@@ -790,10 +790,10 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     app.editor.hittable = canDrag;
     app.tree.hittable = canDrag;
     // Prevent Leafer's internal text editor from opening (we use HTML overlay instead)
-    (app.editor as unknown as { mergeConfig?: Record<string, unknown> }).mergeConfig = {
-      ...(app.editor as unknown as { mergeConfig?: Record<string, unknown> }).mergeConfig,
-      preventEditInner: true,
-    };
+    const editorConfig = (app.editor as unknown as { config?: Record<string, unknown> }).config;
+    if (editorConfig) {
+      editorConfig.preventEditInner = true;
+    }
     for (const child of drawLayerRef.current?.children || []) {
       (child as unknown as { draggable: boolean }).draggable = canDrag;
     }
