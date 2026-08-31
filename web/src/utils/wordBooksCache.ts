@@ -1,4 +1,5 @@
 import { listWordBooks, type WordBookItem } from "../api/wordbooks";
+import i18n from "../i18n";
 
 const STORAGE_KEY = "lb_wordbooks_all_v1";
 /** 词库变动少，本地缓存 7 天 */
@@ -68,7 +69,7 @@ async function fetchAllWordBooksFromApi(): Promise<CachedWordBook[]> {
   const pageSize = 500;
   for (;;) {
     const res = await listWordBooks({ page, pageSize });
-    if (res.code !== 200) throw new Error(res.msg || "加载词库失败");
+    if (res.code !== 200) throw new Error(res.msg || i18n.t("wordbook.load_failed"));
     const chunk = Array.isArray(res.data?.list) ? res.data.list : [];
     all.push(...chunk);
     const total = res.data?.total || 0;

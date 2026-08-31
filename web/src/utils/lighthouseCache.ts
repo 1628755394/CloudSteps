@@ -1,4 +1,5 @@
 import { getStudyLighthouse, type StudyLighthouseResponse } from "../api/study";
+import i18n from "../i18n";
 
 const CACHE_PREFIX = "lb_lighthouse_v1_";
 const CACHE_TTL_MS = 3 * 60 * 1000;
@@ -72,7 +73,7 @@ export async function fetchLighthouse(
 
   const promise = (async () => {
     const res = await getStudyLighthouse(wordBookId);
-    if (res.code !== 200) throw new Error(res.msg || "加载灯塔数据失败");
+    if (res.code !== 200) throw new Error(res.msg || i18n.t("lighthouse.load_failed"));
     const data: StudyLighthouseResponse = {
       days: Array.isArray(res.data?.days) ? res.data.days : [],
       pendingCount: Number(res.data?.pendingCount ?? 0),

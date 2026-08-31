@@ -1,5 +1,7 @@
 /** 抗遗忘 / 训前复习：勾选后进入与课前检测相同的练习链路 */
 
+import i18n from "../i18n";
+
 export type ReviewPracticeWord = {
   id: number;
   word: string;
@@ -23,7 +25,7 @@ export function beginReviewPractice(opts: {
 }) {
   const { sessionId, wordBookId, words, returnPath } = opts;
   if (!sessionId || words.length === 0) {
-    throw new Error("复习会话或单词为空");
+    throw new Error(i18n.t("review.empty_session"));
   }
   sessionStorage.setItem("lb_mode", "review");
   sessionStorage.setItem("lb_review_session_id", String(sessionId));

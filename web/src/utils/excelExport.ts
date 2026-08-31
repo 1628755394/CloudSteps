@@ -1,4 +1,5 @@
 /** 生成可被 Excel / WPS 打开的 SpreadsheetML（.xls），无需第三方依赖 */
+import i18n from "../i18n";
 export function downloadExcelRows(
   filename: string,
   sheetName: string,
@@ -107,7 +108,13 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
 }
 
 function colAlign(header: string): CanvasTextAlign {
-  if (header === "中文" || header === "释义") return "left";
+  const leftHeaders = new Set([
+    i18n.t("export.col_chinese"),
+    i18n.t("export.col_meaning"),
+    "Chinese",
+    "Meaning",
+  ]);
+  if (leftHeaders.has(header)) return "left";
   return "center";
 }
 
@@ -116,7 +123,7 @@ function canvasToJpegBytes(canvas: HTMLCanvasElement, quality = 0.92): Promise<U
     canvas.toBlob(
       async (blob) => {
         if (!blob) {
-          reject(new Error("无法生成图片"));
+          reject(new Error(i18n.t("export.image_failed")));
           return;
         }
         const buf = await blob.arrayBuffer();
@@ -228,7 +235,7 @@ export async function downloadPdfTable(opts: {
 }) {
   const { headers, rows } = opts;
   const filename = opts.filename.endsWith(".pdf") ? opts.filename : `${opts.filename}.pdf`;
-  const heading = (opts.title || "").trim() || "单词表";
+  const heading = (opts.title || "").trim() || i18n.t("export.default_title");
   const logo = await loadImage(opts.logoUrl || "/logo.png");
 
   const pageW = 595;
@@ -240,7 +247,9 @@ export async function downloadPdfTable(opts: {
 
   const colWidths = (() => {
     const n = headers.length;
-    const hasIndex = headers[0] === "序号";
+    const indexHeader = i18n.t("export.col_index");
+    const phoneticHeader = i18n.t("export.col_phonetic");
+    const hasIndex = headers[0] === indexHeader || headers[0] === "序号";
     if (hasIndex && n === 4) {
       const idx = 36;
       const rest = usable - idx;
@@ -249,7 +258,7 @@ export async function downloadPdfTable(opts: {
     if (hasIndex && n === 3) {
       const idx = 36;
       const rest = usable - idx;
-      const mid = headers.includes("音标") ? rest * 0.42 : rest * 0.38;
+      const mid = headers.includes(phoneticHeader) || headers.includes("音标") ? rest * 0.42 : rest * 0.38;
       return [idx, mid, rest - mid];
     }
     if (!hasIndex && n === 3) {

@@ -1,4 +1,5 @@
 import type { CustomParsedWord } from "../api/wordbooks";
+import i18n from "../i18n";
 
 const MAX_WORDS = 2000;
 
@@ -135,6 +136,6 @@ export async function downloadExcelTemplateLocal() {
   const sheet = XLSX.utils.aoa_to_sheet(aoa);
   sheet["!cols"] = [{ wch: 16 }, { wch: 22 }, { wch: 16 }];
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, sheet, "词表");
-  XLSX.writeFile(wb, "自定义词书导入模板.xlsx");
+  XLSX.utils.book_append_sheet(wb, sheet, i18n.t("custom_wordbook.sheet_name"));
+  XLSX.writeFile(wb, i18n.t("custom_wordbook.template_filename"));
 }

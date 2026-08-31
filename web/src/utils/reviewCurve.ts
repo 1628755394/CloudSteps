@@ -1,4 +1,5 @@
 import type { ReviewCurvePreset } from '../api/auth'
+import i18n from '../i18n'
 
 /** 与打印 PDF 一致：开课日 = 第 1 天 */
 export const REVIEW_SCHEDULE_DAYS: Record<ReviewCurvePreset, number[]> = {
@@ -8,36 +9,31 @@ export const REVIEW_SCHEDULE_DAYS: Record<ReviewCurvePreset, number[]> = {
   times10: [1, 2, 3, 5, 7, 9, 12, 14, 17, 21],
 }
 
+export const REVIEW_CURVE_PRESETS: ReviewCurvePreset[] = [
+  'times3',
+  'times5',
+  'times7',
+  'times10',
+]
+
 function formatScheduleDesc(days: number[]): string {
-  return days.map((d) => `第${d}天`).join(' → ')
+  return days.map((d) => i18n.t('review_curve.day', { n: d })).join(' → ')
 }
 
-export const REVIEW_TIMES_OPTIONS: Array<{
+export function getReviewTimesOptions(): Array<{
   value: ReviewCurvePreset
   label: string
   desc: string
-}> = [
-  {
-    value: 'times3',
-    label: '3 次',
-    desc: formatScheduleDesc(REVIEW_SCHEDULE_DAYS.times3),
-  },
-  {
-    value: 'times5',
-    label: '5 次',
-    desc: formatScheduleDesc(REVIEW_SCHEDULE_DAYS.times5),
-  },
-  {
-    value: 'times7',
-    label: '7 次',
-    desc: formatScheduleDesc(REVIEW_SCHEDULE_DAYS.times7),
-  },
-  {
-    value: 'times10',
-    label: '10 次',
-    desc: formatScheduleDesc(REVIEW_SCHEDULE_DAYS.times10),
-  },
-]
+}> {
+  return REVIEW_CURVE_PRESETS.map((value) => ({
+    value,
+    label: i18n.t(`review_curve.${value}.label`),
+    desc: formatScheduleDesc(REVIEW_SCHEDULE_DAYS[value]),
+  }))
+}
+
+/** @deprecated Use getReviewTimesOptions() for locale-aware labels */
+export const REVIEW_TIMES_OPTIONS = getReviewTimesOptions()
 
 export function normalizeReviewCurvePreset(p?: string | null): ReviewCurvePreset {
   switch (p) {
@@ -60,8 +56,10 @@ export function normalizeReviewCurvePreset(p?: string | null): ReviewCurvePreset
 
 export function reviewCurveLabel(p?: string | null): string {
   const n = normalizeReviewCurvePreset(p)
-  const opt = REVIEW_TIMES_OPTIONS.find((o) => o.value === n)
-  return opt ? `${opt.label}抗遗忘` : '5次抗遗忘'
+  const opt = getReviewTimesOptions().find((o) => o.value === n)
+  return opt
+    ? i18n.t('review_curve.anti_forgetting', { label: opt.label })
+    : i18n.t('review_curve.default')
 }
 
 export function reviewTimesCount(p?: string | null): number {
@@ -70,5 +68,5 @@ export function reviewTimesCount(p?: string | null): number {
 }
 
 export function reviewDayLabel(dayNum: number): string {
-  return `第${dayNum}天`
+  return i18n.t('review_curve.day', { n: dayNum })
 }

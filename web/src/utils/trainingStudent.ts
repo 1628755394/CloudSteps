@@ -1,5 +1,7 @@
 /** 词训/陪练当前学员上下文（老师端选学员后写入，跨页持久） */
 
+import i18n from "../i18n";
+
 const ID_KEY = "lb_student_id";
 const NAME_KEY = "lb_student_name";
 /** 兼容抗遗忘等旧逻辑 */
@@ -83,5 +85,5 @@ export function studentLabelFromQuota(row: {
   student?: { displayName?: string; username?: string; email?: string };
 }) {
   const s = row.student;
-  return s?.displayName || s?.username || s?.email || `学员 #${row.studentId}`;
+  return s?.displayName || s?.username || s?.email || i18n.t("student_detail.student_fallback", { id: row.studentId });
 }

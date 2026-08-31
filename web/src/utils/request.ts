@@ -1,5 +1,6 @@
 import axiosInstance from './axios'
 import { InternalAxiosRequestConfig, AxiosResponse } from 'axios'
+import i18n from '../i18n'
 
 // 通用响应类型
 export interface ApiResponse<T = any> {
@@ -39,11 +40,12 @@ const request = async <T = any>(
       if (errorData.code !== undefined) {
         // 标准格式: {code, msg, data, error?}
         // 优先使用 msg 字段，这是用户友好的错误信息
+        // Preserve original error code from backend
         throw {
           code: errorData.code,
-          msg: errorData.msg || errorData.message || errorData.error || '请求失败',
+          msg: errorData.msg || errorData.message || errorData.error || i18n.t('common.request_failed'),
           data: errorData.data || null,
-          error: errorData.error // 保留原始错误代码
+          error: errorData.error,
         }
       } else if (errorData.error) {
         // 格式: {"error": "email has exists"}
@@ -56,18 +58,18 @@ const request = async <T = any>(
         // 其他格式，尝试提取错误信息
         throw {
           code: error.response.status || 500,
-          msg: errorData.message || errorData.msg || errorData.error || '请求失败',
+          msg: errorData.message || errorData.msg || errorData.error || i18n.t('common.request_failed'),
           data: null
         }
       }
     }
     
     // 网络错误处理
-    let errorMessage = '网络请求失败'
+    let errorMessage = i18n.t('common.network_error')
     if (error.code === 'ERR_CONNECTION_REFUSED') {
-      errorMessage = '无法连接到服务器，请检查后端服务是否已启动'
+      errorMessage = i18n.t('common.connection_refused')
     } else if (error.code === 'ECONNABORTED') {
-      errorMessage = '请求超时，请稍后重试'
+      errorMessage = i18n.t('common.request_timeout')
     } else if (error.message) {
       errorMessage = error.message
     }
