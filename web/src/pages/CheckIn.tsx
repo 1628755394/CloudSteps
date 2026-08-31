@@ -246,7 +246,7 @@ export default function CheckIn() {
             </div>
 
             <div className="overflow-x-auto -mx-1 px-1 flex justify-center">
-              <div className="inline-block min-w-full">
+              <div className="w-max">
                 {/* 月份标签行 */}
                 <div className="flex gap-[4px] mb-1.5 pl-7 relative h-3.5">
                   {heatmap.monthLabels.map((ml, i) => {

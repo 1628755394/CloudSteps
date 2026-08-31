@@ -29,7 +29,6 @@ import {
 } from "../stores/themeStore";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { Switch } from "../components/ui/switch";
 import { showToast } from "../utils/toast";
 import { useLocale } from "../hooks/useLocale";
 import {
@@ -38,7 +37,6 @@ import {
   deactivateAccount,
   getUserActivity,
   sendBindEmailCode,
-  updateNotificationSettings,
   type UserActivity,
 } from "../api/auth";
 
@@ -65,9 +63,9 @@ const settingOptions = [
   {
     id: 3 as const,
     icon: Bell,
-    label: "消息通知",
-    description: "管理推送通知和提醒设置",
-    panel: "notifications" as const,
+    label: "系统公告",
+    description: "查看系统公告与通知",
+    path: "/announcements",
     tint: "mint" as const,
   },
   {
@@ -115,7 +113,7 @@ export default function Settings() {
   const setCustomHex = useThemeStore((s) => s.setCustomHex);
   const setLayout = useThemeStore((s) => s.setLayout);
 
-  const [panel, setPanel] = useState<null | "password" | "email" | "notifications" | "security">(null);
+  const [panel, setPanel] = useState<null | "password" | "email" | "security">(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -135,21 +133,8 @@ export default function Settings() {
     return () => clearTimeout(timer);
   }, [bindEmailCountdown]);
 
-  const [emailNotifications, setEmailNotifications] = useState(false);
-  const [pushNotifications, setPushNotifications] = useState(false);
-  const [systemNotifications, setSystemNotifications] = useState(false);
-  const [autoCleanUnreadEmails, setAutoCleanUnreadEmails] = useState(false);
-  const [savingNotifications, setSavingNotifications] = useState(false);
-
   const [activityLoading, setActivityLoading] = useState(false);
   const [activities, setActivities] = useState<UserActivity[]>([]);
-
-  useEffect(() => {
-    setEmailNotifications(Boolean(user?.emailNotifications));
-    setPushNotifications(Boolean(user?.pushNotifications));
-    setSystemNotifications(Boolean(user?.systemNotifications));
-    setAutoCleanUnreadEmails(Boolean(user?.autoCleanUnreadEmails));
-  }, [user]);
 
   useEffect(() => {
     if (panel !== "security") return;
@@ -313,7 +298,13 @@ export default function Settings() {
                 <button
                   key={option.id}
                   type="button"
-                  onClick={() => openPanel(option.panel)}
+                  onClick={() => {
+                    if ("path" in option && option.path) {
+                      navigate(option.path);
+                    } else if (option.panel) {
+                      openPanel(option.panel);
+                    }
+                  }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2.5 text-left rounded-lg hover:bg-muted/60 transition-colors group"
                 >
                   <div
@@ -646,102 +637,6 @@ export default function Settings() {
                     }}
                   >
                     确认绑定
-                  </CloudButton>
-                </DialogFooter>
-              </>
-            ) : null}
-
-            {panel === "notifications" ? (
-              <>
-                <DialogHeader>
-                  <DialogTitle className="text-foreground">消息通知</DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-3">
-                  {[
-                    {
-                      label: "邮件通知",
-                      desc: "重要活动与账号提醒",
-                      checked: emailNotifications,
-                      onChange: setEmailNotifications,
-                    },
-                    {
-                      label: "推送通知",
-                      desc: "学习提醒与系统推送",
-                      checked: pushNotifications,
-                      onChange: setPushNotifications,
-                    },
-                    {
-                      label: "系统通知",
-                      desc: "系统公告与安全提醒",
-                      checked: systemNotifications,
-                      onChange: setSystemNotifications,
-                    },
-                    {
-                      label: "自动清理未读邮件",
-                      desc: "自动清理 7 天未读",
-                      checked: autoCleanUnreadEmails,
-                      onChange: setAutoCleanUnreadEmails,
-                    },
-                  ].map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-center justify-between p-4 rounded-xl border border-border"
-                    >
-                      <div>
-                        <div className="text-sm font-medium text-foreground">{row.label}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{row.desc}</div>
-                      </div>
-                      <Switch checked={row.checked} onCheckedChange={row.onChange} />
-                    </div>
-                  ))}
-
-                  {errorText ? (
-                    <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
-                      {errorText}
-                    </div>
-                  ) : null}
-                </div>
-
-                <DialogFooter className="gap-2 sm:gap-2">
-                  <CloudButton
-                    type="button"
-                    variant="outline"
-                    onClick={() => setPanel(null)}
-                    disabled={savingNotifications}
-                  >
-                    关闭
-                  </CloudButton>
-                  <CloudButton
-                    type="button"
-                    variant="brand"
-                    loading={savingNotifications}
-                    loadingText="保存中..."
-                    disabled={savingNotifications}
-                    onClick={async () => {
-                      setErrorText(null);
-                      try {
-                        setSavingNotifications(true);
-                        const res = await updateNotificationSettings({
-                          emailNotifications,
-                          pushNotifications,
-                          systemNotifications,
-                          autoCleanUnreadEmails,
-                        });
-                        if (res.code !== 200) {
-                          setErrorText(res.msg || "保存失败");
-                          return;
-                        }
-                        await refreshUserInfo();
-                        setPanel(null);
-                      } catch (e: any) {
-                        setErrorText(e?.msg || e?.message || "保存失败");
-                      } finally {
-                        setSavingNotifications(false);
-                      }
-                    }}
-                  >
-                    保存
                   </CloudButton>
                 </DialogFooter>
               </>

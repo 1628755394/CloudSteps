@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { BookOpen, ClipboardList, FileText, Library, Bell, Users } from "lucide-react";
+import { BookOpen, ClipboardList, FileText, Library, Users } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CoachOnboarding } from "../components/CoachOnboarding";
 import { MobileSelectSheet } from "../components/cloudsteps/MobileWheelPicker";
@@ -236,21 +236,6 @@ export default function WordBooks() {
             <div className="min-w-0 flex-1 text-left">
               <div className="text-foreground text-sm font-semibold leading-snug">学习记录</div>
               <p className="text-[11px] text-muted-foreground mt-0.5 truncate">正课与复习</p>
-            </div>
-          </CloudButton>
-
-          <CloudButton
-            type="button"
-            variant="card"
-            onClick={() => navigate("/announcements")}
-            className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
-          >
-            <div className="w-8 h-8 shrink-0 bg-primary-soft rounded-xl flex items-center justify-center">
-              <Bell className="text-primary" size={16} />
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <div className="text-foreground text-sm font-semibold leading-snug">系统公告</div>
-              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">查看全部公告</p>
             </div>
           </CloudButton>
         </div>
