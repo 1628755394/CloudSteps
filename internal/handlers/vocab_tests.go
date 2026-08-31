@@ -60,8 +60,9 @@ func (h *Handlers) registerVocabTestRoutes(r *humax.Group) {
 //
 // 核心思路（适配自适应阶梯测试）：
 //  1. 计算每个等级的 Beta 平滑正确率
-//  2. 天花板 = 正确率 ≥ 50% 的最高等级（用户"够得着"的最高级别）
-//  3. 在天花板等级的词汇量区间内，用天花板正确率(70%) + 下一级正确率(30%) 插值
+//  2. 天花板 = 正确率 ≥ 55% 且样本 ≥3 的最高等级（用户"够得着"的最高级别）
+//  3. 整体正确率封顶：整体 <50% 天花板≤B1，<60% 天花板≤B2
+//  4. 在天花板等级的词汇量区间内，用天花板正确率(70%) + 下一级正确率(30%) 插值
 //
 // 这比加权平均更准确，因为它直接定位用户的等级边界，
 // 而不是把所有等级的正确率混在一起做平均（会被低等级高正确率拉高）。
@@ -76,8 +77,9 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 	}
 	vocabCeiling := 8000 // C1 以上的词汇量上限
 
-	// 1. 计算每级的 Beta(1,1) 平滑正确率
+	// 1. 计算每级的 Beta(1,1) 平滑正确率 + 记录样本数
 	rates := map[string]float64{}
+	samples := map[string]float64{}
 	hasData := false
 	for _, lv := range levels {
 		wT := totalW[lv]
@@ -87,6 +89,7 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 		hasData = true
 		wC := correctW[lv]
 		rates[lv] = (wC + 1.0) / (wT + 2.0) // Beta(1,1) 平滑
+		samples[lv] = wT
 	}
 
 	// 无数据 → A1
@@ -94,21 +97,35 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 		return "A1", 300
 	}
 
-	// 2. 找天花板：正确率 ≥ 0.5 的最高等级
+	// 整体正确率（用于封顶）
+	overallRate := 0.0
+	if totalAll > 0 {
+		overallRate = correctAll / totalAll
+	}
+
+	// 2. 找天花板：正确率 ≥ 0.55 且样本 ≥3 的最高等级
 	ceilingIdx := -1
 	for i, lv := range levels {
-		if rates[lv] >= 0.5 {
+		if samples[lv] < 3 {
+			continue // 样本不足，不可靠
+		}
+		if rates[lv] >= 0.55 {
 			ceilingIdx = i
 		}
 	}
 
-	// 3. 所有等级正确率都 < 0.5 → A1（但给部分词汇量 credit）
+	// 3. 整体正确率封顶
+	// 整体 <50% → 天花板不超过 B1（index 2）
+	// 整体 <60% → 天花板不超过 B2（index 3）
+	if ceilingIdx > 2 && overallRate < 0.5 {
+		ceilingIdx = 2
+	}
+	if ceilingIdx > 3 && overallRate < 0.6 {
+		ceilingIdx = 3
+	}
+
+	// 4. 没有合格天花板 → A1（按整体正确率给部分 credit）
 	if ceilingIdx == -1 {
-		overallRate := 0.0
-		if totalAll > 0 {
-			overallRate = correctAll / totalAll
-		}
-		// 即使全错也给 200 词汇量底线，部分对则按比例给到 A1 上限
 		vocab := 200 + int(float64(300-200)*overallRate)
 		return "A1", vocab
 	}
@@ -116,7 +133,7 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 	ceilingLevel := levels[ceilingIdx]
 	ceilingRate := rates[ceilingLevel]
 
-	// 4. 下一级正确率（用于判断用户是否接近升级）
+	// 5. 下一级正确率（用于判断用户是否接近升级）
 	var nextRate float64
 	nextVocab := vocabCeiling
 	if ceilingIdx+1 < len(levels) {
@@ -125,10 +142,8 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 		nextVocab = vocabMap[nextLevel]
 	}
 
-	// 5. 在天花板等级内插值词汇量
+	// 6. 在天花板等级内插值词汇量
 	// position = 70% 天花板正确率 + 30% 下一级正确率
-	// 天花板正确率高 → 稳固在该等级上半段
-	// 下一级正确率高 → 接近升级，推向上半段
 	position := ceilingRate*0.7 + nextRate*0.3
 	if position > 1.0 {
 		position = 1.0
