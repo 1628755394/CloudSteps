@@ -240,6 +240,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     const layer = drawLayerRef.current;
     if (!layer) return "";
     const id = `text-${textIdCounter.current++}`;
+    // draggable follows current tool: only draggable in select mode
+    const canDrag = toolRef.current === "select";
     const textEl = new Text({
       id,
       text,
@@ -247,7 +249,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       y,
       fill: colorRef.current,
       fontSize: fontSizeRef.current,
-      draggable: true,
+      draggable: canDrag,
     });
     layer.add(textEl);
     textMapRef.current.set(id, textEl);
@@ -685,7 +687,12 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     // ---- Double-click to create/edit text using HTML overlay ----
     const onDblClick = (e: MouseEvent) => {
       const layer = drawLayerRef.current;
+      const app = appRef.current;
       if (!layer) return;
+      // Clear any Leafer editor selection to prevent conflicts
+      if (app?.editor) {
+        app.editor.target = undefined;
+      }
       const pt = getPoint(e);
 
       // Check if double-clicking on an existing text element
@@ -764,6 +771,11 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     const canDrag = tool === "select";
     app.editor.hittable = canDrag;
     app.tree.hittable = canDrag;
+    // Prevent Leafer's internal text editor from opening (we use HTML overlay instead)
+    (app.editor as unknown as { mergeConfig?: Record<string, unknown> }).mergeConfig = {
+      ...(app.editor as unknown as { mergeConfig?: Record<string, unknown> }).mergeConfig,
+      preventEditInner: true,
+    };
     for (const child of drawLayerRef.current?.children || []) {
       (child as unknown as { draggable: boolean }).draggable = canDrag;
     }
