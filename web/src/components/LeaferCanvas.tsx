@@ -286,11 +286,10 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       if (current.isNew) {
         createTextElement(current.x, current.y, trimmed);
       } else {
-        // Update existing text and make it visible again
+        // Update existing text content
         const textEl = textMapRef.current.get(current.id);
         if (textEl) {
           textEl.text = trimmed;
-          (textEl as unknown as { visible: boolean }).visible = true;
           appRef.current?.tree.forceUpdate();
         }
       }
@@ -317,11 +316,11 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   // ---- Start text editing at position ----
   const startTextEditing = useCallback((x: number, y: number, existingId?: string, existingText?: string) => {
     isFinishingRef.current = false;
-    // Hide the Leafer Text element while editing (so user only sees the textarea)
+    // Clear the Leafer Text content while editing (so user only sees the textarea)
     if (existingId) {
       const textEl = textMapRef.current.get(existingId);
       if (textEl) {
-        (textEl as unknown as { visible: boolean }).visible = false;
+        textEl.text = "";
         appRef.current?.tree.forceUpdate();
       }
     }
