@@ -1,27 +1,34 @@
 import { Button, Typography } from "@arco-design/web-react";
 import { IconCheckCircle, IconLeft, IconRight } from "@arco-design/web-react/icon";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { kickoffVocabTestPrefetch } from "../utils/vocabTestCache";
 import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
 
-const materials = [
-  { id: 1, name: "词汇测试", enabled: true, path: "/vocabulary-test" },
-  { id: 2, name: "单词练习", enabled: true, path: "/word-training" },
-  { id: 3, name: "解析语法", enabled: true, path: "/grammar-analysis" },
-  { id: 4, name: "阅读理解", enabled: true, path: "/reading-comprehension" },
-  { id: 5, name: "完形填空", enabled: true, path: "/cloze-practice" },
-  { id: 6, name: "情景口语", enabled: true, path: "/scenario-dialogues" },
-] as const;
+type Material = {
+  id: number;
+  nameKey: string;
+  enabled: boolean;
+  path: string;
+};
 
-type Material = (typeof materials)[number];
+const materials: Material[] = [
+  { id: 1, nameKey: "material_selection.vocab_test", enabled: true, path: "/vocabulary-test" },
+  { id: 2, nameKey: "material_selection.word_practice", enabled: true, path: "/word-training" },
+  { id: 3, nameKey: "material_selection.grammar", enabled: true, path: "/grammar-analysis" },
+  { id: 4, nameKey: "material_selection.reading", enabled: true, path: "/reading-comprehension" },
+  { id: 5, nameKey: "material_selection.cloze", enabled: true, path: "/cloze-practice" },
+  { id: 6, nameKey: "material_selection.scenario", enabled: true, path: "/scenario-dialogues" },
+];
 
 export default function MaterialSelection() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const handleMaterialClick = (material: Material) => {
-    if (!material.enabled || !("path" in material) || !material.path) return;
+    if (!material.enabled || !material.path) return;
 
-    if (material.name === "词汇测试") {
+    if (material.path === "/vocabulary-test") {
       kickoffVocabTestPrefetch();
     }
     if (material.path === "/word-training") {
@@ -45,7 +52,7 @@ export default function MaterialSelection() {
             heading={6}
             className="!mb-0 flex-1 text-center !text-[#2D3748] -ml-8 pointer-events-none"
           >
-            资料选择
+            {t("material_selection.title")}
           </Typography.Title>
         </div>
       </div>
@@ -55,7 +62,7 @@ export default function MaterialSelection() {
           type="secondary"
           className="!text-center !mb-2.5 !text-xs shrink-0"
         >
-          为你设计有针对性的资料，迅速提高水平
+          {t("material_selection.subtitle")}
         </Typography.Paragraph>
 
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-2.5">
@@ -76,7 +83,7 @@ export default function MaterialSelection() {
                   material.enabled ? "text-[#2D3748]" : "text-[#A0AEC0]"
                 }`}
               >
-                {material.name}
+                {t(material.nameKey)}
               </span>
               {material.enabled && (
                 <IconCheckCircle

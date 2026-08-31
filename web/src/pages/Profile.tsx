@@ -1,5 +1,6 @@
 import { CloudButton } from "../components/cloudsteps";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Mail, Phone, MapPin, Shield, Award, BookOpen, Clock } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -11,19 +12,19 @@ type StatCard = {
 };
 
 export default function Profile() {
+  const { t } = useTranslation();
   const [name] = useState("April Zhang");
-  const [role] = useState("正式陪练");
   const [email] = useState("april@yunjiebei.com");
   const [phone] = useState("138****8888");
-  const [location] = useState("中国 · 深圳");
+  const location = t("profile.demo_location");
 
   const stats: StatCard[] = useMemo(
     () => [
-      { label: "累计陪练", value: "43h", icon: Clock, color: "#4ECDC4" },
-      { label: "本月陪练", value: "12h", icon: Award, color: "#55A3FF" },
-      { label: "训练记录", value: "128", icon: BookOpen, color: "#FF6B6B" },
+      { label: t("profile.stats.total_coaching"), value: "43h", icon: Clock, color: "#4ECDC4" },
+      { label: t("profile.stats.month_coaching"), value: "12h", icon: Award, color: "#55A3FF" },
+      { label: t("profile.stats.training_records"), value: "128", icon: BookOpen, color: "#FF6B6B" },
     ],
-    [],
+    [t],
   );
 
   return (
@@ -39,7 +40,7 @@ export default function Profile() {
               <div className="mt-1 inline-flex items-center gap-2 px-3 py-1 bg-[#4ECDC4]/10 rounded-full">
                 <Shield size={14} className="text-[#4ECDC4]" />
                 <span className="text-xs text-[#4ECDC4] font-semibold">
-                  {role}
+                  {t("profile.demo_role")}
                 </span>
               </div>
             </div>
@@ -47,10 +48,10 @@ export default function Profile() {
 
           <div className="flex gap-3">
             <CloudButton type="button" variant="outline">
-              编辑资料
+              {t("profile.edit")}
             </CloudButton>
             <CloudButton type="button" variant="brand">
-              保存
+              {t("profile.save")}
             </CloudButton>
           </div>
         </div>
@@ -86,14 +87,14 @@ export default function Profile() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E2E8F0] p-6">
           <h2 className="text-[#2D3748] font-semibold text-[18px] mb-4">
-            基本信息
+            {t("profile.basic_info")}
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center gap-3 p-4 rounded-xl bg-[#F7F9FC] border border-[#E2E8F0]">
               <Mail size={18} className="text-[#55A3FF]" />
               <div className="min-w-0">
-                <div className="text-xs text-[#A0AEC0]">邮箱</div>
+                <div className="text-xs text-[#A0AEC0]">{t("profile.email")}</div>
                 <div className="text-sm text-[#2D3748] truncate">{email}</div>
               </div>
             </div>
@@ -101,7 +102,7 @@ export default function Profile() {
             <div className="flex items-center gap-3 p-4 rounded-xl bg-[#F7F9FC] border border-[#E2E8F0]">
               <Phone size={18} className="text-[#4ECDC4]" />
               <div className="min-w-0">
-                <div className="text-xs text-[#A0AEC0]">手机号</div>
+                <div className="text-xs text-[#A0AEC0]">{t("profile.phone")}</div>
                 <div className="text-sm text-[#2D3748] truncate">{phone}</div>
               </div>
             </div>
@@ -109,38 +110,37 @@ export default function Profile() {
             <div className="flex items-center gap-3 p-4 rounded-xl bg-[#F7F9FC] border border-[#E2E8F0] md:col-span-2">
               <MapPin size={18} className="text-[#FF6B6B]" />
               <div className="min-w-0">
-                <div className="text-xs text-[#A0AEC0]">地区</div>
+                <div className="text-xs text-[#A0AEC0]">{t("profile.location")}</div>
                 <div className="text-sm text-[#2D3748] truncate">{location}</div>
               </div>
             </div>
           </div>
 
           <div className="mt-6">
-            <h3 className="text-[#2D3748] font-semibold mb-2">个人简介</h3>
+            <h3 className="text-[#2D3748] font-semibold mb-2">{t("profile.bio_title")}</h3>
             <div className="text-sm text-[#718096] leading-relaxed">
-              擅长通过结构化训练帮助学员建立稳固的词汇体系，覆盖四级/六级/托福/雅思等主流考试。
-              关注学习节奏与抗遗忘策略，强调可持续的复习闭环。
+              {t("profile.bio")}
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6">
           <h2 className="text-[#2D3748] font-semibold text-[18px] mb-4">
-            账号与安全
+            {t("profile.security_title")}
           </h2>
 
           <div className="space-y-3">
             <div className="p-4 rounded-xl border border-[#E2E8F0]">
-              <div className="text-sm font-medium text-[#2D3748]">登录状态</div>
-              <div className="text-xs text-[#718096] mt-1">最近登录：今天 16:18</div>
+              <div className="text-sm font-medium text-[#2D3748]">{t("profile.login_status")}</div>
+              <div className="text-xs text-[#718096] mt-1">{t("profile.last_login")}</div>
             </div>
             <div className="p-4 rounded-xl border border-[#E2E8F0]">
-              <div className="text-sm font-medium text-[#2D3748]">双重验证</div>
-              <div className="text-xs text-[#718096] mt-1">未开启</div>
+              <div className="text-sm font-medium text-[#2D3748]">{t("profile.two_factor")}</div>
+              <div className="text-xs text-[#718096] mt-1">{t("profile.two_factor_off")}</div>
             </div>
             <div className="p-4 rounded-xl border border-[#E2E8F0]">
-              <div className="text-sm font-medium text-[#2D3748]">权限</div>
-              <div className="text-xs text-[#718096] mt-1">陪练 · 内容管理 · 训练查看</div>
+              <div className="text-sm font-medium text-[#2D3748]">{t("profile.permissions")}</div>
+              <div className="text-xs text-[#718096] mt-1">{t("profile.permissions_desc")}</div>
             </div>
           </div>
         </div>

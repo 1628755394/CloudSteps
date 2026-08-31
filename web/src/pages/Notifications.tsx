@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   listNotifications,
@@ -18,6 +19,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { stripMarkdown } from "../utils/stripMarkdown";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type NotificationItem = {
   id: number;
@@ -29,18 +31,17 @@ type NotificationItem = {
   actionLabel?: string;
 };
 
-const formatTime = (iso: string) => {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString();
-};
+function toItem(n: ApiNotification, locale: string): NotificationItem {
+  const date = new Date(n.createdAt);
+  const time = Number.isNaN(date.getTime())
+    ? ""
+    : date.toLocaleString(locale === "zh-CN" ? "zh-CN" : "en-US");
 
-function toItem(n: ApiNotification): NotificationItem {
   return {
     id: n.id,
     title: n.title,
     content: n.content,
-    time: formatTime(n.createdAt),
+    time,
     read: !!n.read,
     actionUrl: n.actionUrl,
     actionLabel: n.actionLabel,
@@ -48,6 +49,7 @@ function toItem(n: ApiNotification): NotificationItem {
 }
 
 export default function Notifications() {
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,9 +67,15 @@ export default function Notifications() {
       const res = await listNotifications({ page, size });
       const data = res.data;
       setTotalUnread(data.totalUnread ?? 0);
-      setItems((data.list ?? []).map(toItem));
-    } catch (e: any) {
-      setError(e?.msg || e?.message || "加载通知失败");
+      setItems((data.list ?? []).map((n) => toItem(n, i18n.language)));
+    } catch (e: unknown) {
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e
+          ? String((e as { msg: string }).msg)
+          : e instanceof Error
+            ? e.message
+            : undefined;
+      setError(formatApiMessage(apiMsg, "notifications.load_failed"));
     } finally {
       setLoading(false);
     }
@@ -85,8 +93,14 @@ export default function Notifications() {
       setTotalUnread(0);
       setDetail((d) => (d ? { ...d, read: true } : d));
       window.dispatchEvent(new CustomEvent("notifications:unread-changed"));
-    } catch (e: any) {
-      setError(e?.msg || e?.message || "全部标为已读失败");
+    } catch (e: unknown) {
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e
+          ? String((e as { msg: string }).msg)
+          : e instanceof Error
+            ? e.message
+            : undefined;
+      setError(formatApiMessage(apiMsg, "notifications.mark_all_failed"));
     }
   };
 
@@ -100,8 +114,14 @@ export default function Notifications() {
       setTotalUnread((prev) => Math.max(0, prev - 1));
       setDetail((d) => (d?.id === id ? { ...d, read: true } : d));
       window.dispatchEvent(new CustomEvent("notifications:unread-changed"));
-    } catch (e: any) {
-      setError(e?.msg || e?.message || "标记已读失败");
+    } catch (e: unknown) {
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e
+          ? String((e as { msg: string }).msg)
+          : e instanceof Error
+            ? e.message
+            : undefined;
+      setError(formatApiMessage(apiMsg, "notifications.mark_read_failed"));
     }
   };
 
@@ -115,12 +135,12 @@ export default function Notifications() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[24px] md:text-[28px] font-semibold text-[#2D3748]">
-            通知
+            {t("notifications.title")}
           </h1>
           <p className="text-[#718096] mt-1 text-sm md:text-base">
             {unreadCount > 0
-              ? `你有 ${unreadCount} 条未读通知`
-              : "暂无未读通知"}
+              ? t("notifications.unread_count", { count: unreadCount })
+              : t("notifications.no_unread")}
           </p>
         </div>
 
@@ -130,17 +150,17 @@ export default function Notifications() {
           onClick={markAllRead}
           disabled={loading || items.length === 0 || unreadCount === 0}
         >
-          全部标为已读
+          {t("notifications.mark_all_read")}
         </CloudButton>
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden">
         {loading ? (
-          <div className="px-5 py-6 text-sm text-[#718096]">加载中...</div>
+          <div className="px-5 py-6 text-sm text-[#718096]">{t("notifications.loading")}</div>
         ) : error ? (
           <div className="px-5 py-6 text-sm text-red-600">{error}</div>
         ) : items.length === 0 ? (
-          <div className="px-5 py-6 text-sm text-[#718096]">暂无通知</div>
+          <div className="px-5 py-6 text-sm text-[#718096]">{t("notifications.empty")}</div>
         ) : (
           items.map((n) => (
             <CloudButton
@@ -179,7 +199,7 @@ export default function Notifications() {
             <DialogTitle className="text-left pr-6">{detail?.title}</DialogTitle>
             <DialogDescription className="text-left">
               {detail?.time}
-              {detail && !detail.read ? " · 未读" : detail ? " · 已读" : ""}
+              {detail && !detail.read ? ` · ${t("notifications.unread")}` : detail ? ` · ${t("notifications.read")}` : ""}
             </DialogDescription>
           </DialogHeader>
           <MarkdownView content={detail?.content ?? ""} />
@@ -192,7 +212,7 @@ export default function Notifications() {
                 className="inline-flex items-center gap-2 h-9 px-4 rounded-xl border border-[#E2E8F0] text-sm font-medium text-[#2D3748] hover:border-[#4ECDC4] hover:text-[#4ECDC4] transition-colors"
               >
                 <ExternalLink size={16} />
-                {detail.actionLabel || "查看详情"}
+                {detail.actionLabel || t("notifications.view_details")}
               </a>
             </DialogFooter>
           ) : null}

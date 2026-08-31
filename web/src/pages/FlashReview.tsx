@@ -23,6 +23,7 @@ import {
   shouldEnterPostTrainingCheck,
 } from "../utils/studyBatchFlow";
 import { getReviewReturnPath } from "../utils/reviewPractice";
+import { useTranslation } from "react-i18next";
 
 const CHECK_PHASE_KEY = "lb_study_check_phase";
 
@@ -63,6 +64,7 @@ function mapToFlashWord(w: Record<string, unknown>): FlashWord {
 }
 
 export default function FlashReview() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [words, setWords] = useState<FlashWord[]>([]);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
@@ -253,18 +255,18 @@ export default function FlashReview() {
   };
 
   const headerTitle = isRetryMode
-    ? "错词快闪重练"
-    : `第 ${batchIdx + 1} 组快闪`;
+    ? t("flash_review.retry_title")
+    : t("flash_review.batch_title", { n: batchIdx + 1 });
 
   const proceedLabel = isRetryMode
-    ? "完成重练"
+    ? t("flash_review.finish_retry")
     : mode === "study" &&
         !shouldEnterPostTrainingCheck(
           batchIdx,
           Number(sessionStorage.getItem("lb_study_total_batches") || 1)
         )
-      ? "继续下一组"
-      : "进入组内复习";
+      ? t("flash_review.next_batch")
+      : t("flash_review.enter_group_review");
 
   const uncutCount = words.filter((w) => w.scissorCount === 0).length;
   const visibleWords = words.filter((w) => w.scissorCount === 0);
@@ -292,7 +294,7 @@ export default function FlashReview() {
               setFullMeaning((v) => !v);
             }}
           >
-            {fullMeaning ? "简译" : "全部意思"}
+            {fullMeaning ? t("practice.short_meaning") : t("practice.full_meaning")}
           </button>
         )}
       </div>
@@ -336,8 +338,8 @@ export default function FlashReview() {
       <div className="px-4 mt-6 max-w-5xl mx-auto w-full pb-28">
         <p className="text-center text-sm text-[#718096] mb-6">
           {isRetryMode
-            ? "点红剪刀表示不熟（会重新排队），点青剪刀表示掌握"
-            : `${uncutCount} 个待剪${round > 0 ? ` · 第 ${round + 1} 轮` : ""}`}
+            ? t("flash_review.retry_hint")
+            : t("flash_review.pending_hint", { count: uncutCount, round: round > 0 ? t("flash_review.round_suffix", { n: round + 1 }) : "" })}
         </p>
 
         {viewMode === "card" && visibleWords.length > 0 ? (
@@ -394,8 +396,8 @@ export default function FlashReview() {
                 <div onClick={(e) => e.stopPropagation()}>
                   <StudyNoteLauncher
                     storageKey={wordNoteKey(visibleWords[cardIndex].id)}
-                    title={`笔记 · ${visibleWords[cardIndex].word}`}
-                    label="笔记"
+                    title={t("practice.note_title", { word: visibleWords[cardIndex].word })}
+                    label={t("practice.note")}
                     className="h-9 px-2"
                   />
                 </div>
@@ -421,7 +423,7 @@ export default function FlashReview() {
                   size="iconRound"
                   className="size-12"
                   onClick={() => handleScissorClick(visibleWords[cardIndex], "red")}
-                  title="红剪：不熟，重新排队"
+                  title={t("flash_review.red_scissor_tip")}
                 >
                   <Scissors size={22} className="text-[#FF6B6B]" />
                 </CloudButton>
@@ -431,7 +433,7 @@ export default function FlashReview() {
                   size="iconRound"
                   className="size-12"
                   onClick={() => handleScissorClick(visibleWords[cardIndex], "green")}
-                  title="青剪：掌握"
+                  title={t("flash_review.green_scissor_tip")}
                 >
                   <Scissors size={22} className="text-[#4ECDC4]" />
                 </CloudButton>
@@ -473,8 +475,8 @@ export default function FlashReview() {
                     <div onClick={(e) => e.stopPropagation()}>
                       <StudyNoteLauncher
                         storageKey={wordNoteKey(word.id)}
-                        title={`笔记 · ${word.word}`}
-                        label="笔记"
+                        title={t("practice.note_title", { word: word.word })}
+                        label={t("practice.note")}
                         className="h-9 px-2"
                       />
                     </div>
@@ -509,7 +511,7 @@ export default function FlashReview() {
                         e.stopPropagation();
                         handleScissorClick(word, "red");
                       }}
-                      title="红剪：不熟，重新排队"
+                      title={t("flash_review.red_scissor_tip")}
                     >
                       <Scissors size={20} className="text-[#FF6B6B]" />
                     </CloudButton>
@@ -521,7 +523,7 @@ export default function FlashReview() {
                         e.stopPropagation();
                         handleScissorClick(word, "green");
                       }}
-                      title="青剪：掌握"
+                      title={t("flash_review.green_scissor_tip")}
                     >
                       <Scissors size={20} className="text-[#4ECDC4]" />
                     </CloudButton>
@@ -549,7 +551,7 @@ export default function FlashReview() {
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
-              乱序
+              {t("practice.shuffle")}
             </CloudButton>
             <CloudButton
               variant={detailMode ? "brand" : "outline"}
@@ -562,7 +564,7 @@ export default function FlashReview() {
               }}
             >
               <BookOpen size={16} />
-              拓展
+              {t("practice.expand")}
             </CloudButton>
           </div>
         </div>
@@ -573,7 +575,7 @@ export default function FlashReview() {
           <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-auto">
             <h3 className="text-3xl font-bold text-center text-[#4ECDC4] mb-2">PERFECT</h3>
             <p className="text-center text-[#718096] mb-6">
-              {isRetryMode ? "错词重练完成！" : "恭喜完成本组快闪！"}
+              {isRetryMode ? t("flash_review.retry_done") : t("flash_review.batch_done")}
             </p>
             <div className="flex gap-3">
               {!isRetryMode && (
@@ -584,7 +586,7 @@ export default function FlashReview() {
                   className="flex-1"
                   onClick={() => navigate("/word-practice")}
                 >
-                  返回练习
+                  {t("flash_review.back_practice")}
                 </CloudButton>
               )}
               <CloudButton

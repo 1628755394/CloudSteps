@@ -6,8 +6,10 @@ import { CloudCard } from "../components/cloudsteps/arco";
 import { getCheckInStatus, postCheckIn, type CheckInStatus } from "../api/checkin";
 import { formatTeachingMinutes } from "../utils/formatMinutes";
 import { showToast } from "../utils/toast";
+import { useTranslation } from "react-i18next";
+import { formatApiMessage } from "../utils/apiMessage";
 
-const MONTH_LABELS = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+const MONTH_KEYS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"] as const;
 
 const FALLBACK_TIERS = [
   { days: 1, minutes: 60 },
@@ -19,6 +21,7 @@ const FALLBACK_TIERS = [
 ];
 
 export default function CheckIn() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [status, setStatus] = useState<CheckInStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,11 +34,11 @@ export default function CheckIn() {
       if (res.code === 200 && res.data) {
         setStatus(res.data);
       } else {
-        showToast.error(res.msg || "加载失败");
+        showToast.error(formatApiMessage(res.msg, "common.query_failed"));
       }
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.query_failed");
       showToast.error(msg);
     } finally {
       setLoading(false);
@@ -83,7 +86,7 @@ export default function CheckIn() {
         if (cell) {
           const m = cell.date.getMonth();
           if (m !== lastMonth) {
-            monthLabels.push({ label: MONTH_LABELS[m], weekIndex: w });
+            monthLabels.push({ label: t(`check_in.month.${MONTH_KEYS[m]}`), weekIndex: w });
             lastMonth = m;
           }
         }
@@ -102,21 +105,21 @@ export default function CheckIn() {
     try {
       const res = await postCheckIn();
       if (res.code !== 200 || !res.data) {
-        showToast.error(res.msg || "签到失败");
+        showToast.error(formatApiMessage(res.msg, "check_in.failed"));
         return;
       }
       const data = res.data;
       if (data.alreadyCheckedIn) {
-        showToast.info("今日已签到");
+        showToast.info(t("check_in.already_today"));
       } else {
         const bonus =
-          data.bonusMinutes > 0 ? `（含连续 +${data.bonusMinutes}）` : "";
-        showToast.success(`签到成功，+${data.grantedMinutes} 分钟${bonus}`);
+          data.bonusMinutes > 0 ? t("check_in.bonus_suffix", { bonus: data.bonusMinutes }) : "";
+        showToast.success(t("check_in.success", { minutes: data.grantedMinutes, bonus }));
       }
       await load();
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "签到失败";
+        e && typeof e === "object" && "msg" in e ? formatApiMessage(String((e as { msg: string }).msg), "check_in.failed") : formatApiMessage(undefined, "check_in.failed");
       showToast.error(msg);
     } finally {
       setSubmitting(false);
@@ -132,11 +135,11 @@ export default function CheckIn() {
           size="icon"
           className="size-8"
           onClick={() => navigate("/coach-center")}
-          aria-label="返回陪练中心"
+          aria-label={t("check_in.back_coach")}
         >
           <ChevronLeft size={18} />
         </CloudButton>
-        <h3 className="text-sm font-semibold text-foreground tracking-tight">每日签到</h3>
+        <h3 className="text-sm font-semibold text-foreground tracking-tight">{t("check_in.title")}</h3>
       </div>
 
       {loading && !status ? (
@@ -151,15 +154,15 @@ export default function CheckIn() {
             <div className="relative flex items-end justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  授课额度
+                  {t("check_in.teaching_quota")}
                 </p>
                 <p className="mt-1 text-2xl font-bold tabular-nums text-foreground tracking-tight leading-none">
                   {formatTeachingMinutes(status?.poolRemainingMinutes ?? 0)}
                 </p>
                 <p className="mt-1.5 text-[10px] text-muted-foreground leading-snug">
                   {status?.checkedInToday
-                    ? `今日已领 ${status.dailyReward} 分钟`
-                    : `今日可领 ${status?.dailyReward ?? 60} 分钟`}
+                    ? t("check_in.claimed_today", { n: status.dailyReward })
+                    : t("check_in.claimable_today", { n: status?.dailyReward ?? 60 })}
                 </p>
               </div>
 
@@ -173,8 +176,8 @@ export default function CheckIn() {
               >
                 {submitting ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : null}
                 {status?.checkedInToday
-                  ? "已签到"
-                  : `签到 +${status?.dailyReward ?? 60}`}
+                  ? t("check_in.checked_in")
+                  : t("check_in.check_in_btn", { n: status?.dailyReward ?? 60 })}
               </CloudButton>
             </div>
 
@@ -182,25 +185,25 @@ export default function CheckIn() {
               <div className="rounded-lg bg-background/60 border border-border/50 px-2.5 py-2">
                 <div className="flex items-center gap-0.5 text-[9px] text-muted-foreground">
                   <Flame size={10} className="text-orange-500" />
-                  连续
+                  {t("check_in.streak")}
                 </div>
                 <p className="mt-0.5 text-sm font-semibold tabular-nums leading-none">
                   {status?.currentStreak ?? 0}
-                  <span className="text-[10px] font-normal text-muted-foreground ml-0.5">天</span>
+                  <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{t("practice.day_unit")}</span>
                 </p>
               </div>
               <div className="rounded-lg bg-background/60 border border-border/50 px-2.5 py-2">
-                <div className="text-[9px] text-muted-foreground">最长</div>
+                <div className="text-[9px] text-muted-foreground">{t("check_in.longest")}</div>
                 <p className="mt-0.5 text-sm font-semibold tabular-nums leading-none">
                   {status?.longestStreak ?? 0}
-                  <span className="text-[10px] font-normal text-muted-foreground ml-0.5">天</span>
+                  <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{t("practice.day_unit")}</span>
                 </p>
               </div>
               <div className="rounded-lg bg-background/60 border border-border/50 px-2.5 py-2">
-                <div className="text-[9px] text-muted-foreground">本年</div>
+                <div className="text-[9px] text-muted-foreground">{t("check_in.this_year")}</div>
                 <p className="mt-0.5 text-sm font-semibold tabular-nums leading-none">
                   {status?.yearCheckIns ?? 0}
-                  <span className="text-[10px] font-normal text-muted-foreground ml-0.5">天</span>
+                  <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{t("practice.day_unit")}</span>
                 </p>
               </div>
             </div>
@@ -208,9 +211,9 @@ export default function CheckIn() {
 
           <CloudCard className="px-3 py-3">
             <div className="flex items-baseline justify-between gap-2 mb-2">
-              <h2 className="text-xs font-semibold text-foreground">连续奖励</h2>
+              <h2 className="text-xs font-semibold text-foreground">{t("check_in.streak_rewards")}</h2>
               <p className="text-[9px] text-muted-foreground truncate">
-                第 3 天起每日 +10，上限 180
+                {t("check_in.streak_rewards_hint")}
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -229,7 +232,7 @@ export default function CheckIn() {
                           : "border-border/80 bg-muted/40 text-muted-foreground"
                     }`}
                   >
-                    <span className="opacity-70">{tier.days}天</span>
+                    <span className="opacity-70">{t("check_in.tier_days", { days: tier.days })}</span>
                     <span className="font-semibold">{tier.minutes}′</span>
                   </span>
                 );
@@ -239,9 +242,9 @@ export default function CheckIn() {
 
           <CloudCard className="px-3 py-3">
             <div className="flex items-baseline justify-between gap-2 mb-2.5">
-              <h2 className="text-xs font-semibold text-foreground">签到记录</h2>
+              <h2 className="text-xs font-semibold text-foreground">{t("check_in.history")}</h2>
               <p className="text-[9px] text-muted-foreground truncate">
-                近 90 天 · {status?.yearCheckIns ?? 0} 天签到
+                {t("check_in.history_hint", { count: status?.yearCheckIns ?? 0 })}
               </p>
             </div>
 
@@ -267,13 +270,13 @@ export default function CheckIn() {
                 <div className="flex gap-[4px]">
                   {/* 星期标签列 */}
                   <div className="flex flex-col gap-[4px] shrink-0 w-6">
-                    {["日", "一", "二", "三", "四", "五", "六"].map((w, i) => (
+                    {[["sun","mon","tue","wed","thu","fri","sat"] as const].map((w, i) => (
                       <div
                         key={i}
                         className="text-[9px] text-muted-soft leading-none flex items-center justify-end pr-1"
                         style={{ height: "var(--cell-size)" }}
                       >
-                        {w}
+                        {t(`check_in.weekday.${w}`)}
                       </div>
                     ))}
                   </div>
@@ -299,11 +302,11 @@ export default function CheckIn() {
                                 weekday: "long",
                               });
                               if (cell.checked) {
-                                showToast.success(`${dateStr} · 已签到`);
+                                showToast.success(t("check_in.day_checked", { date: dateStr }));
                               } else if (isToday) {
-                                showToast.info(`${dateStr} · 今日未签到`);
+                                showToast.info(t("check_in.day_today_unchecked", { date: dateStr }));
                               } else {
-                                showToast.info(`${dateStr} · 未签到`);
+                                showToast.info(t("check_in.day_unchecked", { date: dateStr }));
                               }
                             }}
                             className={`rounded-[3px] transition-all ${cell ? "cursor-pointer hover:ring-2 hover:ring-primary/40 hover:scale-110" : "cursor-default"}`}
@@ -320,7 +323,7 @@ export default function CheckIn() {
                             }}
                             title={
                               cell
-                                ? `${cell.date.toLocaleDateString("zh-CN")} ${cell.checked ? "已签到" : "未签到"}`
+                                ? `${cell.date.toLocaleDateString()} ${cell.checked ? t("check_in.legend_checked") : t("check_in.legend_unchecked")}`
                                 : ""
                             }
                           />
@@ -332,7 +335,7 @@ export default function CheckIn() {
 
                 {/* 图例 */}
                 <div className="flex items-center gap-2 mt-2.5 justify-end">
-                  <span className="text-[9px] text-muted-soft">未签到</span>
+                  <span className="text-[9px] text-muted-soft">{t("check_in.legend_unchecked")}</span>
                   <div
                     className="rounded-[3px]"
                     style={{ width: "var(--cell-size)", height: "var(--cell-size)", backgroundColor: "var(--cell-idle)" }}
@@ -341,7 +344,7 @@ export default function CheckIn() {
                     className="rounded-[3px]"
                     style={{ width: "var(--cell-size)", height: "var(--cell-size)", backgroundColor: "var(--cell-active)" }}
                   />
-                  <span className="text-[9px] text-muted-soft">已签到</span>
+                  <span className="text-[9px] text-muted-soft">{t("check_in.legend_checked")}</span>
                 </div>
               </div>
             </div>

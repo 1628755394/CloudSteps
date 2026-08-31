@@ -18,6 +18,7 @@ import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } 
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { applyUserWordView } from "../components/WordEditControls";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
+import { useTranslation } from "react-i18next";
 
 type ListenWord = {
   id: number;
@@ -31,6 +32,7 @@ type ListenWord = {
 };
 
 export default function ListenIdentify() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [words, setWords] = useState<ListenWord[]>([]);
   const [annotationOpen, setAnnotationOpen] = useState(false);
@@ -157,7 +159,7 @@ export default function ListenIdentify() {
             setFullMeaning((v) => !v);
           }}
         >
-          {fullMeaning ? "简译" : "全部意思"}
+          {fullMeaning ? t("practice.short_meaning") : t("practice.full_meaning")}
         </button>
       )}
     </>
@@ -196,7 +198,7 @@ export default function ListenIdentify() {
           <div className="flex-1 min-w-0">
             {!showAnswer && (
               <div className="text-sm text-[#718096]">
-                {w.state === "idle" ? "点击播放" : "再点显示答案"}
+                {w.state === "idle" ? t("practice.tap_play") : t("practice.tap_reveal")}
               </div>
             )}
             {showAnswer && renderRevealed(w)}
@@ -204,8 +206,8 @@ export default function ListenIdentify() {
           <div onClick={(e) => e.stopPropagation()}>
             <StudyNoteLauncher
               storageKey={wordNoteKey(w.id)}
-              title={`笔记 · ${w.word}`}
-              label="笔记"
+              title={t("practice.note_title", { word: w.word })}
+              label={t("practice.note")}
               className="h-9 px-2"
             />
           </div>
@@ -229,13 +231,13 @@ export default function ListenIdentify() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <TopBar
-        title="听音识词"
+        title={t("listen_identify.title")}
         onBack={handleBack}
         rightSlot={
           <PracticeFlowToolbar
             annotationOpen={annotationOpen}
             onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
-            pauseContinueLabel="继续练习"
+            pauseContinueLabel={t("practice.continue_practice")}
             wordCount={words.length}
             onWordPatched={(view) =>
               setWords((prev) =>
@@ -262,7 +264,7 @@ export default function ListenIdentify() {
       />
 
       <div className="px-4 mt-6 max-w-5xl mx-auto w-full pb-28">
-        <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
+        <div className="text-center text-sm text-[#718096] mb-6">{t("practice.batch_group", { current: batchIdx + 1, total: totalBatches })}</div>
 
         {viewMode === "card" && cardWord ? (
           <div className="flex w-full flex-col gap-3">
@@ -287,7 +289,7 @@ export default function ListenIdentify() {
                   disabled={cardIndex <= 0}
                   onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
                   className="absolute left-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
-                  aria-label="上一个"
+                  aria-label={t("practice.prev")}
                 >
                   <ChevronLeft size={24} />
                 </CloudButton>
@@ -311,7 +313,7 @@ export default function ListenIdentify() {
                         }
                       />
                       <p className="mt-4 text-sm text-[#718096]">
-                        {cardWord.state === "idle" ? "点击播放" : "再点显示答案"}
+                        {cardWord.state === "idle" ? t("practice.tap_play") : t("practice.tap_reveal")}
                       </p>
                     </>
                   )}
@@ -323,7 +325,7 @@ export default function ListenIdentify() {
                   disabled={cardIndex >= words.length - 1}
                   onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
                   className="absolute right-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
-                  aria-label="下一个"
+                  aria-label={t("practice.next")}
                 >
                   <ChevronRight size={24} />
                 </CloudButton>
@@ -332,8 +334,8 @@ export default function ListenIdentify() {
                 <div onClick={(e) => e.stopPropagation()}>
                   <StudyNoteLauncher
                     storageKey={wordNoteKey(cardWord.id)}
-                    title={`笔记 · ${cardWord.word}`}
-                    label="笔记"
+                    title={t("practice.note_title", { word: cardWord.word })}
+                    label={t("practice.note")}
                     className="h-9 px-2"
                   />
                 </div>
@@ -343,7 +345,7 @@ export default function ListenIdentify() {
                   size="iconRound"
                   className="size-12"
                   onClick={() => handlePlayFirstAudio(cardWord)}
-                  aria-label="播放发音"
+                  aria-label={t("practice.play_audio")}
                 >
                   <Volume2
                     size={22}
@@ -380,7 +382,7 @@ export default function ListenIdentify() {
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
-              乱序
+              {t("practice.shuffle")}
             </CloudButton>
             <CloudButton
               variant={detailMode ? "brand" : "outline"}
@@ -388,7 +390,7 @@ export default function ListenIdentify() {
               onClick={() => setDetailMode((v) => !v)}
             >
               <BookOpen size={16} />
-              拓展
+              {t("practice.expand")}
             </CloudButton>
           </div>
           <CloudButton
