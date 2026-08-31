@@ -4,6 +4,7 @@ import { getApiBaseURL } from '../config/apiConfig'
 import i18n, { getStoredLocale } from '../i18n'
 import zhCN from '../i18n/locales/zh-CN.json'
 import { formatApiMessage } from './apiMessage'
+import { parseApiJson } from './json-snowflake'
 import { toast } from 'sonner'
 
 const getApiBaseUrl = () => {
@@ -59,6 +60,16 @@ const axiosInstance: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  transformResponse: [
+    (data) => {
+      if (typeof data !== 'string' || data.length === 0) return data
+      try {
+        return parseApiJson(data)
+      } catch {
+        return data
+      }
+    },
+  ],
 })
 
 // 请求拦截器
