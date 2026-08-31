@@ -3,6 +3,7 @@ import { CloudButton } from "../components/cloudsteps";
 import { useNavigate } from "react-router";
 import { X, Volume2 } from "lucide-react";
 import { TopBar } from "../components/TopBar";
+import { useTranslation } from "react-i18next";
 
 import { submitVocabTest } from "../api/vocab";
 import { playFirstWordAudio } from "../utils/audioPlayer";
@@ -31,6 +32,7 @@ const parseOptions = (options: string): string[] => {
 };
 
 export default function VocabularyTestTesting() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -97,7 +99,7 @@ export default function VocabularyTestTesting() {
     }
     return shuffledOptions
       .map((label) => ({ label, value: label }))
-      .concat([{ label: "不认识", value: "不认识" }]);
+      .concat([{ label: t("vocab_test.unknown"), value: t("vocab_test.unknown") }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentQuestion?.id]);
 
@@ -119,14 +121,14 @@ export default function VocabularyTestTesting() {
 
   const submitAndGoResult = async (payloadAnswers: { questionId: number | string; answer: string }[]) => {
     if (!payloadAnswers.length) {
-      throw new Error("答案不能为空");
+      throw new Error(t("vocab_test.empty_answers"));
     }
     const studentId = getTrainingStudent()?.id;
     const res = await submitVocabTest({
       answers: payloadAnswers,
       ...(studentId ? { studentId } : {}),
     });
-    if (res.code !== 200) throw new Error(res.msg || "提交失败");
+    if (res.code !== 200) throw new Error(res.msg || t("vocab_test.submit_failed"));
     clearVocabTestQuestionsCache();
     sessionStorage.setItem("vocabulary_test_result", JSON.stringify(res.data));
     navigate("/vocabulary-test/result", { replace: true });
@@ -213,11 +215,11 @@ export default function VocabularyTestTesting() {
         if (first) {
           setCurrentQuestion(first);
         } else {
-          throw new Error("题库暂无题目");
+          throw new Error(t("vocab_test.no_questions"));
         }
       } catch (e) {
-        console.error("加载题目失败:", e);
-        const msg = e instanceof Error ? e.message : (e as any)?.msg || "加载题目失败";
+        console.error(t("vocab_test.load_failed"), e);
+        const msg = e instanceof Error ? e.message : (e as any)?.msg || t("vocab_test.load_failed");
         alert(msg);
         navigate("/vocabulary-test", { replace: true });
       } finally {
@@ -235,7 +237,7 @@ export default function VocabularyTestTesting() {
     setSelectedAnswer(value);
     setRevealed(true);
 
-    const isUnknown = value === "不认识";
+    const isUnknown = value === t("vocab_test.unknown");
     const isCorrect = !isUnknown && value === currentQuestion.correctAnswer;
     if (isCorrect) setCorrectCount((prev) => prev + 1);
     if (!isCorrect) setWrongCount((prev) => prev + 1);
@@ -257,7 +259,7 @@ export default function VocabularyTestTesting() {
         await submitAndGoResult(nextAnswers);
       } catch (e) {
         console.error(e);
-        alert(e instanceof Error ? e.message : "提交失败");
+        alert(e instanceof Error ? e.message : t("vocab_test.submit_failed"));
       } finally {
         setSubmitting(false);
       }
@@ -272,7 +274,7 @@ export default function VocabularyTestTesting() {
         setSubmitting(true);
         submitAndGoResult(nextAnswers).catch((e) => {
           console.error(e);
-          alert(e instanceof Error ? e.message : "提交失败");
+          alert(e instanceof Error ? e.message : t("vocab_test.submit_failed"));
         }).finally(() => setSubmitting(false));
         return;
       }
@@ -295,7 +297,7 @@ export default function VocabularyTestTesting() {
 
   return (
     <div className="h-dvh w-full min-w-0 flex flex-col bg-gray-50 overflow-hidden">
-      <TopBar title="词汇量测试" onBack={handleBack} />
+      <TopBar title={t("vocab_test.title")} onBack={handleBack} />
 
       <main className="flex-1 min-h-0 w-full min-w-0 overflow-y-auto overflow-x-hidden flex flex-col px-4 py-3 max-w-6xl mx-auto">
         <div className="shrink-0 flex items-center gap-2 mb-3 max-w-5xl mx-auto w-full min-w-0">
@@ -310,21 +312,21 @@ export default function VocabularyTestTesting() {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <CloudButton type="button" variant="ghost" size="iconRound" onClick={handleBack} aria-label="退出测试">
+          <CloudButton type="button" variant="ghost" size="iconRound" onClick={handleBack} aria-label={t("vocab_test.exit")}>
             <X size={20} className="text-[#718096]" />
           </CloudButton>
         </div>
 
         {showWarning && !busy && (
           <p className="shrink-0 text-center text-[11px] text-amber-600 mb-2 max-w-5xl mx-auto w-full min-w-0">
-            超过 8 秒，建议选「不认识」
+            {t("vocab_test.timeout_tip")}
           </p>
         )}
 
         <div className="shrink-0 w-full max-w-5xl min-w-0 mx-auto bg-white rounded-2xl px-4 sm:px-6 py-6 mb-3 text-center shadow-sm border border-[#E2E8F0]/80">
           <div className="flex flex-col items-center justify-center gap-2 min-h-[88px]">
             {busy || !currentQuestion ? (
-              <p className="text-[#A0AEC0] text-sm animate-pulse">加载中…</p>
+              <p className="text-[#A0AEC0] text-sm animate-pulse">{t("vocab_test.loading")}</p>
             ) : (
               <>
                 <p
@@ -357,7 +359,7 @@ export default function VocabularyTestTesting() {
             return (
               <CloudButton
                 key={index}
-                variant={option.label === "不认识" ? "secondary" : "outline"}
+                variant={option.label === t("vocab_test.unknown") ? "secondary" : "outline"}
                 className={`w-full justify-start px-4 py-3 h-auto min-h-[3rem] max-h-[4.5rem] rounded-xl text-left whitespace-normal border ${revealClass} ${
                   !revealed && isSelected ? "ring-2 ring-[#4ECDC4] bg-[#4ECDC4]/10" : ""
                 } ${busy || revealed ? "pointer-events-none" : ""}`}
@@ -377,17 +379,17 @@ export default function VocabularyTestTesting() {
         <div className="flex items-center justify-around max-w-5xl mx-auto w-full min-w-0">
           <div className="text-center">
             <div className="text-base font-bold text-[#2D3748]">{correctCount}</div>
-            <div className="text-[11px] text-[#718096]">正确</div>
+            <div className="text-[11px] text-[#718096]">{t("vocab_test.correct")}</div>
           </div>
           <div className="w-px h-7 bg-[#E2E8F0]" />
           <div className="text-center">
             <div className="text-base font-bold text-[#2D3748]">{wrongCount}</div>
-            <div className="text-[11px] text-[#718096]">错误</div>
+            <div className="text-[11px] text-[#718096]">{t("vocab_test.wrong")}</div>
           </div>
           <div className="w-px h-7 bg-[#E2E8F0]" />
           <div className="text-center">
             <div className="text-base font-bold text-[#4ECDC4]">{timer}s</div>
-            <div className="text-[11px] text-[#718096]">倒计时</div>
+            <div className="text-[11px] text-[#718096]">{t("vocab_test.countdown")}</div>
           </div>
         </div>
       </footer>

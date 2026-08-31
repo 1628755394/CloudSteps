@@ -19,6 +19,7 @@ import { buildWordPracticeSequence } from "../utils/wordPracticeSequence";
 import { getPracticeTapState } from "../utils/wordPracticeTap";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import type { UserWordView } from "../api/wordbooks";
+import { useTranslation } from "react-i18next";
 
 type PracticeWord = {
   id: number;
@@ -34,6 +35,7 @@ type PracticeWord = {
 };
 
 export default function WordPractice() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [words, setWords] = useState<PracticeWord[]>([]);
   const [manualReadMode, setManualReadMode] = useState(false);
@@ -265,7 +267,7 @@ export default function WordPractice() {
               setFullMeaning((v) => !v);
             }}
           >
-            {fullMeaning ? "简译" : "全部意思"}
+            {fullMeaning ? t("practice.short_meaning") : t("practice.full_meaning")}
           </button>
         )}
       </div>
@@ -275,11 +277,11 @@ export default function WordPractice() {
   if (words.length === 0) {
     return (
       <FlowPageShell>
-        <TopBar title={mode === "review" ? "开始复习" : "单词练习"} onBack={handleBack} />
+        <TopBar title={mode === "review" ? t("practice.start_review") : t("practice.title")} onBack={handleBack} />
         <div className="flex flex-col items-center gap-4 text-center text-[#718096] py-16 px-4">
-          <p>{mode === "review" ? "暂无复习单词，请返回重新勾选" : "暂无待练习单词，请返回重新选择"}</p>
+          <p>{mode === "review" ? t("practice.no_review_words_back") : t("practice.no_words_to_practice")}</p>
           <CloudButton variant="brand" size="pillLg" onClick={handleBack}>
-            返回选择单词
+            {t("practice.back_select_words")}
           </CloudButton>
         </div>
       </FlowPageShell>
@@ -291,13 +293,13 @@ export default function WordPractice() {
   return (
     <FlowPageShell>
       <TopBar
-        title={mode === "review" ? "开始复习" : "单词练习"}
+        title={mode === "review" ? t("practice.start_review") : t("practice.title")}
         onBack={handleBack}
         rightSlot={
           <PracticeFlowToolbar
             annotationOpen={annotationOpen}
             onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
-            pauseContinueLabel="继续练习"
+            pauseContinueLabel={t("practice.continue_practice")}
             wordCount={words.length}
             onWordPatched={applyPatchedWord}
           />
@@ -317,7 +319,7 @@ export default function WordPractice() {
       >
         {/* Word content pane */}
         <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
-        <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
+        <div className="text-center text-sm text-[#718096] mb-6">{t("practice.batch_group", { current: batchIdx + 1, total: totalBatches })}</div>
 
         {viewMode === "card" && cardWord ? (
           <div className="flex w-full flex-col gap-3">
@@ -366,8 +368,8 @@ export default function WordPractice() {
                 <div onClick={(e) => e.stopPropagation()}>
                   <StudyNoteLauncher
                     storageKey={wordNoteKey(cardWord.id)}
-                    title={`笔记 · ${cardWord.word}`}
-                    label="笔记"
+                    title={t("practice.note_title", { word: cardWord.word })}
+                    label={t("practice.note")}
                     className="h-9 px-2"
                   />
                 </div>
@@ -426,8 +428,8 @@ export default function WordPractice() {
                     <div onClick={(e) => e.stopPropagation()}>
                       <StudyNoteLauncher
                         storageKey={wordNoteKey(word.id)}
-                        title={`笔记 · ${word.word}`}
-                        label="笔记"
+                        title={t("practice.note_title", { word: word.word })}
+                        label={t("practice.note")}
                         className="h-9 px-2"
                       />
                     </div>
@@ -468,8 +470,8 @@ export default function WordPractice() {
               className={`group hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none lg:select-none ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}
               style={{ width: "10px", flexShrink: 0 }}
               onPointerDown={startNoteResize}
-              title="拖动调整随心记宽度"
-              aria-label="拖动调整随心记宽度"
+              title={t("practice.resize_free_note")}
+              aria-label={t("practice.resize_free_note")}
             >
               <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 group-hover:bg-[#4ECDC4]/60 group-hover:w-1.5 transition-all" />
             </div>
@@ -481,7 +483,7 @@ export default function WordPractice() {
                 open={globalNoteOpen}
                 onClose={() => setGlobalNoteOpen(false)}
                 storageKey={`study-note:global:${wordBookId}`}
-                title="随心记"
+                title={t("practice.free_note")}
                 side={noteSide}
                 split
                 onSideChange={setNoteSide}
@@ -497,7 +499,7 @@ export default function WordPractice() {
           open={globalNoteOpen}
           onClose={() => setGlobalNoteOpen(false)}
           storageKey={`study-note:global:${wordBookId}`}
-          title="随心记"
+          title={t("practice.free_note")}
           side={noteSide}
           onSideChange={setNoteSide}
         />
@@ -509,7 +511,7 @@ export default function WordPractice() {
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
-              乱序
+              {t("practice.shuffle")}
             </CloudButton>
             <CloudButton
               variant={manualReadMode ? "brand" : "outline"}
@@ -521,7 +523,7 @@ export default function WordPractice() {
                 );
               }}
             >
-              人工带读
+              {t("practice.manual_read")}
             </CloudButton>
             <CloudButton
               variant={detailMode ? "brand" : "outline"}
@@ -544,17 +546,17 @@ export default function WordPractice() {
               }}
             >
               <BookOpen size={16} />
-              拓展
+              {t("practice.expand")}
             </CloudButton>
             <CloudButton
               type="button"
               variant={globalNoteOpen ? "brand" : "outline"}
               size="pill"
               onClick={() => setGlobalNoteOpen((v) => !v)}
-              aria-label="打开随心记"
+              aria-label={t("practice.open_free_note")}
             >
               <PanelTop size={16} className={globalNoteOpen ? "text-white" : "text-[#c45c78]"} />
-              随心记
+              {t("practice.free_note")}
             </CloudButton>
           </div>
           <div className="flex items-center gap-2 shrink-0">

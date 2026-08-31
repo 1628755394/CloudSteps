@@ -21,6 +21,7 @@ import {
   loadWordBooksStaleWhileRevalidate,
   type CachedWordBook,
 } from "../utils/wordBooksCache";
+import { useTranslation } from "react-i18next";
 import {
   clearTrainingStudent,
   getTrainingStudent,
@@ -43,6 +44,7 @@ function resolvePick(wbs: CachedWordBook[]): CachedWordBook | undefined {
 }
 
 export default function WordTraining() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const role = (user as { role?: string } | null)?.role || "user";
@@ -268,7 +270,7 @@ export default function WordTraining() {
   const wordBookOptions = useMemo(() => {
     const assignedIds = new Set(studentWordBooks.map((b) => b.id));
     const assigned = studentWordBooks.map((b) => ({
-      label: `学员词库 · ${b.name}`,
+      label: t("word_training.student_wordbook", { name: b.name }),
       value: String(b.id),
     }));
     const rest = wordBooks
@@ -292,9 +294,9 @@ export default function WordTraining() {
   if (isCoach && coachGate === "loading") {
     return (
       <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
+        <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
         <div className="px-4 mt-16 flex justify-center">
-          <CloudSpin tip="加载学员…" />
+          <CloudSpin tip={t("word_training.loading_students")} />
         </div>
       </FlowPageShell>
     );
@@ -303,21 +305,20 @@ export default function WordTraining() {
   if (isCoach && coachGate === "pool-empty") {
     return (
       <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
+        <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
         <div className="px-4 mt-8">
           <div className="bg-white rounded-xl p-6 shadow-sm text-center space-y-4">
             <div className="mx-auto w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
               <Clock className="text-amber-600" size={22} />
             </div>
             <div className="space-y-1.5">
-              <h2 className="text-base font-semibold text-[#2D3748]">授课额度已用尽</h2>
+              <h2 className="text-base font-semibold text-[#2D3748]">{t("word_training.pool_empty_title")}</h2>
               <p className="text-sm text-[#718096] leading-relaxed">
-                您的可授课总池剩余 {formatTeachingMinutes(0)}，无法开始新的单词训练或上课计时。
-                请联系管理员补充授课池后再继续。
+                {t("word_training.pool_empty_desc", { minutes: formatTeachingMinutes(0) })}
               </p>
             </div>
             <CloudButton variant="brand" size="pillLg" className="w-full" onClick={handleBack}>
-              返回首页
+              {t("word_training.back_home")}
             </CloudButton>
           </div>
         </div>
@@ -328,16 +329,16 @@ export default function WordTraining() {
   if (isCoach && coachGate === "no-students") {
     return (
       <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
+        <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
         <div className="px-4 mt-8">
           <div className="bg-white rounded-xl p-6 shadow-sm text-center space-y-4">
             <div className="mx-auto w-12 h-12 rounded-xl bg-tint-sky flex items-center justify-center">
               <Users className="text-secondary-brand" size={22} />
             </div>
             <div className="space-y-1.5">
-              <h2 className="text-base font-semibold text-[#2D3748]">还没有学员</h2>
+              <h2 className="text-base font-semibold text-[#2D3748]">{t("word_training.no_students_title")}</h2>
               <p className="text-sm text-[#718096] leading-relaxed">
-                单词训练需要先绑定陪练学员。请先新建学员账号，或关联已有学员后再开始训练。
+                {t("word_training.no_students_desc")}
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
@@ -348,7 +349,7 @@ export default function WordTraining() {
                 onClick={() => navigate("/my-students/new")}
               >
                 <UserPlus size={16} className="mr-1.5" />
-                新建学员
+                {t("word_training.create_student")}
               </CloudButton>
               <CloudButton
                 variant="brandOutline"
@@ -356,7 +357,7 @@ export default function WordTraining() {
                 className="flex-1"
                 onClick={() => navigate("/my-students?link=1")}
               >
-                去学员管理
+                {t("word_training.manage_students")}
               </CloudButton>
             </div>
           </div>
@@ -367,7 +368,7 @@ export default function WordTraining() {
 
   return (
     <FlowPageShell className="h-dvh max-h-dvh bg-gray-50 flex flex-col overflow-hidden">
-      <TopBar title="单词训练" onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
+      <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
 
       <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] gap-2 overflow-hidden">
         <CloudSelect
@@ -378,21 +379,21 @@ export default function WordTraining() {
             if (id && name) pickWordBook({ id, name }, { fromUser: true });
           }}
           options={wordBookOptions}
-          placeholder={wordBooks.length || studentWordBooks.length ? "选择词库" : "加载词库中…"}
+          placeholder={wordBooks.length || studentWordBooks.length ? t("word_training.select_wordbook") : t("word_training.loading_wordbooks")}
           disabled={!wordBooks.length && !studentWordBooks.length}
           showSearch
           allowClear={false}
-          sheetTitle="选择词库"
+          sheetTitle={t("word_training.select_wordbook")}
         />
 
         <div className="bg-white rounded-xl px-3 py-2 shadow-sm space-y-1 shrink-0">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[#718096]">训练日期</span>
+            <span className="text-[#718096]">{t("word_training.training_date")}</span>
             <span className="text-[#2D3748] font-medium tabular-nums">{todayLabel}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-[#718096]">今日训新</span>
-            <span className="text-[#2D3748] font-medium">{todayNewLearned} 词</span>
+            <span className="text-[#718096]">{t("word_training.today_new")}</span>
+            <span className="text-[#2D3748] font-medium">{todayNewLearned} {t("practice.words_unit")}</span>
           </div>
         </div>
 
@@ -402,28 +403,28 @@ export default function WordTraining() {
             className="bg-white rounded-xl p-2.5 text-center shadow-sm cursor-pointer hover:bg-gray-50 active:scale-95 transition-all"
           >
             <div className="text-lg font-bold text-[#4ECDC4] mb-0.5">{todayNewLearned}</div>
-            <div className="text-[11px] text-[#718096]">今日训新</div>
+            <div className="text-[11px] text-[#718096]">{t("word_training.today_new")}</div>
           </div>
           <div
             onClick={() => navigate("/lighthouse-words?step=01")}
             className="bg-white rounded-xl p-2.5 text-center shadow-sm cursor-pointer hover:bg-gray-50 active:scale-95 transition-all"
           >
             <div className="text-lg font-bold text-[#FF9800] mb-0.5">{memoryData[0]?.count ?? 0}</div>
-            <div className="text-[11px] text-[#718096]">今日复习目标</div>
+            <div className="text-[11px] text-[#718096]">{t("word_training.today_review_target")}</div>
           </div>
           <div
             onClick={() => navigate("/lighthouse-words?step=mastered")}
             className="bg-white rounded-xl p-2.5 text-center shadow-sm cursor-pointer hover:bg-gray-50 active:scale-95 transition-all"
           >
             <div className="text-lg font-bold text-[#66BB6A] mb-0.5">{masteredCount}</div>
-            <div className="text-[11px] text-[#718096]">累计识词</div>
+            <div className="text-[11px] text-[#718096]">{t("word_training.total_mastered")}</div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl p-2.5 shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
           <div className="flex items-center justify-center gap-1.5 mb-1 shrink-0">
             <Lightbulb className="text-[#FFD700]" size={18} />
-            <h3 className="text-sm font-semibold text-[#2D3748]">智能记忆灯塔</h3>
+            <h3 className="text-sm font-semibold text-[#2D3748]">{t("word_training.memory_lighthouse")}</h3>
           </div>
           <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden [&_.aspect-square]:max-w-[min(100%,min(38vh,320px))] [&_.aspect-square]:max-h-[38vh]">
             <MemoryLighthouse
@@ -467,7 +468,7 @@ export default function WordTraining() {
               );
             }}
           >
-            开始复习
+            {t("word_training.start_review")}
           </CloudButton>
           <CloudButton
             variant="brand"
@@ -475,7 +476,7 @@ export default function WordTraining() {
             className="flex-1"
             onClick={() => navigate("/pre-training-check")}
           >
-            继续练习
+            {t("word_training.continue_practice")}
           </CloudButton>
         </div>
       </div>

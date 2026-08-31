@@ -2,6 +2,7 @@ import { CloudButton } from "../components/cloudsteps";
 import { useNavigate } from "react-router";
 import { BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   clearVocabTestResultCache,
   loadCachedVocabQuestions,
@@ -14,6 +15,7 @@ import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 
 export default function VocabularyTest() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const role = useAuthStore((s) => s.user)?.role || "user";
   const isCoach = role === "user" || role === "admin" || role === "teacher";
@@ -33,7 +35,7 @@ export default function VocabularyTest() {
 
   const handleStart = () => {
     if (isCoach && !boundStudent?.id) {
-      showToast.info("请先在首页选择学员后再开始词汇测试");
+      showToast.info(t("vocab_test.select_student_first"));
       navigate("/", { replace: true });
       return;
     }
@@ -43,16 +45,16 @@ export default function VocabularyTest() {
 
   return (
     <FlowPageShell className="min-h-dvh bg-gray-50">
-      <TopBar title="词汇量测试" onBack={handleBack} />
+      <TopBar title={t("vocab_test.title")} onBack={handleBack} />
 
       <div className="flex min-h-[calc(100dvh-2.75rem)] w-full min-w-0 items-center justify-center px-4 sm:px-6 py-6">
         <div className="w-full max-w-md min-w-0 flex flex-col items-center text-center">
           <div className="mb-4">
-            <h2 className="text-base font-semibold text-[#2D3748] mb-1.5">测一测你的词汇量</h2>
+            <h2 className="text-base font-semibold text-[#2D3748] mb-1.5">{t("vocab_test.measure_your_vocab")}</h2>
             <p className="text-[#718096] text-xs leading-relaxed">
               {boundStudent?.name
-                ? `本次测评将记入「${boundStudent.name}」的词汇测试记录`
-                : "花几分钟测试一下，定位你的词汇量水平"}
+                ? t("vocab_test.desc_with_student", { name: boundStudent.name })
+                : t("vocab_test.desc")}
             </p>
           </div>
 
@@ -67,14 +69,14 @@ export default function VocabularyTest() {
             size="pillLg"
             className="w-full shadow-lg"
             loading={preparing}
-            loadingText="准备题目…"
+            loadingText={t("vocab_test.preparing")}
             onClick={handleStart}
           >
-            开始测试
+            {t("vocab_test.start")}
           </CloudButton>
 
           <p className="text-[#A0AEC0] text-xs mt-4">
-            诚实做题可以得到真实的测试结果
+            {t("vocab_test.honest_tip")}
           </p>
         </div>
       </div>

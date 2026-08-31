@@ -1,7 +1,17 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { BookOpen, ClipboardList, FileText, Library, Users } from "lucide-react";
-import { CloudButton } from "../components/cloudsteps";
+import { useTranslation } from "react-i18next";
+import {
+  AlignJustify,
+  BookOpen,
+  ClipboardList,
+  FileText,
+  Library,
+  MessageCircle,
+  PenLine,
+  Users,
+} from "lucide-react";
+import { HomeFeatureCard, HomeSectionHeader } from "../components/HomeFeatureCard";
 import { CoachOnboarding } from "../components/CoachOnboarding";
 import { MobileSelectSheet } from "../components/cloudsteps/MobileWheelPicker";
 import { useAuthStore } from "../stores/authStore";
@@ -19,6 +29,7 @@ import { kickoffVocabTestPrefetch } from "../utils/vocabTestCache";
 import { kickoffWordBooksPrefetch } from "../utils/wordBooksCache";
 
 export default function WordBooks() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
@@ -70,26 +81,54 @@ export default function WordBooks() {
 
   const studentOptions = useMemo(
     () => students.map((row) => ({ label: studentLabelFromQuota(row), value: String(row.studentId) })),
-    [students]
+    [students],
   );
 
+  const goVocabTest = () => {
+    if (isCoach && !loadingStudents && students.length === 0) {
+      showToast.info(t("home.add_student_first_vocab"));
+      navigate("/my-students/new");
+      return;
+    }
+    if (isCoach && !studentId) {
+      showToast.info(t("home.select_student_first_vocab"));
+      return;
+    }
+    kickoffVocabTestPrefetch();
+    navigate("/vocabulary-test");
+  };
+
+  const goWordTraining = () => {
+    if (isCoach && !loadingStudents && students.length === 0) {
+      showToast.info(t("home.add_student_first_training"));
+      navigate("/my-students/new");
+      return;
+    }
+    kickoffWordBooksPrefetch();
+    navigate("/word-training");
+  };
+
   return (
-    <div className="space-y-4 min-w-0 w-full">
-      <section className="space-y-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-xs font-medium text-muted-foreground shrink-0">常用</h2>
+    <div className="min-w-0 w-full space-y-5 pb-1">
+      <section>
+        <HomeSectionHeader title={t("home.common")}>
           {isCoach ? (
             <div
-              className="flex items-center gap-2 shrink-0"
+              className="flex shrink-0 items-center gap-2 rounded-xl border border-border/70 bg-card/90 px-2.5 py-1.5 shadow-[var(--shadow-rest)]"
               data-coach="picker"
             >
-              <span className="text-xs text-muted-foreground">学员</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{t("home.student")}</span>
               <MobileSelectSheet
-                title="选择学员"
-                className="w-44 shrink-0"
-                style={{ minWidth: 176 }}
+                title={t("home.select_student")}
+                className="w-36 shrink-0"
+                style={{ minWidth: 144 }}
+                size="small"
                 placeholder={
-                  loadingStudents ? "加载中…" : studentOptions.length ? "选择学员" : "暂无学员"
+                  loadingStudents
+                    ? t("home.loading")
+                    : studentOptions.length
+                      ? t("home.select_student")
+                      : t("home.no_students")
                 }
                 options={studentOptions}
                 value={studentId || undefined}
@@ -104,140 +143,88 @@ export default function WordBooks() {
               />
             </div>
           ) : null}
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <CloudButton
-            type="button"
-            variant="card"
-            onClick={() => {
-              if (isCoach && !loadingStudents && students.length === 0) {
-                showToast.info("请先添加学员后再开始词汇测试");
-                navigate("/my-students/new");
-                return;
-              }
-              if (isCoach && !studentId) {
-                showToast.info("请先选择学员后再开始词汇测试");
-                return;
-              }
-              kickoffVocabTestPrefetch();
-              navigate("/vocabulary-test");
-            }}
-            className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
-          >
-            <div className="w-8 h-8 shrink-0 bg-primary-soft rounded-xl flex items-center justify-center">
-              <FileText className="text-primary" size={16} />
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <div className="text-foreground text-sm font-semibold leading-snug">词汇测试</div>
-              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">进入测评</p>
-            </div>
-          </CloudButton>
+        </HomeSectionHeader>
 
-          <CloudButton
-            type="button"
-            variant="card"
+        <div className="grid grid-cols-2 gap-2.5">
+          <HomeFeatureCard
+            icon={FileText}
+            accent="mint"
+            title={t("home.vocab_test")}
+            description={t("home.enter_test")}
+            onClick={goVocabTest}
+          />
+          <HomeFeatureCard
+            icon={BookOpen}
+            accent="sky"
+            title={t("home.word_training")}
+            description={t("home.select_wordbook")}
+            onClick={goWordTraining}
             data-coach="training"
-            onClick={() => {
-              if (isCoach && !loadingStudents && students.length === 0) {
-                showToast.info("请先添加学员后再开始单词训练");
-                navigate("/my-students/new");
-                return;
-              }
-              kickoffWordBooksPrefetch();
-              navigate("/word-training");
-            }}
-            className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
-          >
-            <div className="w-8 h-8 shrink-0 bg-tint-sky rounded-xl flex items-center justify-center">
-              <BookOpen className="text-secondary-brand" size={16} />
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <div className="text-foreground text-sm font-semibold leading-snug">单词训练</div>
-              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">选择词库</p>
-            </div>
-          </CloudButton>
-
+          />
         </div>
       </section>
 
-      <section className="space-y-2.5">
-        <h2 className="text-xs font-medium text-muted-foreground">训练资料</h2>
+      <section>
+        <HomeSectionHeader title={t("home.training_materials")} />
         <div className="grid grid-cols-2 gap-2.5">
-          {[
-            { name: "解析语法", path: "/grammar-analysis", desc: "语法专项练习" },
-            { name: "阅读理解", path: "/reading-comprehension", desc: "阅读训练" },
-            { name: "完形填空", path: "/cloze-practice", desc: "完形专项" },
-            { name: "情景口语", path: "/scenario-dialogues", desc: "AI 情景对话" },
-          ].map((item) => (
-            <CloudButton
-              key={item.path}
-              type="button"
-              variant="card"
-              onClick={() => navigate(item.path)}
-              className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
-            >
-              <div className="w-8 h-8 shrink-0 bg-muted rounded-xl flex items-center justify-center">
-                <Library className="text-muted-foreground" size={16} />
-              </div>
-              <div className="min-w-0 flex-1 text-left">
-                <div className="text-foreground text-sm font-semibold leading-snug">{item.name}</div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{item.desc}</p>
-              </div>
-            </CloudButton>
-          ))}
+          <HomeFeatureCard
+            icon={PenLine}
+            accent="violet"
+            title={t("home.grammar")}
+            description={t("home.grammar_desc")}
+            onClick={() => navigate("/grammar-analysis")}
+          />
+          <HomeFeatureCard
+            icon={BookOpen}
+            accent="amber"
+            title={t("home.reading")}
+            description={t("home.reading_desc")}
+            onClick={() => navigate("/reading-comprehension")}
+          />
+          <HomeFeatureCard
+            icon={AlignJustify}
+            accent="rose"
+            title={t("home.cloze")}
+            description={t("home.cloze_desc")}
+            onClick={() => navigate("/cloze-practice")}
+          />
+          <HomeFeatureCard
+            icon={MessageCircle}
+            accent="teal"
+            title={t("home.scenario")}
+            description={t("home.scenario_desc")}
+            onClick={() => navigate("/scenario-dialogues")}
+          />
         </div>
       </section>
 
-      <section className="space-y-2.5">
-        <h2 className="text-xs font-medium text-muted-foreground">数据管理</h2>
+      <section>
+        <HomeSectionHeader title={t("home.data_management")} />
         <div className="grid grid-cols-2 gap-2.5">
-          <CloudButton
-            type="button"
-            variant="card"
+          <HomeFeatureCard
+            icon={Library}
+            accent="green"
+            title={t("home.my_shelf")}
+            description={t("home.browse_wordbook")}
             onClick={() => navigate("/word-books")}
-            className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
-          >
-            <div className="w-8 h-8 shrink-0 bg-tint-mint rounded-xl flex items-center justify-center">
-              <Library className="text-success" size={16} />
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <div className="text-foreground text-sm font-semibold leading-snug">我的书架</div>
-              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">浏览词库</p>
-            </div>
-          </CloudButton>
-
-          {isCoach && (
-            <CloudButton
-              type="button"
-              variant="card"
-              data-coach="students"
+          />
+          {isCoach ? (
+            <HomeFeatureCard
+              icon={Users}
+              accent="sky"
+              title={t("home.student_management")}
+              description={t("home.student_and_duration")}
               onClick={() => navigate("/my-students")}
-              className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
-            >
-              <div className="w-8 h-8 shrink-0 bg-tint-sky rounded-xl flex items-center justify-center">
-                <Users className="text-secondary-brand" size={16} />
-              </div>
-              <div className="min-w-0 flex-1 text-left">
-                <div className="text-foreground text-sm font-semibold leading-snug">学员管理</div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">学员与时长</p>
-              </div>
-            </CloudButton>
-          )}
-
-          <CloudButton
-            type="button"
-            variant="card"
+              data-coach="students"
+            />
+          ) : null}
+          <HomeFeatureCard
+            icon={ClipboardList}
+            accent="slate"
+            title={t("home.study_records")}
+            description={t("home.lessons_and_review")}
             onClick={() => navigate("/training-records")}
-            className="!min-h-0 !h-auto !flex-row !items-center gap-2.5 !p-3 sm:!p-3.5"
-          >
-            <div className="w-8 h-8 shrink-0 bg-tint-mint rounded-xl flex items-center justify-center">
-              <ClipboardList className="text-success" size={16} />
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <div className="text-foreground text-sm font-semibold leading-snug">学习记录</div>
-              <p className="text-[11px] text-muted-foreground mt-0.5 truncate">正课与复习</p>
-            </div>
-          </CloudButton>
+          />
         </div>
       </section>
 
