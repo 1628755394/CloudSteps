@@ -34,6 +34,11 @@ interface Props {
 
 interface Pt { x: number; y: number }
 
+// ---- Document-like text layout constants ----
+const TEXT_MARGIN = 8;
+const TEXT_FIRST_ROW = 8;
+const MIN_TEXT_WIDTH = 240;
+
 // ---- Stroke smoothing: Catmull-Rom to Bezier ----
 function pointsToPathString(points: Pt[], width: number): string {
   if (points.length === 0) return "";
@@ -67,6 +72,7 @@ interface TextOverlay {
   id: string;
   x: number;
   y: number;
+  width: number;
   text: string;
   isNew: boolean;
 }
@@ -171,7 +177,12 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     onContentChange?.();
   }, [onContentChange]);
 
-  // ---- Create a stroke Path from points and register in map ----
+  // ---- Helpers for text layout ----
+  const getTextWidth = useCallback((): number => {
+    const el = containerRef.current;
+    const w = el ? el.clientWidth - TEXT_MARGIN * 2 : 400;
+    return Math.max(w, MIN_TEXT_WIDTH);
+  }, []);
   const createStrokePath = useCallback((
     pts: Pt[],
     strokeColor: string,
@@ -235,8 +246,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     appRef.current?.tree.forceUpdate();
   }, []);
 
-  // ---- Create a Leafer Text element ----
-  const createTextElement = useCallback((x: number, y: number, text: string): string => {
+  const createTextElement = useCallback((x: number, y: number, width: number, text: string): string => {
     const layer = drawLayerRef.current;
     if (!layer) return "";
     const id = `text-${textIdCounter.current++}`;
@@ -245,9 +255,11 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       text,
       x,
       y,
-      fill: colorRef.current,
+      width,
       fontSize: fontSizeRef.current,
+      fill: colorRef.current,
       draggable: false,
+      textWrap: "break",
     });
     layer.add(textEl);
     textMapRef.current.set(id, textEl);
@@ -282,12 +294,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     const trimmed = current.text.trim();
     if (trimmed) {
       if (current.isNew) {
-        createTextElement(current.x, current.y, trimmed);
+        createTextElement(current.x, current.y, current.width, trimmed);
       } else {
         // Update existing text content
         const textEl = textMapRef.current.get(current.id);
         if (textEl) {
           textEl.text = trimmed;
+          (textEl as unknown as { width?: number; textWrap?: string }).width = current.width;
+          (textEl as unknown as { width?: number; textWrap?: string }).textWrap = "break";
           appRef.current?.tree.forceUpdate();
         }
       }
@@ -311,8 +325,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     setTimeout(() => { isFinishingRef.current = false; }, 0);
   }, [createTextElement, pushUndo, onContentChange]);
 
-  // ---- Start text editing at position ----
-  const startTextEditing = useCallback((x: number, y: number, existingId?: string, existingText?: string) => {
+  const startTextEditing = useCallback((x: number, y: number, width: number, existingId?: string, existingText?: string) => {
     isFinishingRef.current = false;
     // Clear the Leafer Text content while editing (so user only sees the textarea)
     if (existingId) {
@@ -326,6 +339,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       id: existingId || "",
       x,
       y,
+      width,
       text: existingText || "",
       isNew: !existingId,
     };
@@ -728,10 +742,11 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
 
       if (foundText) {
         // Edit existing text
-        startTextEditing(foundText.x, foundText.y, foundText.id, foundText.text);
+        const tw = (textMapRef.current.get(foundText.id) as unknown as { width?: number }).width || getTextWidth();
+        startTextEditing(foundText.x, foundText.y, tw, foundText.id, foundText.text);
       } else {
-        // Create new text at click x, always start from first row (top, y=8)
-        startTextEditing(pt.x, 8);
+        // Create new text at first row (top, y=8), full page width
+        startTextEditing(TEXT_MARGIN, TEXT_FIRST_ROW, getTextWidth());
       }
     };
 
@@ -892,7 +907,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     addTextAtCenter: () => {
       const layer = drawLayerRef.current;
       if (!layer) return;
-      startTextEditing(16, 8);
+      startTextEditing(TEXT_MARGIN, TEXT_FIRST_ROW, getTextWidth());
     },
   }), [captureSnapshot, restoreSnapshot, pushUndo, onContentChange, startTextEditing]);
 
@@ -948,18 +963,19 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           style={{
             left: `${textOverlay.x}px`,
             top: `${textOverlay.y}px`,
+            width: `${textOverlay.width}px`,
             color: color,
             fontSize: `${fontSize}px`,
             fontFamily: "inherit",
             lineHeight: "1.3",
-            minWidth: "20px",
             minHeight: `${fontSize * 1.3}px`,
-            width: "auto",
             padding: "0",
             margin: "0",
             caretColor: color,
             boxShadow: "none",
             whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            overflow: "hidden",
           }}
           autoFocus
         />
