@@ -549,7 +549,7 @@ export default function WordPractice() {
                 <span className="hidden sm:inline">{t("practice.free_note")}</span>
               </CloudButton>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="hidden sm:flex items-center gap-1.5 sm:gap-2 shrink-0">
               <div className="w-16 shrink-0" aria-hidden="true" />
               <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
                 <ArrowRight size={24} />
@@ -558,6 +558,17 @@ export default function WordPractice() {
           </div>
         </div>
       </div>
+
+      <CloudButton
+        type="button"
+        variant="brand"
+        size="iconRound"
+        onClick={handleNext}
+        className="fixed right-3 bottom-20 z-50 size-12 shadow-lg sm:hidden"
+        aria-label={t("practice.next")}
+      >
+        <ArrowRight size={24} />
+      </CloudButton>
     </FlowPageShell>
   );
 }
