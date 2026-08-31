@@ -540,14 +540,14 @@ export default function PostTrainingCheck() {
                 style={markWordCardStyle(word.status, isWordCardTapped(word, playingId, word.id))}
                 onClick={() => handleWordClick(word)}
               >
-                <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1">
-                  <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="min-w-0">
                     {spellMode ? (
                       <span
                         className={`${PRACTICE_WORD_CLASS} inline-block select-none rounded-sm bg-[#4ECDC4] align-text-bottom`}
                         style={{
-                          width: `${Math.max(3, Math.ceil(word.word.length * 0.7))}ch`,
+                          width: `${Math.max(3, Math.min(12, word.word.length))}ch`,
                           height: "1.1em",
                         }}
                       />
@@ -568,19 +568,20 @@ export default function PostTrainingCheck() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
                   <div onClick={(e) => e.stopPropagation()}>
                     <StudyNoteLauncher
                       storageKey={`study-note:word:${wordBookId}:${word.id}`}
                       title={t("practice.note_title", { word: word.word })}
                       label={t("practice.note")}
-                      className="h-9 px-2"
+                      className="h-8 w-8 px-0 sm:h-9 sm:px-2"
                     />
                   </div>
                   <CloudButton
                     type="button"
                     variant="ghost"
                     size="iconRound"
+                    className="size-8 sm:size-9"
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePlayAudio(word);
@@ -594,7 +595,7 @@ export default function PostTrainingCheck() {
                     }}
                   >
                     <Volume2
-                      size={20}
+                      size={18}
                       className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
                     />
                   </CloudButton>
@@ -602,23 +603,25 @@ export default function PostTrainingCheck() {
                     type="button"
                     variant={word.status === "correct" ? "mint" : "ghost"}
                     size="iconRound"
+                    className="size-8 sm:size-9"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleStatusClick(word.id, "correct");
                     }}
                   >
-                    <Check size={20} />
+                    <Check size={18} />
                   </CloudButton>
                   <CloudButton
                     type="button"
                     variant={word.status === "wrong" ? "destructive" : "ghost"}
                     size="iconRound"
+                    className="size-8 sm:size-9"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleStatusClick(word.id, "wrong");
                     }}
                   >
-                    <X size={20} />
+                    <X size={18} />
                   </CloudButton>
                 </div>
                 </div>
@@ -637,10 +640,10 @@ export default function PostTrainingCheck() {
         </div>
       </StudyNoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-2 sm:py-3 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <CloudButton
                 type="button"
                 variant={note.open ? "brand" : "outline"}
@@ -648,14 +651,15 @@ export default function PostTrainingCheck() {
                 onClick={() => note.setOpen((value) => !value)}
                 aria-label={t("practice.open_free_note")}
                 title={t("practice.open_free_note")}
+                className="max-sm:px-2 max-sm:text-xs"
               >
-                <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
-              {t("practice.free_note")}
+                <PanelTop size={15} className={note.open ? "text-white" : "text-[#c45c78]"} />
+              <span className="hidden sm:inline">{t("practice.free_note")}</span>
               </CloudButton>
               <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-                <Shuffle size={16} />
-              {t("practice.shuffle")}
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">
+                <Shuffle size={15} />
+              <span className="hidden sm:inline">{t("practice.shuffle")}</span>
               </CloudButton>
               <CloudButton
                 variant={detailMode ? "brand" : "outline"}
@@ -666,38 +670,40 @@ export default function PostTrainingCheck() {
                     return !v;
                   });
                 }}
+                className="max-sm:px-2 max-sm:text-xs"
               >
-                <BookOpen size={16} />
-              {t("practice.expand")}
+                <BookOpen size={15} />
+              <span className="hidden sm:inline">{t("practice.expand")}</span>
               </CloudButton>
               <CloudButton
                 type="button"
                 variant={spellMode ? "brand" : "outline"}
                 size="pill"
                 onClick={() => setSpellMode((v) => !v)}
+                className="max-sm:px-2 max-sm:text-xs"
               >
-                <Type size={16} />
+                <Type size={15} />
                 {t("practice.spell")}
               </CloudButton>
             </div>
-            <div className="flex items-center gap-2 w-full md:w-auto min-w-0 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full md:w-auto min-w-0 shrink-0">
               <CloudButton
                 variant="mintOutline"
                 size="pill"
-                className="shrink-0 max-sm:px-3"
+                className="shrink-0 max-sm:px-2 max-sm:text-xs"
                 onClick={() => markNextFive("correct")}
               >
-                <Check size={16} />
+                <Check size={15} />
                 <span className="hidden sm:inline">{t("practice.mark_five_correct")}</span>
                 <span className="sm:hidden">5✓</span>
               </CloudButton>
               <CloudButton
                 variant="destructive"
                 size="pill"
-                className="shrink-0 max-sm:px-3"
+                className="shrink-0 max-sm:px-2 max-sm:text-xs"
                 onClick={() => markNextFive("wrong")}
               >
-                <X size={16} />
+                <X size={15} />
                 <span className="hidden sm:inline">{t("practice.mark_five_wrong")}</span>
                 <span className="sm:hidden">5✗</span>
               </CloudButton>

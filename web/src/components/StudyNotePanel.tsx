@@ -58,12 +58,12 @@ export function StudyNoteLauncher({ storageKey, title, label, className = "" }: 
     <>
       <button
         type="button"
-        className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
+        className={`inline-flex h-9 items-center justify-center rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
         onClick={() => setOpen(true)}
         title={t("studyNote.open", { label: resolvedLabel })}
       >
         <BookOpen size={15} />
-        {resolvedLabel}
+        {resolvedLabel && <span className="hidden sm:inline">{resolvedLabel}</span>}
       </button>
       {open && (
         <StudyNotePanel
