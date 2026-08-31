@@ -9,11 +9,15 @@ export interface VocabNextRequest {
 
 export interface VocabSubmitRequest {
   answers: Array<{ questionId: number | string; answer: string }>
-  studentId?: number
+  studentId?: string
 }
 
 export const getVocabStart = async (): Promise<ApiResponse<any>> => {
   return get<any>('/vocab/start')
+}
+
+export const getVocabPoolRevision = async (): Promise<ApiResponse<{ poolRevision: number }>> => {
+  return get<{ poolRevision: number }>('/vocab/pool-revision')
 }
 
 export const getVocabNext = async (data: VocabNextRequest): Promise<ApiResponse<any>> => {

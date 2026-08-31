@@ -271,7 +271,7 @@ export const endCoachingAppointment = async (id: number): Promise<ApiResponse<un
 
 /** 无排课练习：按学员立即开课计时（结束仍走 appointments/:id/end） */
 export const startPracticeSession = async (body: {
-  studentId: number
+  studentId: string | number
   plannedMinutes?: number
 }): Promise<
   ApiResponse<{

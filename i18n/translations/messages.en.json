@@ -64,6 +64,7 @@
   "coaching.quota_negative": "remainingMinutes cannot be negative",
   "coaching.need_range": "from and to (YYYY-MM-DD) are required",
   "coaching.relation_required": "Please establish a coaching relationship first",
+  "coaching.no_student_access": "No access to this student or coaching relationship not established",
   "coaching.session_busy": "Another student has an active session, please end it first",
   "checkin.ok": "Checked in successfully",
   "checkin.already": "Already checked in today",

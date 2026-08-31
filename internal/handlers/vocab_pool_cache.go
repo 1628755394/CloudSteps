@@ -3,6 +3,7 @@ package handlers
 import (
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
@@ -15,6 +16,7 @@ var (
 	vocabPoolMu       sync.RWMutex
 	vocabPoolByLevel  map[string][]models.VocabTestQuestion
 	vocabPoolLoadedAt time.Time
+	vocabPoolRevision uint64
 )
 
 func invalidateVocabPoolCache() {
@@ -22,6 +24,11 @@ func invalidateVocabPoolCache() {
 	defer vocabPoolMu.Unlock()
 	vocabPoolByLevel = nil
 	vocabPoolLoadedAt = time.Time{}
+	atomic.AddUint64(&vocabPoolRevision, 1)
+}
+
+func getVocabPoolRevision() uint64 {
+	return atomic.LoadUint64(&vocabPoolRevision)
 }
 
 func getVocabPoolByLevel(db *gorm.DB) (map[string][]models.VocabTestQuestion, error) {

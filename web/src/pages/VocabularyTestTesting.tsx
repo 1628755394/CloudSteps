@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { submitVocabTest } from "../api/vocab";
 import { playFirstWordAudio } from "../utils/audioPlayer";
 import { getTrainingStudent } from "../utils/trainingStudent";
+import { formatApiMessage } from "../utils/apiMessage";
 import {
   clearVocabTestQuestionsCache,
   ensureVocabTestQuestions,
@@ -128,7 +129,7 @@ export default function VocabularyTestTesting() {
       answers: payloadAnswers,
       ...(studentId ? { studentId } : {}),
     });
-    if (res.code !== 200) throw new Error(res.msg || t("vocab_test.submit_failed"));
+    if (res.code !== 200) throw new Error(formatApiMessage(res.msg, "vocab_test.submit_failed"));
     clearVocabTestQuestionsCache();
     sessionStorage.setItem("vocabulary_test_result", JSON.stringify(res.data));
     navigate("/vocabulary-test/result", { replace: true });

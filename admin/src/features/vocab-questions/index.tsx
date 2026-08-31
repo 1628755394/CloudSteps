@@ -102,7 +102,7 @@ export function VocabQuestionsPage() {
   return (
     <AdminPage
       title='词汇测评题库'
-      description={`共 ${total} 题`}
+      description={`共 ${total} 题。增删改题目后会自动刷新服务端题库缓存；学员下次进入测评时会自动拉取最新题目。`}
       extra={
         <Button onClick={openCreate}>
           <Plus />

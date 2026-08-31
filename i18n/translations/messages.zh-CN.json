@@ -64,6 +64,7 @@
   "coaching.quota_negative": "remainingMinutes 不能为负",
   "coaching.need_range": "需要 from、to（YYYY-MM-DD）",
   "coaching.relation_required": "请先建立陪练关系",
+  "coaching.no_student_access": "无权查看该学员或尚未建立陪练关系",
   "coaching.session_busy": "当前已有其他学员的上课中课次，请先结束后再开始练习",
   "checkin.ok": "签到成功",
   "checkin.already": "今日已签到",
