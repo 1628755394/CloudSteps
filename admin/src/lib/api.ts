@@ -1,5 +1,7 @@
 import axios, { type AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth-store'
+import { formatAdminApiMessage } from '@/lib/api-message'
+import { parseApiJson } from '@/lib/json-snowflake'
 
 export type ApiResponse<T = unknown> = {
   code: number
@@ -10,6 +12,16 @@ export type ApiResponse<T = unknown> = {
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 30_000,
+  transformResponse: [
+    (data) => {
+      if (typeof data !== 'string' || data.length === 0) return data
+      try {
+        return parseApiJson(data)
+      } catch {
+        return data
+      }
+    },
+  ],
 })
 
 api.interceptors.request.use((config) => {
@@ -23,9 +35,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    const msg = error.response?.data?.msg
-    if (typeof msg === 'string' && msg.length > 0) {
-      error.message = msg
+    const payload = error.response?.data as
+      | { msg?: string; data?: { reason?: string } }
+      | undefined
+    const reason = payload?.data?.reason
+    const msg = payload?.msg
+    if (typeof reason === 'string' && reason.length > 0) {
+      error.message = reason
+    } else if (typeof msg === 'string' && msg.length > 0) {
+      error.message = formatAdminApiMessage(msg)
     }
     return Promise.reject(error)
   }
@@ -33,12 +51,18 @@ api.interceptors.response.use(
 
 function unwrap<T>(payload: ApiResponse<T>): ApiResponse<T> {
   if (payload.code !== 200) {
-    const err = new Error(payload.msg || '请求失败') as Error & {
+    const data = payload.data as { reason?: string } | undefined
+    const reason = data?.reason
+    const msg =
+      typeof reason === 'string' && reason.length > 0
+        ? reason
+        : formatAdminApiMessage(payload.msg)
+    const err = new Error(msg) as Error & {
       code: number
       msg: string
     }
     err.code = payload.code
-    err.msg = payload.msg
+    err.msg = msg
     throw err
   }
   return payload
@@ -81,7 +105,7 @@ export async function getBlob(url: string, config?: AxiosRequestConfig) {
   if (!data.type.includes('application/json')) return data
   const text = await data.text()
   try {
-    const payload = JSON.parse(text) as ApiResponse
+    const payload = parseApiJson<ApiResponse>(text)
     if (typeof payload.code === 'number' && payload.code !== 200) {
       throw new Error(payload.msg || '请求失败')
     }
