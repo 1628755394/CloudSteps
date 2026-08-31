@@ -33,6 +33,7 @@ func (h *Handlers) registerVocabTestRoutes(r *humax.Group) {
 		user := vt.Group("")
 		user.Use(auth.Required)
 		user.GET("/start", h.handleVocabTestStart)
+		user.GET("/pool-revision", h.handleVocabPoolRevision)
 		user.POST("/next", h.handleVocabTestNext)
 		user.POST("/submit", h.handleVocabTestSubmit)
 		user.GET("/result", h.handleVocabTestResult)
@@ -187,12 +188,28 @@ func resolveVocabTestStudentID(db *gorm.DB, user *models.User, requested uint) (
 		return requested, nil
 	}
 	if user.IsStudent() {
-		return 0, errors.New("无权为其他学员提交测评")
+		return 0, fmt.Errorf("coaching.no_student_access")
 	}
 	if err := coachingTeacherHasStudentPair(db, user.ID, requested); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("coaching.no_student_access")
 	}
 	return requested, nil
+}
+
+func failVocabTestAccess(c *gin.Context, err error) {
+	if err == nil {
+		response.FailI18n(c, "common.forbidden", nil)
+		return
+	}
+	msg := err.Error()
+	switch msg {
+	case "未登录":
+		response.FailI18n(c, "common.login_required", nil)
+	case "coaching.no_student_access", "无权查看该学员或尚未建立陪练关系", "无权为其他学员提交测评":
+		response.FailI18n(c, "coaching.no_student_access", nil)
+	default:
+		response.FailI18n(c, "coaching.relation_required", nil)
+	}
 }
 
 func clearLatestVocabTest(tx *gorm.DB, userID, studentID uint) error {
@@ -255,9 +272,18 @@ func (h *Handlers) handleVocabTestStart(c *gin.Context) {
 	}
 
 	response.SuccessMsg(c, "success", gin.H{
-		"questions": allQuestions,
-		"total":     len(allQuestions),
-		"mode":      "batch", // 批量模式：前端一次拿到所有题，本地作答后统一提交
+		"questions":     allQuestions,
+		"total":         len(allQuestions),
+		"mode":          "batch", // 批量模式：前端一次拿到所有题，本地作答后统一提交
+		"poolRevision":  getVocabPoolRevision(),
+	})
+}
+
+// handleVocabPoolRevision GET /vocab/pool-revision
+// 返回服务端测评题库内存缓存版本号；Admin 增删改题目后会递增，供前端判断是否需丢弃本地预拉缓存。
+func (h *Handlers) handleVocabPoolRevision(c *gin.Context) {
+	response.SuccessMsg(c, "success", gin.H{
+		"poolRevision": getVocabPoolRevision(),
 	})
 }
 
@@ -402,12 +428,11 @@ func (h *Handlers) handleVocabTestNext(c *gin.Context) {
 
 // handleVocabTestSubmit POST /vocab-test/submit
 func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
-	fmt.Println("=== [DEBUG] vocab submit called ===")
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 
 	var body struct {
-		StudentID uint `json:"studentId"`
+		StudentID string `json:"studentId"`
 		Answers   []struct {
 			QuestionID json.Number `json:"questionId"`
 			Answer     string      `json:"answer"`
@@ -415,18 +440,27 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		logger.Error("vocab submit bind error", zap.Error(err))
-		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
+		response.FailI18n(c, "common.invalid_params", err)
 		return
 	}
 
 	if user == nil {
-		response.AbortWithStatusJSON(c, http.StatusUnauthorized, errors.New("未登录"))
+		response.FailI18n(c, "common.login_required", nil)
 		return
 	}
-	studentID, err := resolveVocabTestStudentID(db, user, body.StudentID)
+	var requested uint
+	if raw := strings.TrimSpace(body.StudentID); raw != "" {
+		id, err := strconv.ParseUint(raw, 10, 64)
+		if err != nil || id == 0 {
+			response.FailI18n(c, "common.invalid_params", nil)
+			return
+		}
+		requested = uint(id)
+	}
+	studentID, err := resolveVocabTestStudentID(db, user, requested)
 	if err != nil {
-		logger.Error("vocab submit resolve student error", zap.Error(err), zap.Uint("studentId", body.StudentID))
-		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
+		logger.Error("vocab submit resolve student error", zap.Error(err), zap.String("studentId", body.StudentID))
+		failVocabTestAccess(c, err)
 		return
 	}
 
