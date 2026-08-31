@@ -286,13 +286,24 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       if (current.isNew) {
         createTextElement(current.x, current.y, trimmed);
       } else {
-        updateTextContent(current.id, trimmed);
+        // Update existing text and make it visible again
+        const textEl = textMapRef.current.get(current.id);
+        if (textEl) {
+          textEl.text = trimmed;
+          (textEl as unknown as { visible: boolean }).visible = true;
+          appRef.current?.tree.forceUpdate();
+        }
       }
       pushUndo();
       onContentChange?.();
     } else if (!current.isNew) {
       // Remove empty existing text
-      removeTextElement(current.id);
+      const textEl = textMapRef.current.get(current.id);
+      if (textEl) {
+        textEl.remove();
+        textMapRef.current.delete(current.id);
+        appRef.current?.tree.forceUpdate();
+      }
       pushUndo();
       onContentChange?.();
     }
@@ -301,11 +312,19 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     setTextOverlay(null);
     // Reset guard on next tick
     setTimeout(() => { isFinishingRef.current = false; }, 0);
-  }, [createTextElement, updateTextContent, removeTextElement, pushUndo, onContentChange]);
+  }, [createTextElement, pushUndo, onContentChange]);
 
   // ---- Start text editing at position ----
   const startTextEditing = useCallback((x: number, y: number, existingId?: string, existingText?: string) => {
     isFinishingRef.current = false;
+    // Hide the Leafer Text element while editing (so user only sees the textarea)
+    if (existingId) {
+      const textEl = textMapRef.current.get(existingId);
+      if (textEl) {
+        (textEl as unknown as { visible: boolean }).visible = false;
+        appRef.current?.tree.forceUpdate();
+      }
+    }
     const overlay: TextOverlay = {
       id: existingId || "",
       x,
