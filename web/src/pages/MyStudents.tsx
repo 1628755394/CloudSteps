@@ -27,13 +27,16 @@ import {
 } from "../api/coaching";
 import { showToast } from "../utils/toast";
 import { resolveMediaUrl } from "../utils/mediaUrl";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+import { formatApiMessage } from "../utils/apiMessage";
 
 const DEFAULT_PASSWORD = "student123";
 const PAGE_LIMIT = 20;
 
 function studentLabel(row: TeacherCoachingQuotaRow) {
   const s = row.student;
-  return s?.displayName || s?.username || s?.email || `学员 #${row.studentId}`;
+  return s?.displayName || s?.username || s?.email || i18n.t("student_detail.student_fallback", { id: row.studentId });
 }
 
 function studentInitial(row: TeacherCoachingQuotaRow) {
@@ -50,10 +53,11 @@ function loginAccount(row: TeacherCoachingQuotaRow) {
 
 function minsLabel(n: number) {
   if (!Number.isFinite(n)) return "—";
-  return `${Math.max(0, Math.round(n))}分钟`;
+  return i18n.t("practice.minutes_unit", { count: Math.max(0, Math.round(n)) });
 }
 
 export default function MyStudents() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<TeacherCoachingQuotaRow[]>([]);
@@ -100,7 +104,7 @@ export default function MyStudents() {
           q: opts.q || undefined,
         });
         if (res.code !== 200) {
-          showToast.error(res.msg || "加载失败");
+          showToast.error(formatApiMessage(res.msg, "common.query_failed"));
           if (!opts.append) setRows([]);
           return;
         }
@@ -112,7 +116,7 @@ export default function MyStudents() {
         const msg =
           e && typeof e === "object" && "msg" in e
             ? String((e as { msg: string }).msg)
-            : "加载失败";
+            : formatApiMessage(undefined, "common.query_failed");
         showToast.error(msg);
         if (!opts.append) setRows([]);
       } finally {
@@ -166,26 +170,26 @@ export default function MyStudents() {
     if (!pwdTarget) return;
     const pwd = resetDefault ? DEFAULT_PASSWORD : pwdValue.trim();
     if (!pwd || pwd.length < 6) {
-      showToast.warning("密码至少 6 位");
+      showToast.warning(t("my_students.password_min"));
       return;
     }
     setPwdSaving(true);
     try {
       const res = await setTeacherStudentPassword(pwdTarget.studentId, pwd);
       if (res.code !== 200) {
-        showToast.error(res.msg || "设置失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
       const account = res.data?.username || loginAccount(pwdTarget) || studentLabel(pwdTarget);
       showToast.success(
         resetDefault
-          ? `已重置：${account} / ${DEFAULT_PASSWORD}`
-          : `已更新：${account} 的密码`
+          ? t("my_students.reset_success", { account, pwd: DEFAULT_PASSWORD })
+          : t("my_students.update_password_success", { account })
       );
       setPwdTarget(null);
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "设置失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setPwdSaving(false);
@@ -200,13 +204,13 @@ export default function MyStudents() {
           variant="ghost"
           size="icon"
           onClick={() => navigate("/")}
-          aria-label="返回首页"
+          aria-label={t("my_students.back_home")}
           className="shrink-0"
         >
           <ChevronLeft size={20} />
         </CloudButton>
         <div className="min-w-0 flex-1">
-          <span className="text-sm font-semibold text-foreground">学员管理</span>
+          <span className="text-sm font-semibold text-foreground">{t("my_students.title")}</span>
         </div>
         <CloudButton
           type="button"
@@ -216,7 +220,7 @@ export default function MyStudents() {
           className="shrink-0 gap-1"
         >
           <UserPlus size={14} />
-          新建
+          {t("my_students.create")}
         </CloudButton>
         <CloudButton
           type="button"
@@ -225,14 +229,14 @@ export default function MyStudents() {
           onClick={() => setShowAdd((v) => !v)}
           className="shrink-0"
         >
-          关联
+          {t("my_students.link")}
         </CloudButton>
         <CloudButton
           type="button"
           variant="outline"
           size="icon"
           onClick={() => void fetchPage({ append: false, q: debouncedQ })}
-          aria-label="刷新"
+          aria-label={t("my_students.refresh")}
           className="shrink-0"
           disabled={loading}
         >
@@ -249,7 +253,7 @@ export default function MyStudents() {
       <Dialog open={!!pwdTarget} onOpenChange={closePwdModal}>
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>设置登录密码</DialogTitle>
+            <DialogTitle>{t("my_students.set_password")}</DialogTitle>
             <DialogDescription>
               {pwdTarget
                 ? `${studentLabel(pwdTarget)}${
@@ -272,7 +276,7 @@ export default function MyStudents() {
               disabled={pwdSaving}
               onClick={() => void savePassword(true)}
             >
-              重置为 {DEFAULT_PASSWORD}
+              {t("my_students.reset_password", { pwd: DEFAULT_PASSWORD })}
             </CloudButton>
             <CloudButton
               type="button"
@@ -281,7 +285,7 @@ export default function MyStudents() {
               loading={pwdSaving}
               onClick={() => void savePassword(false)}
             >
-              保存密码
+              {t("my_students.save_password")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>
@@ -291,7 +295,7 @@ export default function MyStudents() {
         <CloudInput
           value={keyword}
           onChange={setKeyword}
-          placeholder="搜索姓名 / 账号 / 手机…"
+          placeholder={t("my_students.search_placeholder")}
           prefix={<Search size={16} className="text-muted-foreground" />}
           allowClear
         />
@@ -300,15 +304,15 @@ export default function MyStudents() {
       <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pb-2">
         {loading ? (
           <CloudCard className="p-10">
-            <CloudSpin tip="加载中…" />
+            <CloudSpin tip={t("practice.loading")} />
           </CloudCard>
         ) : rows.length === 0 ? (
           <CloudCard className="p-8">
             <CloudEmpty
               description={
                 debouncedQ
-                  ? "没有匹配的学员"
-                  : "暂无学员。点击右上角「新建」创建账号，或「关联」已有学员。"
+                  ? t("my_students.no_match")
+                  : t("my_students.empty")
               }
             />
           </CloudCard>
@@ -355,8 +359,8 @@ export default function MyStudents() {
                         {account || "—"}
                         <span className="text-muted-soft">
                           {" "}
-                          · 测评 {r.vocabTestCount ?? 0} · 陪练 {r.coachingSessionCount ?? 0} · 训练{" "}
-                          {r.studySessionCount ?? 0}
+                          {t("my_students.stats", { vocab: r.vocabTestCount ?? 0, coaching: r.coachingSessionCount ?? 0, study:
+                           r.studySessionCount ?? 0 })}
                         </span>
                       </p>
                     </div>
@@ -371,7 +375,7 @@ export default function MyStudents() {
                       onClick={() => openPwdModal(r)}
                     >
                       <KeyRound size={14} />
-                      <span className="hidden sm:inline">密码</span>
+                      <span className="hidden sm:inline">{t("my_students.password")}</span>
                     </CloudButton>
                   </div>
                 </div>
@@ -387,7 +391,7 @@ export default function MyStudents() {
           </div>
         )}
         {!loading && !hasMore && rows.length > 0 && (
-          <p className="text-center text-[11px] text-muted-soft py-1">没有更多了</p>
+          <p className="text-center text-[11px] text-muted-soft py-1">{t("practice.no_more")}</p>
         )}
       </div>
     </div>

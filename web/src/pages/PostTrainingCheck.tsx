@@ -41,6 +41,8 @@ import {
   type StudyCheckPhase,
 } from "../utils/studyBatchFlow";
 import { clearReviewPracticeSession, getReviewReturnPath } from "../utils/reviewPractice";
+import { useTranslation } from "react-i18next";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type CheckWord = {
   id: number;
@@ -82,6 +84,7 @@ function getStudyBatchMeta(batchIdx: number) {
 }
 
 export default function PostTrainingCheck() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [words, setWords] = useState<CheckWord[]>([]);
   const [annotationOpen, setAnnotationOpen] = useState(false);
@@ -136,8 +139,8 @@ export default function PostTrainingCheck() {
     if (isRecheckMode) {
       const n = getStudyRecheckWords()?.length ?? 0;
       return {
-        title: "错词复检",
-        hint: `共 ${n} 个词 · 请再次确认掌握情况`,
+        title: t("practice.recheck_title"),
+        hint: t("practice.recheck_hint", { count: n }),
       };
     }
     return getCheckPhaseLabel(checkPhase, effectiveBatchIdx, batchInfo.totalBatches);
@@ -293,22 +296,22 @@ export default function PostTrainingCheck() {
   const allMarked = useMemo(() => words.length > 0 && words.every((w) => w.status !== null), [words]);
 
   const submitLabel = useMemo(() => {
-    if (mode === "review") return "完成复习";
-    if (wrongWords.length > 0) return `重练 ${wrongWords.length} 个错词`;
+    if (mode === "review") return t("practice.complete_review");
+    if (wrongWords.length > 0) return t("practice.retry_wrong", { count: wrongWords.length });
     if (isRecheckMode) {
       const pending = getStudyPendingAction();
       if (pending === "final_check" && getStudyRecheckFrom() === "milestone") {
-        return "提交并进入训后检测";
+        return t("practice.submit_post_check");
       }
-      if (pending === "next_batch") return "提交并继续下一组";
-      if (checkPhase === "final") return "提交并完成训练";
-      return "提交并继续";
+      if (pending === "next_batch") return t("practice.submit_next_batch");
+      if (checkPhase === "final") return t("practice.submit_finish");
+      return t("practice.submit_continue");
     }
-    if (checkPhase === "final") return "提交并完成训练";
+    if (checkPhase === "final") return t("practice.submit_finish");
     if (needsFinalCheckAfterMilestone(effectiveBatchIdx, batchInfo.totalBatches)) {
-      return "提交并进入训后检测";
+      return t("practice.submit_post_check");
     }
-    return "提交并继续下一组";
+    return t("practice.submit_next_batch");
   }, [mode, checkPhase, effectiveBatchIdx, batchInfo.totalBatches, wrongWords.length, isRecheckMode]);
 
   const sendWrongWordsToFlashRetry = (pending: "next_batch" | "final_check") => {
@@ -323,7 +326,7 @@ export default function PostTrainingCheck() {
       });
       if (retryPayload.length === 0) {
         console.error("错词重练列表为空，请检查单词 ID", wrongWords);
-        alert("错词数据异常，无法进入重练");
+        alert(t("practice.wrong_data_error"));
         return;
       }
       const from = checkPhase === "final" || isRecheckMode && getStudyRecheckFrom() === "final"
@@ -373,7 +376,7 @@ export default function PostTrainingCheck() {
         if (mode === "review") {
           const res = await completeReviewSession(sessionId, results);
           if (res.code !== 200) {
-            throw new Error(res.msg || "提交失败");
+            throw new Error(formatApiMessage(res.msg, "practice.submit_failed"));
           }
           const returnPath = getReviewReturnPath("/word-training");
           clearReviewPracticeSession();
@@ -447,7 +450,7 @@ export default function PostTrainingCheck() {
   return (
     <FlowPageShell>
       <TopBar
-        title={mode === "review" ? "开始复习" : phaseLabels.title}
+        title={mode === "review" ? t("practice.start_review") : phaseLabels.title}
         onBack={handleBack}
         rightSlot={
           <PracticeFlowToolbar
@@ -528,8 +531,8 @@ export default function PostTrainingCheck() {
                   <div onClick={(e) => e.stopPropagation()}>
                     <StudyNoteLauncher
                       storageKey={`study-note:word:${wordBookId}:${word.id}`}
-                      title={`笔记 · ${word.word}`}
-                      label="笔记"
+                      title={t("practice.note_title", { word: word.word })}
+                      label={t("practice.note")}
                       className="h-9 px-2"
                     />
                   </div>
@@ -602,16 +605,16 @@ export default function PostTrainingCheck() {
                 variant={note.open ? "brand" : "outline"}
                 size="pill"
                 onClick={() => note.setOpen((value) => !value)}
-                aria-label="打开随心记"
-                title="打开随心记"
+                aria-label={t("practice.open_free_note")}
+                title={t("practice.open_free_note")}
               >
                 <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
-                随心记
+              {t("practice.free_note")}
               </CloudButton>
               <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
               <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
                 <Shuffle size={16} />
-                乱序
+              {t("practice.shuffle")}
               </CloudButton>
               <CloudButton
                 variant={detailMode ? "brand" : "outline"}
@@ -624,7 +627,7 @@ export default function PostTrainingCheck() {
                 }}
               >
                 <BookOpen size={16} />
-                拓展
+              {t("practice.expand")}
               </CloudButton>
             </div>
             <div className="flex items-center gap-2 w-full md:w-auto min-w-0 shrink-0">
@@ -635,7 +638,7 @@ export default function PostTrainingCheck() {
                 onClick={() => markNextFive("correct")}
               >
                 <Check size={16} />
-                <span className="hidden sm:inline">5个正确</span>
+                <span className="hidden sm:inline">{t("practice.mark_five_correct")}</span>
                 <span className="sm:hidden">5✓</span>
               </CloudButton>
               <CloudButton
@@ -645,7 +648,7 @@ export default function PostTrainingCheck() {
                 onClick={() => markNextFive("wrong")}
               >
                 <X size={16} />
-                <span className="hidden sm:inline">5个错误</span>
+                <span className="hidden sm:inline">{t("practice.mark_five_wrong")}</span>
                 <span className="sm:hidden">5✗</span>
               </CloudButton>
               <CloudButton
@@ -656,7 +659,7 @@ export default function PostTrainingCheck() {
                 onClick={handleSubmit}
                 disabled={!allMarked || submitting}
                 loading={submitting}
-                loadingText="提交中…"
+                loadingText={t("practice.submitting")}
               >
                 {submitLabel}
               </CloudButton>

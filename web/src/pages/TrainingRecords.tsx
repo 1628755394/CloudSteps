@@ -18,16 +18,19 @@ import { pickPhonetic } from "../utils/wordExportFields";
 import { showToast } from "../utils/toast";
 import { useAuthStore } from "../stores/authStore";
 import { getTrainingStudent } from "../utils/trainingStudent";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type Tab = "study" | "review";
 type ExportFormat = "excel" | "pdf";
 /** 导出内容：音标+中文+英文 / 仅中文侧 / 仅英文侧 */
 type ExportContent = "both" | "zh" | "en";
 
-function exportContentLabel(c: ExportContent) {
-  if (c === "zh") return "中文";
-  if (c === "en") return "英文";
-  return "中英文";
+function exportContentLabel(c: ExportContent, tr: (k: string) => string) {
+  if (c === "zh") return tr("training_records.content_zh");
+  if (c === "en") return tr("training_records.content_en");
+  return tr("training_records.export_both");
 }
 
 function todayCompact() {
@@ -38,7 +41,7 @@ function todayCompact() {
 
 function studentLabel(row: TeacherCoachingQuotaRow) {
   const s = row.student;
-  return s?.displayName || s?.username || s?.email || `学员 #${row.studentId}`;
+  return s?.displayName || s?.username || s?.email || i18n.t("student_detail.student_fallback", { id: row.studentId });
 }
 
 function todayYMD() {
@@ -96,6 +99,7 @@ function groupSessionsClient(items: StudySessionListItem[]): StudySessionListIte
 }
 
 export default function TrainingRecords() {
+  const { t } = useTranslation();
   const role = useAuthStore((s) => s.user?.role) || "user";
   const isCoach = role === "user" || role === "admin" || role === "teacher";
 
@@ -145,7 +149,7 @@ export default function TrainingRecords() {
       if (item.wordBookId && item.wordBookName) map.set(item.wordBookId, item.wordBookName);
     }
     return [
-      { label: "全部词库", value: "" },
+      { label: t("training_records.all_wordbooks"), value: "" },
       ...Array.from(map.entries()).map(([id, name]) => ({ label: name, value: String(id) })),
     ];
   }, [list]);
@@ -297,7 +301,7 @@ export default function TrainingRecords() {
       setDetailWords(Array.from(merged.values()));
     } catch (e) {
       console.error("加载详情失败:", e);
-      showToast.error("加载详情失败");
+      showToast.error(t("training_records.load_detail_failed"));
     } finally {
       setDetailLoading(false);
     }
@@ -331,10 +335,23 @@ export default function TrainingRecords() {
   ) => {
     const headers =
       content === "both"
-        ? ["序号", "英文", "音标", "中文"]
+        ? [
+            t("training_records.header_index"),
+            t("training_records.header_en"),
+            t("training_records.header_phonetic"),
+            t("training_records.header_zh"),
+          ]
         : content === "zh"
-          ? ["序号", "英文", "中文"]
-          : ["序号", "英文", "音标"];
+          ? [
+              t("training_records.header_index"),
+              t("training_records.header_en"),
+              t("training_records.header_zh"),
+            ]
+          : [
+              t("training_records.header_index"),
+              t("training_records.header_en"),
+              t("training_records.header_phonetic"),
+            ];
     const tableRows: Array<Array<string | number>> = words.map((w, i) => {
       const phonetic = pickPhonetic(w);
       const zh = formatTranslationShort(w.translation) || "";
@@ -370,37 +387,37 @@ export default function TrainingRecords() {
 
   const handleExport = async () => {
     if (isCoach && !studentId) {
-      showToast.error("请先选择学员再导出");
+      showToast.error(t("training_records.select_student_export"));
       return;
     }
     setExporting(true);
     try {
       const res = await exportStudySessionWords(filterParams());
       if (res.code !== 200) {
-        showToast.error(res.msg || "导出失败");
+        showToast.error(formatApiMessage(res.msg, "common.export_failed"));
         return;
       }
       const words = res.data?.words || [];
       if (words.length === 0) {
-        showToast.error("暂无单词可导出");
+        showToast.error(t("training_records.no_words_export"));
         return;
       }
 
       const { headers, tableRows } = buildExportTable(words, exportContent);
-      const who = selectedStudentName || "学员";
-      const contentLabel = exportContentLabel(exportContent);
+      const who = selectedStudentName || t("training_records.student_fallback");
+      const contentLabel = exportContentLabel(exportContent, t);
       const stamp = todayCompact();
       const fileBase =
         tab === "review"
-          ? `【${who}-${stamp}抗遗忘-${contentLabel}】`
+          ? `【${who}-${stamp}-${t("training_records.kind_review")}-${contentLabel}】`
           : `【${who}-${stamp}-${contentLabel}】`;
 
       await downloadExportFile({ format: exportFormat, fileBase, headers, tableRows });
-      showToast.success(`已导出 ${words.length} 个单词`);
+      showToast.success(t("training_records.exported_count", { count: words.length }));
       setExportOpen(false);
     } catch (e) {
       console.error(e);
-      showToast.error(e instanceof Error ? e.message : "导出失败");
+      showToast.error(formatApiMessage(e instanceof Error ? e.message : undefined, "common.export_failed"));
     } finally {
       setExporting(false);
     }
@@ -443,22 +460,22 @@ export default function TrainingRecords() {
     try {
       const words = await fetchRecordWords(item);
       if (words.length === 0) {
-        showToast.error("暂无单词可导出");
+        showToast.error(t("training_records.no_words_export"));
         return;
       }
       const { headers, tableRows } = buildExportTable(words, exportContent);
-      const who = selectedStudentName || "学员";
+      const who = selectedStudentName || t("training_records.student_fallback");
       const day = item.day || todayCompact();
-      const book = item.wordBookName || "词库";
-      const kind = tab === "review" ? "抗遗忘" : "训练";
-      const contentLabel = exportContentLabel(exportContent);
+      const book = item.wordBookName || t("training_records.wordbook_fallback");
+      const kind = tab === "review" ? t("training_records.kind_review") : t("training_records.kind_study");
+      const contentLabel = exportContentLabel(exportContent, t);
       const fileBase = `【${who}-${day}-${book}-${kind}-${contentLabel}】`;
       await downloadExportFile({ format, fileBase, headers, tableRows });
-      showToast.success(`已导出 ${words.length} 个单词`);
+      showToast.success(t("training_records.exported_count", { count: words.length }));
       setRowExportItem(null);
     } catch (e) {
       console.error(e);
-      showToast.error(e instanceof Error ? e.message : "导出失败");
+      showToast.error(formatApiMessage(e instanceof Error ? e.message : undefined, "common.export_failed"));
     } finally {
       setExporting(false);
     }
@@ -478,7 +495,7 @@ export default function TrainingRecords() {
           className="shrink-0 self-end sm:self-auto"
         >
           <Download size={16} />
-          导出单词
+          {t("training_records.export_words")}
         </CloudButton>
       </div>
 
@@ -492,7 +509,7 @@ export default function TrainingRecords() {
               : "bg-card text-muted-foreground border border-border"
           }`}
         >
-          正课记录
+          {t("training_records.tab_study")}
         </button>
         <button
           type="button"
@@ -503,7 +520,7 @@ export default function TrainingRecords() {
               : "bg-card text-muted-foreground border border-border"
           }`}
         >
-          抗遗忘记录
+          {t("training_records.tab_review")}
         </button>
       </div>
 
@@ -511,27 +528,27 @@ export default function TrainingRecords() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {isCoach && (
             <div>
-              <p className="text-xs text-muted-foreground mb-1">学员</p>
+              <p className="text-xs text-muted-foreground mb-1">{t("training_records.student")}</p>
               <CloudSelect
                 value={studentId || undefined}
                 onChange={(v) => setStudentId(String(v ?? ""))}
                 options={studentOptions}
-                placeholder={studentsLoading ? "加载学员…" : "选择学员"}
+                placeholder={studentsLoading ? t("training_records.loading_students") : t("training_records.select_student")}
                 showSearch
                 allowClear={false}
-                sheetTitle="选择学员"
+                sheetTitle={t("training_records.select_student")}
                 disabled={studentsLoading || studentOptions.length === 0}
               />
             </div>
           )}
           <div>
-            <p className="text-xs text-muted-foreground mb-1">日期范围</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("training_records.date_range")}</p>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {(
                 [
-                  { id: "all", label: "全部" },
-                  { id: "day", label: "某天" },
-                  { id: "range", label: "区间" },
+                  { id: "all", label: t("training_records.date_all") },
+                  { id: "day", label: t("training_records.date_day") },
+                  { id: "range", label: t("training_records.date_range_label") },
                 ] as const
               ).map((m) => (
                 <button
@@ -561,14 +578,14 @@ export default function TrainingRecords() {
               <div className="flex items-center gap-2">
                 <CloudDatePicker
                   value={dateFrom || undefined}
-                  placeholder="开始日期"
+                  placeholder={t("training_records.start_date")}
                   allowClear
                   onChange={(v) => setDateFrom(v || "")}
                 />
-                <span className="text-xs text-muted-foreground shrink-0">至</span>
+                <span className="text-xs text-muted-foreground shrink-0">{t("training_records.to")}</span>
                 <CloudDatePicker
                   value={dateTo || undefined}
-                  placeholder="结束日期"
+                  placeholder={t("training_records.end_date")}
                   allowClear
                   onChange={(v) => setDateTo(v || "")}
                 />
@@ -576,32 +593,42 @@ export default function TrainingRecords() {
             )}
           </div>
           <div className={isCoach ? "sm:col-span-2" : ""}>
-            <p className="text-xs text-muted-foreground mb-1">词库（当前页结果内）</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("training_records.wordbook_filter")}</p>
             <CloudSelect
               value={wordBookId}
               onChange={(v) => setWordBookId(String(v ?? ""))}
               options={wordBookOptions}
-              placeholder="全部词库"
+              placeholder={t("training_records.all_wordbooks")}
               allowClear
               showSearch
-              sheetTitle="筛选词库"
+              sheetTitle={t("training_records.filter_wordbook")}
             />
           </div>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          共 {total} 个上课日（同词库同日已合并）
-          {selectedStudentName ? ` · 导出学员：${selectedStudentName}` : isCoach ? " · 导出请选择学员" : ""}
-          {dateMode === "day" && dateDay ? ` · ${dateDay}` : ""}
-          {dateMode === "range" && (dateFrom || dateTo) ? ` · ${dateFrom || "…"} ~ ${dateTo || "…"}` : ""}
+          {t("training_records.summary", {
+            total,
+            exportHint: selectedStudentName
+              ? t("training_records.export_for", { name: selectedStudentName })
+              : isCoach
+                ? t("training_records.export_select_student")
+                : "",
+            dateHint:
+              dateMode === "day" && dateDay
+                ? ` · ${dateDay}`
+                : dateMode === "range" && (dateFrom || dateTo)
+                  ? ` · ${dateFrom || "…"} ~ ${dateTo || "…"}`
+                  : "",
+          })}
         </p>
       </CloudCard>
 
       {loading ? (
-        <CloudCard className="p-10 text-center text-muted-foreground">加载中...</CloudCard>
+        <CloudCard className="p-10 text-center text-muted-foreground">{t("training_records.loading")}</CloudCard>
       ) : list.length === 0 ? (
         <CloudCard className="p-10 text-center">
-          <div className="text-foreground font-semibold text-lg">暂无匹配记录</div>
-          <div className="text-muted-foreground text-sm mt-2">试试调整日期或词库筛选</div>
+          <div className="text-foreground font-semibold text-lg">{t("training_records.no_records")}</div>
+          <div className="text-muted-foreground text-sm mt-2">{t("training_records.adjust_filters")}</div>
         </CloudCard>
       ) : (
         <div className="space-y-3">
@@ -626,7 +653,7 @@ export default function TrainingRecords() {
                       <RotateCcw size={16} className="text-secondary-brand shrink-0" />
                     )}
                     <span className="text-sm font-semibold text-foreground truncate">
-                      {item.wordBookName || `词书 #${item.wordBookId || "—"}`}
+                      {item.wordBookName || t("word_book_words.fallback_title", { id: item.wordBookId || "—" })}
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -646,16 +673,20 @@ export default function TrainingRecords() {
                       }}
                     >
                       <Download size={14} />
-                      导出
+                      {t("training_records.export")}
                     </CloudButton>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>{fmtTime(item.latestAt || item.startedAt)}</span>
-                  {(item.sessionCount || 0) > 1 && <span>{item.sessionCount} 组</span>}
-                  <span>单词 {item.wordCount} 个</span>
-                  <span>正确 {item.correctCount} 个</span>
-                  {item.wordCount > 0 && <span>正确率 {correctRate}%</span>}
+                  {(item.sessionCount || 0) > 1 && (
+                    <span>{t("training_records.groups", { count: item.sessionCount })}</span>
+                  )}
+                  <span>{t("training_records.words_count", { count: item.wordCount })}</span>
+                  <span>{t("training_records.correct_count", { count: item.correctCount })}</span>
+                  {item.wordCount > 0 && (
+                    <span>{t("training_records.accuracy", { rate: correctRate })}</span>
+                  )}
                 </div>
               </CloudCard>
             );
@@ -669,7 +700,7 @@ export default function TrainingRecords() {
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                上一页
+                {t("practice.prev_page")}
               </CloudButton>
               <span className="text-sm text-muted-foreground">
                 {page} / {totalPages}
@@ -680,7 +711,7 @@ export default function TrainingRecords() {
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
               >
-                下一页
+                {t("practice.next_page")}
               </CloudButton>
             </div>
           )}
@@ -698,7 +729,7 @@ export default function TrainingRecords() {
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <div className="min-w-0 pr-2">
-                <h3 className="text-base font-semibold text-foreground truncate">导出本条记录</h3>
+                <h3 className="text-base font-semibold text-foreground truncate">{t("training_records.export_row_title")}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">
                   {[
                     rowExportItem.wordBookName,
@@ -720,13 +751,13 @@ export default function TrainingRecords() {
             </div>
             <div className="px-4 py-4 space-y-3">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">选择导出内容</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("training_records.export_content")}</p>
                 <div className="flex gap-2">
                   {(
                     [
-                      { id: "both", label: "中英" },
-                      { id: "zh", label: "中文" },
-                      { id: "en", label: "英文" },
+                      { id: "both", label: t("training_records.content_both_short") },
+                      { id: "zh", label: t("training_records.content_zh") },
+                      { id: "en", label: t("training_records.content_en") },
                     ] as const
                   ).map((f) => (
                     <button
@@ -745,7 +776,7 @@ export default function TrainingRecords() {
                   ))}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mb-1">选择导出格式</p>
+              <p className="text-xs text-muted-foreground mb-1">{t("training_records.export_format")}</p>
               <CloudButton
                 type="button"
                 variant="brand"
@@ -753,7 +784,7 @@ export default function TrainingRecords() {
                 disabled={exporting}
                 onClick={() => void handleExportRecord(rowExportItem, "excel")}
               >
-                {exporting ? "导出中…" : "Excel"}
+                {exporting ? t("training_records.exporting") : "Excel"}
               </CloudButton>
               <CloudButton
                 type="button"
@@ -762,7 +793,7 @@ export default function TrainingRecords() {
                 disabled={exporting}
                 onClick={() => void handleExportRecord(rowExportItem, "pdf")}
               >
-                {exporting ? "导出中…" : "PDF"}
+                {exporting ? t("training_records.exporting") : "PDF"}
               </CloudButton>
             </div>
           </div>
@@ -779,7 +810,7 @@ export default function TrainingRecords() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-              <h3 className="text-base font-semibold text-foreground">导出学习单词</h3>
+              <h3 className="text-base font-semibold text-foreground">{t("training_records.export_study_words")}</h3>
               <CloudButton
                 type="button"
                 variant="ghost"
@@ -792,31 +823,31 @@ export default function TrainingRecords() {
             </div>
             <div className="px-4 py-4 space-y-4 overflow-y-auto">
               <p className="text-xs text-muted-foreground">
-                导出列为音标、中文、英文（可按内容模式裁剪）。文件名示例：【学员-日期-中英文】。
+                {t("training_records.export_hint")}
               </p>
               {isCoach && (
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-2">导出学员</p>
+                  <p className="text-sm font-medium text-foreground mb-2">{t("training_records.export_student_label")}</p>
                   <CloudSelect
                     value={studentId || undefined}
                     onChange={(v) => setStudentId(String(v ?? ""))}
                     options={studentOptions}
-                    placeholder={studentsLoading ? "加载学员…" : "选择学员"}
+                    placeholder={studentsLoading ? t("training_records.loading_students") : t("training_records.select_student")}
                     showSearch
                     allowClear={false}
-                    sheetTitle="选择学员"
+                    sheetTitle={t("training_records.select_student")}
                     disabled={studentsLoading || studentOptions.length === 0 || exporting}
                   />
                 </div>
               )}
               <div>
-                <p className="text-sm font-medium text-foreground mb-2">内容</p>
+                <p className="text-sm font-medium text-foreground mb-2">{t("training_records.content_label")}</p>
                 <div className="flex gap-2">
                   {(
                     [
-                      { id: "both", label: "中英文" },
-                      { id: "zh", label: "中文" },
-                      { id: "en", label: "英文" },
+                      { id: "both", label: t("training_records.export_both") },
+                      { id: "zh", label: t("training_records.content_zh") },
+                      { id: "en", label: t("training_records.content_en") },
                     ] as const
                   ).map((f) => (
                     <button
@@ -835,7 +866,7 @@ export default function TrainingRecords() {
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground mb-2">格式</p>
+                <p className="text-sm font-medium text-foreground mb-2">{t("training_records.format_label")}</p>
                 <div className="flex gap-2">
                   {(
                     [
@@ -867,7 +898,7 @@ export default function TrainingRecords() {
                 disabled={exporting}
                 onClick={() => setExportOpen(false)}
               >
-                取消
+                {t("practice.cancel")}
               </CloudButton>
               <CloudButton
                 type="button"
@@ -876,7 +907,7 @@ export default function TrainingRecords() {
                 disabled={exporting}
                 onClick={() => void handleExport()}
               >
-                {exporting ? "导出中…" : "开始导出"}
+                {exporting ? t("training_records.exporting") : t("training_records.start_export")}
               </CloudButton>
             </div>
           </div>
@@ -896,14 +927,14 @@ export default function TrainingRecords() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
                 <div className="min-w-0 pr-2">
                   <h3 className="text-base font-semibold text-foreground truncate">
-                    {detailSession?.wordBookName || "学习详情"}
+                    {detailSession?.wordBookName || t("training_records.study_detail")}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {[
                       detailSession?.day ||
                         fmtTime(detailSession?.latestAt || detailSession?.startedAt),
                       (detailSession?.sessionCount || 0) > 1
-                        ? `${detailSession?.sessionCount} 组`
+                        ? t("training_records.groups", { count: detailSession?.sessionCount })
                         : null,
                     ]
                       .filter(Boolean)
@@ -925,13 +956,13 @@ export default function TrainingRecords() {
                   <div className="text-sm font-semibold text-foreground">
                     {detailLoading ? "…" : detailWords.length}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">单词</div>
+                  <div className="text-[11px] text-muted-foreground">{t("practice.words_unit")}</div>
                 </div>
                 <div className="rounded-lg bg-muted/50 py-1.5">
                   <div className="text-sm font-semibold text-foreground">
                     {detailSession?.correctCount ?? 0}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">正确</div>
+                  <div className="text-[11px] text-muted-foreground">{t("training_records.correct_label")}</div>
                 </div>
                 <div className="rounded-lg bg-muted/50 py-1.5">
                   <div className="text-sm font-semibold text-foreground">
@@ -941,15 +972,15 @@ export default function TrainingRecords() {
                         )}%`
                       : "—"}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">正确率</div>
+                  <div className="text-[11px] text-muted-foreground">{t("training_records.accuracy_label")}</div>
                 </div>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3">
                 {detailLoading ? (
-                  <div className="text-center text-muted-foreground py-10 text-sm">加载中…</div>
+                  <div className="text-center text-muted-foreground py-10 text-sm">{t("training_records.loading")}</div>
                 ) : detailWords.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-10 text-sm">暂无单词数据</div>
+                  <div className="text-center text-muted-foreground py-10 text-sm">{t("training_records.no_word_data")}</div>
                 ) : (
                   <div className="space-y-2">
                     {detailWords.map((word, idx) => (

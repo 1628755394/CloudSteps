@@ -26,6 +26,8 @@ import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+import { useTranslation } from "react-i18next";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type WordItem = {
   id: number;
@@ -41,6 +43,7 @@ type WordItem = {
 const PAGE_SIZE = 100;
 
 export default function PreTrainingCheck() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [words, setWords] = useState<WordItem[]>([]);
   const [selectedCount, setSelectedCount] = useState(0);
@@ -147,7 +150,7 @@ export default function PreTrainingCheck() {
         setError(null);
       } catch (err) {
         console.error("加载单词失败:", err);
-        setError("加载单词失败，请重试");
+        setError(t("practice.load_words_failed"));
       } finally {
         loadingRef.current = false;
         if (isInitial) {
@@ -339,7 +342,7 @@ export default function PreTrainingCheck() {
       const sessionId = res.data?.sessionId;
       const sessionWords = res.data?.words;
       if (res.data?.finished || !Array.isArray(sessionWords) || sessionWords.length === 0) {
-        setError("当前没有待练习单词，请返回词库重新选择需要识记的单词");
+        setError(t("practice.no_words_session"));
         setStarting(false);
         return;
       }
@@ -405,8 +408,8 @@ export default function PreTrainingCheck() {
           <div onClick={(e) => e.stopPropagation()}>
             <StudyNoteLauncher
               storageKey={`study-note:word:${wordBookId}:${word.id}`}
-              title={`笔记 · ${word.word}`}
-              label="笔记"
+              title={t("practice.note_title", { word: word.word })}
+              label={t("practice.note")}
               className="h-9 px-2"
             />
           </div>
@@ -470,7 +473,7 @@ export default function PreTrainingCheck() {
   return (
     <FlowPageShell>
       <TopBar
-        title="训前检测"
+        title={t("pre_training_check.title")}
         onBack={handleBack}
         rightSlot={
           <PracticeFlowToolbar
@@ -551,7 +554,7 @@ export default function PreTrainingCheck() {
                       if (!loadingRef.current) void loadWords(pageRef.current + 1, false);
                     }}
                   >
-                    上拉加载更多
+                    {t("practice.load_more")}
                   </button>
                 )}
               </div>
@@ -559,7 +562,7 @@ export default function PreTrainingCheck() {
 
             {!hasMore && words.length > 0 && (
               <div className="text-center py-4">
-                <span className="text-[#718096] text-sm">已加载全部单词</span>
+                <span className="text-[#718096] text-sm">{t("practice.all_words_loaded")}</span>
               </div>
             )}
           </div>
@@ -575,11 +578,11 @@ export default function PreTrainingCheck() {
               variant={note.open ? "brand" : "outline"}
               size="pill"
               onClick={() => note.setOpen((value) => !value)}
-              aria-label="打开随心记"
-              title="打开随心记"
+              aria-label={t("practice.open_free_note")}
+              title={t("practice.open_free_note")}
             >
               <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
-              随心记
+              {t("practice.free_note")}
             </CloudButton>
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
@@ -593,16 +596,16 @@ export default function PreTrainingCheck() {
               }}
             >
               <BookOpen size={16} />
-              拓展
+              {t("practice.expand")}
             </CloudButton>
             {detailMode && (
               <CloudButton
                 variant={simpleDetail ? "brand" : "outline"}
                 size="pill"
                 onClick={() => setSimpleDetail((v) => !v)}
-                title={simpleDetail ? "当前简易：点击查看全部拓展" : "当前全部：点击切回简易"}
+                title={simpleDetail ? t("practice.simple_tip_on") : t("practice.simple_tip_off")}
               >
-                简易
+                {t("practice.simple")}
               </CloudButton>
             )}
           </div>
@@ -610,28 +613,28 @@ export default function PreTrainingCheck() {
             {shuffleMode && (
               <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
                 <Shuffle size={16} />
-                重新乱序
+                {t("practice.reshuffle")}
               </CloudButton>
             )}
             {shuffleMode ? (
               <CloudButton variant="outline" size="pill" onClick={handleSequential}>
                 <ArrowDownAZ size={16} />
-                正序
+                {t("practice.sequential")}
               </CloudButton>
             ) : (
               <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
                 <Shuffle size={16} />
-                乱序
+              {t("practice.shuffle")}
               </CloudButton>
             )}
             <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
-              全选
+              {t("practice.select_all")}
             </CloudButton>
           </div>
         </div>
         <div className="flex gap-3">
           <CloudButton variant="brandOutline" size="pill" className="flex-1" onClick={handleSelect5}>
-            选择5个
+            {t("practice.select_five")}
           </CloudButton>
           <CloudButton
             variant="brand"
@@ -640,9 +643,9 @@ export default function PreTrainingCheck() {
             onClick={handleStartLearning}
             disabled={selectedCount === 0}
             loading={starting}
-            loadingText="启动中…"
+            loadingText={t("practice.starting")}
           >
-            开始识记
+            {t("practice.start_learning")}
           </CloudButton>
         </div>
         </div>

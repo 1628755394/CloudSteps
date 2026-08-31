@@ -42,8 +42,11 @@ import {
 import { showToast } from "../utils/toast";
 import { resolveMediaUrl } from "../utils/mediaUrl";
 import type { ReviewCurvePreset } from "../api/auth";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+import { formatApiMessage } from "../utils/apiMessage";
 import {
-  REVIEW_TIMES_OPTIONS,
+  getReviewTimesOptions,
   normalizeReviewCurvePreset,
   reviewCurveLabel,
 } from "../utils/reviewCurve";
@@ -54,12 +57,12 @@ type TabKey = "hours" | "wordbooks" | "vocab";
 
 function studentLabel(row: TeacherCoachingQuotaRow) {
   const s = row.student;
-  return s?.displayName || s?.username || s?.email || `学员 #${row.studentId}`;
+  return s?.displayName || s?.username || s?.email || i18n.t("student_detail.student_fallback", { id: row.studentId });
 }
 
 function minsLabel(n: number) {
   if (!Number.isFinite(n)) return "—";
-  return `${Math.max(0, Math.round(n))}分钟`;
+  return i18n.t("practice.minutes_unit", { count: Math.max(0, Math.round(n)) });
 }
 
 function formatDateTime(iso?: string | null) {
@@ -71,6 +74,7 @@ function formatDateTime(iso?: string | null) {
 }
 
 export default function StudentDetail() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { studentId: studentIdParam } = useParams<{ studentId: string }>();
   const location = useLocation();
@@ -131,9 +135,9 @@ export default function StudentDetail() {
         const row = rows.find((r) => r.studentId === studentId) || null;
         setQuota(row);
         if (row) setTitle(studentLabel(row));
-        else if (!title) setTitle(`学员 #${studentId}`);
+        else if (!title) setTitle(t("student_detail.student_fallback", { id: studentId }));
       } catch {
-        if (!cancelled && !title) setTitle(`学员 #${studentId}`);
+        if (!cancelled && !title) setTitle(t("student_detail.student_fallback", { id: studentId }));
       } finally {
         if (!cancelled) setLoadingQuota(false);
       }
@@ -164,7 +168,7 @@ export default function StudentDetail() {
     try {
       const res = await setTeacherStudentReviewCurve(studentId, next);
       if (res.code !== 200) {
-        showToast.error(res.msg || "保存失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
       setQuota((prev) =>
@@ -179,9 +183,9 @@ export default function StudentDetail() {
             }
           : prev
       );
-      showToast.success("抗遗忘次数已更新");
+      showToast.success(t("student_detail.review_updated"));
     } catch {
-      showToast.error("保存失败");
+      showToast.error(formatApiMessage(undefined, "common.operation_failed"));
     } finally {
       setReviewSaving(false);
     }
@@ -191,7 +195,7 @@ export default function StudentDetail() {
     if (!quota) return;
     const n = Number(quotaInput);
     if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
-      showToast.error("请输入非负整数分钟");
+      showToast.error(t("student_detail.invalid_minutes"));
       return;
     }
     const nextRemaining =
@@ -203,7 +207,7 @@ export default function StudentDetail() {
         remainingMinutes: nextRemaining,
       });
       if (res.code !== 200 || !res.data) {
-        showToast.error(res.msg || "保存失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
       setQuota((prev) =>
@@ -217,13 +221,13 @@ export default function StudentDetail() {
       );
       showToast.success(
         quotaMode === "add"
-          ? `已追加 ${n} 分钟，剩余 ${minsLabel(nextRemaining)}`
-          : `剩余额度已设为 ${minsLabel(nextRemaining)}`
+          ? t("student_detail.added_minutes", { n, remaining: minsLabel(nextRemaining) })
+          : t("student_detail.set_minutes", { remaining: minsLabel(nextRemaining) })
       );
       setQuotaInput(quotaMode === "add" ? "60" : String(nextRemaining));
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "保存失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setQuotaSaving(false);
@@ -245,7 +249,7 @@ export default function StudentDetail() {
     try {
       const res = await listStudentWordBooksAsTeacher(studentId);
       if (res.code !== 200) {
-        showToast.error(res.msg || "加载词库失败");
+        showToast.error(formatApiMessage(res.msg, "common.query_failed"));
         setWordBooks([]);
         return;
       }
@@ -254,7 +258,7 @@ export default function StudentDetail() {
       const msg =
         e && typeof e === "object" && "msg" in e
           ? String((e as { msg: string }).msg)
-          : "加载词库失败";
+          : formatApiMessage(undefined, "common.query_failed");
       showToast.error(msg);
       setWordBooks([]);
     } finally {
@@ -271,7 +275,7 @@ export default function StudentDetail() {
         q: "vocab_test",
       });
       if (res.code !== 200) {
-        showToast.error(res.msg || "加载测评失败");
+        showToast.error(formatApiMessage(res.msg, "common.query_failed"));
         setVocabItems([]);
         return;
       }
@@ -281,7 +285,7 @@ export default function StudentDetail() {
       const msg =
         e && typeof e === "object" && "msg" in e
           ? String((e as { msg: string }).msg)
-          : "加载测评失败";
+          : formatApiMessage(undefined, "common.query_failed");
       showToast.error(msg);
       setVocabItems([]);
     } finally {
@@ -330,15 +334,15 @@ export default function StudentDetail() {
     try {
       const res = await addStudentWordBookAsTeacher(studentId, wbId);
       if (res.code !== 200) {
-        showToast.error(res.msg || "添加失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
-      showToast.success("已添加词库");
+      showToast.success(t("student_detail.added_wordbook"));
       await loadWordBooks();
       setAddOpen(false);
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "添加失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setAddingId(null);
@@ -350,14 +354,14 @@ export default function StudentDetail() {
     try {
       const res = await removeStudentWordBookAsTeacher(studentId, wbId);
       if (res.code !== 200) {
-        showToast.error(res.msg || "移除失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
-      showToast.success("已移除");
+      showToast.success(t("student_detail.removed_wordbook"));
       setWordBooks((prev) => prev.filter((b) => b.id !== wbId));
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "移除失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setRemovingId(null);
@@ -367,26 +371,26 @@ export default function StudentDetail() {
   const savePassword = async (resetDefault: boolean) => {
     const pwd = resetDefault ? DEFAULT_PASSWORD : pwdValue.trim();
     if (!pwd || pwd.length < 6) {
-      showToast.warning("密码至少 6 位");
+      showToast.warning(t("my_students.password_min"));
       return;
     }
     setPwdSaving(true);
     try {
       const res = await setTeacherStudentPassword(studentId, pwd);
       if (res.code !== 200) {
-        showToast.error(res.msg || "设置失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
       const account = res.data?.username || quota?.student?.username || title;
       showToast.success(
         resetDefault
-          ? `已重置：${account} / ${DEFAULT_PASSWORD}`
-          : `已更新：${account} 的密码`
+          ? t("my_students.reset_success", { account, pwd: DEFAULT_PASSWORD })
+          : t("my_students.update_password_success", { account })
       );
       setPwdOpen(false);
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "设置失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setPwdSaving(false);
@@ -398,22 +402,22 @@ export default function StudentDetail() {
     try {
       const res = await removeTeacherStudent(studentId);
       if (res.code !== 200) {
-        showToast.error(res.msg || "移除失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
-      showToast.success("已从名下移除该学员");
+      showToast.success(t("student_detail.removed"));
       setDeleteOpen(false);
       navigate("/my-students", { replace: true });
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "移除失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setDeleting(false);
     }
   };
 
-  const displayName = title || `学员 #${studentId}`;
+  const displayName = title || t("student_detail.student_fallback", { id: studentId });
   const avatar = resolveMediaUrl(quota?.student?.avatar);
   const remaining = quota?.remainingMinutes ?? 0;
   const total = quota?.totalAllocatedMinutes ?? 0;
@@ -423,7 +427,7 @@ export default function StudentDetail() {
     return (
       <div className="p-4">
         <CloudCard className="p-8">
-          <CloudEmpty description="无效的学员" />
+          <CloudEmpty description={t("student_detail.invalid")} />
         </CloudCard>
       </div>
     );
@@ -437,7 +441,7 @@ export default function StudentDetail() {
           variant="ghost"
           size="icon"
           onClick={() => navigate("/my-students")}
-          aria-label="返回学员管理"
+          aria-label={t("student_detail.back")}
           className="shrink-0"
         >
           <ChevronLeft size={20} />
@@ -470,38 +474,38 @@ export default function StudentDetail() {
           disabled={!quota || deleting}
         >
           <Trash2 size={14} className="mr-1" />
-          移除
+          {t("student_detail.remove")}
         </CloudButton>
       </div>
 
       <Tabs value={tab} onValueChange={onTabChange} className="flex flex-col flex-1 min-h-0 gap-3">
         <TabsList className="w-full shrink-0">
           <TabsTrigger value="hours" className="flex-1">
-            课时
+            {t("student_detail.tab_hours")}
           </TabsTrigger>
           <TabsTrigger value="wordbooks" className="flex-1">
-            词库
+            {t("student_detail.tab_wordbooks")}
           </TabsTrigger>
           <TabsTrigger value="vocab" className="flex-1">
-            词汇测试
+            {t("student_detail.tab_vocab")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="hours" className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-2">
           {loadingQuota ? (
             <CloudCard className="p-10">
-              <CloudSpin tip="加载中…" />
+              <CloudSpin tip={t("practice.loading")} />
             </CloudCard>
           ) : !quota ? (
             <CloudCard className="p-8">
-              <CloudEmpty description="未找到该学员的陪练额度" />
+              <CloudEmpty description={t("student_detail.not_found_quota")} />
             </CloudCard>
           ) : (
             <>
               <CloudCard className="p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-xs text-muted-foreground">剩余课时</div>
+                    <div className="text-xs text-muted-foreground">{t("student_detail.remaining_hours")}</div>
                     <div
                       className={`text-2xl font-bold tabular-nums mt-1 ${
                         low ? "text-destructive" : "text-foreground"
@@ -510,7 +514,7 @@ export default function StudentDetail() {
                       {minsLabel(remaining)}
                     </div>
                     <div className="text-[11px] text-muted-soft mt-1">
-                      累计分配 {minsLabel(total)} · 剩余 {minsLabel(remaining)}
+{t("student_detail.allocated_summary", { total: minsLabel(total), remaining: minsLabel(remaining) })}
                     </div>
                   </div>
                   <div
@@ -535,9 +539,9 @@ export default function StudentDetail() {
 
               <CloudCard className="p-4 space-y-3">
                 <div>
-                  <div className="text-sm font-semibold text-foreground">配置陪练额度</div>
+                  <div className="text-sm font-semibold text-foreground">{t("student_detail.configure_quota")}</div>
                   <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                    为该学员追加或调整可上课分钟数。额度用尽后将无法开课计时。
+                    {t("student_detail.quota_desc")}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -550,7 +554,7 @@ export default function StudentDetail() {
                       setQuotaInput("60");
                     }}
                   >
-                    追加分钟
+                    {t("student_detail.add_minutes")}
                   </CloudButton>
                   <CloudButton
                     type="button"
@@ -561,13 +565,13 @@ export default function StudentDetail() {
                       setQuotaInput(String(Math.max(0, remaining)));
                     }}
                   >
-                    设为剩余
+                    {t("student_detail.set_remaining")}
                   </CloudButton>
                 </div>
                 <div className="flex items-end gap-2">
                   <div className="flex-1 min-w-0">
                     <CloudInput
-                      label={quotaMode === "add" ? "追加分钟数" : "剩余分钟数"}
+                      label={quotaMode === "add" ? t("student_detail.add_minutes_label") : t("student_detail.remaining_minutes_label")}
                       type="number"
                       min={0}
                       step={1}
@@ -584,7 +588,7 @@ export default function StudentDetail() {
                     onClick={() => void saveStudentQuota()}
                   >
                     {quotaSaving ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
-                    保存
+                    {t("practice.save")}
                   </CloudButton>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -596,7 +600,7 @@ export default function StudentDetail() {
                       variant="outline"
                       onClick={() => setQuotaInput(String(n))}
                     >
-                      {quotaMode === "add" ? `+${n}` : `${n}分钟`}
+                      {quotaMode === "add" ? `+${n}` : t("create_appointment.duration_min", { n })}
                     </CloudButton>
                   ))}
                 </div>
@@ -604,14 +608,13 @@ export default function StudentDetail() {
 
               <CloudCard className="p-4 space-y-3">
                 <div>
-                  <div className="text-sm font-semibold text-foreground">抗遗忘次数</div>
+                  <div className="text-sm font-semibold text-foreground">{t("student_detail.review_times")}</div>
                   <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                    按艾宾浩斯曲线排期（开课日=第 1 天）：学完当天即第 1 次复习，后续落在「第 N 天」表头日期；列表显示识记时段。
-                    当前：{reviewCurveLabel(reviewPreset)}
+{t("student_detail.review_desc", { label: reviewCurveLabel(reviewPreset) })}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {REVIEW_TIMES_OPTIONS.map((opt) => (
+                  {getReviewTimesOptions().map((opt) => (
                     <CloudButton
                       key={opt.value}
                       type="button"
@@ -627,7 +630,7 @@ export default function StudentDetail() {
               </CloudCard>
 
               <CloudCard className="p-4 space-y-3">
-                <div className="text-sm font-semibold text-foreground">快捷操作</div>
+                <div className="text-sm font-semibold text-foreground">{t("student_detail.quick_actions")}</div>
                 <div className="flex flex-wrap gap-2">
                   <CloudButton
                     type="button"
@@ -640,33 +643,35 @@ export default function StudentDetail() {
                     }}
                   >
                     <KeyRound size={14} />
-                    重置密码
+                    {t("student_detail.reset_password")}
                   </CloudButton>
                 </div>
                 <div className="text-[11px] text-muted-foreground grid grid-cols-3 gap-2 pt-1">
                   <div>
-                    测评 <span className="font-medium text-foreground">{quota.vocabTestCount ?? 0}</span>
+                    {t("student_detail.tests")} <span className="font-medium text-foreground">{quota.vocabTestCount ?? 0}</span>
                   </div>
                   <div>
-                    陪练{" "}
+                    {t("student_detail.coaching")}{" "}
                     <span className="font-medium text-foreground">
                       {quota.coachingSessionCount ?? 0}
                     </span>
                   </div>
                   <div>
-                    训练{" "}
+                    {t("student_detail.training")}{" "}
                     <span className="font-medium text-foreground">{quota.studySessionCount ?? 0}</span>
                   </div>
                 </div>
                 {quota.latestVocabLevel && (
                   <p className="text-[11px] text-muted-soft">
-                    最近测评：{quota.latestVocabLevel}
-                    {quota.latestEstimatedVocab
-                      ? ` · 约 ${quota.latestEstimatedVocab} 词`
-                      : ""}
-                    {quota.latestVocabTestAt
-                      ? ` · ${formatDateTime(quota.latestVocabTestAt)}`
-                      : ""}
+                    {t("student_detail.latest_vocab", {
+                      level: quota.latestVocabLevel,
+                      vocab: quota.latestEstimatedVocab
+                        ? t("student_detail.approx_vocab", { count: quota.latestEstimatedVocab })
+                        : "",
+                      time: quota.latestVocabTestAt
+                        ? ` · ${formatDateTime(quota.latestVocabTestAt)}`
+                        : "",
+                    })}
                   </p>
                 )}
               </CloudCard>
@@ -677,7 +682,7 @@ export default function StudentDetail() {
         <TabsContent value="wordbooks" className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm text-muted-foreground">
-              已分配 {loadingBooks ? "…" : wordBooks.length} 本
+              {t("student_detail.assigned_count", { count: loadingBooks ? "…" : wordBooks.length })}
             </span>
             <CloudButton
               type="button"
@@ -687,17 +692,17 @@ export default function StudentDetail() {
               onClick={() => void openAddBook()}
             >
               <Plus size={14} />
-              添加词库
+              {t("student_detail.add_wordbook")}
             </CloudButton>
           </div>
 
           {loadingBooks ? (
             <CloudCard className="p-10">
-              <CloudSpin tip="加载词库…" />
+              <CloudSpin tip={t("student_detail.loading_wordbooks")} />
             </CloudCard>
           ) : wordBooks.length === 0 ? (
             <CloudCard className="p-8">
-              <CloudEmpty description="尚未为该学员分配词库，点击「添加词库」从全局目录选择。" />
+              <CloudEmpty description={t("student_detail.no_wordbooks")} />
             </CloudCard>
           ) : (
             wordBooks.map((b) => (
@@ -709,7 +714,7 @@ export default function StudentDetail() {
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-foreground truncate">{b.name}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">
-                      {b.wordCount > 0 ? `${b.wordCount} 词` : "词数未知"} · ID {b.id}
+                      {b.wordCount > 0 ? t("create_wordbook.words_count", { count: b.wordCount }) : t("student_detail.word_count_unknown")} · ID {b.id}
                     </div>
                   </div>
                   <CloudButton
@@ -719,7 +724,7 @@ export default function StudentDetail() {
                     className="shrink-0 text-destructive"
                     disabled={removingId === b.id}
                     onClick={() => void handleRemoveBook(b.id)}
-                    aria-label="移除词库"
+                    aria-label={t("student_detail.remove_wordbook")}
                   >
                     {removingId === b.id ? (
                       <Loader2 size={16} className="animate-spin" />
@@ -736,11 +741,11 @@ export default function StudentDetail() {
         <TabsContent value="vocab" className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-2">
           {loadingVocab ? (
             <CloudCard className="p-10">
-              <CloudSpin tip="加载测评记录…" />
+              <CloudSpin tip={t("student_detail.loading_vocab")} />
             </CloudCard>
           ) : vocabItems.length === 0 ? (
             <CloudCard className="p-8">
-              <CloudEmpty description="暂无词汇测评记录" />
+              <CloudEmpty description={t("student_detail.no_vocab")} />
             </CloudCard>
           ) : (
             vocabItems.map((item) => (
@@ -782,20 +787,20 @@ export default function StudentDetail() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-lg rounded-2xl max-h-[85vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>添加词库</DialogTitle>
-            <DialogDescription>从全局词库目录为学员分配</DialogDescription>
+            <DialogTitle>{t("student_detail.add_wordbook")}</DialogTitle>
+            <DialogDescription>{t("student_detail.add_wordbook_desc")}</DialogDescription>
           </DialogHeader>
           <CloudInput
             value={catalogQ}
             onChange={setCatalogQ}
-            placeholder="搜索词库名称…"
+            placeholder={t("student_detail.search_wordbooks")}
             prefix={<Search size={16} className="text-muted-foreground" />}
             allowClear
           />
           <div className="flex-1 min-h-0 overflow-y-auto space-y-2 max-h-[50vh] -mx-1 px-1">
             {filteredCatalog.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                {catalog.length === 0 ? "词库加载中或暂无可用词库" : "没有可添加的词库"}
+                {catalog.length === 0 ? t("student_detail.catalog_loading") : t("student_detail.no_addable")}
               </p>
             ) : (
               filteredCatalog.map((b) => (
@@ -806,7 +811,7 @@ export default function StudentDetail() {
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-foreground truncate">{b.name}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {b.wordCount ? `${b.wordCount} 词` : "—"}
+                      {b.wordCount ? t("create_wordbook.words_count", { count: b.wordCount }) : "—"}
                       {b.level ? ` · ${b.level}` : ""}
                     </div>
                   </div>
@@ -818,7 +823,7 @@ export default function StudentDetail() {
                     disabled={addingId !== null}
                     onClick={() => void handleAddBook(b.id)}
                   >
-                    添加
+                    {t("student_detail.add")}
                   </CloudButton>
                 </div>
               ))
@@ -836,9 +841,9 @@ export default function StudentDetail() {
       >
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>移除学员</DialogTitle>
+            <DialogTitle>{t("student_detail.remove_student_title")}</DialogTitle>
             <DialogDescription>
-              将「{displayName}」从你的学员列表中移除。学员账号仍会保留，之后可通过「关联」再次添加。
+              {t("student_detail.remove_student_desc", { name: displayName })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
@@ -849,7 +854,7 @@ export default function StudentDetail() {
               disabled={deleting}
               onClick={() => setDeleteOpen(false)}
             >
-              取消
+              {t("practice.cancel")}
             </CloudButton>
             <CloudButton
               type="button"
@@ -858,7 +863,7 @@ export default function StudentDetail() {
               loading={deleting}
               onClick={() => void handleRemoveStudent()}
             >
-              确认移除
+              {t("student_detail.confirm_remove")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>
@@ -873,7 +878,7 @@ export default function StudentDetail() {
       >
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>设置登录密码</DialogTitle>
+            <DialogTitle>{t("my_students.set_password")}</DialogTitle>
             <DialogDescription>
               {displayName}
               {quota?.student?.username ? ` · ${quota.student.username}` : ""}
@@ -893,7 +898,7 @@ export default function StudentDetail() {
               disabled={pwdSaving}
               onClick={() => void savePassword(true)}
             >
-              重置为 {DEFAULT_PASSWORD}
+              {t("my_students.reset_password", { pwd: DEFAULT_PASSWORD })}
             </CloudButton>
             <CloudButton
               type="button"
@@ -902,7 +907,7 @@ export default function StudentDetail() {
               loading={pwdSaving}
               onClick={() => void savePassword(false)}
             >
-              保存密码
+              {t("my_students.save_password")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>

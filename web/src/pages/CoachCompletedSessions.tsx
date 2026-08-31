@@ -6,6 +6,7 @@ import { CloudEmpty, CloudSpin } from "../components/cloudsteps/arco";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { useAuthStore } from "../stores/authStore";
 import { getTeacherCoachingCompleted, type CoachingWeekSchedule } from "../api/coaching";
+import { useTranslation } from "react-i18next";
 
 const PAGE_SIZE = 10;
 
@@ -17,14 +18,14 @@ function formatDateTime(raw?: string | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const statusLabel: Record<string, string> = {
-  completed: "已完成",
-  scheduled: "已排课",
-  in_progress: "进行中",
-  cancelled: "已取消",
-};
-
 export default function CoachCompletedSessions() {
+  const { t } = useTranslation();
+  const statusLabel: Record<string, string> = {
+    completed: t("coach_sessions.status_completed"),
+    scheduled: t("coach_sessions.status_scheduled"),
+    in_progress: t("coach_sessions.status_in_progress"),
+    cancelled: t("coach_sessions.status_cancelled"),
+  };
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const role = (user as { role?: string } | null)?.role || "user";
@@ -77,18 +78,17 @@ export default function CoachCompletedSessions() {
           variant="ghost"
           size="icon"
           onClick={() => navigate("/coach-center")}
-          aria-label="返回陪练中心"
+          aria-label={t("coach_sessions.back_coach")}
           className="shrink-0"
         >
           <ChevronLeft size={20} />
         </CloudButton>
         <div className="min-w-0 flex-1">
           <h3 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-            已上课程
+            {t("coach_sessions.title")}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            近 90 天已完成的陪练记录
-            {total > 0 ? ` · 共 ${total} 条` : ""}
+{t("coach_sessions.subtitle", { total: total > 0 ? t("coach_sessions.total_count", { count: total }) : "" })}
           </p>
         </div>
         <CloudButton
@@ -99,7 +99,7 @@ export default function CoachCompletedSessions() {
           className="shrink-0 gap-1.5"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : undefined} />
-          刷新
+          {t("practice.refresh")}
         </CloudButton>
       </div>
 
@@ -107,11 +107,11 @@ export default function CoachCompletedSessions() {
         <div className="flex-1 min-h-0 overflow-y-auto">
           {loading ? (
             <div className="h-full min-h-[12rem] flex items-center justify-center">
-              <CloudSpin tip="加载中…" />
+              <CloudSpin tip={t("practice.loading")} />
             </div>
           ) : schedules.length === 0 ? (
             <div className="h-full min-h-[12rem] flex items-center justify-center p-6">
-              <CloudEmpty description="暂无已上课程" />
+              <CloudEmpty description={t("coach_sessions.empty")} />
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -125,7 +125,7 @@ export default function CoachCompletedSessions() {
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-foreground text-sm">
-                        {s.title || `排课 #${s.id}`}
+                        {s.title || t("coach_sessions.schedule_fallback", { id: s.id })}
                       </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
@@ -145,10 +145,9 @@ export default function CoachCompletedSessions() {
                       </div>
                       {s.session?.billedMinutes != null && (
                         <p className="text-xs text-muted-soft mt-1.5 leading-relaxed">
-                          实际 {s.session.actualMinutes ?? "-"} 分钟 · 学员扣减{" "}
-                          {s.session.billedMinutes} 分钟
+{t("coach_sessions.actual_billed", { actual: s.session.actualMinutes ?? "-", billed: s.session.billedMinutes })}
                           {s.session.teacherCreditedMinutes != null && (
-                            <> · 计入老师 {s.session.teacherCreditedMinutes} 分钟</>
+                            <>{t("coach_sessions.teacher_credited", { minutes: s.session.teacherCreditedMinutes })}</>
                           )}
                         </p>
                       )}
@@ -166,7 +165,7 @@ export default function CoachCompletedSessions() {
 
         <div className="shrink-0 border-t border-border px-4 py-3 flex items-center justify-between gap-3 bg-surface-soft/80">
           <span className="text-xs text-muted-foreground tabular-nums">
-            {total > 0 ? `第 ${page}/${totalPages} 页` : "暂无分页"}
+            {total > 0 ? t("coach_sessions.page", { page, total: totalPages }) : t("coach_sessions.no_pagination")}
           </span>
           <div className="flex items-center gap-2">
             <CloudButton
@@ -176,7 +175,7 @@ export default function CoachCompletedSessions() {
               disabled={page <= 1 || loading || total === 0}
               onClick={() => void load(page - 1)}
             >
-              上一页
+              {t("practice.prev_page")}
             </CloudButton>
             <CloudButton
               type="button"
@@ -185,7 +184,7 @@ export default function CoachCompletedSessions() {
               disabled={page >= totalPages || loading || total === 0}
               onClick={() => void load(page + 1)}
             >
-              下一页
+              {t("practice.next_page")}
             </CloudButton>
           </div>
         </div>
@@ -194,72 +193,72 @@ export default function CoachCompletedSessions() {
       <Dialog open={detail !== null} onOpenChange={(v) => !v && setDetail(null)}>
         <DialogContent className="sm:max-w-[480px] rounded-xl border-border">
           <DialogHeader>
-            <DialogTitle className="text-foreground">课程详情</DialogTitle>
+            <DialogTitle className="text-foreground">{t("coach_sessions.detail_title")}</DialogTitle>
           </DialogHeader>
           {detail && (
             <div className="space-y-3 text-sm">
               <div className="rounded-xl bg-muted px-3.5 py-3">
-                <div className="text-[11px] text-muted-foreground">课程标题</div>
+                <div className="text-[11px] text-muted-foreground">{t("coach_sessions.course_title")}</div>
                 <div className="font-semibold text-foreground mt-0.5">
-                  {detail.title || `排课 #${detail.id}`}
+                  {detail.title || t("coach_sessions.schedule_fallback", { id: detail.id })}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="rounded-xl border border-border px-3 py-2.5">
-                  <div className="text-[11px] text-muted-foreground">日期</div>
+                  <div className="text-[11px] text-muted-foreground">{t("coach_sessions.date")}</div>
                   <div className="text-charcoal mt-0.5">
                     {detail.scheduledDate?.slice?.(0, 10) || detail.scheduledDate || "-"}
                   </div>
                 </div>
                 <div className="rounded-xl border border-border px-3 py-2.5">
-                  <div className="text-[11px] text-muted-foreground">时段</div>
+                  <div className="text-[11px] text-muted-foreground">{t("coach_sessions.time_slot")}</div>
                   <div className="text-charcoal mt-0.5">
                     {detail.startTime}–{detail.endTime}
                   </div>
                 </div>
                 <div className="rounded-xl border border-border px-3 py-2.5">
-                  <div className="text-[11px] text-muted-foreground">状态</div>
+                  <div className="text-[11px] text-muted-foreground">{t("coach_sessions.status")}</div>
                   <div className="text-charcoal mt-0.5">
                     {statusLabel[detail.status] || detail.status || "-"}
                   </div>
                 </div>
                 <div className="rounded-xl border border-border px-3 py-2.5">
-                  <div className="text-[11px] text-muted-foreground">学员</div>
+                  <div className="text-[11px] text-muted-foreground">{t("training_records.student")}</div>
                   <div className="text-charcoal mt-0.5 truncate">
                     {detail.students?.length ? detail.students.join("、") : "-"}
                   </div>
                 </div>
               </div>
               <div className="rounded-xl border border-border px-3.5 py-3 space-y-1.5">
-                <div className="text-[11px] text-muted-foreground mb-1">课时结算</div>
+                <div className="text-[11px] text-muted-foreground mb-1">{t("coach_sessions.billing")}</div>
                 <div className="flex justify-between text-charcoal">
-                  <span>计划时长</span>
-                  <span className="tabular-nums">{detail.session?.plannedMinutes ?? "-"} 分钟</span>
+                  <span>{t("coach_sessions.planned")}</span>
+                  <span className="tabular-nums">{t("create_appointment.duration_min", { n: detail.session?.plannedMinutes ?? "-" })}</span>
                 </div>
                 <div className="flex justify-between text-charcoal">
-                  <span>实际时长</span>
-                  <span className="tabular-nums">{detail.session?.actualMinutes ?? "-"} 分钟</span>
+                  <span>{t("coach_sessions.actual")}</span>
+                  <span className="tabular-nums">{t("create_appointment.duration_min", { n: detail.session?.actualMinutes ?? "-" })}</span>
                 </div>
                 <div className="flex justify-between text-charcoal">
-                  <span>学员扣减</span>
-                  <span className="tabular-nums">{detail.session?.billedMinutes ?? "-"} 分钟</span>
+                  <span>{t("coach_sessions.student_deduct")}</span>
+                  <span className="tabular-nums">{t("create_appointment.duration_min", { n: detail.session?.billedMinutes ?? "-" })}</span>
                 </div>
                 <div className="flex justify-between text-charcoal">
-                  <span>计入老师</span>
+                  <span>{t("coach_sessions.teacher_credit")}</span>
                   <span className="tabular-nums">
-                    {detail.session?.teacherCreditedMinutes ?? "-"} 分钟
+                    {t("create_appointment.duration_min", { n: detail.session?.teacherCreditedMinutes ?? "-" })}
                   </span>
                 </div>
                 <div className="pt-1.5 border-t border-border flex justify-between text-xs text-muted-foreground">
-                  <span>开始 {formatDateTime(detail.session?.startedAt)}</span>
-                  <span>结束 {formatDateTime(detail.session?.endedAt)}</span>
+                  <span>{t("coach_sessions.started")} {formatDateTime(detail.session?.startedAt)}</span>
+                  <span>{t("coach_sessions.ended")} {formatDateTime(detail.session?.endedAt)}</span>
                 </div>
               </div>
             </div>
           )}
           <DialogFooter>
             <CloudButton type="button" variant="outline" onClick={() => setDetail(null)}>
-              关闭
+              {t("practice.close")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>

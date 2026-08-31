@@ -16,6 +16,7 @@ import { getTeacherTeachingPool } from "../api/coaching";
 import { useAuthStore } from "../stores/authStore";
 import { teacherAvatarSrc } from "../utils/avatar";
 import { formatTeachingMinutes } from "../utils/formatMinutes";
+import { useTranslation } from "react-i18next";
 
 const tintClass = {
   sky: "bg-tint-sky text-secondary-brand",
@@ -25,13 +26,14 @@ const tintClass = {
 };
 
 function GenderMark({ gender }: { gender?: string }) {
+  const { t } = useTranslation();
   const g = (gender || "female").trim().toLowerCase();
   if (g === "male" || g === "m" || g === "男") {
     return (
       <span
         className="inline-flex items-center justify-center size-4 rounded-full bg-sky-100 text-sky-600 shrink-0"
-        title="男"
-        aria-label="男"
+        title={t("coach_center.male")}
+        aria-label={t("coach_center.male")}
       >
         <Mars size={11} strokeWidth={2.25} />
       </span>
@@ -40,8 +42,8 @@ function GenderMark({ gender }: { gender?: string }) {
   return (
     <span
       className="inline-flex items-center justify-center size-4 rounded-full bg-pink-100 text-pink-600 shrink-0"
-      title="女"
-      aria-label="女"
+      title={t("coach_center.female")}
+      aria-label={t("coach_center.female")}
     >
       <Venus size={11} strokeWidth={2.25} />
     </span>
@@ -49,6 +51,7 @@ function GenderMark({ gender }: { gender?: string }) {
 }
 
 export default function CoachCenter() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const refreshUserInfo = useAuthStore((s) => s.refreshUserInfo);
@@ -94,15 +97,15 @@ export default function CoachCenter() {
       {
         id: 4,
         icon: MessageCircle,
-        label: "反馈给我们",
-        description: "问题与建议",
+        label: t("coach_center.feedback"),
+        description: t("coach_center.feedback_desc"),
         tint: "mint" as const,
         path: "/feedback",
       },
       {
         id: 3,
         icon: Settings2,
-        label: "设置",
+        label: t("coach_center.settings"),
         tint: "cream" as const,
         path: "/settings",
       },
@@ -112,8 +115,8 @@ export default function CoachCenter() {
       {
         id: 1,
         icon: CalendarCheck,
-        label: "已上课程",
-        description: "近 90 天陪练记录",
+        label: t("coach_center.completed_sessions"),
+        description: t("coach_center.completed_desc"),
         tint: "primary" as const,
         path: "/coach-center/completed",
       },
@@ -140,7 +143,7 @@ export default function CoachCenter() {
               </h2>
               <GenderMark gender={user?.gender} />
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">陪练中心</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{t("coach_center.subtitle")}</p>
           </div>
 
           <CloudButton
@@ -148,7 +151,7 @@ export default function CoachCenter() {
             size="icon"
             onClick={() => navigate("/profile/edit")}
             className="shrink-0 size-8 text-muted-foreground hover:text-primary"
-            aria-label="编辑资料"
+            aria-label={t("coach_center.edit_profile")}
           >
             <Pencil size={15} />
           </CloudButton>
@@ -168,7 +171,7 @@ export default function CoachCenter() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-medium text-primary">授课额度</span>
+                <span className="text-[11px] font-medium text-primary">{t("coach_center.teaching_quota")}</span>
                 <ChevronRight
                   size={14}
                   className="text-muted-soft group-hover:text-primary shrink-0 transition-colors"
@@ -179,8 +182,8 @@ export default function CoachCenter() {
               </div>
               <p className="mt-1 text-[10px] text-muted-foreground truncate">
                 {total > 0
-                  ? `累计 ${formatTeachingMinutes(total)} · 点此签到`
-                  : "每日签到领额度，连续有额外奖励"}
+                  ? t("coach_center.total_checkin", { minutes: formatTeachingMinutes(total) })
+                  : t("coach_center.checkin_hint")}
               </p>
               {total > 0 ? (
                 <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
@@ -197,7 +200,7 @@ export default function CoachCenter() {
 
       <CloudCard className="p-2 flex-1 flex flex-col min-h-0 overflow-hidden">
         <h2 className="text-xs font-semibold text-foreground px-2 pt-0.5 pb-1.5 shrink-0">
-          功能中心
+          {t("coach_center.feature_center")}
         </h2>
         <div className="flex-1 min-h-0 flex flex-col justify-evenly divide-y divide-border overflow-hidden">
           {featureList.map((feature) => {
