@@ -13,9 +13,9 @@ import {
   Languages,
 } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
-import { CloudCard } from "../components/cloudsteps/arco";
+import { CloudCard, CloudSelect } from "../components/cloudsteps/arco";
 import { PageBackHeader } from "../components/PageBackHeader";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "../stores/authStore";
 import {
   ACCENT_PRESETS,
@@ -29,16 +29,14 @@ import {
 } from "../stores/themeStore";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { Switch } from "../components/ui/switch";
 import { showToast } from "../utils/toast";
-import { useLocale } from "../hooks/useLocale";
+import { useLocale, type Locale } from "../hooks/useLocale";
 import {
   bindEmail,
   changePassword,
   deactivateAccount,
   getUserActivity,
   sendBindEmailCode,
-  updateNotificationSettings,
   type UserActivity,
 } from "../api/auth";
 
@@ -49,41 +47,41 @@ const settingOptions = [
   {
     id: 1 as const,
     icon: Lock,
-    label: "修改密码",
-    description: "定期修改密码，保障账号安全",
+    labelKey: "settings.change_password",
+    descKey: "settings.change_password_desc",
     panel: "password" as const,
     tint: "mint" as const,
   },
   {
     id: 2 as const,
     icon: Mail,
-    label: "绑定邮箱",
-    description: "用于接收通知与账号找回",
+    labelKey: "settings.bind_email",
+    descKey: "settings.bind_email_desc",
     panel: "email" as const,
     tint: "mint" as const,
   },
   {
     id: 3 as const,
     icon: Bell,
-    label: "消息通知",
-    description: "管理推送通知和提醒设置",
-    panel: "notifications" as const,
+    labelKey: "settings.announcements",
+    descKey: "settings.announcements_desc",
+    path: "/announcements",
     tint: "mint" as const,
   },
   {
     id: 4 as const,
     icon: Shield,
-    label: "账号安全",
-    description: "查看登录记录和设备管理",
+    labelKey: "settings.security",
+    descKey: "settings.security_desc",
     panel: "security" as const,
     tint: "sky" as const,
   },
 ];
 
 const otherLinks = [
-  { label: "关于我们", path: "/about" },
-  { label: "用户协议", path: "/terms" },
-  { label: "隐私政策", path: "/privacy" },
+  { labelKey: "settings.about", path: "/about" },
+  { labelKey: "settings.terms", path: "/terms" },
+  { labelKey: "settings.privacy", path: "/privacy" },
 ];
 
 const tintIcon: Record<"mint" | "sky", string> = {
@@ -102,6 +100,13 @@ export default function Settings() {
   const refreshUserInfo = useAuthStore((s) => s.refreshUserInfo);
   const user = useAuthStore((s) => s.user);
   const { t, locale, changeLocale } = useLocale();
+  const languageOptions = useMemo(
+    () => [
+      { value: "zh-CN", label: t("settings.lang_zh") },
+      { value: "en", label: t("settings.lang_en") },
+    ],
+    [t],
+  );
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
@@ -115,7 +120,7 @@ export default function Settings() {
   const setCustomHex = useThemeStore((s) => s.setCustomHex);
   const setLayout = useThemeStore((s) => s.setLayout);
 
-  const [panel, setPanel] = useState<null | "password" | "email" | "notifications" | "security">(null);
+  const [panel, setPanel] = useState<null | "password" | "email" | "security">(null);
   const [errorText, setErrorText] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -135,21 +140,8 @@ export default function Settings() {
     return () => clearTimeout(timer);
   }, [bindEmailCountdown]);
 
-  const [emailNotifications, setEmailNotifications] = useState(false);
-  const [pushNotifications, setPushNotifications] = useState(false);
-  const [systemNotifications, setSystemNotifications] = useState(false);
-  const [autoCleanUnreadEmails, setAutoCleanUnreadEmails] = useState(false);
-  const [savingNotifications, setSavingNotifications] = useState(false);
-
   const [activityLoading, setActivityLoading] = useState(false);
   const [activities, setActivities] = useState<UserActivity[]>([]);
-
-  useEffect(() => {
-    setEmailNotifications(Boolean(user?.emailNotifications));
-    setPushNotifications(Boolean(user?.pushNotifications));
-    setSystemNotifications(Boolean(user?.systemNotifications));
-    setAutoCleanUnreadEmails(Boolean(user?.autoCleanUnreadEmails));
-  }, [user]);
 
   useEffect(() => {
     if (panel !== "security") return;
@@ -183,18 +175,18 @@ export default function Settings() {
 
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden">
-      <PageBackHeader title="设置" fallbackTo="/coach-center" maxWidthClass="max-w-none" />
+      <PageBackHeader title={t("settings.title")} fallbackTo="/coach-center" maxWidthClass="max-w-none" />
 
       <div className="flex-1 min-h-0 w-full py-3 flex flex-col gap-2.5 overflow-y-auto">
         <CloudCard className="p-3 shrink-0">
           <h2 className="text-xs font-semibold text-muted-foreground px-1 pb-2 flex items-center gap-1.5">
             <SunMoon size={13} />
-            外观与主题
+            {t("settings.appearance")}
           </h2>
 
           <div className="space-y-3">
             <div>
-              <div className="text-[11px] text-muted-foreground mb-1.5 px-0.5">主题模式</div>
+              <div className="text-[11px] text-muted-foreground mb-1.5 px-0.5">{t("settings.theme")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {MODE_KEYS.map((m) => (
                   <button
@@ -207,7 +199,7 @@ export default function Settings() {
                         : "bg-card text-muted-foreground border-border hover:border-primary/40"
                     }`}
                   >
-                    {THEME_MODE_PRESETS[m].label}
+                    {t(THEME_MODE_PRESETS[m].labelKey)}
                   </button>
                 ))}
               </div>
@@ -216,7 +208,7 @@ export default function Settings() {
             <div>
               <div className="text-[11px] text-muted-foreground mb-1.5 px-0.5 flex items-center gap-1">
                 <Palette size={12} />
-                主题色
+                {t("settings.accent")}
               </div>
               <div className="grid grid-cols-5 gap-2">
                 {ACCENT_KEYS.map((key) => {
@@ -232,7 +224,7 @@ export default function Settings() {
                           ? "border-primary bg-primary-soft"
                           : "border-border hover:border-primary/40"
                       }`}
-                      title={preset.label}
+                      title={t(preset.labelKey)}
                     >
                       <span
                         className={`size-7 rounded-full ring-2 ring-offset-2 ring-offset-card ${
@@ -240,7 +232,7 @@ export default function Settings() {
                         }`}
                         style={{ backgroundColor: preset.hex }}
                       />
-                      <span className="text-[10px] text-foreground leading-none">{preset.label}</span>
+                      <span className="text-[10px] text-foreground leading-none">{t(preset.labelKey)}</span>
                     </button>
                   );
                 })}
@@ -251,7 +243,7 @@ export default function Settings() {
                       ? "border-primary bg-primary-soft"
                       : "border-border hover:border-primary/40"
                   }`}
-                  title="自定义颜色"
+                  title={t("settings.custom_color")}
                 >
                   <span
                     className={`size-7 rounded-full ring-2 ring-offset-2 ring-offset-card ${
@@ -259,7 +251,7 @@ export default function Settings() {
                     }`}
                     style={{ backgroundColor: customHex }}
                   />
-                  <span className="text-[10px] text-foreground leading-none">自定义</span>
+                  <span className="text-[10px] text-foreground leading-none">{t("settings.custom")}</span>
                   <input
                     type="color"
                     value={customHex}
@@ -273,9 +265,9 @@ export default function Settings() {
             <div>
               <div className="text-[11px] text-muted-foreground mb-1.5 px-0.5 flex items-center gap-1">
                 <LayoutTemplate size={12} />
-                布局
+                {t("settings.layout")}
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {LAYOUT_KEYS.map((key) => {
                   const preset = LAYOUT_PRESETS[key];
                   const active = layout === key;
@@ -291,21 +283,38 @@ export default function Settings() {
                       }`}
                     >
                       <div className={`text-sm font-medium ${active ? "text-primary" : "text-foreground"}`}>
-                        {preset.label}
+                        {t(preset.labelKey)}
                       </div>
                       <div className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
-                        {preset.desc}
+                        {t(preset.descKey)}
                       </div>
                     </button>
                   );
                 })}
               </div>
             </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1 shrink-0">
+                <Languages size={12} />
+                {t("settings.language")}
+              </div>
+              <CloudSelect
+                className="w-auto min-w-[6.5rem] shrink-0"
+                style={{ width: "auto" }}
+                size="small"
+                value={locale}
+                onChange={(v) => v && changeLocale(v as Locale)}
+                options={languageOptions}
+                allowClear={false}
+                sheetTitle={t("settings.language")}
+              />
+            </div>
           </div>
         </CloudCard>
 
         <CloudCard className="p-1.5 shrink-0">
-          <h2 className="text-xs font-semibold text-muted-foreground px-2.5 pt-1.5 pb-0.5">账号设置</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground px-2.5 pt-1.5 pb-0.5">{t("settings.account_settings")}</h2>
           <div className="divide-y divide-border">
             {settingOptions.map((option) => {
               const Icon = option.icon;
@@ -313,7 +322,13 @@ export default function Settings() {
                 <button
                   key={option.id}
                   type="button"
-                  onClick={() => openPanel(option.panel)}
+                  onClick={() => {
+                    if ("path" in option && option.path) {
+                      navigate(option.path);
+                    } else if (option.panel) {
+                      openPanel(option.panel);
+                    }
+                  }}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2.5 text-left rounded-lg hover:bg-muted/60 transition-colors group"
                 >
                   <div
@@ -322,9 +337,9 @@ export default function Settings() {
                     <Icon size={16} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-foreground leading-tight">{option.label}</div>
+                    <div className="text-sm font-medium text-foreground leading-tight">{t(option.labelKey)}</div>
                     <div className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
-                      {option.description}
+                      {t(option.descKey)}
                     </div>
                   </div>
                   <ChevronRight
@@ -338,38 +353,7 @@ export default function Settings() {
         </CloudCard>
 
         <CloudCard className="p-1.5 shrink-0">
-          <h2 className="text-xs font-semibold text-muted-foreground px-2.5 pt-1.5 pb-0.5 flex items-center gap-1.5">
-            <Languages size={13} />
-            {t("settings.language")}
-          </h2>
-          <div className="divide-y divide-border">
-            <div className="px-2.5 py-2.5 flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">{t("settings.language")}</span>
-              <div className="flex gap-1.5">
-                {([
-                  { value: "zh-CN", label: "中文" },
-                  { value: "en", label: "English" },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => changeLocale(opt.value)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                      locale === opt.value
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </CloudCard>
-
-        <CloudCard className="p-1.5 shrink-0">
-          <h2 className="text-xs font-semibold text-muted-foreground px-2.5 pt-1.5 pb-0.5">其他</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground px-2.5 pt-1.5 pb-0.5">{t("settings.other")}</h2>
           <div className="divide-y divide-border">
             {otherLinks.map((item) => (
               <button
@@ -378,7 +362,7 @@ export default function Settings() {
                 onClick={() => navigate(item.path)}
                 className="w-full flex items-center justify-between px-2.5 py-2.5 text-left rounded-lg hover:bg-muted/60 transition-colors group"
               >
-                <span className="text-sm font-medium text-foreground">{item.label}</span>
+                <span className="text-sm font-medium text-foreground">{t(item.labelKey)}</span>
                 <ChevronRight
                   size={16}
                   className="text-muted-soft group-hover:text-primary transition-colors"
@@ -395,7 +379,7 @@ export default function Settings() {
           className="w-full bg-card border border-destructive/30 rounded-xl px-4 py-2.5 text-destructive text-sm font-medium hover:bg-destructive/5 transition-colors flex items-center justify-center gap-2"
         >
           <LogOut size={16} />
-          <span>退出登录</span>
+          <span>{t("settings.logout")}</span>
         </button>
         </div>
       </div>
@@ -403,10 +387,10 @@ export default function Settings() {
         <ConfirmDialog
           open={logoutOpen}
           onOpenChange={setLogoutOpen}
-          title="确认退出登录？"
-          description="退出后需要重新登录才能继续使用。"
-          confirmText="退出登录"
-          cancelText="取消"
+          title={t("settings.logout_confirm_title")}
+          description={t("settings.logout_confirm_desc")}
+          confirmText={t("settings.logout")}
+          cancelText={t("settings.cancel")}
           confirmVariant="destructive"
           onConfirm={async () => {
             await logout();
@@ -419,37 +403,37 @@ export default function Settings() {
             {panel === "password" ? (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-foreground">修改密码</DialogTitle>
+                  <DialogTitle className="text-foreground">{t("settings.change_password")}</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-charcoal font-medium mb-1.5 block">当前密码</label>
+                    <label className="text-sm text-charcoal font-medium mb-1.5 block">{t("settings.current_password")}</label>
                     <input
                       type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="请输入当前密码"
+                      placeholder={t("settings.enter_current_password")}
                       className={fieldClass}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-charcoal font-medium mb-1.5 block">新密码</label>
+                    <label className="text-sm text-charcoal font-medium mb-1.5 block">{t("settings.new_password")}</label>
                     <input
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="至少 6 位"
+                      placeholder={t("settings.password_min_6_placeholder")}
                       className={fieldClass}
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-charcoal font-medium mb-1.5 block">确认新密码</label>
+                    <label className="text-sm text-charcoal font-medium mb-1.5 block">{t("settings.confirm_password")}</label>
                     <input
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="再次输入新密码"
+                      placeholder={t("settings.reenter_new_password")}
                       className={fieldClass}
                     />
                   </div>
@@ -468,26 +452,26 @@ export default function Settings() {
                     onClick={() => setPanel(null)}
                     disabled={savingPassword}
                   >
-                    取消
+                    {t("settings.cancel")}
                   </CloudButton>
                   <CloudButton
                     type="button"
                     variant="brand"
                     loading={savingPassword}
-                    loadingText="保存中..."
+                    loadingText={t("settings.saving")}
                     disabled={savingPassword}
                     onClick={async () => {
                       setErrorText(null);
                       if (!currentPassword) {
-                        setErrorText("请输入当前密码");
+                        setErrorText(t("settings.enter_current_password"));
                         return;
                       }
                       if (!newPassword || newPassword.length < 6) {
-                        setErrorText("新密码至少 6 位");
+                        setErrorText(t("settings.password_min_6"));
                         return;
                       }
                       if (confirmPassword && confirmPassword !== newPassword) {
-                        setErrorText("两次输入的新密码不一致");
+                        setErrorText(t("settings.password_mismatch"));
                         return;
                       }
 
@@ -500,7 +484,7 @@ export default function Settings() {
                         });
 
                         if (res.code !== 200) {
-                          setErrorText(res.msg || "修改失败");
+                          setErrorText(res.msg || t("settings.change_failed"));
                           return;
                         }
 
@@ -514,13 +498,13 @@ export default function Settings() {
                           navigate("/login", { replace: true });
                         }
                       } catch (e: any) {
-                        setErrorText(e?.msg || e?.message || "修改失败");
+                        setErrorText(e?.msg || e?.message || t("settings.change_failed"));
                       } finally {
                         setSavingPassword(false);
                       }
                     }}
                   >
-                    保存
+                    {t("settings.save")}
                   </CloudButton>
                 </DialogFooter>
               </>
@@ -529,30 +513,30 @@ export default function Settings() {
             {panel === "email" ? (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-foreground">绑定邮箱</DialogTitle>
+                  <DialogTitle className="text-foreground">{t("settings.bind_email")}</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4">
                   {user?.email ? (
                     <div className="p-3 rounded-xl bg-muted/40 border border-border">
-                      <div className="text-xs text-muted-foreground">当前绑定邮箱</div>
+                      <div className="text-xs text-muted-foreground">{t("settings.current_bound_email")}</div>
                       <div className="text-sm text-foreground mt-1 break-all">{user.email}</div>
                     </div>
                   ) : null}
 
                   <div>
                     <label className="text-sm text-charcoal font-medium mb-1.5 block">
-                      {user?.email ? "换绑邮箱" : "邮箱地址"}
+                      {user?.email ? t("settings.change_email") : t("settings.email_address")}
                     </label>
                     <input
                       type="email"
                       value={bindEmailValue}
                       onChange={(e) => setBindEmailValue(e.target.value)}
-                      placeholder="请输入要绑定的邮箱"
+                      placeholder={t("settings.enter_bind_email")}
                       className={fieldClass}
                     />
                     <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                      一个邮箱只能绑定一个账号。绑定后可用于接收通知与账号找回。
+                      {t("settings.bind_email_notice")}
                     </p>
                   </div>
 
@@ -562,34 +546,34 @@ export default function Settings() {
                       variant="brand"
                       disabled={sendingBindEmailCode || bindEmailCountdown > 0}
                       loading={sendingBindEmailCode}
-                      loadingText="发送中..."
+                      loadingText={t("settings.sending")}
                       onClick={async () => {
                         setErrorText(null);
                         if (!bindEmailValue.trim()) {
-                          setErrorText("请先填写邮箱");
+                          setErrorText(t("settings.enter_email_first"));
                           return;
                         }
                         try {
                           setSendingBindEmailCode(true);
                           const res = await sendBindEmailCode(bindEmailValue.trim());
                           if (res.code !== 200) {
-                            setErrorText(res.msg || "发送失败");
+                            setErrorText(res.msg || t("settings.send_failed"));
                             return;
                           }
                           setBindEmailCountdown(60);
                         } catch (e: any) {
-                          setErrorText(e?.msg || e?.message || "发送失败");
+                          setErrorText(e?.msg || e?.message || t("settings.send_failed"));
                         } finally {
                           setSendingBindEmailCode(false);
                         }
                       }}
                     >
-                      {bindEmailCountdown > 0 ? `${bindEmailCountdown}s 后重发` : "发送验证码"}
+                      {bindEmailCountdown > 0 ? t("settings.resend_in", { seconds: bindEmailCountdown }) : t("settings.send_code")}
                     </CloudButton>
                     <input
                       value={bindEmailCode}
                       onChange={(e) => setBindEmailCode(e.target.value)}
-                      placeholder="输入验证码"
+                      placeholder={t("settings.enter_code_placeholder")}
                       className={`flex-1 ${fieldClass}`}
                     />
                   </div>
@@ -608,140 +592,44 @@ export default function Settings() {
                     onClick={() => setPanel(null)}
                     disabled={bindingEmail}
                   >
-                    关闭
+                    {t("settings.close")}
                   </CloudButton>
                   <CloudButton
                     type="button"
                     variant="brand"
                     loading={bindingEmail}
-                    loadingText="绑定中..."
+                    loadingText={t("settings.binding")}
                     disabled={bindingEmail}
                     onClick={async () => {
                       setErrorText(null);
                       if (!bindEmailValue.trim()) {
-                        setErrorText("请输入邮箱");
+                        setErrorText(t("settings.enter_email"));
                         return;
                       }
                       if (!bindEmailCode.trim()) {
-                        setErrorText("请输入验证码");
+                        setErrorText(t("settings.enter_code"));
                         return;
                       }
                       try {
                         setBindingEmail(true);
                         const res = await bindEmail(bindEmailValue.trim(), bindEmailCode.trim());
                         if (res.code !== 200) {
-                          setErrorText(res.msg || "绑定失败");
+                          setErrorText(res.msg || t("settings.bind_failed"));
                           return;
                         }
                         await refreshUserInfo();
-                        showToast.success("邮箱绑定成功");
+                        showToast.success(t("settings.bind_success"));
                         setPanel(null);
                         setBindEmailValue("");
                         setBindEmailCode("");
                       } catch (e: any) {
-                        setErrorText(e?.msg || e?.message || "绑定失败");
+                        setErrorText(e?.msg || e?.message || t("settings.bind_failed"));
                       } finally {
                         setBindingEmail(false);
                       }
                     }}
                   >
-                    确认绑定
-                  </CloudButton>
-                </DialogFooter>
-              </>
-            ) : null}
-
-            {panel === "notifications" ? (
-              <>
-                <DialogHeader>
-                  <DialogTitle className="text-foreground">消息通知</DialogTitle>
-                </DialogHeader>
-
-                <div className="space-y-3">
-                  {[
-                    {
-                      label: "邮件通知",
-                      desc: "重要活动与账号提醒",
-                      checked: emailNotifications,
-                      onChange: setEmailNotifications,
-                    },
-                    {
-                      label: "推送通知",
-                      desc: "学习提醒与系统推送",
-                      checked: pushNotifications,
-                      onChange: setPushNotifications,
-                    },
-                    {
-                      label: "系统通知",
-                      desc: "系统公告与安全提醒",
-                      checked: systemNotifications,
-                      onChange: setSystemNotifications,
-                    },
-                    {
-                      label: "自动清理未读邮件",
-                      desc: "自动清理 7 天未读",
-                      checked: autoCleanUnreadEmails,
-                      onChange: setAutoCleanUnreadEmails,
-                    },
-                  ].map((row) => (
-                    <div
-                      key={row.label}
-                      className="flex items-center justify-between p-4 rounded-xl border border-border"
-                    >
-                      <div>
-                        <div className="text-sm font-medium text-foreground">{row.label}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{row.desc}</div>
-                      </div>
-                      <Switch checked={row.checked} onCheckedChange={row.onChange} />
-                    </div>
-                  ))}
-
-                  {errorText ? (
-                    <div className="text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
-                      {errorText}
-                    </div>
-                  ) : null}
-                </div>
-
-                <DialogFooter className="gap-2 sm:gap-2">
-                  <CloudButton
-                    type="button"
-                    variant="outline"
-                    onClick={() => setPanel(null)}
-                    disabled={savingNotifications}
-                  >
-                    关闭
-                  </CloudButton>
-                  <CloudButton
-                    type="button"
-                    variant="brand"
-                    loading={savingNotifications}
-                    loadingText="保存中..."
-                    disabled={savingNotifications}
-                    onClick={async () => {
-                      setErrorText(null);
-                      try {
-                        setSavingNotifications(true);
-                        const res = await updateNotificationSettings({
-                          emailNotifications,
-                          pushNotifications,
-                          systemNotifications,
-                          autoCleanUnreadEmails,
-                        });
-                        if (res.code !== 200) {
-                          setErrorText(res.msg || "保存失败");
-                          return;
-                        }
-                        await refreshUserInfo();
-                        setPanel(null);
-                      } catch (e: any) {
-                        setErrorText(e?.msg || e?.message || "保存失败");
-                      } finally {
-                        setSavingNotifications(false);
-                      }
-                    }}
-                  >
-                    保存
+                    {t("settings.confirm_bind")}
                   </CloudButton>
                 </DialogFooter>
               </>
@@ -753,19 +641,19 @@ export default function Settings() {
 
         {panel === "security" ? (
           <div className="fixed inset-0 z-50 bg-background flex flex-col">
-            <PageBackHeader title="账号安全" fallbackTo="/settings" onBack={() => setPanel(null)} maxWidthClass="max-w-2xl" />
+            <PageBackHeader title={t("settings.security")} fallbackTo="/settings" onBack={() => setPanel(null)} maxWidthClass="max-w-2xl" />
 
             <div className="flex-1 min-h-0 w-full py-3 overflow-y-auto">
               <div className="max-w-2xl mx-auto px-3 space-y-3">
                 <div className="p-4 rounded-xl border border-border bg-card">
-                  <div className="text-sm font-medium text-foreground">活动记录</div>
-                  <div className="text-xs text-muted-foreground mt-1">显示最近 20 条</div>
+                  <div className="text-sm font-medium text-foreground">{t("settings.activity_log")}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{t("settings.recent_20")}</div>
 
                   <div className="mt-3 space-y-2 max-h-[360px] overflow-auto pr-1">
                     {activityLoading ? (
-                      <div className="text-sm text-muted-foreground">加载中...</div>
+                      <div className="text-sm text-muted-foreground">{t("settings.loading")}</div>
                     ) : activities.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">暂无记录</div>
+                      <div className="text-sm text-muted-foreground">{t("settings.no_records")}</div>
                     ) : (
                       activities.map((a) => (
                         <div key={a.id} className="p-3 rounded-xl bg-muted border border-border">
@@ -786,9 +674,9 @@ export default function Settings() {
                 ) : null}
 
                 <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5">
-                  <div className="text-sm font-medium text-destructive">注销账号</div>
+                  <div className="text-sm font-medium text-destructive">{t("settings.deactivate_account")}</div>
                   <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                    注销后你将无法使用本账号登录，剩余学时和授课额度将全部清空。此操作不可撤销，请谨慎操作。
+                    {t("settings.deactivate_desc")}
                   </p>
                   <button
                     type="button"
@@ -796,7 +684,7 @@ export default function Settings() {
                     className="mt-3 inline-flex items-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <UserX size={16} />
-                    申请注销账号
+                    {t("settings.request_deactivate")}
                   </button>
                 </div>
               </div>
@@ -807,17 +695,17 @@ export default function Settings() {
         <Dialog open={deactivateOpen} onOpenChange={(v) => !deactivating && setDeactivateOpen(v)}>
           <DialogContent className="sm:max-w-[480px] rounded-xl border-border">
             <DialogHeader>
-              <DialogTitle className="text-foreground">注销账号</DialogTitle>
+              <DialogTitle className="text-foreground">{t("settings.deactivate_account")}</DialogTitle>
             </DialogHeader>
             <div className="text-sm text-muted-foreground space-y-3">
-              <p>注销后你将无法使用本账号登录，请确认已了解以下后果：</p>
+              <p>{t("settings.deactivate_warning")}</p>
               <ul className="list-disc pl-5 space-y-1.5">
-                <li>账号将被停用，无法登录或继续使用功能</li>
-                <li>剩余学员学时、教师授课额度将全部清空</li>
-                <li>若为教师，名下学员账号将一并注销</li>
-                <li>使用相同邮箱重新注册将获得新账号，与本次账号的历史数据无关</li>
+                <li>{t("settings.deactivate_consequence_1")}</li>
+                <li>{t("settings.deactivate_consequence_2")}</li>
+                <li>{t("settings.deactivate_consequence_3")}</li>
+                <li>{t("settings.deactivate_consequence_4")}</li>
               </ul>
-              <p className="text-destructive font-medium">此操作不可撤销，请谨慎操作。</p>
+              <p className="text-destructive font-medium">{t("settings.deactivate_irreversible")}</p>
             </div>
             <DialogFooter className="gap-2 sm:gap-2">
               <CloudButton
@@ -826,38 +714,38 @@ export default function Settings() {
                 disabled={deactivating}
                 onClick={() => setDeactivateOpen(false)}
               >
-                取消
+                {t("settings.cancel")}
               </CloudButton>
               <CloudButton
                 type="button"
                 variant="destructive"
                 loading={deactivating}
-                loadingText="注销中..."
+                loadingText={t("settings.deactivating")}
                 disabled={deactivating}
                 onClick={async () => {
                   try {
                     setDeactivating(true);
                     const res = await deactivateAccount();
                     if (res.code !== 200) {
-                      showToast.error(res.msg || "注销失败");
+                      showToast.error(res.msg || t("settings.deactivate_failed"));
                       return;
                     }
                     setDeactivateOpen(false);
                     clearUser();
-                    showToast.success("账号已注销");
+                    showToast.success(t("settings.deactivated"));
                     navigate("/login", { replace: true });
                   } catch (e: unknown) {
                     const msg =
                       e && typeof e === "object" && "msg" in e
                         ? String((e as { msg: string }).msg)
-                        : "注销失败";
+                        : t("settings.deactivate_failed");
                     showToast.error(msg);
                   } finally {
                     setDeactivating(false);
                   }
                 }}
               >
-                确认注销
+                {t("settings.confirm_deactivate")}
               </CloudButton>
             </DialogFooter>
           </DialogContent>

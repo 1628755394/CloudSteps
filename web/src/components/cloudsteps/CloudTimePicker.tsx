@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { TimePicker as ArcoTimePicker } from "@arco-design/web-react";
 import { useIsMobile } from "../ui/use-mobile";
 import { MobileTimeWheel } from "./MobileWheelPicker";
@@ -28,8 +29,10 @@ export function CloudTimePicker({
   format = "HH:mm",
   allowClear = true,
   disabled,
-  placeholder = "请选择时间",
+  placeholder,
 }: CloudTimePickerProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("ui.please_select_time");
   const isMobile = useIsMobile();
 
   if (isMobile) {
@@ -39,7 +42,7 @@ export function CloudTimePicker({
         value={value}
         onChange={onChange}
         disabled={disabled}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         className={className}
       />
     );
@@ -62,7 +65,7 @@ export function CloudTimePicker({
         value={value || undefined}
         allowClear={allowClear}
         disabled={disabled}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         onChange={(timeString) => onChange?.(timeString || "")}
       />
     </div>

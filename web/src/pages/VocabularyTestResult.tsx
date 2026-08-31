@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
 import { useNavigate, useSearchParams } from "react-router";
 import { RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { getVocabResult } from "../api/vocab";
 import { getStudentVocabRecordAsTeacher } from "../api/coaching";
@@ -33,6 +34,7 @@ function normalizeVocabResult(raw: any): VocabTestResultPayload | null {
 }
 
 export default function VocabularyTestResult() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const studentId = Number(searchParams.get("studentId") || 0);
@@ -98,18 +100,18 @@ export default function VocabularyTestResult() {
 
   return (
     <div className="min-h-screen w-full min-w-0 overflow-x-hidden bg-gray-50 pb-20">
-      <TopBar title="测试结果" onBack={handleBack} />
+      <TopBar title={t("vocab_test.result_title")} onBack={handleBack} />
 
       <div className="px-4 sm:px-6 py-4">
         {loading ? (
           <div className="max-w-3xl mx-auto text-center text-[#718096] py-16">
-            结果加载中...
+            {t("vocab_test.result_loading")}
           </div>
         ) : !hasResult || !result ? (
           <div className="max-w-3xl mx-auto bg-white rounded-2xl p-6 sm:p-8 text-center shadow-sm border border-[#E2E8F0]">
-            <div className="text-[#2D3748] font-semibold text-base">暂无测试结果</div>
+            <div className="text-[#2D3748] font-semibold text-base">{t("vocab_test.no_result")}</div>
             <div className="text-[#718096] text-sm mt-2">
-              {isHistory ? "这条测评记录不存在或无权查看" : "去开始一次词汇量测试吧"}
+              {isHistory ? t("vocab_test.history_not_found") : t("vocab_test.go_test_hint")}
             </div>
             <CloudButton
               variant="brand"
@@ -117,7 +119,7 @@ export default function VocabularyTestResult() {
               className="mt-6 w-full"
               onClick={() => (isHistory ? handleBack() : navigate("/vocabulary-test"))}
             >
-              {isHistory ? "返回" : "去测试"}
+              {isHistory ? t("vocab_test.back") : t("vocab_test.go_test")}
             </CloudButton>
           </div>
         ) : (
@@ -126,7 +128,7 @@ export default function VocabularyTestResult() {
 
             {isHistory ? (
               <CloudButton variant="outline" size="pill" className="w-full" onClick={handleBack}>
-                返回
+                {t("vocab_test.back")}
               </CloudButton>
             ) : (
               <>
@@ -140,10 +142,10 @@ export default function VocabularyTestResult() {
                       navigate("/vocabulary-test/testing", { replace: true });
                     }}
                   >
-                    重新测试
+                    {t("vocab_test.retake")}
                   </CloudButton>
                   <CloudButton variant="outline" size="pill" className="flex-1" onClick={handleBack}>
-                    返回
+                    {t("vocab_test.back")}
                   </CloudButton>
                 </div>
 
@@ -153,7 +155,7 @@ export default function VocabularyTestResult() {
                   className="w-full"
                   onClick={() => window.location.reload()}
                 >
-                  <RefreshCw className="w-4 h-4" /> 刷新结果
+                  <RefreshCw className="w-4 h-4" /> {t("vocab_test.refresh_result")}
                 </CloudButton>
               </>
             )}

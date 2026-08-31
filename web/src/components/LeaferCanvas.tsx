@@ -3,6 +3,7 @@ import { App, Group, Path, Text, Rect, Ellipse, UI, DragEvent as LeaferDragEvent
 import "@leafer-in/editor";
 import "@leafer-in/text-editor";
 import "@leafer-in/export";
+import i18n from "../i18n";
 
 // ---- Types ----
 export type Tool = "select" | "pen" | "eraser" | "circle" | "rect" | "text";

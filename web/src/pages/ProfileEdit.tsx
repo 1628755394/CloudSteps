@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { Camera, ChevronLeft, Loader2 } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudSelect } from "../components/cloudsteps/arco";
@@ -13,6 +14,7 @@ const fieldClass =
 
 export default function ProfileEdit() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const refreshUserInfo = useAuthStore((s) => s.refreshUserInfo);
   const updateProfile = useAuthStore((s) => s.updateProfile);
@@ -50,14 +52,14 @@ export default function ProfileEdit() {
 
   const stats = useMemo(() => {
     return [
-      { label: "登录次数", value: String(user?.loginCount ?? "-") },
-      { label: "资料完整度", value: `${profileComplete}%` },
+      { label: t("profile_edit.login_count"), value: String(user?.loginCount ?? "-") },
+      { label: t("profile_edit.profile_completeness"), value: `${profileComplete}%` },
       {
-        label: "连续学习",
-        value: typeof user?.streakDays === "number" ? `${user.streakDays}天` : "-",
+        label: t("profile_edit.streak_days"),
+        value: typeof user?.streakDays === "number" ? `${user.streakDays}${t("profile_edit.day_unit")}` : "-",
       },
     ];
-  }, [user, profileComplete]);
+  }, [user, profileComplete, t]);
 
   useEffect(() => {
     setDisplayName(user?.displayName ?? "");
@@ -70,16 +72,16 @@ export default function ProfileEdit() {
 
   const genderOptions = useMemo(
     () => [
-      { value: "male", label: "男" },
-      { value: "female", label: "女" },
-      { value: "other", label: "其他" },
+      { value: "male", label: t("profile_edit.male") },
+      { value: "female", label: t("profile_edit.female") },
+      { value: "other", label: t("profile_edit.other") },
     ],
-    [],
+    [t],
   );
 
   const timezoneOptions = useMemo(
     () => [
-      { value: "Asia/Shanghai", label: "Asia/Shanghai (中国标准时间)" },
+      { value: "Asia/Shanghai", label: t("profile_edit.timezone_shanghai") },
       { value: "Asia/Hong_Kong", label: "Asia/Hong_Kong" },
       { value: "Asia/Taipei", label: "Asia/Taipei" },
       { value: "Asia/Singapore", label: "Asia/Singapore" },
@@ -89,7 +91,7 @@ export default function ProfileEdit() {
       { value: "Europe/London", label: "Europe/London" },
       { value: "Europe/Paris", label: "Europe/Paris" },
     ],
-    []
+    [t]
   );
 
   const onPickAvatar = () => {
@@ -103,11 +105,11 @@ export default function ProfileEdit() {
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      showToast.warning("请选择图片文件");
+      showToast.warning(t("profile_edit.select_image"));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      showToast.warning("图片不能超过 5MB");
+      showToast.warning(t("profile_edit.image_too_large"));
       return;
     }
 
@@ -118,20 +120,20 @@ export default function ProfileEdit() {
     try {
       const res = await uploadAvatar(file);
       if (res.code !== 200 || !res.data?.avatar) {
-        setErrorText(res.msg || "头像上传失败");
+        setErrorText(res.msg || t("profile_edit.avatar_upload_failed"));
         setAvatarPreview(null);
         return;
       }
       updateProfile({ avatar: res.data.avatar });
       setAvatarPreview(res.data.avatar);
       await refreshUserInfo();
-      showToast.success("头像已更新");
+      showToast.success(t("profile_edit.avatar_updated"));
     } catch (err: unknown) {
       setAvatarPreview(null);
       const msg =
         err && typeof err === "object" && "msg" in err
           ? String((err as { msg: string }).msg)
-          : "头像上传失败";
+          : t("profile_edit.avatar_upload_failed");
       setErrorText(msg);
       showToast.error(msg);
     } finally {
@@ -144,7 +146,7 @@ export default function ProfileEdit() {
     setErrorText(null);
 
     if (!displayName.trim()) {
-      setErrorText("请输入昵称");
+      setErrorText(t("profile_edit.enter_nickname"));
       return;
     }
 
@@ -160,7 +162,7 @@ export default function ProfileEdit() {
       });
 
       if (res.code !== 200) {
-        setErrorText(res.msg || "保存失败");
+        setErrorText(res.msg || t("profile_edit.save_failed"));
         return;
       }
 
@@ -172,7 +174,7 @@ export default function ProfileEdit() {
           ? String((e as { msg: string }).msg)
           : e instanceof Error
             ? e.message
-            : "保存失败";
+            : t("profile_edit.save_failed");
       setErrorText(msg);
     } finally {
       setSaving(false);
@@ -186,15 +188,15 @@ export default function ProfileEdit() {
           variant="ghost"
           size="icon"
           onClick={() => navigate(-1)}
-          aria-label="返回"
+          aria-label={t("profile_edit.back")}
           className="shrink-0"
         >
           <ChevronLeft size={18} />
         </CloudButton>
         <div className="min-w-0 flex-1">
-          <span className="text-sm font-semibold tracking-tight text-foreground">编辑个人资料</span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">{t("profile_edit.title")}</span>
           <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-            账号：{user?.email || "-"}
+            {t("profile_edit.account_label")}{user?.email || "-"}
           </p>
         </div>
         <CloudButton
@@ -204,10 +206,10 @@ export default function ProfileEdit() {
           onClick={onSave}
           disabled={saving || uploading}
           loading={saving}
-          loadingText="保存中"
+          loadingText={t("profile_edit.saving")}
           className="shrink-0"
         >
-          保存
+          {t("profile_edit.save")}
         </CloudButton>
       </div>
 
@@ -228,7 +230,7 @@ export default function ProfileEdit() {
               onClick={onPickAvatar}
               disabled={uploading}
               className="group relative block size-full appearance-none overflow-hidden rounded-full border border-border bg-primary-soft p-0 shadow-sm transition-[box-shadow,opacity] hover:shadow-md focus:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 disabled:opacity-60 [clip-path:circle(50%_at_50%_50%)]"
-              aria-label="更换头像"
+              aria-label={t("profile_edit.change_avatar")}
             >
               <img
                 src={avatarUrl}
@@ -252,67 +254,67 @@ export default function ProfileEdit() {
             className="hidden"
             onChange={onAvatarFile}
           />
-          <p className="text-[11px] text-muted-foreground">点击头像可更换</p>
+          <p className="text-[11px] text-muted-foreground">{t("profile_edit.click_avatar_to_change")}</p>
         </div>
 
         <div>
-          <label className="text-xs font-medium text-charcoal mb-1 block">昵称</label>
+          <label className="text-xs font-medium text-charcoal mb-1 block">{t("profile_edit.nickname")}</label>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="请输入昵称"
+            placeholder={t("profile_edit.enter_nickname")}
             className={fieldClass}
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-medium text-charcoal mb-1 block">手机号</label>
+            <label className="text-xs font-medium text-charcoal mb-1 block">{t("profile_edit.phone")}</label>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="请输入手机号"
+              placeholder={t("profile_edit.enter_phone")}
               className={fieldClass}
             />
           </div>
 
           <CloudSelect
-            label="性别"
+            label={t("profile_edit.gender")}
             value={gender || undefined}
             onChange={(v) => setGender(v ?? "")}
             options={genderOptions}
-            placeholder="请选择性别"
+            placeholder={t("profile_edit.select_gender")}
             allowClear
-            sheetTitle="选择性别"
+            sheetTitle={t("profile_edit.select_gender_title")}
           />
 
           <CloudSelect
-            label="时区"
+            label={t("profile_edit.timezone")}
             value={timezone || undefined}
             onChange={(v) => setTimezone(v ?? "")}
             options={timezoneOptions}
-            placeholder="请选择时区"
+            placeholder={t("profile_edit.select_timezone")}
             allowClear={false}
             showSearch
-            sheetTitle="选择时区"
+            sheetTitle={t("profile_edit.select_timezone_title")}
           />
 
           <div>
-            <label className="text-xs font-medium text-charcoal mb-1 block">地区</label>
+            <label className="text-xs font-medium text-charcoal mb-1 block">{t("profile_edit.region")}</label>
             <input
               value={region}
               onChange={(e) => setRegion(e.target.value)}
-              placeholder="例如：中国"
+              placeholder={t("profile_edit.region_placeholder")}
               className={fieldClass}
             />
           </div>
 
           <div>
-            <label className="text-xs font-medium text-charcoal mb-1 block">城市</label>
+            <label className="text-xs font-medium text-charcoal mb-1 block">{t("profile_edit.city")}</label>
             <input
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              placeholder="例如：深圳"
+              placeholder={t("profile_edit.city_placeholder")}
               className={fieldClass}
             />
           </div>

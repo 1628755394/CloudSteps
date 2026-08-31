@@ -53,6 +53,7 @@ func Models() []any {
 		&notify2.InternalNotification{},
 		&models.Announcement{},
 		&models.AnnouncementRead{},
+		&models.WechatMpArticle{},
 		&notify2.NotificationChannel{},
 		&notify2.MailTemplate{},
 		&notify2.MailLog{},

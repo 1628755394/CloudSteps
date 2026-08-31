@@ -35,14 +35,18 @@ import { playWordAudio } from "../utils/audioPlayer";
 import { displayTranslationFull, formatTranslation } from "../utils/wordFormat";
 import { showToast } from "../utils/toast";
 import { cn } from "../utils/cn";
+import { useTranslation } from "react-i18next";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type MaskMode = "none" | "meaning" | "word";
 
-const MASK_OPTIONS: { key: MaskMode; label: string }[] = [
-  { key: "none", label: "不遮挡" },
-  { key: "meaning", label: "遮挡释义" },
-  { key: "word", label: "遮挡单词" },
-];
+function maskOptions(tr: (k: string) => string): { key: MaskMode; label: string }[] {
+  return [
+    { key: "none", label: tr("word_book_words.mask_none") },
+    { key: "meaning", label: tr("word_book_words.mask_meaning") },
+    { key: "word", label: tr("word_book_words.mask_word") },
+  ];
+}
 
 const MASK_STORAGE_KEY = "wb_detail_mask_mode";
 
@@ -97,6 +101,7 @@ function readMaskMode(): MaskMode {
 }
 
 export default function WordBookWords() {
+  const { t } = useTranslation();
   const { id: idParam } = useParams<{ id: string }>();
   const bookId = Number(idParam);
 
@@ -151,7 +156,7 @@ export default function WordBookWords() {
         setIsCustom(Number(bookRes.data.ownerUserId || 0) > 0 || bookRes.data.category === "custom");
       }
       if (wordsRes.code !== 200) {
-        setErr(wordsRes.msg || "加载单词失败");
+        setErr(formatApiMessage(wordsRes.msg, "word_book_words.load_words_failed"));
         setList([]);
         return;
       }
@@ -160,7 +165,7 @@ export default function WordBookWords() {
       setTotal(Number(d?.total ?? 0));
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.query_failed");
       setErr(msg);
       setList([]);
     } finally {
@@ -174,7 +179,7 @@ export default function WordBookWords() {
 
   const play = (w: WordBookWord) => {
     if (!w.audioUrl?.trim()) {
-      showToast.info("暂无发音音频");
+      showToast.info(t("word_book_words.no_audio"));
       return;
     }
     setPlayingId(w.id);
@@ -193,12 +198,12 @@ export default function WordBookWords() {
 
   const handleShuffle = () => {
     setList((prev) => shuffleArray(prev));
-    showToast.success("已打乱当前页顺序");
+    showToast.success(t("word_book_words.shuffled"));
   };
 
   const handleExport = () => {
     if (!list.length) {
-      showToast.info("当前没有可导出的单词");
+      showToast.info(t("word_book_words.no_export"));
       return;
     }
     const lines = list.map((w) => {
@@ -210,10 +215,10 @@ export default function WordBookWords() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${bookName || "词书"}-p${page}.txt`;
+    a.download = `${bookName || t("word_book_words.fallback")}-p${page}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast.success("已导出当前页");
+    showToast.success(t("word_book_words.exported_page"));
   };
 
   const openEdit = (w: WordBookWord) => {
@@ -229,7 +234,7 @@ export default function WordBookWords() {
     if (!editWord) return;
     const word = editForm.word.trim();
     if (!word) {
-      showToast.info("请填写单词");
+      showToast.info(t("word_book_words.enter_word"));
       return;
     }
     setSaving(true);
@@ -242,15 +247,15 @@ export default function WordBookWords() {
         translationShort: trans,
       });
       if (res.code !== 200) {
-        showToast.error(res.msg || "保存失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
-      showToast.success("已保存");
+      showToast.success(t("word_book_words.saved"));
       setEditWord(null);
       void load();
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "保存失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setSaving(false);
@@ -258,19 +263,19 @@ export default function WordBookWords() {
   };
 
   const handleDelete = async (w: WordBookWord) => {
-    if (!window.confirm(`确定删除单词「${w.word}」？`)) return;
+    if (!window.confirm(t("word_book_words.delete_confirm", { word: w.word }))) return;
     setDeletingId(w.id);
     try {
       const res = await deleteWordBookWord(bookId, w.id);
       if (res.code !== 200) {
-        showToast.error(res.msg || "删除失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
-      showToast.success("已删除");
+      showToast.success(t("word_book_words.deleted"));
       void load();
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "删除失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setDeletingId(null);
@@ -278,7 +283,7 @@ export default function WordBookWords() {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const title = bookName || (Number.isFinite(bookId) ? `词库 #${bookId}` : "词库");
+  const title = bookName || (Number.isFinite(bookId) ? t("word_book_words.fallback_title", { id: bookId }) : t("word_book_words.fallback"));
 
   const [tappedReveal, setTappedReveal] = useState<Set<number>>(new Set());
   useEffect(() => {
@@ -298,9 +303,9 @@ export default function WordBookWords() {
   if (!Number.isFinite(bookId) || bookId <= 0) {
     return (
       <div className="px-4 py-8 text-muted-foreground">
-        无效词库{" "}
+        {t("word_book_words.invalid")}{" "}
         <Link to="/" className="text-primary underline">
-          返回
+          {t("practice.back")}
         </Link>
       </div>
     );
@@ -313,15 +318,12 @@ export default function WordBookWords() {
       <div className="sticky top-11 z-40 bg-card border-b border-border -mx-3 sm:-mx-4 px-3 sm:px-4">
         <div className="flex items-center gap-2 py-2.5">
           <p className="min-w-0 flex-1 text-sm text-muted-foreground truncate">
-            共{" "}
-            <span className="text-base font-semibold text-primary tabular-nums">{total}</span>{" "}
-            个单词
-            {debouncedKw ? <span className="text-xs">（已筛选）</span> : null}
+            {t("word_book_words.total_filtered", { total, filtered: debouncedKw ? t("word_book_words.filtered") : "" })}
           </p>
           <div className="flex items-center gap-0.5 shrink-0">
             <button
               type="button"
-              aria-label="导出"
+              aria-label={t("word_book_words.export")}
               onClick={handleExport}
               className="size-9 inline-flex items-center justify-center rounded-lg text-primary hover:bg-primary-soft"
             >
@@ -329,7 +331,7 @@ export default function WordBookWords() {
             </button>
             <button
               type="button"
-              aria-label="打乱顺序"
+              aria-label={t("word_book_words.shuffle")}
               onClick={handleShuffle}
               className="size-9 inline-flex items-center justify-center rounded-lg text-primary hover:bg-primary-soft"
             >
@@ -338,7 +340,7 @@ export default function WordBookWords() {
             <div className="relative" ref={settingsRef}>
               <button
                 type="button"
-                aria-label="显示设置"
+                aria-label={t("word_book_words.display_settings")}
                 onClick={() => setSettingsOpen((o) => !o)}
                 className={cn(
                   "size-9 inline-flex items-center justify-center rounded-lg text-primary hover:bg-primary-soft",
@@ -349,7 +351,7 @@ export default function WordBookWords() {
               </button>
               {settingsOpen ? (
                 <div className="absolute right-0 top-full mt-1 z-50 min-w-[8.5rem] rounded-xl border border-border bg-card py-1 shadow-lg">
-                  {MASK_OPTIONS.map((opt) => (
+                  {maskOptions(t).map((opt) => (
                     <button
                       key={opt.key}
                       type="button"
@@ -379,7 +381,7 @@ export default function WordBookWords() {
               type="search"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="搜索单词、释义…"
+              placeholder={t("word_book_words.search_placeholder")}
               className="w-full h-9 pl-9 pr-3 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/20"
             />
           </div>
@@ -395,11 +397,11 @@ export default function WordBookWords() {
 
         {loading ? (
           <div className="rounded-xl bg-card border border-border px-4 py-10 text-center text-sm text-muted-foreground">
-            加载中…
+            {t("practice.loading")}
           </div>
         ) : list.length === 0 ? (
           <div className="rounded-xl bg-card border border-border px-4 py-10 text-center text-sm text-muted-foreground">
-            暂无单词
+            {t("word_book_words.no_words")}
           </div>
         ) : (
           <ul className="space-y-3">
@@ -439,7 +441,7 @@ export default function WordBookWords() {
                       </div>
                       <button
                         type="button"
-                        aria-label="播放发音"
+                        aria-label={t("practice.play_audio")}
                         disabled={!hasAudio}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -468,7 +470,7 @@ export default function WordBookWords() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-soft">暂无释义</p>
+                        <p className="text-sm text-muted-soft">{t("word_book_words.no_meaning")}</p>
                       )}
                     </div>
                   </div>
@@ -482,7 +484,7 @@ export default function WordBookWords() {
                           onClick={() => openEdit(w)}
                         >
                           <Pencil size={13} />
-                          编辑
+                          {t("word_book_words.edit")}
                         </button>
                         <button
                           type="button"
@@ -491,7 +493,7 @@ export default function WordBookWords() {
                           onClick={() => void handleDelete(w)}
                         >
                           <Trash2 size={13} />
-                          {deletingId === w.id ? "删除中…" : "删除"}
+                          {deletingId === w.id ? t("word_book_words.deleting") : t("word_book_words.delete")}
                         </button>
                       </>
                     ) : null}
@@ -500,7 +502,7 @@ export default function WordBookWords() {
                       className="inline-flex items-center gap-0.5 px-2 py-1.5 text-xs font-medium text-primary"
                       onClick={() => setDetailWord(w)}
                     >
-                      单词详情
+                      {t("word_book_words.word_detail")}
                       <ChevronRight size={14} />
                     </button>
                   </div>
@@ -520,7 +522,7 @@ export default function WordBookWords() {
               className="gap-1"
             >
               {loading && page > 1 ? <Loader2 size={16} className="animate-spin" /> : <ChevronLeft size={16} />}
-              上一页
+              {t("practice.prev_page")}
             </CloudButton>
             <span className="tabular-nums">
               {page} / {totalPages}
@@ -532,7 +534,7 @@ export default function WordBookWords() {
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               className="gap-1"
             >
-              下一页
+              {t("practice.next_page")}
               {loading && page < totalPages ? (
                 <Loader2 size={16} className="animate-spin" />
               ) : (
@@ -560,18 +562,18 @@ export default function WordBookWords() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>编辑单词</DialogTitle>
+            <DialogTitle>{t("word_book_words.edit_word")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">单词</label>
+              <label className="text-sm font-medium">{t("word_book_words.word_label")}</label>
               <CloudInput
                 value={editForm.word}
                 onChange={(v: string) => setEditForm((f) => ({ ...f, word: v }))}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">音标</label>
+              <label className="text-sm font-medium">{t("word_book_words.phonetic_label")}</label>
               <CloudInput
                 value={editForm.phonetic}
                 onChange={(v: string) => setEditForm((f) => ({ ...f, phonetic: v }))}
@@ -579,21 +581,21 @@ export default function WordBookWords() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">释义</label>
+              <label className="text-sm font-medium">{t("word_book_words.meaning_label")}</label>
               <Textarea
                 value={editForm.translation}
                 onChange={(e) => setEditForm((f) => ({ ...f, translation: e.target.value }))}
                 className="min-h-24 text-sm resize-none"
-                placeholder="中文释义"
+                placeholder={t("word_book_words.meaning_placeholder")}
               />
             </div>
           </div>
           <DialogFooter className="gap-2">
             <CloudButton type="button" variant="ghost" onClick={() => setEditWord(null)}>
-              取消
+              {t("practice.cancel")}
             </CloudButton>
             <CloudButton type="button" disabled={saving} onClick={() => void saveEdit()}>
-              {saving ? "保存中…" : "保存"}
+              {saving ? t("practice.saving") : t("practice.save")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>

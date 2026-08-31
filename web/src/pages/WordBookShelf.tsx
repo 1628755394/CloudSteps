@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { BookOpen, ChevronRight, ChevronLeft, Plus, Search } from "lucide-react";
 import { CloudCard, CloudEmpty, CloudSpin, CloudInput } from "../components/cloudsteps/arco";
 import { listWordBooks, type WordBookItem, type WordBookGroup } from "../api/wordbooks";
@@ -48,33 +49,34 @@ function parseCover(desc?: string): CoverInfo | null {
 
 const PAGE_SIZE = 12;
 
-const CUSTOM_GROUP: WordBookGroup = { key: "custom", label: "自定义" };
+const CUSTOM_GROUP: WordBookGroup = { key: "custom", label: "shelf.group_custom" };
 
 const DEFAULT_GROUPS: WordBookGroup[] = [
-  { key: "", label: "全部" },
+  { key: "", label: "shelf.group_all" },
   CUSTOM_GROUP,
-  { key: "primary", label: "小学" },
-  { key: "middle", label: "初中" },
-  { key: "high", label: "高中" },
-  { key: "university", label: "大学" },
-  { key: "cet4", label: "四级" },
-  { key: "cet6", label: "六级" },
-  { key: "kaoyan", label: "考研" },
-  { key: "abroad", label: "留学考试" },
-  { key: "tem", label: "专四专八" },
-  { key: "textbook", label: "教材" },
+  { key: "primary", label: "shelf.group_primary" },
+  { key: "middle", label: "shelf.group_middle" },
+  { key: "high", label: "shelf.group_high" },
+  { key: "university", label: "shelf.group_university" },
+  { key: "cet4", label: "shelf.group_cet4" },
+  { key: "cet6", label: "shelf.group_cet6" },
+  { key: "kaoyan", label: "shelf.group_kaoyan" },
+  { key: "abroad", label: "shelf.group_abroad" },
+  { key: "tem", label: "shelf.group_tem" },
+  { key: "textbook", label: "shelf.group_textbook" },
 ];
 
 function withCustomGroup(list: WordBookGroup[]): WordBookGroup[] {
   const rest = list.filter((g) => g.key !== "custom");
   const hasAll = rest.some((g) => g.key === "");
-  const withoutCustom = hasAll ? rest : [{ key: "", label: "全部" }, ...rest];
+  const withoutCustom = hasAll ? rest : [{ key: "", label: "shelf.group_all" }, ...rest];
   const all = withoutCustom.find((g) => g.key === "");
   const others = withoutCustom.filter((g) => g.key !== "");
   return all ? [all, CUSTOM_GROUP, ...others] : [CUSTOM_GROUP, ...withoutCustom];
 }
 
 export default function WordBookShelf() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [books, setBooks] = useState<WordBookItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -98,7 +100,7 @@ export default function WordBookShelf() {
         group: g || undefined,
       });
       if (res.code !== 200) {
-        setErr(res.msg || "加载失败");
+        setErr(res.msg || t("shelf.load_failed"));
         setBooks([]);
         setTotal(0);
         return;
@@ -110,7 +112,7 @@ export default function WordBookShelf() {
       }
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : t("shelf.load_failed");
       setErr(msg);
       setBooks([]);
       setTotal(0);
@@ -158,7 +160,7 @@ export default function WordBookShelf() {
       <section className="space-y-3 min-w-0">
         <div className="flex items-center gap-3">
           <h2 className="text-base font-semibold text-foreground tracking-tight shrink-0">
-            我的书架
+            {t("shelf.title")}
           </h2>
           <div className="relative flex-1 min-w-0 max-w-md ml-auto">
             <CloudInput
@@ -171,7 +173,7 @@ export default function WordBookShelf() {
                 }
               }}
               onKeyDown={handleSearchKeyDown}
-              placeholder="搜索词库名称…"
+              placeholder={t("shelf.search_placeholder")}
               prefix={<Search size={16} className="text-muted-foreground" />}
               allowClear
             />
@@ -196,7 +198,7 @@ export default function WordBookShelf() {
                     active ? "text-primary font-semibold" : "text-muted-foreground font-medium",
                   )}
                 >
-                  {g.label}
+                  {t(g.label)}
                   {active ? (
                     <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-5 rounded-full bg-primary" />
                   ) : null}
@@ -222,12 +224,12 @@ export default function WordBookShelf() {
               className="inline-flex items-center gap-2 text-sm text-foreground/80 hover:text-foreground transition-colors"
             >
               <Plus size={18} className="text-primary" strokeWidth={2.5} />
-              <span>自定义词书</span>
+              <span>{t("shelf.custom_wordbook")}</span>
             </button>
           </div>
           {loading ? (
             <CloudCard className="p-10">
-              <CloudSpin tip="加载中…" />
+              <CloudSpin tip={t("shelf.loading")} />
             </CloudCard>
           ) : books.length > 0 ? (
             <>
@@ -272,7 +274,7 @@ export default function WordBookShelf() {
                           <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                             <span className="inline-flex items-center gap-1">
                               <BookOpen size={12} />
-                              {b.wordCount || 0} 词
+                              {b.wordCount || 0} {t("shelf.words_unit")}
                             </span>
                             <ChevronRight
                               size={14}
@@ -292,7 +294,7 @@ export default function WordBookShelf() {
                     disabled={page <= 1}
                     className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <ChevronLeft size={16} /> 上一页
+                    <ChevronLeft size={16} /> {t("shelf.prev_page")}
                   </button>
                   <span className="text-sm text-muted-foreground tabular-nums">
                     {page} / {totalPages}
@@ -302,7 +304,7 @@ export default function WordBookShelf() {
                     disabled={page >= totalPages}
                     className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    下一页 <ChevronRight size={16} />
+                    {t("shelf.next_page")} <ChevronRight size={16} />
                   </button>
                 </div>
               )}
@@ -311,11 +313,11 @@ export default function WordBookShelf() {
         </div>
       ) : loading ? (
         <CloudCard className="p-10">
-          <CloudSpin tip="加载中…" />
+          <CloudSpin tip={t("shelf.loading")} />
         </CloudCard>
       ) : books.length === 0 ? (
         <CloudCard className="p-8">
-          <CloudEmpty description={keyword ? "未找到匹配的词库" : "暂无词库"} />
+          <CloudEmpty description={keyword ? t("shelf.no_match") : t("shelf.empty")} />
         </CloudCard>
       ) : (
         <>
@@ -380,7 +382,7 @@ export default function WordBookShelf() {
                       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
                           <BookOpen size={12} />
-                          {b.wordCount || 0} 词
+                          {b.wordCount || 0} {t("shelf.words_unit")}
                         </span>
                         <ChevronRight
                           size={14}
@@ -402,7 +404,7 @@ export default function WordBookShelf() {
                 disabled={page <= 1}
                 className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronLeft size={16} /> 上一页
+                <ChevronLeft size={16} /> {t("shelf.prev_page")}
               </button>
               <span className="text-sm text-muted-foreground tabular-nums">
                 {page} / {totalPages}
@@ -412,7 +414,7 @@ export default function WordBookShelf() {
                 disabled={page >= totalPages}
                 className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                下一页 <ChevronRight size={16} />
+                {t("shelf.next_page")} <ChevronRight size={16} />
               </button>
             </div>
           )}

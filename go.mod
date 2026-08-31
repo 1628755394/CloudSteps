@@ -72,6 +72,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.12.0
 	github.com/xuri/excelize/v2 v2.9.0
+	github.com/yuin/goldmark v1.7.8
 	go.uber.org/zap v1.28.0
 	golang.org/x/net v0.57.0
 	gopkg.in/yaml.v3 v3.0.1

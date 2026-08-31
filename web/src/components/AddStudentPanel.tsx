@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { UserPlus } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import { CloudCard, CloudInput } from "./cloudsteps/arco";
@@ -17,6 +18,7 @@ type Props = {
 
 /** 搜索并添加陪练学员（配额） */
 export function AddStudentPanel({ open, onClose, onAdded }: Props) {
+  const { t } = useTranslation();
   const [searchQ, setSearchQ] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<CoachingStudentSearchResult[]>([]);
@@ -29,16 +31,16 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
   const onSearch = async () => {
     const q = searchQ.trim();
     if (!q) {
-      showToast.warning("请输入搜索关键词");
+      showToast.warning(t("coaching.search_keyword_required"));
       return;
     }
     setSearching(true);
     try {
       const res = await searchCoachingStudents(q);
       setSearchResults(Array.isArray(res.data) ? res.data : []);
-      if (!res.data?.length) showToast.info("未找到用户");
+      if (!res.data?.length) showToast.info(t("coaching.user_not_found"));
     } catch {
-      showToast.error("搜索失败");
+      showToast.error(t("coaching.search_failed"));
       setSearchResults([]);
     } finally {
       setSearching(false);
@@ -47,12 +49,12 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
 
   const onAdd = async () => {
     if (!picked) {
-      showToast.warning("请先选择学员");
+      showToast.warning(t("coaching.select_student_first"));
       return;
     }
     const mins = Number(quotaMinutes);
     if (Number.isNaN(mins) || mins < 0) {
-      showToast.warning("剩余分钟数无效");
+      showToast.warning(t("coaching.invalid_minutes"));
       return;
     }
     setAdding(true);
@@ -62,10 +64,10 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
         remainingMinutes: mins,
       });
       if (res.code !== 200) {
-        showToast.error(res.msg || "添加失败");
+        showToast.error(res.msg || t("coaching.add_failed"));
         return;
       }
-      showToast.success("已添加学员");
+      showToast.success(t("coaching.add_success"));
       setPicked(null);
       setSearchQ("");
       setSearchResults([]);
@@ -73,7 +75,7 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
       onClose();
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "添加失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : t("coaching.add_failed");
       showToast.error(msg);
     } finally {
       setAdding(false);
@@ -85,10 +87,10 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
           <UserPlus size={16} className="text-primary" />
-          添加学员
+          {t("coaching.add_student")}
         </h3>
         <CloudButton type="button" variant="ghost" size="sm" onClick={onClose}>
-          收起
+          {t("ui.collapse")}
         </CloudButton>
       </div>
       <div className="flex gap-2 items-center">
@@ -96,7 +98,7 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
           <CloudInput
             value={searchQ}
             onChange={setSearchQ}
-            placeholder="搜索用户名、昵称或手机号"
+            placeholder={t("coaching.search_placeholder")}
             onPressEnter={() => void onSearch()}
           />
         </div>
@@ -107,7 +109,7 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
           onClick={() => void onSearch()}
           className="shrink-0 h-10 px-4"
         >
-          搜索
+          {t("ui.search")}
         </CloudButton>
       </div>
       {searchResults.length > 0 && (
@@ -136,7 +138,7 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
       {picked && (
         <>
           <CloudInput
-            label="初始陪练额度（分钟）"
+            label={t("coaching.initial_quota")}
             value={quotaMinutes}
             onChange={setQuotaMinutes}
             inputMode="numeric"
@@ -148,7 +150,7 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
             onClick={() => void onAdd()}
             className="w-full"
           >
-            确认添加
+            {t("coaching.confirm_add")}
           </CloudButton>
         </>
       )}

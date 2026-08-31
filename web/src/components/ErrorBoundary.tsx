@@ -1,5 +1,6 @@
 import React from "react";
 import { CloudButton } from "./cloudsteps";
+import i18n from "../i18n";
 
 type ErrorBoundaryProps = {
   children: React.ReactNode;
@@ -63,23 +64,21 @@ export class ErrorBoundary extends React.Component<
       <div className="min-h-screen bg-[#F7F9FC] flex items-center justify-center p-6">
         <div className="w-full max-w-xl bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-sm">
           <div className="text-[#2D3748] text-xl font-semibold mb-2">
-            抱歉，页面出现了一点问题
+            {i18n.t("error.boundary_title")}
           </div>
-          <div className="text-[#718096] text-sm mb-6">
-            你可以复制错误信息并发给开发人员协助排查。
-          </div>
+          <div className="text-[#718096] text-sm mb-6">{i18n.t("error.boundary_desc")}</div>
 
           <div className="flex flex-wrap gap-3 mb-4">
             <CloudButton type="button" variant="brand" size="sm" onClick={() => window.location.reload()}>
-              刷新页面
+              {i18n.t("error.reload")}
             </CloudButton>
             <CloudButton type="button" variant="outline" size="sm" onClick={this.copyError}>
-              {copied ? "已复制" : "复制错误信息"}
+              {copied ? i18n.t("ui.copied") : i18n.t("ui.copy_error")}
             </CloudButton>
           </div>
 
           <pre className="text-xs leading-relaxed bg-[#0B1220] text-[#E2E8F0] rounded-xl p-4 overflow-auto max-h-[260px]">
-            {errorText || "(无错误详情)"}
+            {errorText || i18n.t("error.no_details")}
           </pre>
         </div>
       </div>

@@ -134,11 +134,11 @@ type User struct {
 	EmailNotifications    bool       `json:"emailNotifications" gorm:"default:true"`
 	AutoCleanUnreadEmails bool       `json:"autoCleanUnreadEmails" gorm:"default:false"`
 	ReviewCurvePreset     string     `json:"reviewCurvePreset" gorm:"size:20;default:'times5'"` // times3 | times5 | times7 | times10
+	WechatOpenID          string     `json:"-" gorm:"column:wechat_open_id;size:64;index"`
 	// 学习连续天数（每次完成 study_session 时维护，当天已学不变，隔天+1，断天归零）
-	StreakDays    int        `json:"streakDays" gorm:"default:0"` // 连续学习天数
-	LastStudyDate *time.Time `json:"lastStudyDate,omitempty"`     // 最后学习日期（精确到天）
-	// 资料完整度（计算字段，不落库）
-	ProfileComplete int `json:"profileComplete" gorm:"-"`
+	StreakDays      int        `json:"streakDays" gorm:"default:0"` // 连续学习天数
+	LastStudyDate   *time.Time `json:"lastStudyDate,omitempty"`     // 最后学习日期（精确到天）
+	ProfileComplete int        `json:"profileComplete" gorm:"-"`
 }
 
 func (u *User) TableName() string {

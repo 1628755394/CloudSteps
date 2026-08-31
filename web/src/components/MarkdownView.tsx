@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "../utils/cn";
 
@@ -9,8 +10,10 @@ type MarkdownViewProps = {
 };
 
 export function MarkdownView({ content, className }: MarkdownViewProps) {
+  const { t } = useTranslation();
+
   if (!content.trim()) {
-    return <p className="text-sm text-muted-foreground">（空）</p>;
+    return <p className="text-sm text-muted-foreground">{t("ui.markdown_empty")}</p>;
   }
 
   return (

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Select as ArcoSelect } from "@arco-design/web-react";
 import { useIsMobile } from "../ui/use-mobile";
 import { MobileSelectSheet, type MobileSelectOption } from "./MobileWheelPicker";
@@ -60,13 +61,16 @@ export function CloudSelect({
   options,
   value,
   onChange,
-  placeholder = "请选择",
+  placeholder,
   disabled,
   showSearch,
   allowClear,
   ...props
 }: CloudSelectProps) {
+  const { t } = useTranslation();
   const isMobile = useIsMobile();
+  const pleaseSelect = t("ui.please_select");
+  const resolvedPlaceholder = placeholder ?? pleaseSelect;
   const mobileOptions = React.useMemo(
     () => normalizeOptions(options as OptionLike[] | undefined),
     [options]
@@ -83,16 +87,16 @@ export function CloudSelect({
         ? undefined
         : String(Array.isArray(value) ? value[0] : value);
     const placeholderText =
-      typeof placeholder === "string"
-        ? placeholder
-        : Array.isArray(placeholder)
-          ? String(placeholder[0] ?? "请选择")
-          : "请选择";
+      typeof resolvedPlaceholder === "string"
+        ? resolvedPlaceholder
+        : Array.isArray(resolvedPlaceholder)
+          ? String(resolvedPlaceholder[0] ?? pleaseSelect)
+          : pleaseSelect;
 
     return (
       <MobileSelectSheet
         label={label}
-        title={sheetTitle || label || "请选择"}
+        title={sheetTitle || label || pleaseSelect}
         value={strValue}
         options={mobileOptions}
         placeholder={placeholderText}
@@ -124,7 +128,7 @@ export function CloudSelect({
         options={options}
         value={value}
         onChange={onChange}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         disabled={disabled}
         showSearch={showSearch}
         allowClear={allowClear}

@@ -1,7 +1,9 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 import { useAuthStore } from '../stores/authStore'
 import { getApiBaseURL } from '../config/apiConfig'
-import { getStoredLocale } from '../i18n'
+import i18n, { getStoredLocale } from '../i18n'
+import zhCN from '../i18n/locales/zh-CN.json'
+import { formatApiMessage } from './apiMessage'
 import { toast } from 'sonner'
 
 const getApiBaseUrl = () => {
@@ -12,6 +14,18 @@ const getApiBaseUrl = () => {
 const AUTH_EXPIRED_CODES = new Set([1002, 1104, 1105])
 
 let handlingAuthExpired = false
+
+const SUPPRESS_403_MSG_MARKERS = [
+  'coaching.relation_required',
+  'coaching.no_student_access',
+  zhCN['coaching.relation_required'],
+  zhCN['coaching.no_student_access'],
+] as const
+
+function shouldSuppress403Toast(msg: string): boolean {
+  if (!msg) return false
+  return SUPPRESS_403_MSG_MARKERS.some((marker) => msg.includes(marker))
+}
 
 function isAuthExpiredPayload(data: unknown): boolean {
   if (!data || typeof data !== 'object') return false
@@ -26,7 +40,7 @@ function handleAuthExpired() {
   handlingAuthExpired = true
 
   useAuthStore.getState().clearUser()
-  toast.error('登录已过期，请重新登录')
+  toast.error(i18n.t('auth.session_expired'))
 
   const currentPath = window.location.pathname + window.location.search
   if (currentPath.startsWith('/login')) {
@@ -97,7 +111,7 @@ axiosInstance.interceptors.response.use(
       handleAuthExpired()
       return Promise.reject({
         code: response.data?.code ?? 1002,
-        msg: response.data?.msg || '登录已过期，请重新登录',
+        msg: response.data?.msg || i18n.t('auth.session_expired'),
         data: null,
         error: response.data?.error || 'UNAUTHORIZED',
       })
@@ -120,15 +134,14 @@ axiosInstance.interceptors.response.use(
 
       switch (status) {
         case 403: {
-          // 陪练关系未建立时由页面空状态引导，避免误报「没有权限」
           const msg =
             data && typeof data === 'object' && 'msg' in data
               ? String((data as { msg?: unknown }).msg || '')
               : ''
-          if (msg.includes('陪练关系') || msg.includes('无权查看该学员')) {
+          if (shouldSuppress403Toast(msg)) {
             break
           }
-          toast.error(msg || '没有权限执行此操作')
+          toast.error(formatApiMessage(msg, 'common.no_permission'))
           break
         }
         case 404:

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getCaptcha, type CaptchaResponse, type CaptchaFields } from "../api/auth";
 
 interface CaptchaWidgetProps {
@@ -17,6 +18,7 @@ const inputClass =
  * CaptchaWidget renders login captcha challenges (image + math only).
  */
 export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProps) {
+  const { t } = useTranslation();
   const [captcha, setCaptcha] = useState<CaptchaResponse | null>(null);
   const [value, setValue] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,12 +36,12 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
         }
         setCaptcha(res.data);
       } else {
-        setError(res.msg || "获取验证码失败");
+        setError(res.msg || t("error.captcha_fetch_failed"));
       }
     } catch {
-      setError("获取验证码失败");
+      setError(t("error.captcha_fetch_failed"));
     }
-  }, [onChange]);
+  }, [onChange, t]);
 
   useEffect(() => {
     refresh();
@@ -66,14 +68,14 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
             type="text"
             value={value || ""}
             onChange={(e) => reportValue(e.target.value)}
-            placeholder="输入图中字符"
+            placeholder={t("error.captcha_image_placeholder")}
             className={inputClass}
           />
           <button
             type="button"
             onClick={refresh}
             className="h-[46px] shrink-0 rounded-xl border border-input bg-card overflow-hidden leading-none"
-            aria-label="刷新验证码"
+            aria-label={t("error.captcha_refresh")}
           >
             {img ? (
               <img
@@ -84,7 +86,7 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
               />
             ) : (
               <span className="inline-flex h-full items-center px-3 text-xs text-muted-foreground">
-                加载中
+                {t("common.loading")}
               </span>
             )}
           </button>
@@ -104,7 +106,7 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
           type="number"
           value={value ?? ""}
           onChange={(e) => reportValue(Number(e.target.value))}
-          placeholder="答案"
+          placeholder={t("ui.answer")}
           className={inputClass}
         />
         <button
@@ -112,7 +114,7 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
           onClick={refresh}
           className="shrink-0 text-xs text-muted-foreground hover:text-foreground px-1"
         >
-          换一题
+          {t("error.captcha_new_question")}
         </button>
       </div>
     );
@@ -123,7 +125,7 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
       <div className={className}>
         <div className="text-sm text-destructive">{error}</div>
         <button type="button" onClick={refresh} className="text-xs text-primary mt-1">
-          重试
+          {t("ui.retry")}
         </button>
       </div>
     );
@@ -132,7 +134,7 @@ export default function CaptchaWidget({ onChange, className }: CaptchaWidgetProp
   if (!captcha) {
     return (
       <div className={className}>
-        <span className="text-xs text-muted-foreground">加载中...</span>
+        <span className="text-xs text-muted-foreground">{t("ui.loading_dots")}</span>
       </div>
     );
   }

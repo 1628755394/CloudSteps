@@ -15,6 +15,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import { DatePicker, Modal } from "@arco-design/web-react";
@@ -67,22 +69,18 @@ function addDays(d: Date, n: number) {
   return x;
 }
 
-function studentLabel(s?: { displayName?: string; username?: string }, fallbackId?: number) {
-  return s?.displayName || s?.username || (fallbackId ? `学员 #${fallbackId}` : "学员");
+function studentLabel(
+  t: TFunction,
+  s?: { displayName?: string; username?: string },
+  fallbackId?: number,
+) {
+  return s?.displayName || s?.username || (fallbackId ? t("ui.student_id", { id: fallbackId }) : t("ui.student_fallback"));
 }
 
-const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"] as const;
 const DAY_HEADER_H = 52;
 const EVENT_MIN_H = 32;
 /** 时间轴相对可视区再拉高约 1/3，课块更易读 */
 const AXIS_HEIGHT_SCALE = 4 / 3;
-
-const STATUS_LABEL: Record<string, string> = {
-  scheduled: "待上课",
-  in_progress: "进行中",
-  completed: "已完成",
-  cancelled: "已取消",
-};
 
 const STATUS_SOFT: Record<string, { bg: string; text: string; bar: string }> = {
   scheduled: {
@@ -141,7 +139,7 @@ function fmtMinutes(mins: number): string {
   return `${pad2(Math.floor(clamped / 60))}:${pad2(clamped % 60)}`;
 }
 
-function lessonDisplay(s: CoachingWeekSchedule): { title: string; subtitle?: string } {
+function lessonDisplay(t: TFunction, s: CoachingWeekSchedule): { title: string; subtitle?: string } {
   const student = s.students?.[0]?.trim() || "";
   let title = s.title?.trim() || "";
   // 兼容旧默认标题「姓名 · 陪练」
@@ -151,7 +149,7 @@ function lessonDisplay(s: CoachingWeekSchedule): { title: string; subtitle?: str
   }
   if (student) return { title: student };
   if (title) return { title };
-  return { title: "课程" };
+  return { title: t("coaching.lesson_default") };
 }
 
 function buildAxisMarks(axisStart: number, axisEnd: number): number[] {
@@ -236,6 +234,7 @@ function TimetableBlock({
   colCount,
   nowTs,
   onClick,
+  t,
 }: {
   schedule: CoachingWeekSchedule;
   topPx: number;
@@ -245,12 +244,13 @@ function TimetableBlock({
   colCount: number;
   nowTs: number;
   onClick: () => void;
+  t: TFunction;
 }) {
   const past = isSchedulePast(schedule, nowTs);
   const soft = past
     ? PAST_SOFT
     : STATUS_SOFT[schedule.status] || STATUS_SOFT.scheduled;
-  const { title } = lessonDisplay(schedule);
+  const { title } = lessonDisplay(t, schedule);
   const start = schedule.startTime?.slice(0, 5) || "";
   const end = schedule.endTime?.slice(0, 5) || "";
   const widthPct = 100 / colCount;
@@ -323,6 +323,7 @@ const MODAL_FOOTER_CLASS =
   "shrink-0 p-5 pt-3 border-t border-border bg-card pb-[max(1.25rem,env(safe-area-inset-bottom))]";
 
 export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -432,14 +433,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         const msg =
           e && typeof e === "object" && "msg" in e
             ? String((e as { msg: string }).msg)
-            : "加载课表失败";
+            : t("coaching.load_schedule_failed");
         showToast.error(msg);
         setSchedules([]);
       } finally {
         setLoadingSchedules(false);
       }
     },
-    [weekAnchor, isCoach],
+    [weekAnchor, isCoach, t],
   );
 
   useEffect(() => {
@@ -522,9 +523,9 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     () =>
       quotas.map((q) => ({
         value: String(q.studentId),
-        label: studentLabel(q.student, q.studentId),
+        label: studentLabel(t, q.student, q.studentId),
       })),
-    [quotas],
+    [quotas, t],
   );
 
   const openScheduleForDay = async (day: Date) => {
@@ -532,7 +533,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     const dayYmd = fmtYMD(day);
     const todayYmd = fmtYMD(new Date());
     if (dayYmd < todayYmd) {
-      showToast.info("不能给今天之前的日期排课");
+      showToast.info(t("coaching.cannot_schedule_past"));
       return;
     }
 
@@ -543,14 +544,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         setQuotas(list);
         options = list.map((q) => ({
           value: String(q.studentId),
-          label: studentLabel(q.student, q.studentId),
+          label: studentLabel(t, q.student, q.studentId),
         }));
       } catch {
         // fall through to empty check
       }
     }
     if (options.length === 0) {
-      showToast.info("请先在学员管理中添加学员，再来排课");
+      showToast.info(t("coaching.add_student_before_schedule"));
       navigate("/my-students");
       return;
     }
@@ -576,26 +577,26 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
 
   const onDeleteAppt = async (id: number) => {
     Modal.confirm({
-      title: "删除排课",
-      content: "确定删除该排课？删除后不可恢复。",
-      okText: "确定删除",
-      cancelText: "取消",
+      title: t("coaching.delete_confirm_title"),
+      content: t("coaching.delete_confirm_desc"),
+      okText: t("coaching.confirm_delete"),
+      cancelText: t("ui.cancel"),
       okButtonProps: { status: "danger" },
       onOk: async () => {
         try {
           const res = await deleteTeacherCoachingAppointment(id);
           if (res.code !== 200) {
-            showToast.error(res.msg || "删除失败");
+            showToast.error(res.msg || t("coaching.delete_failed"));
             return;
           }
-          showToast.success("已删除排课");
+          showToast.success(t("coaching.deleted"));
           setSelected(null);
           void loadWeek();
         } catch (e: unknown) {
           const msg =
             e && typeof e === "object" && "msg" in e
               ? String((e as { msg: string }).msg)
-              : "删除失败";
+              : t("coaching.delete_failed");
           showToast.error(msg);
         }
       },
@@ -607,10 +608,10 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     try {
       const res = await startCoachingAppointment(id);
       if (res.code !== 200) {
-        showToast.error(res.msg || "无法开始");
+        showToast.error(res.msg || t("coaching.cannot_start"));
         return;
       }
-      showToast.success("已开始上课");
+      showToast.success(t("coaching.started"));
       setSelected(null);
       void loadWeek();
       navigate("/material-selection");
@@ -618,7 +619,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       const msg =
         e && typeof e === "object" && "msg" in e
           ? String((e as { msg: string }).msg)
-          : "开始失败";
+          : t("coaching.start_failed");
       showToast.error(msg);
     } finally {
       setPendingActionById((prev) => ({ ...prev, [id]: null }));
@@ -630,17 +631,17 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     try {
       const res = await endCoachingAppointment(id);
       if (res.code !== 200) {
-        showToast.error(res.msg || "无法下课");
+        showToast.error(res.msg || t("coaching.cannot_end"));
         return;
       }
-      showToast.success("已下课");
+      showToast.success(t("coaching.ended"));
       setSelected(null);
       void loadWeek();
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e
           ? String((e as { msg: string }).msg)
-          : "下课失败";
+          : t("coaching.end_failed");
       showToast.error(msg);
     } finally {
       setPendingActionById((prev) => ({ ...prev, [id]: null }));
@@ -672,10 +673,10 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       {/* 紧凑顶栏：标题 + 周切换同一行 */}
       <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 border-b border-border">
         <h2 className="text-[15px] font-semibold text-foreground shrink-0 leading-none">
-          {isCoach ? "陪练排课" : "我的课表"}
+          {isCoach ? t("coaching.schedule_title") : t("coaching.my_schedule")}
         </h2>
         <span className="inline-flex items-center rounded-md bg-primary-soft px-1.5 py-0.5 text-[10px] font-medium text-primary shrink-0 leading-none">
-          待上 {activeCount}
+          {t("coaching.pending_count", { count: activeCount })}
         </span>
 
         <div className="flex-1 min-w-0" />
@@ -684,7 +685,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
           variant="outline"
           size="sm"
           className="shrink-0 size-8 p-0 touch-manipulation"
-          aria-label="上一周"
+          aria-label={t("ui.prev_week")}
           onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}
         >
           <ChevronLeft size={16} />
@@ -695,9 +696,9 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
             <MobileDateWheel
               value={fmtYMD(weekMon)}
               allowClear={false}
-              placeholder="选择周"
+              placeholder={t("coaching.select_week")}
               displayValue={weekShortLabel}
-              sheetTitle="选择某一天（跳转到该周）"
+              sheetTitle={t("coaching.select_week_day")}
               className="!h-8 !min-h-8 !text-xs !text-center !flex !items-center !justify-center !px-1 !rounded-lg"
               onChange={(dateString) => jumpToWeekOf(dateString)}
             />
@@ -721,7 +722,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
           variant="outline"
           size="sm"
           className="shrink-0 size-8 p-0 touch-manipulation"
-          aria-label="下一周"
+          aria-label={t("ui.next_week")}
           onClick={() => setWeekAnchor(addDays(weekAnchor, 7))}
         >
           <ChevronRight size={16} />
@@ -732,7 +733,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       <div ref={timetableHostRef} className="flex-1 min-h-0 overflow-hidden">
         {loadingSchedules ? (
           <div className="h-full flex items-center justify-center">
-            <CloudSpin tip="加载课表…" />
+            <CloudSpin tip={t("coaching.loading_schedule")} />
           </div>
         ) : (
           <div className="h-full min-h-0 overflow-x-auto overflow-y-auto overscroll-contain">
@@ -773,7 +774,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           isToday ? "text-primary" : "text-foreground"
                         }`}
                       >
-                        周{WEEKDAY_LABELS[i]}
+                        {t("coaching.weekday_prefix", { day: t(`coaching.weekday.${i}`) })}
                       </div>
                       <div
                         className={`text-[10px] tabular-nums mt-0.5 ${
@@ -809,10 +810,10 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           <span className="inline-flex size-10 items-center justify-center rounded-full bg-primary/12 text-primary">
                             <Plus size={18} />
                           </span>
-                          <span className="text-[11px] text-muted-foreground">排课</span>
+                          <span className="text-[11px] text-muted-foreground">{t("coaching.schedule_lesson")}</span>
                         </>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground">暂无课程</span>
+                        <span className="text-[11px] text-muted-foreground">{t("coaching.no_lessons")}</span>
                       )}
                     </button>
                   );
@@ -856,7 +857,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           isToday ? "text-primary" : "text-foreground"
                         }`}
                       >
-                        周{WEEKDAY_LABELS[i]}
+                        {t("coaching.weekday_prefix", { day: t(`coaching.weekday.${i}`) })}
                       </div>
                       <div
                         className={`text-[10px] tabular-nums mt-0.5 ${
@@ -938,7 +939,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                       {isCoach ? (
                         <button
                           type="button"
-                          aria-label={`${ymd} 排课`}
+                          aria-label={t("coaching.schedule_on_day", { date: ymd })}
                           className="absolute inset-0 z-0 touch-manipulation"
                           onClick={() => {
                             dismissCellTip();
@@ -958,6 +959,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           colCount={ev.colCount}
                           nowTs={nowTs}
                           onClick={() => setSelected(ev.schedule)}
+                          t={t}
                         />
                       ))}
                     </div>
@@ -980,7 +982,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-base font-semibold text-foreground truncate">
-                      {lessonDisplay(selected).title || `排课 #${selected.id}`}
+                      {lessonDisplay(t, selected).title || t("coaching.lesson_fallback", { id: selected.id })}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
                       {selected.scheduledDate?.slice?.(0, 10) || selected.scheduledDate} ·{" "}
@@ -991,7 +993,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                     type="button"
                     className="shrink-0 p-2 rounded-lg text-muted-foreground hover:bg-muted touch-manipulation"
                     onClick={() => setSelected(null)}
-                    aria-label="关闭"
+                    aria-label={t("ui.close")}
                   >
                     <X size={18} />
                   </button>
@@ -999,7 +1001,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
 
                 {selected.students && selected.students.length > 0 ? (
                   <div className="text-sm text-muted-foreground">
-                    学员：{selected.students.join("、")}
+                    {t("coaching.student_label", { names: selected.students.join("、") })}
                   </div>
                 ) : null}
 
@@ -1008,15 +1010,15 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                   <span
                     className={`font-medium ${(STATUS_SOFT[selected.status] || STATUS_SOFT.scheduled).text}`}
                   >
-                    {STATUS_LABEL[selected.status] || selected.status}
+                    {t(`coaching.status.${selected.status}`, { defaultValue: selected.status })}
                   </span>
                   {selected.status === "in_progress" && selectedMinsLeft != null ? (
                     <span className="text-xs text-muted-foreground">
-                      · 距结束约 {Math.max(0, selectedMinsLeft)} 分钟
+                      {t("coaching.mins_until_end", { count: Math.max(0, selectedMinsLeft) })}
                     </span>
                   ) : null}
                   {selectedPast ? (
-                    <span className="text-xs text-muted-foreground">· 计划时段已过</span>
+                    <span className="text-xs text-muted-foreground">{t("coaching.slot_passed")}</span>
                   ) : null}
                 </div>
               </div>
@@ -1033,7 +1035,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           onClick={() => void onDeleteAppt(selected.id)}
                         >
                           <Trash2 size={14} />
-                          删除
+                          {t("coaching.delete")}
                         </CloudButton>
                         <CloudButton
                           variant="brand"
@@ -1043,7 +1045,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           disabled={selectedPending !== null}
                           onClick={() => void onStart(selected.id)}
                         >
-                          开始上课
+                          {t("coaching.start_class")}
                         </CloudButton>
                       </>
                     ) : null}
@@ -1058,7 +1060,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                             navigate("/material-selection");
                           }}
                         >
-                          进入训练
+                          {t("coaching.enter_training")}
                         </CloudButton>
                         <CloudButton
                           variant="destructive"
@@ -1068,7 +1070,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           disabled={selectedPending !== null}
                           onClick={() => void onEnd(selected.id)}
                         >
-                          下课
+                          {t("coaching.end_class")}
                         </CloudButton>
                       </>
                     ) : null}
@@ -1080,7 +1082,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                     className="w-full min-h-10 touch-manipulation"
                     onClick={() => setSelected(null)}
                   >
-                    关闭
+                    {t("ui.close")}
                   </CloudButton>
                 )}
               </div>
@@ -1117,9 +1119,9 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-semibold text-foreground">点击某一天排课</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t("coaching.cell_tip_title")}</h3>
             <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              点「周几」或空白处自行选择时间；排好后会按真实起止时间显示在课表上。
+              {t("coaching.cell_tip_desc")}
             </p>
             <CloudButton
               variant="brand"
@@ -1127,7 +1129,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
               className="w-full mt-3 min-h-10"
               onClick={dismissCellTip}
             >
-              知道了
+              {t("announcements.got_it")}
             </CloudButton>
           </div>
           <style>{`
@@ -1142,9 +1144,9 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       {showCellTip && tipReady && !tipHole && !loadingSchedules && (
         <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/45 p-4">
           <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-foreground">点击某一天排课</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t("coaching.cell_tip_title")}</h3>
             <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              点「周几」或空白处自行选择时间；排好后会按真实起止时间显示在课表上。
+              {t("coaching.cell_tip_desc")}
             </p>
             <CloudButton
               variant="brand"
@@ -1152,7 +1154,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
               className="w-full mt-3 min-h-10"
               onClick={dismissCellTip}
             >
-              知道了
+              {t("announcements.got_it")}
             </CloudButton>
           </div>
         </div>

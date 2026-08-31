@@ -25,17 +25,20 @@ import {
 import { invalidateWordBooksCache } from "../utils/wordBooksCache";
 import { showToast } from "../utils/toast";
 import { cn } from "../utils/cn";
+import { useTranslation } from "react-i18next";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type ImportTab = "manual" | "excel";
 
-const IMPORT_TABS: { key: ImportTab; label: string }[] = [
-  { key: "manual", label: "手动输入" },
-  { key: "excel", label: "Excel 导入" },
-];
-
 export default function CreateCustomWordBook() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const excelRef = useRef<HTMLInputElement>(null);
+
+  const importTabs: { key: ImportTab; label: string }[] = [
+    { key: "manual", label: t("create_wordbook.tab_manual") },
+    { key: "excel", label: t("create_wordbook.tab_excel") },
+  ];
 
   const [name, setName] = useState("");
   const [tab, setTab] = useState<ImportTab>("manual");
@@ -52,24 +55,24 @@ export default function CreateCustomWordBook() {
       const res = await enrichCustomWordBookWords(list);
       if (res.code === 200 && Array.isArray(res.data?.list) && res.data.list.length) {
         setWords(res.data.list);
-        showToast.success(`已识别 ${res.data.total || res.data.list.length} 个单词`);
+        showToast.success(t("create_wordbook.recognized", { count: res.data.total || res.data.list.length }));
         return;
       }
     } catch {
       // 补全失败仍展示本地结果
     }
     setWords(list);
-    showToast.success(`已识别 ${list.length} 个单词`);
+    showToast.success(t("create_wordbook.recognized", { count: list.length }));
   };
 
   const runParseManual = async () => {
     if (!manualText.trim()) {
-      showToast.info("请输入单词，每行一个");
+      showToast.info(t("create_wordbook.enter_words"));
       return;
     }
     const list = parseManualTextLocal(manualText);
     if (!list.length) {
-      showToast.error("未识别到有效单词");
+      showToast.error(t("create_wordbook.no_valid_words"));
       return;
     }
     setParsing(true);
@@ -88,12 +91,12 @@ export default function CreateCustomWordBook() {
     try {
       const list = await parseExcelFileLocal(file);
       if (!list.length) {
-        showToast.error("未识别到有效单词，请检查表格格式");
+        showToast.error(t("create_wordbook.excel_invalid"));
         return;
       }
       await applyWithEnrich(list);
     } catch {
-      showToast.error("Excel 解析失败，请使用 .xlsx 模板");
+      showToast.error(t("create_wordbook.excel_parse_failed"));
     } finally {
       setParsing(false);
     }
@@ -110,22 +113,22 @@ export default function CreateCustomWordBook() {
   const handleCreate = async () => {
     const bookName = name.trim();
     if (!bookName) {
-      showToast.info("请填写词书名称");
+      showToast.info(t("create_wordbook.enter_name"));
       return;
     }
     if (!words.length) {
-      showToast.info("请先导入单词");
+      showToast.info(t("create_wordbook.import_first"));
       return;
     }
     setCreating(true);
     try {
       const res = await createCustomWordBook({ name: bookName, words });
       if (res.code !== 200) {
-        showToast.error(res.msg || "创建失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
       invalidateWordBooksCache();
-      showToast.success("词书已创建");
+      showToast.success(t("create_wordbook.created"));
       const id = res.data?.id;
       if (id) navigate(`/word-books/${id}`, { replace: true });
       else navigate("/", { replace: true });
@@ -133,7 +136,7 @@ export default function CreateCustomWordBook() {
       const msg =
         e && typeof e === "object" && "msg" in e
           ? String((e as { msg: string }).msg)
-          : "创建失败";
+          : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setCreating(false);
@@ -142,29 +145,29 @@ export default function CreateCustomWordBook() {
 
   return (
     <div className="min-h-dvh flex flex-col bg-background">
-      <PageBackHeader title="上传词书" fallbackTo="/" maxWidthClass="max-w-none" />
+      <PageBackHeader title={t("create_wordbook.title")} fallbackTo="/" maxWidthClass="max-w-none" />
 
       <div className="flex-1 w-full py-4 space-y-4">
         <div className="border border-border bg-card p-4 space-y-4 rounded-xl">
           <div className="space-y-1.5">
-            <label className="text-sm text-foreground font-medium">词书名称</label>
+            <label className="text-sm text-foreground font-medium">{t("create_wordbook.name_label")}</label>
             <CloudInput
               value={name}
               onChange={(v: string) => setName(v)}
-              placeholder="例如：初中核心词汇"
+              placeholder={t("create_wordbook.name_placeholder")}
               maxLength={64}
             />
           </div>
 
           <div className="space-y-5">
             <div className="flex items-stretch border-b border-border">
-              {IMPORT_TABS.map((t) => {
-                const active = tab === t.key;
+              {importTabs.map((tabItem) => {
+                const active = tab === tabItem.key;
                 return (
                   <button
-                    key={t.key}
+                    key={tabItem.key}
                     type="button"
-                    onClick={() => setTab(t.key)}
+                    onClick={() => setTab(tabItem.key)}
                     className={cn(
                       "relative flex-1 pb-2.5 pt-0.5 text-sm transition-colors",
                       active
@@ -172,7 +175,7 @@ export default function CreateCustomWordBook() {
                         : "text-muted-foreground font-medium",
                     )}
                   >
-                    {t.label}
+                    {tabItem.label}
                     {active ? (
                       <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-5 rounded-full bg-primary" />
                     ) : null}
@@ -189,11 +192,11 @@ export default function CreateCustomWordBook() {
                   onClick={() => setManualOpen(true)}
                   disabled={parsing}
                 >
-                  输入单词
+                  {t("create_wordbook.input_words")}
                 </CloudButton>
-                <p className="text-sm text-muted-foreground">每行输入一个单词</p>
+                <p className="text-sm text-muted-foreground">{t("create_wordbook.manual_hint")}</p>
                 <p className="text-xs text-muted-foreground">
-                  解析后会按词库已有数据补全释义与音标，缺的可手动改
+                  {t("create_wordbook.manual_hint2")}
                 </p>
               </div>
             ) : (
@@ -215,22 +218,22 @@ export default function CreateCustomWordBook() {
                     variant="outline"
                     onClick={() =>
                       void downloadExcelTemplateLocal()
-                        .then(() => showToast.success("模板已下载"))
-                        .catch(() => showToast.error("下载失败"))
+                        .then(() => showToast.success(t("create_wordbook.template_downloaded")))
+                        .catch(() => showToast.error(t("create_wordbook.download_failed")))
                     }
                   >
-                    下载模板
+                    {t("create_wordbook.download_template")}
                   </CloudButton>
                   <CloudButton
                     type="button"
                     disabled={parsing}
                     onClick={() => excelRef.current?.click()}
                   >
-                    {parsing ? "解析中…" : "选择 Excel"}
+                    {parsing ? t("create_wordbook.parsing") : t("create_wordbook.select_excel")}
                   </CloudButton>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  首列单词，可选第 2 列释义、第 3 列音标
+                  {t("create_wordbook.excel_hint")}
                 </p>
                 {fileLabel ? (
                   <p className="text-xs text-muted-foreground truncate">{fileLabel}</p>
@@ -243,8 +246,8 @@ export default function CreateCustomWordBook() {
         {words.length > 0 ? (
           <div className="border border-border bg-card overflow-hidden rounded-xl">
             <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">预览词表</span>
-              <span className="text-xs text-muted-foreground tabular-nums">{words.length} 词</span>
+              <span className="text-sm font-medium text-foreground">{t("create_wordbook.preview")}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{t("create_wordbook.words_count", { count: words.length })}</span>
             </div>
             <ul className="divide-y divide-border max-h-[46vh] overflow-y-auto">
               {words.map((w, i) => (
@@ -263,18 +266,18 @@ export default function CreateCustomWordBook() {
                         onChange={(v: string) =>
                           updateWord(i, { translation: v, translationShort: v })
                         }
-                        placeholder="释义"
+                        placeholder={t("create_wordbook.meaning_ph")}
                       />
                       <CloudInput
                         value={w.phonetic || ""}
                         onChange={(v: string) => updateWord(i, { phonetic: v })}
-                        placeholder="音标"
+                        placeholder={t("create_wordbook.phonetic_ph")}
                       />
                     </div>
                   </div>
                   <button
                     type="button"
-                    aria-label="删除"
+                    aria-label={t("create_wordbook.delete_word")}
                     className="shrink-0 p-2 text-muted-foreground hover:text-destructive"
                     onClick={() => removeWord(i)}
                   >
@@ -294,10 +297,10 @@ export default function CreateCustomWordBook() {
             onClick={() => void handleCreate()}
           >
             {creating
-              ? "创建中…"
+              ? t("create_wordbook.creating")
               : words.length
-                ? `确认创建（${words.length} 词）`
-                : "确认创建"}
+                ? t("create_wordbook.confirm_with_count", { count: words.length })
+                : t("create_wordbook.confirm_create")}
           </CloudButton>
         </div>
       </div>
@@ -305,24 +308,24 @@ export default function CreateCustomWordBook() {
       <Dialog open={manualOpen} onOpenChange={setManualOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>输入单词</DialogTitle>
+            <DialogTitle>{t("create_wordbook.input_dialog_title")}</DialogTitle>
           </DialogHeader>
           <Textarea
             value={manualText}
             onChange={(e) => setManualText(e.target.value)}
-            placeholder={"每行一个，例如：\napple\nbanana\ncourage 勇气"}
+            placeholder={t("create_wordbook.manual_placeholder")}
             className="min-h-48 text-sm resize-none"
           />
           <DialogFooter className="gap-2">
             <CloudButton type="button" variant="ghost" onClick={() => setManualOpen(false)}>
-              取消
+              {t("practice.cancel")}
             </CloudButton>
             <CloudButton
               type="button"
               disabled={parsing}
               onClick={() => void runParseManual()}
             >
-              {parsing ? "补全中…" : "解析"}
+              {parsing ? t("create_wordbook.enriching") : t("create_wordbook.parse")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>

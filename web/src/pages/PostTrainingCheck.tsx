@@ -1,6 +1,7 @@
-import { Volume2, Check, X, BookOpen, Shuffle, PanelTop, Type, LayoutGrid } from "lucide-react";
+import { Volume2, Check, X, BookOpen, Shuffle, PanelTop, Type } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AnnotationLayer } from "../components/AnnotationLayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
@@ -9,6 +10,8 @@ import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 import {
   WordCardPanel,
+  WordMarkStatsBar,
+  WordViewModeToggle,
   isWordCardTapped,
   markWordCardClass,
   markWordCardStyle,
@@ -16,9 +19,9 @@ import {
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
-import { NoteSplitLayout } from "../components/NoteSplitLayout";
-import { useNote } from "../components/NoteContext";
+import { StudyNoteSplitLayout } from "../components/StudyNoteSplitLayout";
 import { applyUserWordView } from "../components/WordEditControls";
+import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import { completeStudySession } from "../api/study";
 import { completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
@@ -39,6 +42,7 @@ import {
   type StudyCheckPhase,
 } from "../utils/studyBatchFlow";
 import { clearReviewPracticeSession, getReviewReturnPath } from "../utils/reviewPractice";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type CheckWord = {
   id: number;
@@ -80,6 +84,7 @@ function getStudyBatchMeta(batchIdx: number) {
 }
 
 export default function PostTrainingCheck() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [words, setWords] = useState<CheckWord[]>([]);
   const [annotationOpen, setAnnotationOpen] = useState(false);
@@ -94,7 +99,7 @@ export default function PostTrainingCheck() {
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
-  const note = useNote();
+  const note = useSplitScreenNote("lb_posttraining_note_width");
 
   const batchIdx = useMemo(() => {
     const key = mode === "review" ? "lb_review_batch_idx" : "lb_study_batch_idx";
@@ -138,8 +143,8 @@ export default function PostTrainingCheck() {
     if (isRecheckMode) {
       const n = getStudyRecheckWords()?.length ?? 0;
       return {
-        title: "错词复检",
-        hint: `共 ${n} 个词 · 请再次确认掌握情况`,
+        title: t("practice.recheck_title"),
+        hint: t("practice.recheck_hint", { count: n }),
       };
     }
     return getCheckPhaseLabel(checkPhase, effectiveBatchIdx, batchInfo.totalBatches);
@@ -236,6 +241,10 @@ export default function PostTrainingCheck() {
   };
 
   const handleWordClick = (word: CheckWord) => {
+    if (spellMode) {
+      openSpellDialog(word);
+      return;
+    }
     const next = nextWordTapState({
       showTranslation: !!word.showTranslation,
       heard: !!word.heard,
@@ -251,7 +260,7 @@ export default function PostTrainingCheck() {
         if (w.id === word.id) {
           return { ...w, heard: next.heard, showTranslation: next.showTranslation };
         }
-        // 只亮当前点的词：清掉其它词的点词态
+        // 只亮当前点的词：清掉其它词的点词状态
         return { ...w, heard: false, showTranslation: false };
       })
     );
@@ -318,22 +327,22 @@ export default function PostTrainingCheck() {
   const allMarked = useMemo(() => words.length > 0 && words.every((w) => w.status !== null), [words]);
 
   const submitLabel = useMemo(() => {
-    if (mode === "review") return "完成复习";
-    if (wrongWords.length > 0) return `重练 ${wrongWords.length} 个错词`;
+    if (mode === "review") return t("practice.complete_review");
+    if (wrongWords.length > 0) return t("practice.retry_wrong", { count: wrongWords.length });
     if (isRecheckMode) {
       const pending = getStudyPendingAction();
       if (pending === "final_check" && getStudyRecheckFrom() === "milestone") {
-        return "提交并进入训后检测";
+        return t("practice.submit_post_check");
       }
-      if (pending === "next_batch") return "提交并继续下一组";
-      if (checkPhase === "final") return "提交并完成训练";
-      return "提交并继续";
+      if (pending === "next_batch") return t("practice.submit_next_batch");
+      if (checkPhase === "final") return t("practice.submit_finish");
+      return t("practice.submit_continue");
     }
-    if (checkPhase === "final") return "提交并完成训练";
+    if (checkPhase === "final") return t("practice.submit_finish");
     if (needsFinalCheckAfterMilestone(effectiveBatchIdx, batchInfo.totalBatches)) {
-      return "提交并进入训后检测";
+      return t("practice.submit_post_check");
     }
-    return "提交并继续下一组";
+    return t("practice.submit_next_batch");
   }, [mode, checkPhase, effectiveBatchIdx, batchInfo.totalBatches, wrongWords.length, isRecheckMode]);
 
   const sendWrongWordsToFlashRetry = (pending: "next_batch" | "final_check") => {
@@ -348,7 +357,7 @@ export default function PostTrainingCheck() {
       });
       if (retryPayload.length === 0) {
         console.error("错词重练列表为空，请检查单词 ID", wrongWords);
-        alert("错词数据异常，无法进入重练");
+        alert(t("practice.wrong_data_error"));
         return;
       }
       const from = checkPhase === "final" || isRecheckMode && getStudyRecheckFrom() === "final"
@@ -398,7 +407,7 @@ export default function PostTrainingCheck() {
         if (mode === "review") {
           const res = await completeReviewSession(sessionId, results);
           if (res.code !== 200) {
-            throw new Error(res.msg || "提交失败");
+            throw new Error(formatApiMessage(res.msg, "practice.submit_failed"));
           }
           const returnPath = getReviewReturnPath("/word-training");
           clearReviewPracticeSession();
@@ -472,7 +481,7 @@ export default function PostTrainingCheck() {
   return (
     <FlowPageShell>
       <TopBar
-        title={mode === "review" ? "开始复习" : phaseLabels.title}
+        title={mode === "review" ? t("practice.start_review") : phaseLabels.title}
         onBack={handleBack}
         rightSlot={
           <PracticeFlowToolbar
@@ -490,181 +499,167 @@ export default function PostTrainingCheck() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <NoteSplitLayout
-        defaultStorageKey={`study-note:global:${wordBookId}`}
-        defaultTitle="随心记"
+      <StudyNoteSplitLayout
+        open={note.open}
+        isDesktop={note.isDesktop}
+        side={note.side}
+        width={note.width}
+        storageKey={`study-note:global:${wordBookId}`}
+        onClose={() => note.setOpen(false)}
+        onSideChange={note.setSide}
+        onResize={note.startResize}
       >
-        <div className="pb-28 md:pb-20 px-4 pt-3">
-          {/* 统计条 */}
-          <div className="mb-4 rounded-xl bg-white border border-[#E2E8F0] px-4 py-3 shadow-sm">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-[#718096]">
-                正确: <span className="text-[#4ECDC4] font-semibold">{correctCount}</span>
-                {" / "}
-                错误: <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
-              </span>
-              <span className="text-[#718096]">
-                正确率: <span className="text-[#4ECDC4] font-semibold">{words.length > 0 ? Math.round((correctCount / words.length) * 100) : 0}%</span>
-              </span>
-            </div>
-          </div>
-
-          {viewMode === "card" ? (
-            <WordCardPanel
-              words={words}
-              index={cardIndex}
-              onIndexChange={setCardIndex}
-              playingId={playingId}
-              onPlay={handlePlayAudio}
-              onWordClick={handleWordClick}
-              onStatus={handleStatusClick}
-              amplifyDetail={detailMode}
-              onDetailClose={() => setDetailWord(null)}
-              noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
-            />
-          ) : (
-            <div className="space-y-3 mb-6">
-              {words.map((word) => (
-                <div
-                  key={word.id}
-                  className="rounded-xl bg-white p-4 shadow-sm border border-[#E2E8F0]"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1 cursor-pointer" onClick={() => {
-                      if (spellMode) {
-                        openSpellDialog(word);
-                      } else {
-                        handleWordClick(word);
-                      }
-                    }}>
-                      {spellMode ? (
-                        <span
-                          className={`${PRACTICE_WORD_CLASS} inline-block select-none rounded-sm bg-[#4ECDC4] align-text-bottom`}
-                          style={{
-                            width: `${Math.max(3, Math.ceil(word.word.length * 0.7))}ch`,
-                            height: "1.1em",
-                          }}
-                        />
-                      ) : (
-                        <span className={`${PRACTICE_WORD_CLASS} text-foreground hover:text-[#4ECDC4] transition-colors`}>
-                          {word.word}
-                        </span>
-                      )}
-                      {word.showTranslation && (
-                        <div className="mt-1 animate-in fade-in slide-in-from-top-1">
-                          {word.phonetic ? (
-                            <p className="text-sm text-[#718096] font-mono">{word.phonetic}</p>
-                          ) : null}
-                          {word.translation ? (
-                            <p className={PRACTICE_TRANS_CLASS}>{word.translation}</p>
-                          ) : null}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <StudyNoteLauncher
-                          storageKey={`study-note:word:${wordBookId}:${word.id}`}
-                          title={`笔记 · ${word.word}`}
-                          label="笔记"
-                          className="h-8 px-2.5 text-[11px]"
-                        />
+        <div className="pb-28 md:pb-20">
+        <WordMarkStatsBar
+          correctCount={correctCount}
+          wrongCount={wrongCount}
+          total={words.length}
+        />
+        {viewMode === "card" ? (
+          <WordCardPanel
+            words={words}
+            index={cardIndex}
+            onIndexChange={setCardIndex}
+            playingId={playingId}
+            onPlay={handlePlayAudio}
+            onWordClick={handleWordClick}
+            onStatus={handleStatusClick}
+            amplifyDetail={detailMode}
+            onDetailClose={() => setDetailWord(null)}
+            noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
+          />
+        ) : (
+          <div className="space-y-3 mb-6">
+            {words.map((word) => (
+              <div
+                key={word.id}
+                className={`rounded-xl p-4 shadow-sm transition-all cursor-pointer ${markWordCardClass(
+                  word.status,
+                  isWordCardTapped(word, playingId, word.id)
+                )}`}
+                style={markWordCardStyle(word.status, isWordCardTapped(word, playingId, word.id))}
+                onClick={() => handleWordClick(word)}
+              >
+                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  <div>
+                    {spellMode ? (
+                      <span
+                        className={`${PRACTICE_WORD_CLASS} inline-block select-none rounded-sm bg-[#4ECDC4] align-text-bottom`}
+                        style={{
+                          width: `${Math.max(3, Math.ceil(word.word.length * 0.7))}ch`,
+                          height: "1.1em",
+                        }}
+                      />
+                    ) : (
+                      <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
+                        {word.word}
+                      </span>
+                    )}
+                    {word.showTranslation && (
+                      <div className="mt-1 animate-in fade-in slide-in-from-top-1">
+                        {word.phonetic ? (
+                          <p className="text-sm text-[#718096] font-mono">{word.phonetic}</p>
+                        ) : null}
+                        {word.translation ? (
+                          <p className={PRACTICE_TRANS_CLASS}>{word.translation}</p>
+                        ) : null}
                       </div>
-                      <CloudButton
-                        type="button"
-                        variant="ghost"
-                        size="iconRound"
-                        className="size-9"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePlayAudio(word);
-                          setWords((prev) =>
-                            prev.map((w) =>
-                              w.id === word.id
-                                ? { ...w, heard: true }
-                                : { ...w, heard: false, showTranslation: false }
-                            )
-                          );
-                        }}
-                      >
-                        <Volume2
-                          size={18}
-                          className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
-                        />
-                      </CloudButton>
-                      <CloudButton
-                        type="button"
-                        variant={word.status === "correct" ? "mint" : "ghost"}
-                        size="iconRound"
-                        className="size-9"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStatusClick(word.id, "correct");
-                        }}
-                      >
-                        <Check size={18} />
-                      </CloudButton>
-                      <CloudButton
-                        type="button"
-                        variant={word.status === "wrong" ? "destructive" : "ghost"}
-                        size="iconRound"
-                        className="size-9"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStatusClick(word.id, "wrong");
-                        }}
-                      >
-                        <X size={18} />
-                      </CloudButton>
-                    </div>
+                    )}
                   </div>
-                  {detailMode && word.showTranslation && (
-                    <WordDetailPanel
-                      wordId={word.id}
-                      wordText={word.word}
-                      variant="inline"
-                      onClose={() => setDetailWord(null)}
-                    />
-                  )}
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="flex items-center gap-3">
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <StudyNoteLauncher
+                      storageKey={`study-note:word:${wordBookId}:${word.id}`}
+                      title={t("practice.note_title", { word: word.word })}
+                      label={t("practice.note")}
+                      className="h-9 px-2"
+                    />
+                  </div>
+                  <CloudButton
+                    type="button"
+                    variant="ghost"
+                    size="iconRound"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayAudio(word);
+                      setWords((prev) =>
+                        prev.map((w) =>
+                          w.id === word.id
+                            ? { ...w, heard: true }
+                            : { ...w, heard: false, showTranslation: false }
+                        )
+                      );
+                    }}
+                  >
+                    <Volume2
+                      size={20}
+                      className={playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+                    />
+                  </CloudButton>
+                  <CloudButton
+                    type="button"
+                    variant={word.status === "correct" ? "mint" : "ghost"}
+                    size="iconRound"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusClick(word.id, "correct");
+                    }}
+                  >
+                    <Check size={20} />
+                  </CloudButton>
+                  <CloudButton
+                    type="button"
+                    variant={word.status === "wrong" ? "destructive" : "ghost"}
+                    size="iconRound"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStatusClick(word.id, "wrong");
+                    }}
+                  >
+                    <X size={20} />
+                  </CloudButton>
+                </div>
+                </div>
+                {detailMode && word.showTranslation && (
+                  <WordDetailPanel
+                    wordId={word.id}
+                    wordText={word.word}
+                    variant="inline"
+                    onClose={() => setDetailWord(null)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         </div>
-      </NoteSplitLayout>
+      </StudyNoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 py-3 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
-          <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <CloudButton
                 type="button"
                 variant={note.open ? "brand" : "outline"}
-                size="sm"
+                size="pill"
                 onClick={() => note.setOpen((value) => !value)}
-                aria-label="打开随心记"
-                title="打开随心记"
+                aria-label={t("practice.open_free_note")}
+                title={t("practice.open_free_note")}
               >
-                <PanelTop size={14} className={note.open ? "text-white" : "text-[#c45c78]"} />
-                随心记
+                <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
+              {t("practice.free_note")}
+              </CloudButton>
+              <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
+                <Shuffle size={16} />
+              {t("practice.shuffle")}
               </CloudButton>
               <CloudButton
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setViewMode((v) => (v === "list" ? "card" : "list"))}
-              >
-                <LayoutGrid size={14} />
-                词卡
-              </CloudButton>
-              <CloudButton variant="outline" size="sm" onClick={handleShuffle}>
-                <Shuffle size={14} />
-                乱序
-              </CloudButton>
-              <CloudButton
-                type="button"
                 variant={detailMode ? "brand" : "outline"}
-                size="sm"
+                size="pill"
                 onClick={() => {
                   setDetailMode((v) => {
                     if (v) setDetailWord(null);
@@ -672,51 +667,51 @@ export default function PostTrainingCheck() {
                   });
                 }}
               >
-                <BookOpen size={14} />
-                拓展
+                <BookOpen size={16} />
+              {t("practice.expand")}
               </CloudButton>
               <CloudButton
                 type="button"
                 variant={spellMode ? "brand" : "outline"}
-                size="sm"
+                size="pill"
                 onClick={() => setSpellMode((v) => !v)}
               >
-                <Type size={14} />
-                拼写
+                <Type size={16} />
+                {t("practice.spell")}
               </CloudButton>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 w-full md:w-auto min-w-0 shrink-0">
               <CloudButton
-                type="button"
-                variant="mint"
-                size="sm"
-                className="shrink-0"
+                variant="mintOutline"
+                size="pill"
+                className="shrink-0 max-sm:px-3"
                 onClick={() => markNextFive("correct")}
               >
-                <Check size={14} />
-                5个正确
+                <Check size={16} />
+                <span className="hidden sm:inline">{t("practice.mark_five_correct")}</span>
+                <span className="sm:hidden">5✓</span>
               </CloudButton>
               <CloudButton
-                type="button"
                 variant="destructive"
-                size="sm"
-                className="shrink-0"
+                size="pill"
+                className="shrink-0 max-sm:px-3"
                 onClick={() => markNextFive("wrong")}
               >
-                <X size={14} />
-                5个错误
+                <X size={16} />
+                <span className="hidden sm:inline">{t("practice.mark_five_wrong")}</span>
+                <span className="sm:hidden">5✗</span>
               </CloudButton>
               <CloudButton
                 type="button"
                 variant="brand"
-                size="sm"
-                className="shrink-0"
+                size="pill"
+                className="flex-1 min-w-0 truncate md:flex-none"
                 onClick={handleSubmit}
                 disabled={!allMarked || submitting}
                 loading={submitting}
-                loadingText="提交中…"
+                loadingText={t("practice.submitting")}
               >
-                提交并完成训练
+                {submitLabel}
               </CloudButton>
             </div>
           </div>
@@ -733,7 +728,7 @@ export default function PostTrainingCheck() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-foreground">拼写单词</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("practice.spell_title")}</h3>
               {spellTarget.translation && (
                 <p className="text-sm text-muted-foreground mt-1">{spellTarget.translation}</p>
               )}
@@ -767,7 +762,7 @@ export default function PostTrainingCheck() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSpellSubmit();
                   }}
-                  placeholder="输入单词拼写"
+                  placeholder={t("practice.spell_input_placeholder")}
                   autoFocus
                   className="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground focus:outline-none focus:border-primary"
                 />
@@ -779,7 +774,7 @@ export default function PostTrainingCheck() {
                     className="flex-1"
                     onClick={closeSpellDialog}
                   >
-                    取消
+                    {t("practice.cancel")}
                   </CloudButton>
                   <CloudButton
                     type="button"
@@ -789,7 +784,7 @@ export default function PostTrainingCheck() {
                     onClick={handleSpellSubmit}
                     disabled={!spellInput.trim()}
                   >
-                    确认
+                    {t("practice.spell_confirm")}
                   </CloudButton>
                 </div>
               </>
@@ -803,14 +798,14 @@ export default function PostTrainingCheck() {
                   }`}
                 >
                   <p className="text-2xl font-bold mb-1">
-                    {spellResult === "correct" ? "✓ 正确" : "✗ 错误"}
+                    {spellResult === "correct" ? t("practice.spell_correct") : t("practice.spell_wrong")}
                   </p>
                   <p className="text-sm text-foreground">
-                    正确答案：<span className="font-semibold">{spellTarget.word}</span>
+                    {t("practice.spell_correct_answer", { answer: spellTarget.word })}
                   </p>
                   {spellResult === "wrong" && spellInput.trim() && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      你的输入：{spellInput.trim()}
+                      {t("practice.spell_your_input", { input: spellInput.trim() })}
                     </p>
                   )}
                 </div>
@@ -821,7 +816,7 @@ export default function PostTrainingCheck() {
                   className="w-full"
                   onClick={closeSpellDialog}
                 >
-                  继续
+                  {t("practice.spell_continue")}
                 </CloudButton>
               </>
             )}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2, Volume2, Pencil } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import { getWordDetail, type WordDetail, type UserWordView } from "../api/wordbooks";
@@ -88,6 +89,7 @@ export function WordDetailPanel({
   simpleMode = true,
   onWordPatched,
 }: Props) {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<WordDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -156,22 +158,22 @@ export function WordDetailPanel({
   const tabs: ExtTab[] = useMemo(() => {
     if (!detail || !parsed) return [];
     const list: ExtTab[] = [];
-    if (detailTranslation?.trim()) list.push({ key: "translation", label: "释义" });
-    if (parsed.examples?.length) list.push({ key: "examples", label: "例句" });
-    if (detail.mnemonic?.trim()) list.push({ key: "mnemonic", label: "助记" });
-    if (parsed.phrases?.length) list.push({ key: "phrases", label: "词组" });
-    if (parsed.morphology?.forms?.length) list.push({ key: "morphology", label: "变形" });
-    if (detail.imageUrl?.trim()) list.push({ key: "image", label: "图片" });
-    if (parsed.derivations?.length) list.push({ key: "derivations", label: "派生词" });
-    if (parsed.synonyms?.length) list.push({ key: "synonyms", label: "同义词" });
-    if (parsed.antonyms?.length) list.push({ key: "antonyms", label: "反义词" });
-    if (detail.etymology?.trim()) list.push({ key: "etymology", label: "词源" });
-    if (parsed.collins?.length) list.push({ key: "collins", label: "柯林斯" });
-    if (detail.definition?.trim()) list.push({ key: "definition", label: "英译" });
-    if (parsed.wordFamily?.length) list.push({ key: "family", label: "词族" });
+    if (detailTranslation?.trim()) list.push({ key: "translation", label: t("word.tab.translation") });
+    if (parsed.examples?.length) list.push({ key: "examples", label: t("word.tab.examples") });
+    if (detail.mnemonic?.trim()) list.push({ key: "mnemonic", label: t("word.tab.mnemonic") });
+    if (parsed.phrases?.length) list.push({ key: "phrases", label: t("word.tab.phrases") });
+    if (parsed.morphology?.forms?.length) list.push({ key: "morphology", label: t("word.tab.morphology") });
+    if (detail.imageUrl?.trim()) list.push({ key: "image", label: t("word.tab.image") });
+    if (parsed.derivations?.length) list.push({ key: "derivations", label: t("word.tab.derivations") });
+    if (parsed.synonyms?.length) list.push({ key: "synonyms", label: t("word.tab.synonyms") });
+    if (parsed.antonyms?.length) list.push({ key: "antonyms", label: t("word.tab.antonyms") });
+    if (detail.etymology?.trim()) list.push({ key: "etymology", label: t("word.tab.etymology") });
+    if (parsed.collins?.length) list.push({ key: "collins", label: t("word.tab.collins") });
+    if (detail.definition?.trim()) list.push({ key: "definition", label: t("word.tab.definition") });
+    if (parsed.wordFamily?.length) list.push({ key: "family", label: t("word.tab.family") });
     if (!simpleMode) return list;
     return list.filter((t) => SIMPLE_KEYS.has(t.key));
-  }, [detail, parsed, simpleMode, detailTranslation]);
+  }, [detail, parsed, simpleMode, detailTranslation, t]);
 
   const tagsBlock = (
     <>
@@ -180,9 +182,9 @@ export function WordDetailPanel({
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
         </div>
       ) : error ? (
-        <p className="px-3 pb-4 text-center text-sm text-muted-foreground">加载失败，请稍后重试</p>
+        <p className="px-3 pb-4 text-center text-sm text-muted-foreground">{t("error.load_failed_retry")}</p>
       ) : !detail || !parsed ? (
-        <p className="px-3 pb-4 text-center text-sm text-muted-foreground">暂无数据</p>
+        <p className="px-3 pb-4 text-center text-sm text-muted-foreground">{t("ui.empty")}</p>
       ) : (
         <>
           <div className="flex items-start gap-2 px-1 pb-1">
@@ -204,7 +206,7 @@ export function WordDetailPanel({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground flex-1">该单词暂无拓展内容</p>
+              <p className="text-sm text-muted-foreground flex-1">{t("word.no_extension")}</p>
             )}
             <button
               type="button"
@@ -215,7 +217,7 @@ export function WordDetailPanel({
               className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <Pencil size={12} />
-              纠错
+              {t("word.edit")}
             </button>
           </div>
 
@@ -288,7 +290,7 @@ export function WordDetailPanel({
                 variant="ghost"
                 size="iconRound"
                 onClick={() => playWordAudio(detail.audioUrl!, 200)}
-                aria-label="播放发音"
+                aria-label={t("word.play_pronunciation")}
               >
                 <Volume2 size={18} className="text-primary" />
               </CloudButton>

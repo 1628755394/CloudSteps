@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { registerUser, getUserInfo, logoutUser, type User, type RegisterUserForm } from '../api/auth'
 import { clearTrainingStudent } from '../utils/trainingStudent'
+import i18n from '../i18n'
 
 interface AuthState {
   user: User | null
@@ -69,7 +70,7 @@ export const useAuthStore = create<AuthState>()(
             })
             return true
           } else {
-            throw new Error(userResponse.msg || '获取用户信息失败')
+            throw new Error(userResponse.msg || i18n.t('auth.fetch_user_failed'))
           }
         } catch (error) {
           localStorage.removeItem('auth_token')
@@ -89,7 +90,7 @@ export const useAuthStore = create<AuthState>()(
             set({ isLoading: false })
             return true
           } else {
-            throw new Error(response.msg || '注册失败')
+            throw new Error(response.msg || i18n.t('login.register_failed'))
           }
         } catch (error) {
           set({ isLoading: false })
@@ -128,7 +129,7 @@ export const useAuthStore = create<AuthState>()(
           if (response.code === 200) {
             set({ user: response.data, isAuthenticated: true, token })
           } else {
-            throw new Error(response.msg || '获取用户信息失败')
+            throw new Error(response.msg || i18n.t('auth.fetch_user_failed'))
           }
         } catch (error) {
           console.error('Failed to refresh user info:', error)

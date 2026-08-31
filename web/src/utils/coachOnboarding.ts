@@ -9,46 +9,34 @@ export type CoachOnboardingIcon =
 
 export type CoachOnboardingStep = {
   id: string;
-  title: string;
-  body: string;
   icon: CoachOnboardingIcon;
   /** data-coach 锚点；缺省则居中卡片（欢迎步） */
   target?: string;
 };
 
-/** 与小程序端文案保持一致 */
+/** Step copy lives in i18n: coaching.onboarding.{id}.title / .body */
 export const COACH_ONBOARDING_STEPS: CoachOnboardingStep[] = [
   {
     id: "welcome",
-    title: "欢迎来到解忧",
-    body: "注册后你已是陪练老师。先添加学员，再开始测评与单词训练。",
     icon: "welcome",
   },
   {
     id: "students",
-    title: "先添加学员",
-    body: "点这里进入「学员管理」，新建或关联学员。没有学员时无法开始单词训练。",
     icon: "students",
     target: "students",
   },
   {
     id: "picker",
-    title: "选择当前学员",
-    body: "在这里切换当前学员，词汇测试与单词训练都会绑定到所选学员。",
     icon: "picker",
     target: "picker",
   },
   {
     id: "schedule",
-    title: "备课与排课",
-    body: "进入「备课」课表后，点击空格子即可排课；点已有课程可开始或下课。",
     icon: "schedule",
     target: "schedule",
   },
   {
     id: "training",
-    title: "开始单词训练",
-    body: "选好学员后点这里：选词库 → 记忆灯塔 →「继续练习」。",
     icon: "training",
     target: "training",
   },

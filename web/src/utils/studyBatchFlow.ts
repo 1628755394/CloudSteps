@@ -1,5 +1,7 @@
 /** 每 5 词一小批，每 3 小批为一大组（共 15 词） */
 
+import i18n from "../i18n";
+
 export const WORDS_PER_BATCH = 5;
 export const BATCHES_PER_MEGA_GROUP = 3;
 
@@ -74,12 +76,12 @@ export function getCheckPhaseLabel(
 ): { title: string; hint: string } {
   if (phase === "final") {
     return {
-      title: "训后检测",
+      title: i18n.t("practice.post_check_title"),
       hint: "",
     };
   }
   return {
-    title: "组内复习",
+    title: i18n.t("practice.group_review_title"),
     hint: "",
   };
 }

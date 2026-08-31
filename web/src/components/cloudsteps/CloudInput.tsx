@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Input as ArcoInput } from "@arco-design/web-react";
 
 /**
@@ -31,6 +32,7 @@ export function CloudInput({ label, className, style, ...props }: CloudInputProp
  * CloudInputSearch - 搜索输入框
  */
 export function CloudInputSearch(props: CloudInputProps) {
+  const { t } = useTranslation();
   return (
     <div className="w-full">
       {props.label && (
@@ -51,7 +53,7 @@ export function CloudInputSearch(props: CloudInputProps) {
               color: "var(--primary-foreground)",
             }}
           >
-            搜索
+            {t("ui.search")}
           </span>
         }
         {...props}

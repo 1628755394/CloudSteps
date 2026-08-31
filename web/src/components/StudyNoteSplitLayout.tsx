@@ -1,4 +1,5 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { StudyNotePanel } from "./StudyNotePanel";
 
 type NoteSide = "left" | "right";
@@ -26,6 +27,7 @@ export function StudyNoteSplitLayout({
   onSideChange,
   onResize,
 }: Props) {
+  const { t } = useTranslation();
   const split = open && isDesktop;
 
   return (
@@ -53,8 +55,8 @@ export function StudyNoteSplitLayout({
               }`}
               style={{ width: "10px", flexShrink: 0 }}
               onPointerDown={onResize}
-              title="拖动调整随心记宽度"
-              aria-label="拖动调整随心记宽度"
+              title={t("studyNote.resizeWidth")}
+              aria-label={t("studyNote.resizeWidth")}
             >
               <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 transition-all group-hover:w-1.5 group-hover:bg-[#4ECDC4]/60" />
             </div>
@@ -66,7 +68,7 @@ export function StudyNoteSplitLayout({
                 open={open}
                 onClose={onClose}
                 storageKey={storageKey}
-                title="随心记"
+                title={t("studyNote.title")}
                 side={side}
                 split
                 onSideChange={onSideChange}
@@ -80,7 +82,7 @@ export function StudyNoteSplitLayout({
           open={open}
           onClose={onClose}
           storageKey={storageKey}
-          title="随心记"
+          title={t("studyNote.title")}
           side={side}
           onSideChange={onSideChange}
         />

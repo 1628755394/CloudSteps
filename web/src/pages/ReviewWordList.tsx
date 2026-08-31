@@ -22,9 +22,10 @@ import {
 import { WordDetailPanel } from "../components/WordDetailPanel";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
-import { useNote } from "../components/NoteContext";
-import { NoteSplitLayout } from "../components/NoteSplitLayout";
-import { StudyNoteLauncher } from "../components/StudyNotePanel";
+import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
+import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
+import { useTranslation } from "react-i18next";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type ReviewWordItem = {
   id: number;
@@ -49,6 +50,7 @@ const formatTranslation = (raw?: string): string => {
 };
 
 export default function ReviewWordList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [words, setWords] = useState<ReviewWordItem[]>([]);
   const [annotationOpen, setAnnotationOpen] = useState(false);
@@ -56,7 +58,15 @@ export default function ReviewWordList() {
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
-  const note = useNote();
+  const {
+    open: globalNoteOpen,
+    setOpen: setGlobalNoteOpen,
+    side: noteSide,
+    setSide: setNoteSide,
+    width: noteWidth,
+    isDesktop,
+    startResize: startNoteResize,
+  } = useSplitScreenNote("lb_review_note_width");
 
   const wordBookId = useMemo(() => {
     const url = new URL(window.location.href);
@@ -84,11 +94,6 @@ export default function ReviewWordList() {
     return url.searchParams.get("view") === "1";
   }, []);
 
-  const allMode = useMemo(() => {
-    const url = new URL(window.location.href);
-    return url.searchParams.get("all") === "1";
-  }, []);
-
   const [playingId, setPlayingId] = useState<number | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -111,9 +116,8 @@ export default function ReviewWordList() {
       try {
         const res = await getReviewToday(wordBookId, {
           date: reviewDate || undefined,
-          limit: 500,
+          limit: 200,
           studySessionId: studySessionId > 0 ? studySessionId : undefined,
-          all: allMode,
         });
         const ws = Array.isArray(res.data?.words)
           ? (res.data.words as Array<{
@@ -142,7 +146,7 @@ export default function ReviewWordList() {
     return () => {
       mounted = false;
     };
-  }, [wordBookId, reviewDate, studySessionId, allMode]);
+  }, [wordBookId, reviewDate, studySessionId]);
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -208,11 +212,11 @@ export default function ReviewWordList() {
   const handleSubmit = () => {
     if (submitting) return;
     if (words.length === 0) {
-      setHint("当前没有可复习的单词");
+      setHint(t("practice.no_reviewable"));
       return;
     }
     if (!allMarked) {
-      setHint(`还有 ${unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交`);
+      setHint(t("practice.unmarked_hint", { count: unmarkedCount }));
       return;
     }
     setHint(null);
@@ -224,7 +228,7 @@ export default function ReviewWordList() {
         const startRes = await startReviewSession({ wordBookId, wordIds });
         const sid = Number(startRes.data?.sessionId || 0);
         if (!sid) {
-          setHint("无待复习单词，已返回");
+          setHint(t("practice.no_review_return"));
           setSubmitting(false);
           handleBack();
           return;
@@ -237,7 +241,7 @@ export default function ReviewWordList() {
         }));
         const res = await completeReviewSession(sid, results);
         if (res.code !== 200) {
-          throw new Error(res.msg || "提交失败");
+          throw new Error(formatApiMessage(res.msg, "practice.submit_failed"));
         }
         const returnPath = getReviewReturnPath("/word-training");
         sessionStorage.removeItem("lb_review_return");
@@ -246,7 +250,7 @@ export default function ReviewWordList() {
         }
         navigate(returnPath, { replace: true });
       } catch {
-        setHint("提交复习结果失败，请稍后重试");
+        setHint(t("practice.submit_review_failed"));
         setSubmitting(false);
       }
     })();
@@ -258,11 +262,11 @@ export default function ReviewWordList() {
   return (
     <FlowPageShell className="min-h-dvh bg-[#F7F9FC] pb-[max(7.5rem,env(safe-area-inset-bottom))]">
       <TopBar
-        title={viewOnly ? "查看" : "开始复习"}
+        title={viewOnly ? t("practice.view") : t("practice.start_review")}
         onBack={handleBack}
         rightSlot={
           <div className="flex items-center gap-0.5">
-            <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => note.setOpen(true)} aria-label="打开随心记" title="打开随心记"><PanelTop size={18} className="text-[#c45c78]" /></CloudButton>
+            <CloudButton type="button" variant="ghost" size="iconRound" onClick={() => setGlobalNoteOpen(true)} aria-label={t("practice.open_free_note")} title={t("practice.open_free_note")}><PanelTop size={18} className="text-[#c45c78]" /></CloudButton>
             <AudioMuteToggleButton />
             <AnnotationToggleButton
               active={annotationOpen}
@@ -279,17 +283,17 @@ export default function ReviewWordList() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <NoteSplitLayout
-        defaultStorageKey={`study-note:global:${wordBookId}`}
-        defaultTitle="随心记"
-      >
+      {/* Split container: word content + note panel on the same layer. */}
+      <div className={`box-border min-h-[calc(100dvh-9.5rem)] px-4 pt-3 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}>
+        {/* Word content pane */}
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
             <p className="text-[#718096] text-sm">
-              {viewOnly ? `当前共有 ${words.length} 个单词` : `当前共有 ${words.length} 个可选单词`}
+              {viewOnly ? t("lighthouse_words.total_words", { count: words.length }) : t("practice.optional_words", { count: words.length })}
             </p>
             {words.length === 0 && (
               <p className="text-xs text-amber-600 mt-1">
-                该日暂无待复习单词
+                {t("practice.no_words_today")}
               </p>
             )}
           </div>
@@ -319,7 +323,7 @@ export default function ReviewWordList() {
             />
           </div>
         ) : (
-          <div className={note.open && note.isDesktop ? "min-h-0 flex-1 overflow-y-auto space-y-2.5 mt-3" : "space-y-2.5 mt-3"}>
+          <div className={globalNoteOpen && isDesktop ? "min-h-0 flex-1 overflow-y-auto space-y-2.5 mt-3" : "space-y-2.5 mt-3"}>
             {words.map((item, index) => {
               return (
                 <div
@@ -359,8 +363,8 @@ export default function ReviewWordList() {
                       <div onClick={(e) => e.stopPropagation()}>
                         <StudyNoteLauncher
                           storageKey={`study-note:word:${wordBookId}:${item.id}`}
-                          title={`笔记 · ${item.word}`}
-                          label="笔记"
+                          title={t("practice.note_title", { word: item.word })}
+                          label={t("practice.note")}
                           className="h-9 px-2"
                         />
                       </div>
@@ -410,14 +414,57 @@ export default function ReviewWordList() {
             })}
           </div>
         )}
-      </NoteSplitLayout>
+        </div>
+
+        {/* Note panel pane — same layer as word content (desktop split only) */}
+        {globalNoteOpen && isDesktop && (
+          <>
+            {/* Drag handle between word content and note panel */}
+            <div
+              className={`group hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none lg:select-none ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}
+              style={{ width: "10px", flexShrink: 0 }}
+              onPointerDown={startNoteResize}
+              title={t("practice.resize_free_note")}
+              aria-label={t("practice.resize_free_note")}
+            >
+              <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 group-hover:bg-[#4ECDC4]/60 group-hover:w-1.5 transition-all" />
+            </div>
+            <div
+              className={`lg:flex lg:flex-col ${noteSide === "right" ? "lg:order-3" : "lg:order-1"}`}
+              style={{ width: `${noteWidth}px`, flexShrink: 0 }}
+            >
+              <StudyNotePanel
+                open={globalNoteOpen}
+                onClose={() => setGlobalNoteOpen(false)}
+                storageKey={`study-note:global:${wordBookId}`}
+                title={t("practice.free_note")}
+                side={noteSide}
+                split
+                onSideChange={setNoteSide}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Mobile: note panel as floating overlay */}
+      {globalNoteOpen && !isDesktop && (
+        <StudyNotePanel
+          open={globalNoteOpen}
+          onClose={() => setGlobalNoteOpen(false)}
+          storageKey={`study-note:global:${wordBookId}`}
+          title={t("practice.free_note")}
+          side={noteSide}
+          onSideChange={setNoteSide}
+        />
+      )}
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-4 py-3 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             {!viewOnly && (
               <>
                 <CloudButton type="button" variant="outline" size="pill" onClick={markAllCorrect}>
-                  全部认识
+                  {t("practice.mark_all_known")}
                 </CloudButton>
                 <CloudButton
                   type="button"
@@ -426,19 +473,19 @@ export default function ReviewWordList() {
                   onClick={clearMarks}
                   disabled={markedCount === 0}
                 >
-                  清空
+                  {t("practice.clear")}
                 </CloudButton>
               </>
             )}
             <div className="flex-1" />
             <CloudButton
               type="button"
-              variant={note.open ? "brand" : "outline"}
+              variant={globalNoteOpen ? "brand" : "outline"}
               size="pill"
-              onClick={() => note.setOpen(true)}
-              aria-label="打开随心记"
+              onClick={() => setGlobalNoteOpen(true)}
+              aria-label={t("practice.open_free_note")}
             >
-              随心记
+              {t("practice.free_note")}
             </CloudButton>
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton
@@ -453,7 +500,7 @@ export default function ReviewWordList() {
               }}
             >
               <BookOpen size={16} />
-              拓展
+              {t("practice.expand")}
             </CloudButton>
           </div>
           {!viewOnly && (
@@ -465,10 +512,10 @@ export default function ReviewWordList() {
                 onClick={handleSubmit}
                 disabled={submitting || !allMarked}
                 loading={submitting}
-                loadingText="提交中…"
+                loadingText={t("practice.submitting")}
                 className={`w-full ${!allMarked && words.length > 0 ? "opacity-80" : ""}`}
               >
-                提交复习
+                {t("practice.submit_review")}
                 {words.length > 0 ? ` (${markedCount}/${words.length})` : ""}
               </CloudButton>
               {hint && (
@@ -476,12 +523,12 @@ export default function ReviewWordList() {
               )}
               {!hint && !allMarked && words.length > 0 && (
                 <p className="text-center text-xs text-[#FF6B6B]">
-                  还有 {unmarkedCount} 个单词未勾选，请全部选择 ✓ 或 × 后再提交
+                  {t("practice.unmarked_hint", { count: unmarkedCount })}
                 </p>
               )}
               {!hint && allMarked && words.length > 0 && (
                 <p className="text-center text-xs text-[#A0AEC0]">
-                  已全部勾选，可提交复习
+                  {t("practice.all_marked_submit")}
                 </p>
               )}
             </>

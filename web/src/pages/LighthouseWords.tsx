@@ -1,6 +1,7 @@
 import { Volume2, Loader2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getLighthouseWords, type StudyWordItem } from "../api/study";
 import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
 import { PracticeFontSettingsButton, PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
@@ -11,31 +12,32 @@ import { FlowPageShell } from "../components/PageTransition";
 import { playFirstWordAudio } from "../utils/audioPlayer";
 import { nextWordTapState } from "../utils/wordReveal";
 
-const STEP_LABELS: Record<string, string> = {
-  today: "今日训新",
-  "1": "第1步·初学",
-  "01": "第1步·初学",
-  "2": "第2步·1天后",
-  "02": "第2步·1天后",
-  "3": "第3步·2天后",
-  "03": "第3步·2天后",
-  "4": "第4步·4天后",
-  "04": "第4步·4天后",
-  "5": "第5步·7天后",
-  "05": "第5步·7天后",
-  "6": "第6步·15天后",
-  "06": "第6步·15天后",
-  "7": "第7步·30天后",
-  "07": "第7步·30天后",
-  pending: "待学",
-  mastered: "掌握",
+const STEP_KEY_MAP: Record<string, string> = {
+  today: "lighthouse_words.step.today",
+  "1": "lighthouse_words.step.01",
+  "01": "lighthouse_words.step.01",
+  "2": "lighthouse_words.step.02",
+  "02": "lighthouse_words.step.02",
+  "3": "lighthouse_words.step.03",
+  "03": "lighthouse_words.step.03",
+  "4": "lighthouse_words.step.04",
+  "04": "lighthouse_words.step.04",
+  "5": "lighthouse_words.step.05",
+  "05": "lighthouse_words.step.05",
+  "6": "lighthouse_words.step.06",
+  "06": "lighthouse_words.step.06",
+  "7": "lighthouse_words.step.07",
+  "07": "lighthouse_words.step.07",
+  pending: "lighthouse_words.step.pending",
+  mastered: "lighthouse_words.step.mastered",
 };
 
 export default function LighthouseWords() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const step = searchParams.get("step") || "1";
-  const label = STEP_LABELS[step] || step;
+  const label = t(STEP_KEY_MAP[step] || step);
 
   const wordBookId = useMemo(
     () => Number(sessionStorage.getItem("lb_wordbook_id") || 0),
@@ -70,7 +72,7 @@ export default function LighthouseWords() {
         setTotal(res.data?.total ?? list.length);
       } catch {
         if (!mounted) return;
-        setError("加载失败，请重试");
+        setError(t("practice.load_words_failed"));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -78,7 +80,7 @@ export default function LighthouseWords() {
     return () => {
       mounted = false;
     };
-  }, [wordBookId, step]);
+  }, [wordBookId, step, t]);
 
   const handleWordClick = (word: StudyWordItem) => {
     const next = nextWordTapState({
@@ -144,31 +146,27 @@ export default function LighthouseWords() {
       />
 
       <div className="px-4 mt-6 max-w-2xl mx-auto w-full">
-        {/* 统计信息 */}
         <div className="text-center text-sm text-[#718096] mb-4">
-          共 {total} 个单词
+          {t("lighthouse_words.total_words", { count: total })}
         </div>
 
-        {/* 错误提示 */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm mb-4">
             {error}
           </div>
         )}
 
-        {/* 加载中 */}
         {loading && (
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-[#4ECDC4]" />
           </div>
         )}
 
-        {/* 单词列表 */}
         {!loading && !error && (
           <div className="space-y-3">
             {words.length === 0 ? (
               <div className="text-center py-12 text-[#718096]">
-                暂无单词
+                {t("lighthouse_words.no_words")}
               </div>
             ) : (
               words.map((word) => (

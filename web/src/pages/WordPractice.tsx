@@ -9,9 +9,7 @@ import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { StudyNoteLauncher } from "../components/StudyNotePanel";
-import { NoteSplitLayout } from "../components/NoteSplitLayout";
-import { useNote } from "../components/NoteContext";
+import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
@@ -19,7 +17,9 @@ import { syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { buildWordPracticeSequence } from "../utils/wordPracticeSequence";
 import { getPracticeTapState } from "../utils/wordPracticeTap";
+import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import type { UserWordView } from "../api/wordbooks";
+import { useTranslation } from "react-i18next";
 
 type PracticeWord = {
   id: number;
@@ -35,6 +35,7 @@ type PracticeWord = {
 };
 
 export default function WordPractice() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [words, setWords] = useState<PracticeWord[]>([]);
   const [manualReadMode, setManualReadMode] = useState(false);
@@ -52,7 +53,15 @@ export default function WordPractice() {
 
   const [audioIndexMap, setAudioIndexMap] = useState<Map<number, number>>(new Map());
 
-  const note = useNote();
+  const {
+    open: globalNoteOpen,
+    setOpen: setGlobalNoteOpen,
+    side: noteSide,
+    setSide: setNoteSide,
+    width: noteWidth,
+    isDesktop,
+    startResize: startNoteResize,
+  } = useSplitScreenNote("lb_practice_note_width");
 
   const handlePlayNextAudio = (word: PracticeWord) => {
     if (!word.audioUrl) return;
@@ -258,7 +267,7 @@ export default function WordPractice() {
               setFullMeaning((v) => !v);
             }}
           >
-            {fullMeaning ? "简译" : "全部意思"}
+            {fullMeaning ? t("practice.short_meaning") : t("practice.full_meaning")}
           </button>
         )}
       </div>
@@ -268,11 +277,11 @@ export default function WordPractice() {
   if (words.length === 0) {
     return (
       <FlowPageShell>
-        <TopBar title={mode === "review" ? "开始复习" : "单词练习"} onBack={handleBack} />
+        <TopBar title={mode === "review" ? t("practice.start_review") : t("practice.title")} onBack={handleBack} />
         <div className="flex flex-col items-center gap-4 text-center text-[#718096] py-16 px-4">
-          <p>{mode === "review" ? "暂无复习单词，请返回重新勾选" : "暂无待练习单词，请返回重新选择"}</p>
+          <p>{mode === "review" ? t("practice.no_review_words_back") : t("practice.no_words_to_practice")}</p>
           <CloudButton variant="brand" size="pillLg" onClick={handleBack}>
-            返回选择单词
+            {t("practice.back_select_words")}
           </CloudButton>
         </div>
       </FlowPageShell>
@@ -284,13 +293,13 @@ export default function WordPractice() {
   return (
     <FlowPageShell>
       <TopBar
-        title={mode === "review" ? "开始复习" : "单词练习"}
+        title={mode === "review" ? t("practice.start_review") : t("practice.title")}
         onBack={handleBack}
         rightSlot={
           <PracticeFlowToolbar
             annotationOpen={annotationOpen}
             onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
-            pauseContinueLabel="继续练习"
+            pauseContinueLabel={t("practice.continue_practice")}
             wordCount={words.length}
             onWordPatched={applyPatchedWord}
           />
@@ -303,11 +312,14 @@ export default function WordPractice() {
         onOpenChange={setAnnotationOpen}
       />
 
-      <NoteSplitLayout
-        defaultStorageKey={`study-note:global:${wordBookId}`}
-        defaultTitle="随心记"
+      {/* Split container: word content + note panel on the same layer (desktop). */}
+      <div
+        className={`box-border min-h-[calc(100dvh-9.5rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2 lg:mx-0" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`}
+        style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}
       >
-        <div className="text-center text-sm text-[#718096] mb-6">{batchIdx + 1}/{totalBatches}组</div>
+        {/* Word content pane */}
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
+        <div className="text-center text-sm text-[#718096] mb-6">{t("practice.batch_group", { current: batchIdx + 1, total: totalBatches })}</div>
 
         {viewMode === "card" && cardWord ? (
           <div className="flex w-full flex-col gap-3">
@@ -338,7 +350,7 @@ export default function WordPractice() {
                   className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center"
                   onClick={() => handleWordTap(cardWord)}
                 >
-                  <div className={`${PRACTICE_CARD_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>{cardWord.word}</div>
+                  <div className={PRACTICE_CARD_WORD_CLASS}>{cardWord.word}</div>
                   {renderReveal(cardWord)}
                 </button>
                 <CloudButton
@@ -356,8 +368,8 @@ export default function WordPractice() {
                 <div onClick={(e) => e.stopPropagation()}>
                   <StudyNoteLauncher
                     storageKey={wordNoteKey(cardWord.id)}
-                    title={`笔记 · ${cardWord.word}`}
-                    label="笔记"
+                    title={t("practice.note_title", { word: cardWord.word })}
+                    label={t("practice.note")}
                     className="h-9 px-2"
                   />
                 </div>
@@ -388,12 +400,12 @@ export default function WordPractice() {
           </div>
         ) : (
           <div
-            className={note.open && note.isDesktop
+            className={globalNoteOpen && isDesktop
               ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,auto))] gap-2.5 overflow-y-auto"
               : "space-y-3 mb-6"}
           >
             {words.map((word, index) => (
-              <div key={word.id} className={note.open && note.isDesktop ? "min-h-0" : ""}>
+              <div key={word.id} className={globalNoteOpen && isDesktop ? "min-h-0" : ""}>
                 <div
                   className={`relative min-h-0 bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
                     !manualReadMode && index === selectedIndex
@@ -409,15 +421,15 @@ export default function WordPractice() {
                     onClick={() => handleWordTap(word)}
                     className="flex-1 cursor-pointer pr-3"
                   >
-                    <div className={`${PRACTICE_WORD_CLASS} mb-1 hover:text-[#4ECDC4] transition-colors`}>{word.word}</div>
+                    <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{word.word}</div>
                     {renderReveal(word)}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div onClick={(e) => e.stopPropagation()}>
                       <StudyNoteLauncher
                         storageKey={wordNoteKey(word.id)}
-                        title={`笔记 · ${word.word}`}
-                        label="笔记"
+                        title={t("practice.note_title", { word: word.word })}
+                        label={t("practice.note")}
                         className="h-9 px-2"
                       />
                     </div>
@@ -448,7 +460,50 @@ export default function WordPractice() {
             ))}
           </div>
         )}
-      </NoteSplitLayout>
+        </div>
+
+        {/* Note panel pane — same layer as word content (desktop split only) */}
+        {globalNoteOpen && isDesktop && (
+          <>
+            {/* Drag handle between word content and note panel */}
+            <div
+              className={`group hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none lg:select-none ${noteSide === "right" ? "lg:order-2" : "lg:order-1"}`}
+              style={{ width: "10px", flexShrink: 0 }}
+              onPointerDown={startNoteResize}
+              title={t("practice.resize_free_note")}
+              aria-label={t("practice.resize_free_note")}
+            >
+              <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 group-hover:bg-[#4ECDC4]/60 group-hover:w-1.5 transition-all" />
+            </div>
+            <div
+              className={`lg:flex lg:flex-col ${noteSide === "right" ? "lg:order-3" : "lg:order-1"}`}
+              style={{ width: `${noteWidth}px`, flexShrink: 0 }}
+            >
+              <StudyNotePanel
+                open={globalNoteOpen}
+                onClose={() => setGlobalNoteOpen(false)}
+                storageKey={`study-note:global:${wordBookId}`}
+                title={t("practice.free_note")}
+                side={noteSide}
+                split
+                onSideChange={setNoteSide}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Mobile: note panel as floating overlay */}
+      {globalNoteOpen && !isDesktop && (
+        <StudyNotePanel
+          open={globalNoteOpen}
+          onClose={() => setGlobalNoteOpen(false)}
+          storageKey={`study-note:global:${wordBookId}`}
+          title={t("practice.free_note")}
+          side={noteSide}
+          onSideChange={setNoteSide}
+        />
+      )}
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
@@ -456,7 +511,7 @@ export default function WordPractice() {
             <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
               <Shuffle size={16} />
-              乱序
+              {t("practice.shuffle")}
             </CloudButton>
             <CloudButton
               variant={manualReadMode ? "brand" : "outline"}
@@ -468,7 +523,7 @@ export default function WordPractice() {
                 );
               }}
             >
-              人工带读
+              {t("practice.manual_read")}
             </CloudButton>
             <CloudButton
               variant={detailMode ? "brand" : "outline"}
@@ -491,17 +546,17 @@ export default function WordPractice() {
               }}
             >
               <BookOpen size={16} />
-              拓展
+              {t("practice.expand")}
             </CloudButton>
             <CloudButton
               type="button"
-              variant={note.open ? "brand" : "outline"}
+              variant={globalNoteOpen ? "brand" : "outline"}
               size="pill"
-              onClick={() => note.setOpen((v) => !v)}
-              aria-label="打开随心记"
+              onClick={() => setGlobalNoteOpen((v) => !v)}
+              aria-label={t("practice.open_free_note")}
             >
-              <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
-              随心记
+              <PanelTop size={16} className={globalNoteOpen ? "text-white" : "text-[#c45c78]"} />
+              {t("practice.free_note")}
             </CloudButton>
           </div>
           <div className="flex items-center gap-2 shrink-0">

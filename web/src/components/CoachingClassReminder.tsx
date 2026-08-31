@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Clock } from "lucide-react";
 import { getTeacherCoachingWeek, type CoachingWeekSchedule } from "../api/coaching";
 import { useAuthStore } from "../stores/authStore";
@@ -20,9 +21,11 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 const fmtYMD = (d: Date) =>
   `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
+type ReminderTitleKey = "coaching.class_ended_title" | "coaching.class_ending_title";
+
 type ReminderModal = {
   open: boolean;
-  title: string;
+  titleKey: ReminderTitleKey;
   student: string;
   slot: string;
   minutesLeft: number | null;
@@ -34,6 +37,7 @@ type ReminderModal = {
  * 仅在最后 5 分钟提醒一次，到点自动下课
  */
 export function CoachingClassReminder() {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const role = user?.role || "";
   // @ts-ignore
@@ -41,7 +45,7 @@ export function CoachingClassReminder() {
 
   const [modal, setModal] = useState<ReminderModal>({
     open: false,
-    title: "",
+    titleKey: "coaching.class_ending_title",
     student: "",
     slot: "",
     minutesLeft: null,
@@ -99,14 +103,14 @@ export function CoachingClassReminder() {
         if (!urgent) return;
 
         const { s, mins } = urgent;
-        const student = s.students?.[0] || s.title || `排课 #${s.id}`;
+        const student = s.students?.[0] || s.title || t("coaching.lesson_fallback", { id: s.id });
         const slot = `${s.scheduledDate?.slice(0, 10)} ${s.startTime}–${s.endTime}`;
 
         if (mins <= 0) {
           if (endedShownRef.current.has(s.id)) return;
           endedShownRef.current.add(s.id);
           openReminder({
-            title: "陪练课已结束",
+            titleKey: "coaching.class_ended_title",
             student,
             slot,
             minutesLeft: 0,
@@ -120,7 +124,7 @@ export function CoachingClassReminder() {
           if (finalRemindShownRef.current.has(s.id)) return;
           finalRemindShownRef.current.add(s.id);
           openReminder({
-            title: "陪练即将结束",
+            titleKey: "coaching.class_ending_title",
             student,
             slot,
             minutesLeft: mins,
@@ -135,7 +139,7 @@ export function CoachingClassReminder() {
     void tick();
     const id = window.setInterval(() => void tick(), POLL_MS);
     return () => window.clearInterval(id);
-  }, [isCoach, user, openReminder]);
+  }, [isCoach, user, openReminder, t]);
 
   if (!isCoach || !user) return null;
 
@@ -147,7 +151,7 @@ export function CoachingClassReminder() {
             <div className="w-10 h-10 rounded-full bg-[#4ECDC4]/15 flex items-center justify-center">
               <Clock className="text-[#4ECDC4]" size={22} />
             </div>
-            <DialogTitle className="text-lg text-[#2D3748]">{modal.title}</DialogTitle>
+            <DialogTitle className="text-lg text-[#2D3748]">{t(modal.titleKey)}</DialogTitle>
           </div>
           <DialogDescription asChild>
             <div className="text-left space-y-2 pt-2">
@@ -155,14 +159,12 @@ export function CoachingClassReminder() {
               <p className="text-sm text-[#718096]">{modal.slot}</p>
               {modal.minutesLeft != null && modal.minutesLeft > 0 ? (
                 <p className="text-sm text-[#FF9800] font-medium">
-                  还剩约 {modal.minutesLeft} 分钟，请准备下课。
+                  {t("coaching.mins_left_prepare", { count: modal.minutesLeft })}
                 </p>
               ) : (
-                <p className="text-sm text-[#718096]">
-                  系统已按排课结束时间自动下课并结算（不超过计划时长）。
-                </p>
+                <p className="text-sm text-[#718096]">{t("coaching.auto_end_note")}</p>
               )}
-              <p className="text-xs text-[#A0AEC0]">最后 5 分钟提醒一次，到点将自动下课。</p>
+              <p className="text-xs text-[#A0AEC0]">{t("coaching.final_remind_note")}</p>
             </div>
           </DialogDescription>
         </DialogHeader>
@@ -172,7 +174,7 @@ export function CoachingClassReminder() {
             onClick={closeReminder}
             className="w-full py-3 bg-[#4ECDC4] text-white rounded-full font-medium hover:bg-[#45b8b0]"
           >
-            知道了
+            {t("announcements.got_it")}
           </CloudButton>
         </DialogFooter>
       </DialogContent>

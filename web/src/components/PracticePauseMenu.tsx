@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { CloudButton } from "./cloudsteps";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { useClassTimerStore } from "../stores/classTimerStore";
@@ -19,10 +20,12 @@ type Props = {
 export function PracticePauseMenu({
   open,
   onClose,
-  continueLabel = "继续训练",
+  continueLabel,
 }: Props) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const resolvedContinueLabel = continueLabel ?? t("coaching.practice_continue");
 
   useEffect(() => {
     if (!open) setConfirmEnd(false);
@@ -36,9 +39,9 @@ export function PracticePauseMenu({
     : "/word-training";
   const endConfirmText = isReview
     ? homePath.includes("anti-forgetting")
-      ? "确定结束复习并返回抗遗忘？"
-      : "确定结束复习并返回单词训练？"
-    : "确定结束训练并设置抗遗忘？";
+      ? t("coaching.practice_end_review_af")
+      : t("coaching.practice_end_review_wt")
+    : t("coaching.practice_end_confirm");
   const endPath = isReview ? homePath : "/create-anti-forgetting";
 
   return (
@@ -65,7 +68,7 @@ export function PracticePauseMenu({
                 navigate(homePath);
               }}
             >
-              返回主页
+              {t("coaching.practice_back_home")}
             </CloudButton>
             <CloudButton
               variant="ghost"
@@ -75,14 +78,14 @@ export function PracticePauseMenu({
                 onClose();
               }}
             >
-              {continueLabel}
+              {resolvedContinueLabel}
             </CloudButton>
             <CloudButton
               variant="ghost"
               className="w-full justify-start rounded-none px-6 py-3 h-auto text-[#E53E3E]"
               onClick={() => setConfirmEnd(true)}
             >
-              结束训练
+              {t("coaching.practice_end")}
             </CloudButton>
           </>
         ) : (
@@ -95,7 +98,7 @@ export function PracticePauseMenu({
               className="w-full justify-start rounded-none px-6 py-3 h-auto"
               onClick={() => setConfirmEnd(false)}
             >
-              取消
+              {t("ui.cancel")}
             </CloudButton>
             <CloudButton
               variant="ghost"
@@ -105,7 +108,6 @@ export function PracticePauseMenu({
                   await settleAndStop();
                   onClose();
                   if (isReview) {
-                    // 提前读出回跳路径，再清 session，避免 clear 后丢失
                     const path = homePath;
                     sessionStorage.removeItem("lb_review_return");
                     if (sessionStorage.getItem("lb_mode") === "review") {
@@ -118,7 +120,7 @@ export function PracticePauseMenu({
                 })();
               }}
             >
-              确定
+              {t("ui.ok")}
             </CloudButton>
           </>
         )}

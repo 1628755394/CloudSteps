@@ -1,4 +1,5 @@
 import type { WordDetail } from "../api/wordbooks";
+import i18n from "../i18n";
 import { formatTranslation } from "./wordFormat";
 
 export type WordExportFieldKey =
@@ -12,25 +13,46 @@ export type WordExportFieldKey =
   | "synonyms"
   | "etymology";
 
-export const WORD_EXPORT_FIELD_OPTIONS: Array<{ key: WordExportFieldKey; label: string }> = [
-  { key: "phonetic", label: "音标" },
-  { key: "translation", label: "释义" },
-  { key: "definition", label: "英译" },
-  { key: "examples", label: "例句" },
-  { key: "mnemonic", label: "助记" },
-  { key: "phrases", label: "词组" },
-  { key: "morphology", label: "变形" },
-  { key: "synonyms", label: "同义词" },
-  { key: "etymology", label: "词源" },
+const WORD_EXPORT_FIELD_LABEL_KEYS: Record<WordExportFieldKey, string> = {
+  phonetic: "word.field.phonetic",
+  translation: "word.tab.translation",
+  definition: "word.tab.definition",
+  examples: "word.tab.examples",
+  mnemonic: "word.tab.mnemonic",
+  phrases: "word.tab.phrases",
+  morphology: "word.tab.morphology",
+  synonyms: "word.tab.synonyms",
+  etymology: "word.tab.etymology",
+};
+
+const WORD_EXPORT_BASIC_FIELD_KEYS: WordExportFieldKey[] = [
+  "phonetic",
+  "translation",
+  "examples",
+  "mnemonic",
 ];
 
+function mapExportFields(keys: WordExportFieldKey[]) {
+  return keys.map((key) => ({
+    key,
+    label: i18n.t(WORD_EXPORT_FIELD_LABEL_KEYS[key]),
+  }));
+}
+
+export function getWordExportFieldOptions(): Array<{ key: WordExportFieldKey; label: string }> {
+  return mapExportFields(Object.keys(WORD_EXPORT_FIELD_LABEL_KEYS) as WordExportFieldKey[]);
+}
+
+/** @deprecated Use getWordExportFieldOptions() for locale-aware labels */
+export const WORD_EXPORT_FIELD_OPTIONS = getWordExportFieldOptions();
+
 /** 学习记录导出：只保留基础字段 */
-export const WORD_EXPORT_BASIC_FIELDS: Array<{ key: WordExportFieldKey; label: string }> = [
-  { key: "phonetic", label: "音标" },
-  { key: "translation", label: "释义" },
-  { key: "examples", label: "例句" },
-  { key: "mnemonic", label: "助记" },
-];
+export function getWordExportBasicFields(): Array<{ key: WordExportFieldKey; label: string }> {
+  return mapExportFields(WORD_EXPORT_BASIC_FIELD_KEYS);
+}
+
+/** @deprecated Use getWordExportBasicFields() for locale-aware labels */
+export const WORD_EXPORT_BASIC_FIELDS = getWordExportBasicFields();
 
 function parseJSON<T>(raw?: string | null): T | null {
   if (!raw || raw === "[]" || raw === "") return null;

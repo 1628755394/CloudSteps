@@ -1,6 +1,6 @@
 // StudyNotePanel: 学习笔记面板（画板 + 文本 + 持久化）
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNote } from "./NoteContext";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,7 +25,6 @@ import {
   X,
 } from "lucide-react";
 import { LeaferCanvas, LeaferCanvasHandle, Tool } from "./LeaferCanvas";
-import { CloudButton } from "./cloudsteps";
 
 type BrushStyle = "fountain" | "pencil" | "highlighter";
 
@@ -49,25 +48,40 @@ type StudyNoteLauncherProps = {
   className?: string;
 };
 
-export function StudyNoteLauncher({ storageKey, title = "随心记", label = "随心记", className = "" }: StudyNoteLauncherProps) {
-  const note = useNote();
+export function StudyNoteLauncher({ storageKey, title, label, className = "" }: StudyNoteLauncherProps) {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t("studyNote.title");
+  const resolvedLabel = label ?? t("studyNote.title");
+  const [open, setOpen] = useState(false);
+  const [side, setSide] = useState<"left" | "right">("right");
   return (
-    <button
-      type="button"
-      className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
-      onClick={() => {
-        note.setDefaultTitle(title);
-        note.openNote(storageKey);
-      }}
-      title={`打开${label}`}
-    >
-      <BookOpen size={15} />
-      {label}
-    </button>
+    <>
+      <button
+        type="button"
+        className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
+        onClick={() => setOpen(true)}
+        title={t("studyNote.open", { label: resolvedLabel })}
+      >
+        <BookOpen size={15} />
+        {resolvedLabel}
+      </button>
+      {open && (
+        <StudyNotePanel
+          open={open}
+          onClose={() => setOpen(false)}
+          storageKey={storageKey}
+          title={resolvedTitle}
+          side={side}
+          onSideChange={setSide}
+        />
+      )}
+    </>
   );
 }
 
-export function StudyNotePanel({ open, onClose, storageKey, title = "随心记", subtitle = "", side = "right", split = false, onSideChange }: Props) {
+export function StudyNotePanel({ open, onClose, storageKey, title, subtitle = "", side = "right", split = false, onSideChange }: Props) {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t("studyNote.title");
   const leaferRef = useRef<LeaferCanvasHandle>(null);
   const [note, setNote] = useState<NoteData>(() => loadNote(storageKey));
   const sidePos = side;
@@ -206,24 +220,24 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
       >
         <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[22px]">
           {/* Title bar */}
-          <div className="flex h-8 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-0 text-[#25344a] sm:h-9 sm:gap-2 sm:pl-11 sm:pr-0">
-            <span className="truncate text-sm font-bold sm:text-base">{title}</span>
-            <span className="hidden truncate text-[11px] text-[#9b927f] sm:inline">随心笔记</span>
+          <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-0 text-[#25344a] sm:h-10 sm:gap-2 sm:pl-11 sm:pr-0">
+            <span className="truncate text-base font-bold sm:text-lg">{resolvedTitle}</span>
+            <span className="hidden truncate text-xs text-[#9b927f] sm:inline">{t("studyNote.subtitle")}</span>
             <button
               type="button"
-              className="flex h-6 w-6 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce]"
               onClick={() => setToolbarVisible((v) => !v)}
-              title={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
-              aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
+              title={toolbarVisible ? t("annotation.collapseTools") : t("annotation.expandTools")}
+              aria-label={toolbarVisible ? t("annotation.collapseTools") : t("annotation.expandTools")}
             >
-              <PanelLeft size={14} />
+              <PanelLeft size={16} />
             </button>
             <button
               type="button"
               className="ml-auto flex h-8 w-8 -mr-1 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#c45c78] sm:-mr-1"
               onClick={onClose}
-              title="关闭"
-              aria-label="关闭"
+              title={t("annotation.close")}
+              aria-label={t("annotation.close")}
             >
               <X size={18} />
             </button>
@@ -232,10 +246,10 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
           {/* Toolbar */}
           <div className={`shrink-0 overflow-hidden transition-[max-height] duration-200 ease-out ${toolbarVisible ? "max-h-64" : "max-h-0"}`}>
             {toolbarVisible && (
-              <div className="mx-1 mt-0.5 flex flex-wrap items-center gap-0.5 pl-10 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-1 sm:gap-1 sm:pl-11 sm:pr-0 sm:py-0.5">
-                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置（或右键文字）"><Bold size={14} /></button>
-                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置"><Italic size={14} /></button>
-                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title="字体设置"><Underline size={14} /></button>
+              <div className="mx-1 mt-1 flex flex-wrap items-center gap-0.5 pl-10 pr-0 py-0.5 text-[#25344a] sm:mx-2 sm:mt-1.5 sm:gap-1 sm:pl-11 sm:pr-0 sm:py-1">
+                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title={t("studyNote.fontSettings")}><Bold size={16} /></button>
+                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title={t("studyNote.fontSettings")}><Italic size={16} /></button>
+                <button className={button()} onClick={() => { closePopups(); setFontPopupOpen(true); }} title={t("studyNote.fontSettings")}><Underline size={16} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
                 <div className="relative">
                   <button
@@ -245,7 +259,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                       closePopups();
                       if (!wasOpen) openPopupAt(e, setBgPopupOpen, setBgPopupPos, false);
                     }}
-                    title="画布背景颜色"
+                    title={t("studyNote.bgColor")}
                   >
                     <PaintBucket size={14} />
                   </button>
@@ -254,12 +268,12 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                       <div className="fixed inset-0 z-[9998]" onClick={() => setBgPopupOpen(false)} />
                       <div className="fixed z-[9999] w-48 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl" style={{ left: bgPopupPos.x, top: bgPopupPos.y }}>
                         <div className="mb-3 flex items-center justify-between">
-                          <span className="text-xs font-bold text-[#25344a]">背景颜色</span>
+                          <span className="text-xs font-bold text-[#25344a]">{t("studyNote.bgColor")}</span>
                           <button
                             type="button"
                             onClick={() => setBgPopupOpen(false)}
                             className="flex h-5 w-5 items-center justify-center rounded text-[#9b927f] hover:bg-[#e9dfce] hover:text-[#25344a]"
-                            aria-label="关闭"
+                            aria-label={t("annotation.close")}
                           >
                             <X size={12} />
                           </button>
@@ -272,14 +286,14 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                               onClick={() => { setBackground(c); setBgPopupOpen(false); }}
                               className={`h-7 w-7 rounded-lg border-2 transition-transform ${fill.toLowerCase() === c.toLowerCase() ? "border-[#25344a] scale-110 shadow-sm" : "border-[#d8cdb8] hover:scale-105"}`}
                               style={{ backgroundColor: c }}
-                              aria-label={`背景 ${c}`}
+                              aria-label={t("annotation.customColorAria", { color: c })}
                             />
                           ))}
                         </div>
                         <div className="mt-2.5 flex items-center gap-2">
                           <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-[#d8cdb8] px-2 text-[10px] text-[#5f7890] hover:bg-[#e9dfce]">
                             <Palette size={12} />
-                            自定义
+                            {t("ui.custom")}
                             <input
                               className="sr-only"
                               type="color"
@@ -293,7 +307,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     </>
                   )}
                 </div>
-                <button className={button(tool === "select")} onClick={() => activateTool("select")} title="选择"><MousePointer2 size={14} /></button>
+                <button className={button(tool === "select")} onClick={() => activateTool("select")} title={t("annotation.select")}><MousePointer2 size={16} /></button>
                 <div className="relative">
                   <button
                     className={button(tool === "pen" || penPopupOpen)}
@@ -306,7 +320,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                       if (!wasOpen) openPopupAt(e, setPenPopupOpen, setPenPopupPos, false);
                       else setPenPopupOpen(false);
                     }}
-                    title="画笔（点击弹出设置）"
+                    title={t("annotation.pen")}
                   >
                     <Pencil size={14} />
                   </button>
@@ -318,12 +332,12 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                       <div className="fixed z-[9999] w-56 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl" style={{ left: penPopupPos.x, top: penPopupPos.y }}>
                         {/* 标题栏 */}
                         <div className="mb-3 flex items-center justify-between">
-                          <span className="text-xs font-bold text-[#25344a]">画笔设置</span>
+                          <span className="text-xs font-bold text-[#25344a]">{t("annotation.brush")}</span>
                           <button
                             type="button"
                             onClick={() => setPenPopupOpen(false)}
                             className="flex h-5 w-5 items-center justify-center rounded text-[#9b927f] hover:bg-[#e9dfce] hover:text-[#25344a]"
-                            aria-label="关闭"
+                            aria-label={t("annotation.close")}
                           >
                             <X size={12} />
                           </button>
@@ -331,7 +345,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
 
                         {/* 颜色选择 */}
                         <div className="mb-3">
-                          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">颜色</div>
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">{t("annotation.color")}</div>
                           <div className="grid grid-cols-5 gap-1.5">
                             {PEN_COLORS.map((c) => (
                               <button
@@ -340,14 +354,14 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                                 onClick={() => setColor(c)}
                                 className={`h-6 w-6 rounded-full border-2 transition-transform ${color.toLowerCase() === c.toLowerCase() ? "border-[#25344a] scale-110 shadow-sm" : "border-[#d8cdb8] hover:scale-105"}`}
                                 style={{ backgroundColor: c }}
-                                aria-label={`颜色 ${c}`}
+                                aria-label={t("annotation.customColorAria", { color: c })}
                               />
                             ))}
                           </div>
                           <div className="mt-2 flex items-center gap-2">
                             <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-[#d8cdb8] px-2 text-[10px] text-[#5f7890] hover:bg-[#e9dfce]">
                               <Palette size={12} />
-                              自定义
+                              {t("ui.custom")}
                               <input
                                 className="sr-only"
                                 type="color"
@@ -365,8 +379,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                         {/* 笔迹粗细 */}
                         <div className="mb-3">
                           <div className="mb-1.5 flex items-center justify-between">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">粗细</span>
-                            <span className="text-[10px] tabular-nums font-bold text-[#25344a]">{brushWidth}px</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">{t("annotation.width", { width: brushWidth })}</span>
                           </div>
                           <input
                             type="range"
@@ -380,35 +393,35 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
 
                         {/* 笔迹样式 */}
                         <div className="mb-3">
-                          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">样式</div>
+                          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">{t("studyNote.style")}</div>
                           <div className="flex gap-1.5">
                             <button
                               type="button"
                               onClick={() => { setBrushStyle("fountain"); setTool("pen"); }}
                               className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${tool === "pen" && brushStyle === "fountain" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
                             >
-                              钢笔
+                              {t("annotation.brushFountain")}
                             </button>
                             <button
                               type="button"
                               onClick={() => { setBrushStyle("pencil"); setTool("pen"); }}
                               className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${tool === "pen" && brushStyle === "pencil" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
                             >
-                              铅笔
+                              {t("annotation.brushPencil")}
                             </button>
                             <button
                               type="button"
                               onClick={() => { setBrushStyle("highlighter"); setTool("pen"); }}
                               className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors ${tool === "pen" && brushStyle === "highlighter" ? "border-[#25344a] bg-[#d8cdb8] text-[#25344a] font-semibold" : "border-[#d8cdb8] text-[#5f7890] hover:bg-[#e9dfce]"}`}
                             >
-                              荧光笔
+                              {t("annotation.brushHighlighter")}
                             </button>
                           </div>
                         </div>
 
                         {/* 实时预览 */}
                         <div className="rounded-md bg-white/70 p-2">
-                          <div className="mb-1 text-[9px] text-[#9b927f]">预览</div>
+                          <div className="mb-1 text-[9px] text-[#9b927f]">{t("studyNote.preview")}</div>
                           <svg className="w-full" height="36" viewBox="0 0 200 36">
                             <path
                               d="M 10 28 Q 50 8 100 18 T 190 14"
@@ -437,7 +450,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                       if (!wasOpen) openPopupAt(e, setEraserPopupOpen, setEraserPopupPos, false);
                       else setEraserPopupOpen(false);
                     }}
-                    title="橡皮（点击打开设置）"
+                    title={t("annotation.eraser")}
                   >
                     <Eraser size={14} />
                   </button>
@@ -446,20 +459,19 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                       <div className="fixed inset-0 z-[9998]" onClick={() => setEraserPopupOpen(false)} />
                       <div className="fixed z-[9999] w-48 rounded-xl border border-[#c4b89f] bg-[#fffdf5] p-3.5 shadow-2xl" style={{ left: eraserPopupPos.x, top: eraserPopupPos.y }}>
                         <div className="mb-3 flex items-center justify-between">
-                          <span className="text-xs font-bold text-[#25344a]">橡皮大小</span>
+                          <span className="text-xs font-bold text-[#25344a]">{t("annotation.eraserSize", { size: eraserWidth })}</span>
                           <button
                             type="button"
                             onClick={() => setEraserPopupOpen(false)}
                             className="flex h-5 w-5 items-center justify-center rounded text-[#9b927f] hover:bg-[#e9dfce] hover:text-[#25344a]"
-                            aria-label="关闭"
+                            aria-label={t("annotation.close")}
                           >
                             <X size={12} />
                           </button>
                         </div>
                         <div className="mb-3">
                           <div className="mb-1.5 flex items-center justify-between">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">粗细</span>
-                            <span className="text-[10px] tabular-nums font-bold text-[#25344a]">{eraserWidth}px</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">{t("annotation.width", { width: eraserWidth })}</span>
                           </div>
                           <input
                             type="range"
@@ -472,19 +484,19 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                         </div>
                         <div className="mb-3">
                           <div className="mb-1.5 flex items-center justify-between">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">轨迹颜色</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">{t("studyNote.eraserTrailColor")}</span>
                             <label className="flex h-6 w-8 cursor-pointer items-center justify-center rounded border border-[#d8cdb8]" style={{ backgroundColor: eraserTrailColor }}>
                               <input
                                 className="sr-only"
                                 type="color"
                                 value={eraserTrailColor}
                                 onChange={(e) => setEraserTrailColor(e.target.value)}
-                                aria-label="橡皮轨迹颜色"
+                                aria-label={t("studyNote.eraserTrailColor")}
                               />
                             </label>
                           </div>
                           <div className="mb-1.5 flex items-center justify-between">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">轨迹透明度</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">{t("studyNote.eraserTrailOpacity")}</span>
                             <span className="text-[10px] tabular-nums font-bold text-[#25344a]">{Math.round(eraserTrailOpacity * 100)}%</span>
                           </div>
                           <input
@@ -512,16 +524,17 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
                     </>
                   )}
                 </div>
-                <button className={button(tool === "circle")} onClick={() => activateTool("circle")} title="圆形"><CircleIcon size={14} /></button>
-                <button className={button(tool === "rect")} onClick={() => activateTool("rect")} title="矩形"><SquareIcon size={14} /></button>
+                <button className={button(tool === "circle")} onClick={() => activateTool("circle")} title={t("annotation.circle")}><CircleIcon size={16} /></button>
+                <button className={button(tool === "rect")} onClick={() => activateTool("rect")} title={t("annotation.rect")}><SquareIcon size={16} /></button>
+                <button className={button()} onClick={() => { closePopups(); addText(); }} title={t("studyNote.addTextCentered")}><Type size={16} /></button>
                 <div className="mx-1 h-5 w-px bg-[#d8cdb8]" />
-                <button className={button()} onClick={undo} title="撤销（上一步）" aria-label="撤销"><Undo2 size={14} /></button>
-                <button className={button()} onClick={redo} title="重做（下一步）" aria-label="重做"><Redo2 size={14} /></button>
-                <button className={button()} onClick={persist} title="保存笔记" aria-label="保存笔记"><Save size={14} /></button>
-                <button className={button()} onClick={() => leaferRef.current?.exportImage(`${title || "随心记"}.png`)} title="下载图片" aria-label="下载图片"><Download size={14} /></button>
+                <button className={button()} onClick={undo} title={t("annotation.undo")} aria-label={t("annotation.undo")}><Undo2 size={16} /></button>
+                <button className={button()} onClick={redo} title={t("annotation.redo")} aria-label={t("annotation.redo")}><Redo2 size={16} /></button>
+                <button className={button()} onClick={persist} title={t("annotation.save")} aria-label={t("annotation.save")}><Save size={16} /></button>
+                <button className={button()} onClick={() => leaferRef.current?.exportImage(`${resolvedTitle}.png`)} title={t("studyNote.downloadImage")} aria-label={t("studyNote.downloadImage")}><Download size={16} /></button>
                 <div className="contents">
-                  <button className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title={sidePos === "right" ? "移到左侧" : "移到右侧"} aria-label={sidePos === "right" ? "移到左侧" : "移到右侧"}>{sidePos === "right" ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}</button>
-                  <button className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { closePopups(); clearCanvas(); }} title="清空 一键清空全部" aria-label="清空"><Trash2 size={14} /></button>
+                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { const next = sidePos === "right" ? "left" : "right"; onSideChange?.(next); }} title={sidePos === "right" ? t("annotation.dockLeft") : t("annotation.dockRight")} aria-label={sidePos === "right" ? t("annotation.dockLeftShort") : t("annotation.dockRightShort")}>{sidePos === "right" ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}</button>
+                  <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#a9d9f7] text-[#25344a] hover:bg-[#8fc8ed]" onClick={() => { closePopups(); clearCanvas(); }} title={t("annotation.clear")} aria-label={t("annotation.clear")}><Trash2 size={16} /></button>
                 </div>
               </div>
             )}
@@ -554,8 +567,8 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
         <div
           className={`${sidePos === "right" ? "-left-1.5" : "-right-1.5"} absolute top-0 bottom-0 z-50 flex w-3 touch-none cursor-ew-resize items-center justify-center`}
           onPointerDown={startEdgeResize}
-          aria-label="拖动分屏边缘调整宽度"
-          title="拖动调整宽度"
+          aria-label={t("studyNote.resizeWidth")}
+          title={t("annotation.resizePanelTitle")}
         >
           <span className="h-10 w-0.5 rounded-full bg-[#5f7890]/40" />
         </div>
@@ -572,12 +585,12 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
         style={{ left: Math.min(fontPopupPos.x || window.innerWidth / 2, window.innerWidth - 220), top: Math.min(fontPopupPos.y || 100, window.innerHeight - 200) }}
       >
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-xs font-bold text-[#25344a]">字体设置</span>
+          <span className="text-xs font-bold text-[#25344a]">{t("studyNote.fontSettings")}</span>
           <button
             type="button"
             onClick={() => setFontPopupOpen(false)}
             className="flex h-5 w-5 items-center justify-center rounded text-[#9b927f] hover:bg-[#e9dfce] hover:text-[#25344a]"
-            aria-label="关闭"
+            aria-label={t("annotation.close")}
           >
             <X size={12} />
           </button>
@@ -585,7 +598,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
         {/* 字号 */}
         <div className="mb-3">
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">字号</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">{t("studyNote.fontSize")}</span>
             <span className="text-[10px] tabular-nums font-bold text-[#25344a]">{fontSize}px</span>
           </div>
           <input
@@ -613,11 +626,11 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
         <div className="my-2 h-px bg-[#e9dfce]" />
         {/* 文字颜色 */}
         <div>
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">颜色</div>
+          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9b927f]">{t("annotation.color")}</div>
           <div className="flex items-center gap-2">
             <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-[#d8cdb8] px-2 text-[10px] text-[#5f7890] hover:bg-[#e9dfce]">
               <Palette size={12} />
-              自定义
+              {t("ui.custom")}
               <input
                 className="sr-only"
                 type="color"

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import {
   Button,
@@ -21,10 +22,12 @@ import {
   type GrammarLessonListItem,
   type GrammarSubmitResult,
 } from "../api/grammar";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type Phase = "list" | "learn" | "practice" | "result";
 
 export default function GrammarAnalysis() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("list");
   const [loadingList, setLoadingList] = useState(true);
@@ -44,17 +47,15 @@ export default function GrammarAnalysis() {
     try {
       const res = await listGrammarLessons({ page: 1, pageSize: 50 });
       if (res.code !== 200) {
-        setErr(res.msg || "加载课程列表失败");
+        setErr(formatApiMessage(res.msg, "grammar.load_list_failed"));
         setLessons([]);
         return;
       }
       setLessons(Array.isArray(res.data?.list) ? res.data.list : []);
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "加载课程列表失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "grammar.load_list_failed"));
       setLessons([]);
     } finally {
       setLoadingList(false);
@@ -80,7 +81,7 @@ export default function GrammarAnalysis() {
     try {
       const res = await getGrammarLesson(id);
       if (res.code !== 200 || !res.data) {
-        setErr(res.msg || "加载课程失败");
+        setErr(formatApiMessage(res.msg, "grammar.load_lesson_failed"));
         return;
       }
       setLesson(res.data);
@@ -89,11 +90,9 @@ export default function GrammarAnalysis() {
       startedAtRef.current = Date.now();
       setPhase("learn");
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "加载课程失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "grammar.load_lesson_failed"));
     } finally {
       setLoadingLesson(false);
     }
@@ -116,18 +115,16 @@ export default function GrammarAnalysis() {
         durationSec,
       });
       if (res.code !== 200 || !res.data) {
-        setErr(res.msg || "提交失败");
+        setErr(formatApiMessage(res.msg, "practice.submit_failed"));
         return;
       }
       setResult(res.data);
       setPhase("result");
       void loadList();
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "提交失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "practice.submit_failed"));
     } finally {
       setSubmitting(false);
     }
@@ -154,7 +151,7 @@ export default function GrammarAnalysis() {
         <div className="flex items-center h-12 px-3 gap-2">
           <Button type="text" shape="circle" icon={<IconLeft />} onClick={headerBack} />
           <div className="min-w-0 flex-1">
-            <Typography.Text className="!font-medium !text-[#2D3748]">解析语法</Typography.Text>
+            <Typography.Text className="!font-medium !text-[#2D3748]">{t("grammar.title")}</Typography.Text>
             {(phase === "learn" || phase === "practice") && lesson && (
               <Typography.Text type="secondary" className="block !text-xs truncate">
                 {lesson.title} · {lesson.level}
@@ -162,7 +159,7 @@ export default function GrammarAnalysis() {
             )}
             {phase === "list" && (
               <Typography.Text type="secondary" className="block !text-xs">
-                先学语法点，再做练习
+                {t("grammar.subtitle_list")}
               </Typography.Text>
             )}
           </div>
@@ -185,11 +182,11 @@ export default function GrammarAnalysis() {
         <div className="flex-1 min-h-0 overflow-auto px-3 py-3">
           {loadingList || loadingLesson ? (
             <div className="flex justify-center py-16">
-              <Spin tip="加载中…" />
+              <Spin tip={t("common.loading")} />
             </div>
           ) : lessons.length === 0 ? (
             <Card className="!rounded-xl">
-              <Empty description="暂无语法课程，请先运行 seed" />
+              <Empty description={t("grammar.empty_list")} />
             </Card>
           ) : (
             <Space direction="vertical" size={10} className="w-full">
@@ -225,12 +222,15 @@ export default function GrammarAnalysis() {
                         </Typography.Paragraph>
                       )}
                       <Typography.Text type="secondary" className="!text-xs">
-                        {l.questionCount ?? 0} 题 · 约 {l.estimatedMinutes ?? 5} 分钟
+                        {t("practice.questions_meta", {
+                          count: l.questionCount ?? 0,
+                          minutes: l.estimatedMinutes ?? 5,
+                        })}
                       </Typography.Text>
                     </div>
                     {typeof l.lastScore === "number" && (
                       <Tag color={l.lastScore >= 80 ? "green" : "orangered"}>
-                        上次 {l.lastScore}分
+                        {t("practice.last_score", { score: l.lastScore })}
                       </Tag>
                     )}
                   </div>
@@ -244,7 +244,7 @@ export default function GrammarAnalysis() {
       {phase === "learn" && lesson && (
         <>
           <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-24">
-            <Card className="!rounded-xl shadow-sm !mb-3" title="语法讲解">
+            <Card className="!rounded-xl shadow-sm !mb-3" title={t("grammar.explanation")}>
               <div
                 className="grammar-html-content !text-[#2D3748] leading-7"
                 dangerouslySetInnerHTML={{ __html: lesson.explanation }}
@@ -252,7 +252,7 @@ export default function GrammarAnalysis() {
             </Card>
 
             {(lesson.examples?.length ?? 0) > 0 && (
-              <Card className="!rounded-xl shadow-sm !mb-3" title="例句">
+              <Card className="!rounded-xl shadow-sm !mb-3" title={t("grammar.examples")}>
                 <Space direction="vertical" size={12} className="w-full">
                   {lesson.examples.map((ex, i) => (
                     <div key={i} className="rounded-lg bg-[#F7F9FC] px-3 py-2.5">
@@ -277,7 +277,7 @@ export default function GrammarAnalysis() {
                 setPhase("practice");
               }}
             >
-              {lesson.questions?.length ? "开始练习" : "暂无练习题"}
+              {lesson.questions?.length ? t("grammar.start_practice") : t("grammar.no_questions")}
             </Button>
           </div>
         </>
@@ -289,7 +289,10 @@ export default function GrammarAnalysis() {
             <Result
               status={result.score === 100 ? "success" : "info"}
               title={`${result.correctCount} / ${result.questionCount}`}
-              subTitle={`得分 ${result.score} 分 · 用时 ${result.durationSec} 秒`}
+              subTitle={t("practice.score_subtitle", {
+                score: result.score,
+                seconds: result.durationSec,
+              })}
             />
             <div className="space-y-3 mt-2">
               {(result.details || []).map((d, idx) => (
@@ -303,26 +306,32 @@ export default function GrammarAnalysis() {
                     {idx + 1}. {d.stem}
                   </div>
                   <div className="text-[#718096]">
-                    你的答案：{d.answer || "未作答"}
+                    {t("practice.your_answer", {
+                      answer: d.answer || t("practice.no_answer"),
+                    })}
                     {!d.correct && (
-                      <span className="ml-2 text-[#4ECDC4]">正确答案：{d.rightAnswer}</span>
+                      <span className="ml-2 text-[#4ECDC4]">
+                        {t("practice.correct_answer", { answer: d.rightAnswer })}
+                      </span>
                     )}
                   </div>
                   {d.explanation && (
-                    <div className="text-xs text-[#A0AEC0] mt-1">解析：{d.explanation}</div>
+                    <div className="text-xs text-[#A0AEC0] mt-1">
+                      {t("practice.explanation", { text: d.explanation })}
+                    </div>
                   )}
                 </div>
               ))}
             </div>
             <Space className="mt-5 w-full justify-center">
-              <Button onClick={backToList}>返回列表</Button>
+              <Button onClick={backToList}>{t("practice.back_to_list")}</Button>
               <Button
                 type="primary"
                 onClick={() => {
                   if (result.lessonId) void openLesson(result.lessonId);
                 }}
               >
-                再学一次
+                {t("practice.learn_again")}
               </Button>
             </Space>
           </Card>
@@ -372,8 +381,11 @@ export default function GrammarAnalysis() {
               onClick={() => void onSubmit()}
             >
               {allAnswered
-                ? "提交答案"
-                : `请完成全部题目（${answeredCount}/${totalQuestions}）`}
+                ? t("practice.submit")
+                : t("practice.complete_all_questions", {
+                    answered: answeredCount,
+                    total: totalQuestions,
+                  })}
             </Button>
           </div>
         </>

@@ -1,4 +1,5 @@
 import { getVocabStart } from "../api/vocab";
+import i18n from "../i18n";
 
 export type VocabTestQuestion = {
   id: number | string;
@@ -60,12 +61,12 @@ export function prefetchVocabTestQuestions(options?: { force?: boolean }): Promi
   prefetchPromise = (async () => {
     try {
       const res = await getVocabStart();
-      if (res.code !== 200) throw new Error(res.msg || "获取题目失败");
+      if (res.code !== 200) throw new Error(res.msg || i18n.t("vocab_test.load_failed"));
       const list: VocabTestQuestion[] = res.data?.questions || [];
-      if (!list.length) throw new Error("题库暂无题目，请联系管理员添加");
+      if (!list.length) throw new Error(i18n.t("vocab_test.no_questions_contact_admin"));
       // 校验题目格式：必须有 id 和 word（id 可能是 string 或 number）
       const valid = list.filter((q) => q && q.id != null && q.word);
-      if (!valid.length) throw new Error("题库数据格式异常");
+      if (!valid.length) throw new Error(i18n.t("vocab_test.invalid_format"));
       saveCachedVocabQuestions(valid);
       return valid;
     } catch (err) {
@@ -89,7 +90,7 @@ export async function ensureVocabTestQuestions(): Promise<VocabTestQuestion[]> {
   if (cached?.length) return cached;
 
   const list = await prefetchVocabTestQuestions();
-  if (!list?.length) throw new Error("题库暂无题目");
+  if (!list?.length) throw new Error(i18n.t("vocab_test.no_questions"));
   return list;
 }
 

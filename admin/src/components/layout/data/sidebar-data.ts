@@ -17,6 +17,7 @@ import {
   MessagesSquare,
   SpellCheck,
   Megaphone,
+  Newspaper,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -114,6 +115,11 @@ export const sidebarData: SidebarData = {
               title: '系统公告',
               url: '/announcements',
               icon: Megaphone,
+            },
+            {
+              title: '公众号图文',
+              url: '/wechat-mp-articles',
+              icon: Newspaper,
             },
             {
               title: '邮件日志',

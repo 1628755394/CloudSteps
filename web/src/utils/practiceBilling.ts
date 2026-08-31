@@ -1,5 +1,7 @@
 import { endCoachingAppointment, startPracticeSession } from "../api/coaching";
+import i18n from "../i18n";
 import { getTrainingStudent } from "./trainingStudent";
+import { formatApiMessage } from "./apiMessage";
 import { showToast } from "./toast";
 
 export type PracticeBillingLink = {
@@ -17,7 +19,7 @@ export type PracticeBillingLink = {
 export async function beginPracticeBilling(durationMin: number): Promise<PracticeBillingLink | null> {
   const student = getTrainingStudent();
   if (!student?.id) {
-    showToast.warning("请先在首页选择学员，练习时长将计入该学员");
+    showToast.warning(i18n.t("practice_billing.select_student"));
     return null;
   }
 
@@ -27,24 +29,24 @@ export async function beginPracticeBilling(durationMin: number): Promise<Practic
       plannedMinutes: Math.max(1, Math.min(180, Math.round(durationMin) || 45)),
     });
     if (res.code !== 200) {
-      showToast.error(res.msg || "开始练习计时失败");
+      showToast.error(formatApiMessage(res.msg, "practice_billing.start_failed"));
       return null;
     }
     const data = res.data;
     const apptId = Number(data?.appointmentId || data?.appointment?.id || 0);
     if (!apptId) {
-      showToast.error("开始练习计时失败：未返回课次");
+      showToast.error(i18n.t("practice_billing.no_appointment"));
       return null;
     }
     const name =
       data?.appointment?.students?.[0] ||
       student.name ||
-      `学员 #${student.id}`;
+      i18n.t("practice_billing.student_fallback", { id: student.id });
     const owned = data?.reused ? false : data?.owned !== false;
     if (data?.reused) {
-      showToast.info(`已挂接「${name}」进行中的课次`);
+      showToast.info(i18n.t("practice_billing.reused_session", { name }));
     } else {
-      showToast.info(`练习时长将计入「${name}」`);
+      showToast.info(i18n.t("practice_billing.will_bill", { name }));
     }
     return {
       appointmentId: apptId,
@@ -55,8 +57,8 @@ export async function beginPracticeBilling(durationMin: number): Promise<Practic
   } catch (e: unknown) {
     const msg =
       e && typeof e === "object" && "msg" in e
-        ? String((e as { msg: string }).msg)
-        : "无法为学员开始计时";
+        ? formatApiMessage(String((e as { msg: string }).msg), "practice_billing.cannot_start")
+        : i18n.t("practice_billing.cannot_start");
     showToast.error(msg);
     return null;
   }
@@ -67,12 +69,12 @@ export async function finishPracticeBilling(link: PracticeBillingLink | null | u
   if (!link?.owned || !link.appointmentId) return;
   try {
     await endCoachingAppointment(link.appointmentId);
-    showToast.success(`已结算「${link.studentName}」的练习时长`);
+    showToast.success(i18n.t("practice_billing.settled", { name: link.studentName }));
   } catch (e: unknown) {
     const msg =
       e && typeof e === "object" && "msg" in e
-        ? String((e as { msg: string }).msg)
-        : "练习时长结算失败，请稍后在排课中手动下课";
+        ? formatApiMessage(String((e as { msg: string }).msg), "practice_billing.settle_failed")
+        : i18n.t("practice_billing.settle_failed");
     showToast.error(msg);
   }
 }

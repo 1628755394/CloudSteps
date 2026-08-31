@@ -28,6 +28,7 @@ import PostTrainingCheck from "../pages/PostTrainingCheck";
 import ListenIdentify from "../pages/ListenIdentify";
 import CreateAntiForgetting from "../pages/CreateAntiForgetting";
 import Notifications from "../pages/Notifications";
+import Announcements from "../pages/Announcements";
 import Login from "../pages/Login";
 import Forbidden from "../pages/Forbidden";
 import ProfileEdit from "../pages/ProfileEdit";
@@ -164,6 +165,14 @@ export const router = createBrowserRouter(
     element: (
       <RequireAuth>
         <Feedback />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/announcements",
+    element: (
+      <RequireAuth>
+        <Announcements />
       </RequireAuth>
     ),
   },

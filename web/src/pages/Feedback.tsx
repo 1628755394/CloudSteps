@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { MessageCircle, Plus } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudSpin } from "../components/cloudsteps/arco";
 import { EmptyState } from "../components/EmptyState";
 import { PageBackHeader } from "../components/PageBackHeader";
 import { showToast } from "../utils/toast";
+import { formatApiMessage } from "../utils/apiMessage";
 import {
   createFeedback,
   getFeedback,
@@ -18,17 +20,17 @@ const POLL_MS = 4000;
 const fieldClass =
   "w-full px-4 py-3 rounded-xl bg-card border border-input text-charcoal placeholder:text-muted-soft transition-colors outline-none hover:border-border focus:border-primary focus:ring-[3px] focus:ring-primary/25";
 
-function formatTime(iso?: string) {
+function formatTime(iso: string | undefined, locale: string) {
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString();
+  return date.toLocaleString(locale === "zh-CN" ? "zh-CN" : "en-US");
 }
 
-function statusLabel(ticket: FeedbackTicket) {
-  if (ticket.status === "closed") return "已关闭";
-  if (ticket.lastReplierRole === "admin") return "已回复";
-  return "待回应";
+function statusLabel(ticket: FeedbackTicket, t: (key: string) => string) {
+  if (ticket.status === "closed") return t("feedback.status.closed");
+  if (ticket.lastReplierRole === "admin") return t("feedback.status.replied");
+  return t("feedback.status.pending");
 }
 
 function statusClass(ticket: FeedbackTicket) {
@@ -38,6 +40,7 @@ function statusClass(ticket: FeedbackTicket) {
 }
 
 export default function Feedback() {
+  const { t, i18n } = useTranslation();
   const [tickets, setTickets] = useState<FeedbackTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
@@ -70,8 +73,9 @@ export default function Feedback() {
         if (!cancelled) setTickets(res.data?.list ?? []);
       } catch (e: unknown) {
         if (!silent && !cancelled) {
-          const msg = e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载失败";
-          showToast.error(msg);
+          const apiMsg =
+            e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+          showToast.error(formatApiMessage(apiMsg, "feedback.load_failed"));
         }
       } finally {
         inFlight = false;
@@ -103,8 +107,9 @@ export default function Feedback() {
       const res = await getFeedback(id);
       setActive(res.data);
     } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载工单失败";
-      showToast.error(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      showToast.error(formatApiMessage(apiMsg, "feedback.load_ticket_failed"));
       setActiveId(null);
     } finally {
       setDetailLoading(false);
@@ -119,15 +124,16 @@ export default function Feedback() {
         content: content.trim(),
         contact: contact.trim() || undefined,
       });
-      showToast.success("已提交，我们会在工单里回复你");
+      showToast.success(t("feedback.submitted_success"));
       setContent("");
       setContact("");
       setComposing(false);
-      setTickets((prev) => [res.data, ...prev.filter((t) => t.id !== res.data.id)]);
+      setTickets((prev) => [res.data, ...prev.filter((ticket) => ticket.id !== res.data.id)]);
       await openTicket(res.data.id);
     } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "提交失败";
-      showToast.error(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      showToast.error(formatApiMessage(apiMsg, "feedback.submit_failed"));
     } finally {
       setSubmitting(false);
     }
@@ -141,12 +147,13 @@ export default function Feedback() {
       setActive(res.data);
       setReply("");
       setTickets((prev) =>
-        prev.map((t) => (t.id === res.data.id ? { ...t, ...res.data, replies: undefined } : t)),
+        prev.map((ticket) => (ticket.id === res.data.id ? { ...ticket, ...res.data, replies: undefined } : ticket)),
       );
-      showToast.success("已回复");
+      showToast.success(t("feedback.reply_success"));
     } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "回复失败";
-      showToast.error(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      showToast.error(formatApiMessage(apiMsg, "feedback.reply_failed"));
     } finally {
       setReplying(false);
     }
@@ -166,18 +173,18 @@ export default function Feedback() {
   return (
     <div className="min-h-dvh flex flex-col bg-background">
       <PageBackHeader
-        title="反馈给我们"
-        subtitle="工单对话，回复会写在这里"
+        title={t("feedback.page_title")}
+        subtitle={t("feedback.subtitle")}
         fallbackTo="/coach-center"
         extra={
           activeId ? null : composing ? (
             <CloudButton variant="ghost" size="sm" onClick={() => setComposing(false)}>
-              取消
+              {t("feedback.cancel")}
             </CloudButton>
           ) : (
             <CloudButton size="sm" onClick={() => setComposing(true)}>
               <Plus size={14} />
-              新建工单
+              {t("feedback.new_ticket")}
             </CloudButton>
           )
         }
@@ -186,16 +193,16 @@ export default function Feedback() {
         {activeId ? (
           <div className="space-y-4">
             <CloudButton variant="ghost" size="sm" onClick={() => { setActiveId(null); setActive(null); }}>
-              返回工单列表
+              {t("feedback.back_to_list")}
             </CloudButton>
             {detailLoading || !active ? (
-              <CloudSpin tip="加载对话…" />
+              <CloudSpin tip={t("feedback.loading_thread")} />
             ) : (
               <>
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-foreground">工单 #{active.id}</h2>
+                  <h2 className="text-sm font-semibold text-foreground">{t("feedback.ticket_no", { id: active.id })}</h2>
                   <span className={`text-[11px] px-2 py-0.5 rounded-full ${statusClass(active)}`}>
-                    {statusLabel(active)}
+                    {statusLabel(active, t)}
                   </span>
                 </div>
                 <div className="space-y-3">
@@ -209,7 +216,7 @@ export default function Feedback() {
                           }`}
                         >
                           <div className="text-[11px] opacity-80 mb-1">
-                            {mine ? "我" : "解忧团队"} · {formatTime(item.createdAt)}
+                            {mine ? t("feedback.me") : t("feedback.team")} · {formatTime(item.createdAt, i18n.language)}
                           </div>
                           <p className="text-sm whitespace-pre-wrap leading-relaxed">{item.content}</p>
                         </div>
@@ -218,19 +225,19 @@ export default function Feedback() {
                   })}
                 </div>
                 {active.status === "closed" ? (
-                  <p className="text-xs text-muted-foreground text-center py-2">工单已关闭</p>
+                  <p className="text-xs text-muted-foreground text-center py-2">{t("feedback.ticket_closed")}</p>
                 ) : (
                   <CloudCard className="p-3 space-y-2">
                     <textarea
                       className={`${fieldClass} min-h-[96px] resize-y`}
-                      placeholder="继续补充，或回复我们的说明…"
+                      placeholder={t("feedback.reply_placeholder")}
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}
                       maxLength={2000}
                     />
                     <div className="flex justify-end">
                       <CloudButton loading={replying} disabled={!reply.trim()} onClick={() => void submitReply()}>
-                        发送回复
+                        {t("feedback.send_reply")}
                       </CloudButton>
                     </div>
                   </CloudCard>
@@ -247,38 +254,38 @@ export default function Feedback() {
                     <MessageCircle size={16} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-semibold text-foreground">提交新工单</h2>
-                    <p className="text-[11px] text-muted-foreground">我们会在同一条工单里回复你，并站内信提醒</p>
+                    <h2 className="text-sm font-semibold text-foreground">{t("feedback.new_ticket_title")}</h2>
+                    <p className="text-[11px] text-muted-foreground">{t("feedback.new_ticket_hint")}</p>
                   </div>
                 </div>
                 <textarea
                   className={`${fieldClass} min-h-[120px] resize-y`}
-                  placeholder="描述你遇到的问题，或想对我们说的建议…"
+                  placeholder={t("feedback.content_placeholder")}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   maxLength={2000}
                 />
                 <input
                   className={fieldClass}
-                  placeholder="联系方式（选填，微信 / 邮箱）"
+                  placeholder={t("feedback.contact_placeholder")}
                   value={contact}
                   onChange={(e) => setContact(e.target.value)}
                   maxLength={128}
                 />
                 <div className="flex justify-end">
                   <CloudButton loading={submitting} disabled={content.trim().length < 4} onClick={() => void submitTicket()}>
-                    提交工单
+                    {t("feedback.submit_ticket")}
                   </CloudButton>
                 </div>
               </CloudCard>
             ) : null}
 
             <div>
-              <h2 className="text-xs font-semibold text-muted-foreground px-1 pb-2">我的工单</h2>
+              <h2 className="text-xs font-semibold text-muted-foreground px-1 pb-2">{t("feedback.my_tickets")}</h2>
               {loading ? (
-                <CloudSpin tip="加载工单…" />
+                <CloudSpin tip={t("feedback.loading_tickets")} />
               ) : tickets.length === 0 ? (
-                <EmptyState icon="icon-zu" description="还没有工单" />
+                <EmptyState icon="icon-zu" description={t("feedback.no_tickets")} />
               ) : (
                 <CloudCard className="p-1.5">
                   <div className="divide-y divide-border">
@@ -294,12 +301,12 @@ export default function Feedback() {
                             {ticket.lastReplyPreview || ticket.content}
                           </span>
                           <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full ${statusClass(ticket)}`}>
-                            {statusLabel(ticket)}
+                            {statusLabel(ticket, t)}
                           </span>
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-1">
-                          #{ticket.id} · {formatTime(ticket.lastRepliedAt || ticket.createdAt)}
-                          {ticket.replyCount > 0 ? ` · ${ticket.replyCount} 条回复` : ""}
+                          #{ticket.id} · {formatTime(ticket.lastRepliedAt || ticket.createdAt, i18n.language)}
+                          {ticket.replyCount > 0 ? t("feedback.reply_count", { count: ticket.replyCount }) : ""}
                         </div>
                       </button>
                     ))}
@@ -311,15 +318,15 @@ export default function Feedback() {
         )}
         <CloudCard className="p-4 text-center space-y-3">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">太久没有回复？</h2>
-            <p className="text-[12px] text-muted-foreground mt-1">在这里可以添加您的专属商务</p>
+            <h2 className="text-sm font-semibold text-foreground">{t("feedback.no_reply_title")}</h2>
+            <p className="text-[12px] text-muted-foreground mt-1">{t("feedback.add_business")}</p>
           </div>
           <img
             src={`${import.meta.env.BASE_URL}wechat-biz-qr.png`}
-            alt="微信商务二维码"
+            alt={t("feedback.qr_alt")}
             className="w-44 h-44 mx-auto rounded-xl border border-border bg-white object-contain"
           />
-          <p className="text-[11px] text-muted-soft">微信扫码添加</p>
+          <p className="text-[11px] text-muted-soft">{t("feedback.scan_wechat")}</p>
         </CloudCard>
       </div>
     </div>

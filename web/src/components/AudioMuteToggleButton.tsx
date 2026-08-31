@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Volume2, VolumeX } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import {
@@ -10,6 +11,7 @@ import { showToast } from "../utils/toast";
 
 /** 顶栏音效开关：静音 / 允许播放 */
 export function AudioMuteToggleButton({ className = "" }: { className?: string }) {
+  const { t } = useTranslation();
   const [muted, setMuted] = useState(() => isAudioMuted());
 
   useEffect(() => subscribeAudioMuted(setMuted), []);
@@ -20,13 +22,13 @@ export function AudioMuteToggleButton({ className = "" }: { className?: string }
       variant="ghost"
       size="iconRound"
       className={className}
-      aria-label={muted ? "开启音效" : "静音"}
-      title={muted ? "音效已关，点击开启" : "音效已开，点击静音"}
+      aria-label={muted ? t("coaching.audio_unmute") : t("coaching.audio_mute")}
+      title={muted ? t("coaching.audio_off_title") : t("coaching.audio_on_title")}
       onClick={() => {
         const next = !muted;
         setAudioMuted(next);
         setMuted(next);
-        showToast.info(next ? "已静音" : "已开启音效");
+        showToast.info(next ? t("coaching.audio_muted_toast") : t("coaching.audio_unmuted_toast"));
       }}
     >
       {muted ? (

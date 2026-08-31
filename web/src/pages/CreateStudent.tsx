@@ -15,6 +15,8 @@ import {
 import { createTeacherStudent } from "../api/coaching";
 import { setTrainingStudent } from "../utils/trainingStudent";
 import { showToast } from "../utils/toast";
+import { useTranslation } from "react-i18next";
+import { formatApiMessage } from "../utils/apiMessage";
 
 const DEFAULT_PASSWORD = "student123";
 
@@ -22,6 +24,7 @@ const DEFAULT_PASSWORD = "student123";
  * 新建学生 — 姓名 + 学时；账号由后端按姓名+随机数生成，默认密码 student123
  */
 export default function CreateStudent() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
   const [studyHours, setStudyHours] = useState("0");
@@ -38,22 +41,22 @@ export default function CreateStudent() {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(key);
-      showToast.success("已复制");
+      showToast.success(t("create_student.copied"));
       window.setTimeout(() => setCopied(null), 1500);
     } catch {
-      showToast.error("复制失败，请手动选择");
+      showToast.error(t("create_student.copy_failed"));
     }
   };
 
   const onSubmit = async () => {
     const name = displayName.trim();
     if (!name) {
-      showToast.warning("请输入学生姓名");
+      showToast.warning(t("create_student.enter_name"));
       return;
     }
     const hours = Number(studyHours);
     if (Number.isNaN(hours) || hours < 0) {
-      showToast.warning("学时无效");
+      showToast.warning(t("create_student.invalid_hours"));
       return;
     }
     setSubmitting(true);
@@ -63,7 +66,7 @@ export default function CreateStudent() {
         studyHours: Math.floor(hours),
       });
       if (res.code !== 200) {
-        showToast.error(res.msg || "创建失败");
+        showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
       const sid = res.data?.student?.id || res.data?.quota?.studentId;
@@ -71,7 +74,7 @@ export default function CreateStudent() {
       const loginName = res.data?.username || res.data?.student?.username || "";
       const initPwd = res.data?.initialPassword || DEFAULT_PASSWORD;
       if (!loginName) {
-        showToast.success("学生已创建");
+        showToast.success(t("create_student.created"));
         navigate(sid ? `/my-students/${sid}` : "/my-students", {
           replace: true,
           state: sid ? { studentName: name } : undefined,
@@ -81,7 +84,7 @@ export default function CreateStudent() {
       setCreated({ username: loginName, password: initPwd, name, studentId: sid });
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "创建失败";
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
       showToast.error(msg);
     } finally {
       setSubmitting(false);
@@ -90,36 +93,36 @@ export default function CreateStudent() {
 
   return (
     <div className="min-h-0 flex flex-col flex-1 bg-background">
-      <PageBackHeader title="新建学生" fallbackTo="/my-students" maxWidthClass="max-w-none" />
+      <PageBackHeader title={t("create_student.title")} fallbackTo="/my-students" maxWidthClass="max-w-none" />
 
       <div className="flex-1 w-full py-3 space-y-3">
         <section className="bg-card border-y border-border overflow-hidden sm:border sm:rounded-2xl">
           <div className="px-4 py-2.5 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">基本信息</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("create_student.basic_info")}</h2>
           </div>
           <div className="px-4 py-3 space-y-3">
             <div>
               <label className="text-sm text-charcoal font-medium mb-1.5 block">
-                <span className="text-destructive">*</span> 学生姓名
+                <span className="text-destructive">*</span> {t("create_student.name_label")}
               </label>
               <CloudInput
                 value={displayName}
                 onChange={setDisplayName}
-                placeholder="请输入学生姓名"
+                placeholder={t("create_student.name_placeholder")}
               />
               <p className="text-[11px] text-muted-foreground mt-1">
-                登录账号将自动生成（姓名 + 随机数字），初始密码 {DEFAULT_PASSWORD}
+                {t("create_student.name_hint", { pwd: DEFAULT_PASSWORD })}
               </p>
             </div>
             <div>
-              <label className="text-sm text-charcoal font-medium mb-1.5 block">学时</label>
+              <label className="text-sm text-charcoal font-medium mb-1.5 block">{t("create_student.hours_label")}</label>
               <CloudInput
                 value={studyHours}
                 onChange={setStudyHours}
                 inputMode="numeric"
                 placeholder="0"
               />
-              <p className="text-[11px] text-muted-foreground mt-1">1 学时 = 60 分钟陪练额度</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t("create_student.hours_hint")}</p>
             </div>
           </div>
         </section>
@@ -129,7 +132,7 @@ export default function CreateStudent() {
           className="w-full flex items-center justify-between px-3 py-2 text-sm text-muted-foreground hover:text-primary"
           onClick={() => navigate("/my-students?link=1")}
         >
-          <span>已有账号？去关联添加</span>
+          <span>{t("create_student.link_existing")}</span>
           <ChevronRight size={16} />
         </button>
 
@@ -141,7 +144,7 @@ export default function CreateStudent() {
             loading={submitting}
             onClick={() => void onSubmit()}
           >
-            创建学生
+            {t("create_student.submit")}
           </CloudButton>
         </div>
       </div>
@@ -162,9 +165,9 @@ export default function CreateStudent() {
       >
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle>创建成功</DialogTitle>
+            <DialogTitle>{t("create_student.success_title")}</DialogTitle>
             <DialogDescription>
-              {created?.name} 的登录信息如下，请复制发给学员。
+              {t("create_student.success_desc", { name: created?.name })}
             </DialogDescription>
           </DialogHeader>
           {created && (
@@ -172,7 +175,7 @@ export default function CreateStudent() {
               <div className="rounded-xl bg-muted/60 border border-border px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-[11px] text-muted-foreground">登录账号</div>
+                    <div className="text-[11px] text-muted-foreground">{t("create_student.login_account")}</div>
                     <div className="text-sm font-semibold text-foreground break-all mt-0.5">
                       {created.username}
                     </div>
@@ -185,14 +188,14 @@ export default function CreateStudent() {
                     onClick={() => void copyText(created.username, "account")}
                   >
                     {copied === "account" ? <Check size={14} /> : <Copy size={14} />}
-                    复制
+                    {t("practice.copy")}
                   </CloudButton>
                 </div>
               </div>
               <div className="rounded-xl bg-muted/60 border border-border px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-[11px] text-muted-foreground">初始密码</div>
+                    <div className="text-[11px] text-muted-foreground">{t("create_student.initial_password")}</div>
                     <div className="text-sm font-semibold text-foreground mt-0.5">
                       {created.password}
                     </div>
@@ -205,7 +208,7 @@ export default function CreateStudent() {
                     onClick={() => void copyText(created.password, "password")}
                   >
                     {copied === "password" ? <Check size={14} /> : <Copy size={14} />}
-                    复制
+                    {t("practice.copy")}
                   </CloudButton>
                 </div>
               </div>
@@ -219,13 +222,13 @@ export default function CreateStudent() {
               onClick={() => {
                 if (!created) return;
                 void copyText(
-                  `账号：${created.username}\n密码：${created.password}`,
+                  t("create_student.account_password", { account: created.username, password: created.password }),
                   "all"
                 );
               }}
             >
               {copied === "all" ? <Check size={14} /> : <Copy size={14} />}
-              复制全部
+              {t("create_student.copy_all")}
             </CloudButton>
             <CloudButton
               type="button"
@@ -241,7 +244,7 @@ export default function CreateStudent() {
                 });
               }}
             >
-              完成
+              {t("practice.done")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>

@@ -1,33 +1,69 @@
-import { PageBackHeader } from "../components/PageBackHeader";
+import { useNavigate } from "react-router";
+import { MessageCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import {
+  LegalBulletList,
+  LegalDocumentLayout,
+  LegalParagraphs,
+  LegalSection,
+} from "../components/LegalDocumentLayout";
+import { CloudButton } from "../components/cloudsteps";
 
 export default function About() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const intro = t("legal.about.intro", { returnObjects: true }) as string[];
+  const features = t("legal.about.features.items", { returnObjects: true }) as string[];
+
   return (
-    <div className="min-h-dvh flex flex-col bg-background">
-      <PageBackHeader title="关于我们" subtitle="更新日期：2026-03-26" fallbackTo="/settings" />
-      <div className="flex-1 w-full py-5 space-y-4 text-charcoal leading-relaxed text-sm px-0">
-        <div className="border-y border-border bg-card p-5 space-y-4 sm:border sm:rounded-xl">
-          <p>
-            解忧（CloudSteps）是一款面向语言学习与训练场景的产品，致力于为学习者与教练/陪练提供更高效、可追踪、可持续的学习与训练体验。
-            我们提供与学习相关的功能模块，包括但不限于训练记录、复习计划、学习提醒、个人中心与账户设置等。
-          </p>
-          <p>
-            我们重视用户体验与信息安全，持续改进服务的稳定性与可用性。
-            若你在使用过程中遇到问题或希望提出建议，可以通过产品内的反馈渠道与我们取得联系。
-          </p>
-          <div>
-            <h2 className="text-foreground font-semibold text-base">服务范围</h2>
-            <p className="mt-2 text-muted-foreground">
-              我们提供的服务可能因地区、版本与运营策略而有所不同。你使用本产品即视为理解并接受我们在应用内或官网公布的服务内容。
-            </p>
-          </div>
-          <div>
-            <h2 className="text-foreground font-semibold text-base">合规与透明</h2>
-            <p className="mt-2 text-muted-foreground">
-              我们会根据适用法律法规及监管要求持续完善合规体系，并在必要时更新《用户协议》与《隐私政策》。重要变更将以合理方式提示。
-            </p>
-          </div>
+    <LegalDocumentLayout
+      title={t("legal.about.title")}
+      subtitle={t("legal.about.subtitle")}
+      hero={
+        <div className="flex flex-col items-center text-center px-2 pt-2 pb-1">
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png`}
+            alt="CloudSteps"
+            className="size-16 rounded-2xl shadow-sm border border-border bg-card object-cover"
+          />
+          <p className="mt-3 text-base font-semibold text-foreground">{t("legal.about.hero.name")}</p>
+          <p className="mt-1 text-sm text-muted-foreground max-w-sm">{t("legal.about.hero.tagline")}</p>
         </div>
+      }
+    >
+      <LegalParagraphs paragraphs={intro} />
+
+      <LegalSection title={t("legal.about.features.title")}>
+        <LegalBulletList items={features} />
+      </LegalSection>
+
+      <LegalSection title={t("legal.about.serviceScope.title")}>
+        <p>{t("legal.about.serviceScope.body")}</p>
+      </LegalSection>
+
+      <LegalSection title={t("legal.about.compliance.title")}>
+        <p>{t("legal.about.compliance.body")}</p>
+      </LegalSection>
+
+      <div className="pt-1 flex flex-col sm:flex-row gap-2">
+        <CloudButton
+          type="button"
+          variant="brand"
+          className="w-full sm:flex-1"
+          onClick={() => navigate("/feedback")}
+        >
+          <MessageCircle size={16} />
+          {t("legal.about.contact")}
+        </CloudButton>
+        <CloudButton
+          type="button"
+          variant="outline"
+          className="w-full sm:flex-1"
+          onClick={() => navigate("/terms")}
+        >
+          {t("legal.links.terms")}
+        </CloudButton>
       </div>
-    </div>
+    </LegalDocumentLayout>
   );
 }

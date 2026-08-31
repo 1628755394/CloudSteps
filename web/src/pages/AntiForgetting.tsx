@@ -7,6 +7,7 @@ import { listReviewBooksByDate, type ReviewBookStatRow } from "../api/review";
 import { useAuthStore } from "../stores/authStore";
 import { formatPracticeTimeRange } from "../utils/reviewPracticeTime";
 import { reviewCurveLabel } from "../utils/reviewCurve";
+import { useTranslation } from "react-i18next";
 
 type ReviewBookStat = ReviewBookStatRow;
 
@@ -36,6 +37,7 @@ function parseYMDLocal(ymd: string): Date {
 }
 
 export default function AntiForgetting() {
+  const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
   const navigate = useNavigate();
   const reviewCurvePreset = useAuthStore((s) => s.user?.reviewCurvePreset) || "times5";
@@ -64,20 +66,23 @@ export default function AntiForgetting() {
   }, [selectedDate]);
 
   const reviewTasks = useMemo<ReviewTask[]>(() => {
-    const student = sessionStorage.getItem("lb_user_name") || "当前用户";
+    const student = sessionStorage.getItem("lb_user_name") || t("anti_forgetting.current_user");
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai";
-    return bookStats.map((b) => ({
+    return bookStats.map((b) => {
+      const minutes = Math.min(60, Math.max(10, Math.ceil(b.cnt / 20) * 10));
+      return {
       id: `${b.wordBookId}-${b.sessionId ?? 0}`,
       practiceTimeLabel: formatPracticeTimeRange(b.practiceStartedAt, b.practiceEndedAt, tz),
       student,
       vocabularyPack: b.name,
-      trainingTime: `${Math.min(60, Math.max(10, Math.ceil(b.cnt / 20) * 10))}分钟`,
+      trainingTime: t("create_appointment.duration_min", { n: minutes }),
       status: "pending",
       wordBookId: b.wordBookId,
       sessionId: b.sessionId ?? 0,
       count: b.cnt,
-    }));
-  }, [bookStats]);
+    };
+    });
+  }, [bookStats, t]);
 
   const groupedByStudent: { [key: string]: typeof reviewTasks } = {};
   reviewTasks.forEach((task) => {
@@ -127,10 +132,10 @@ export default function AntiForgetting() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 px-1">
         <p className="text-xs text-muted-foreground">
-          曲线：{reviewCurveLabel(reviewCurvePreset)}
+          {t("anti_forgetting.curve", { label: reviewCurveLabel(reviewCurvePreset) })}
         </p>
         <CloudButton variant="ghost" size="sm" onClick={() => navigate("/create-anti-forgetting")}>
-          调整曲线
+          {t("anti_forgetting.adjust_curve")}
         </CloudButton>
       </div>
       <CloudCard className="p-4 sm:p-5">
@@ -139,12 +144,12 @@ export default function AntiForgetting() {
             variant="ghost"
             size="icon"
             onClick={() => shiftDate(-1)}
-            aria-label="上一天"
+            aria-label={t("anti_forgetting.prev_day")}
           >
             <ChevronLeft size={20} />
           </CloudButton>
           <div className="flex-1 min-w-0 flex flex-col items-center gap-2">
-            <p className="text-xs text-muted-foreground">选择日期</p>
+            <p className="text-xs text-muted-foreground">{t("anti_forgetting.select_date")}</p>
             <div className="w-full max-w-[280px]">
               <CloudDatePicker
                 value={selectedDate || undefined}
@@ -159,7 +164,7 @@ export default function AntiForgetting() {
             variant="ghost"
             size="icon"
             onClick={() => shiftDate(1)}
-            aria-label="下一天"
+            aria-label={t("anti_forgetting.next_day")}
           >
             <ChevronRight size={20} />
           </CloudButton>
@@ -167,10 +172,10 @@ export default function AntiForgetting() {
       </CloudCard>
 
       {loadingBooks ? (
-        <CloudSpin tip="加载中…" />
+        <CloudSpin tip={t("practice.loading")} />
       ) : reviewTasks.length === 0 ? (
         <CloudCard className="p-6">
-          <CloudEmpty description="该日暂无待复习词库任务（或已全部完成）。可切换日期查看其它天的计划。" />
+          <CloudEmpty description={t("anti_forgetting.empty")} />
         </CloudCard>
       ) : (
         <div className="space-y-4">
@@ -183,7 +188,7 @@ export default function AntiForgetting() {
                 <div className="min-w-0">
                   <div className="text-base font-semibold text-foreground truncate">{student}</div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    本日 {tasks.length} 个复习任务（按所选日期统计）
+                    {t("anti_forgetting.tasks_today", { count: tasks.length })}
                   </p>
                 </div>
               </div>
@@ -206,7 +211,7 @@ export default function AntiForgetting() {
                         <span className="text-sm text-charcoal truncate">{task.vocabularyPack}</span>
                       </span>
                       <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">
-                        {task.count} 词 · {task.trainingTime}
+                        {t("anti_forgetting.words_time", { count: task.count, time: task.trainingTime })}
                       </span>
                     </div>
                     <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
@@ -219,7 +224,7 @@ export default function AntiForgetting() {
                         className="gap-1.5"
                       >
                         <Eye size={14} />
-                        {task.count <= 0 ? "暂无词" : isToday ? "复习" : "查看"}
+                        {task.count <= 0 ? t("anti_forgetting.no_words") : isToday ? t("anti_forgetting.review") : t("practice.view")}
                       </CloudButton>
                     </div>
                   </div>

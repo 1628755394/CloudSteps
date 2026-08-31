@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router";
 import {
   Button,
@@ -58,6 +59,7 @@ function InsightBlock({
 }
 
 export default function ScenarioReview() {
+  const { t } = useTranslation();
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [session, setSession] = useState<ScenarioSession | null>(null);
@@ -78,7 +80,7 @@ export default function ScenarioReview() {
   if (loading) {
     return (
       <div className="h-dvh flex items-center justify-center bg-gray-50">
-        <Spin tip="加载复盘报告..." />
+        <Spin tip={t("scenario.loading_review")} />
       </div>
     );
   }
@@ -86,17 +88,17 @@ export default function ScenarioReview() {
   if (!session) {
     return (
       <div className="h-dvh flex flex-col items-center justify-center gap-3 bg-gray-50">
-        <Empty description="会话不存在" />
+        <Empty description={t("scenario.session_not_found")} />
         <Button type="primary" onClick={() => navigate("/scenario-dialogues")}>
-          返回选场景
+          {t("scenario.back_to_selection")}
         </Button>
       </div>
     );
   }
 
   const analysis = session.analysis;
-  const assistantTurns = session.turns?.filter((t) => t.role === "assistant") || [];
-  const userTurns = session.turns?.filter((t) => t.role === "user") || [];
+  const assistantTurns = session.turns?.filter((turn) => turn.role === "assistant") || [];
+  const userTurns = session.turns?.filter((turn) => turn.role === "user") || [];
 
   return (
     <div className="h-dvh overflow-hidden bg-gray-50 flex flex-col">
@@ -110,7 +112,7 @@ export default function ScenarioReview() {
             className="-ml-1"
           />
           <Typography.Title heading={6} className="!m-0 flex-1 text-center !text-sm !font-semibold text-[#2D3748] -ml-8">
-            课后复盘
+            {t("scenario.review_title")}
           </Typography.Title>
         </div>
       </div>
@@ -122,39 +124,42 @@ export default function ScenarioReview() {
           </div>
           <div className="text-base font-semibold text-[#2D3748]">{session.scenario?.name}</div>
           <div className="text-xs text-[#718096] mt-1">
-            {session.turnCount} 轮有效对话 · {Math.max(1, Math.round(session.durationSec / 60))} 分钟
+            {t("scenario.effective_turns", {
+              turns: session.turnCount,
+              minutes: Math.max(1, Math.round(session.durationSec / 60)),
+            })}
           </div>
           <div className="mt-3">
             <span className="text-3xl font-bold text-[#2D3748] tabular-nums">{session.overallScore}</span>
-            <span className="text-xs text-[#718096] ml-1">综合分</span>
+            <span className="text-xs text-[#718096] ml-1">{t("scenario.overall_score")}</span>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-[#E2E8F0] p-3.5 space-y-2.5">
-          <div className="text-sm font-medium text-[#2D3748]">口语能力评分</div>
-          <ScoreRow label="流利度" score={session.fluencyScore} color="#4ECDC4" />
-          <ScoreRow label="准确度" score={session.accuracyScore} color="#55A3FF" />
-          <ScoreRow label="发音" score={session.pronunciationScore} color="#66BB6A" />
+          <div className="text-sm font-medium text-[#2D3748]">{t("scenario.speaking_scores")}</div>
+          <ScoreRow label={t("scenario.fluency")} score={session.fluencyScore} color="#4ECDC4" />
+          <ScoreRow label={t("scenario.accuracy")} score={session.accuracyScore} color="#55A3FF" />
+          <ScoreRow label={t("scenario.pronunciation")} score={session.pronunciationScore} color="#66BB6A" />
           {analysis && (
             <>
-              <ScoreRow label="词汇" score={analysis.vocabularyScore} color="#FF9800" />
-              <ScoreRow label="参与度" score={analysis.participationScore} color="#9C27B0" />
+              <ScoreRow label={t("scenario.vocabulary")} score={analysis.vocabularyScore} color="#FF9800" />
+              <ScoreRow label={t("scenario.participation")} score={analysis.participationScore} color="#9C27B0" />
             </>
           )}
         </div>
 
         {analysis && (
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
-            <div className="text-sm font-medium text-[#2D3748] mb-2.5">量化指标</div>
+            <div className="text-sm font-medium text-[#2D3748] mb-2.5">{t("scenario.quantitative_metrics")}</div>
             <div className="grid grid-cols-2 gap-2">
-              <MetricCell label="语速" value={`${Math.round(analysis.wordsPerMinute)} 词/分`} />
-              <MetricCell label="英语占比" value={`${Math.round(analysis.englishRatio * 100)}%`} />
-              <MetricCell label="英文词数" value={String(analysis.userWordCount)} />
-              <MetricCell label="独特词汇" value={String(analysis.uniqueWordCount)} />
-              <MetricCell label="平均每轮" value={`${analysis.avgWordsPerTurn.toFixed(1)} 词`} />
-              <MetricCell label="中文轮次" value={String(analysis.chineseTurnCount)} />
-              <MetricCell label="语法纠正" value={String(analysis.explicitCorrections + analysis.implicitCorrections)} />
-              <MetricCell label="短句/语气词" value={String(analysis.shortTurnCount)} />
+              <MetricCell label={t("scenario.speech_rate")} value={t("scenario.words_per_min", { count: Math.round(analysis.wordsPerMinute) })} />
+              <MetricCell label={t("scenario.english_ratio")} value={`${Math.round(analysis.englishRatio * 100)}%`} />
+              <MetricCell label={t("scenario.english_word_count")} value={String(analysis.userWordCount)} />
+              <MetricCell label={t("scenario.unique_words")} value={String(analysis.uniqueWordCount)} />
+              <MetricCell label={t("scenario.avg_per_turn")} value={t("scenario.words", { count: Number(analysis.avgWordsPerTurn.toFixed(1)) })} />
+              <MetricCell label={t("scenario.chinese_turns")} value={String(analysis.chineseTurnCount)} />
+              <MetricCell label={t("scenario.grammar_corrections")} value={String(analysis.explicitCorrections + analysis.implicitCorrections)} />
+              <MetricCell label={t("scenario.short_turns")} value={String(analysis.shortTurnCount)} />
             </div>
           </div>
         )}
@@ -171,28 +176,28 @@ export default function ScenarioReview() {
           <div className="rounded-xl border border-[#4ECDC4]/30 bg-[#4ECDC4]/5 p-3.5">
             <div className="flex items-center gap-1.5 text-sm font-medium text-[#2D3748] mb-2">
               <IconCommon className="text-[#4ECDC4]" />
-              AI 教练分析
+              {t("scenario.ai_coach_analysis")}
             </div>
             <p className="text-xs text-[#2D3748] leading-relaxed whitespace-pre-wrap">{analysis.aiAnalysis}</p>
           </div>
         )}
 
-        <InsightBlock title="表现亮点" items={analysis?.highlights || []} color="#66BB6A" />
-        <InsightBlock title="待改进" items={analysis?.issues || []} color="#FF9800" />
-        <InsightBlock title="练习建议" items={analysis?.suggestions || []} color="#55A3FF" />
-        <InsightBlock title="后续计划" items={analysis?.nextSteps || []} color="#9C27B0" />
+        <InsightBlock title={t("scenario.highlights")} items={analysis?.highlights || []} color="#66BB6A" />
+        <InsightBlock title={t("scenario.issues")} items={analysis?.issues || []} color="#FF9800" />
+        <InsightBlock title={t("scenario.suggestions")} items={analysis?.suggestions || []} color="#55A3FF" />
+        <InsightBlock title={t("scenario.next_steps")} items={analysis?.nextSteps || []} color="#9C27B0" />
 
-        {assistantTurns.some((t) => t.hasCorrection || t.hasPronunciation) && (
+        {assistantTurns.some((turn) => turn.hasCorrection || turn.hasPronunciation) && (
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
-            <div className="text-sm font-medium text-[#2D3748] mb-2">纠错 & 发音建议</div>
+            <div className="text-sm font-medium text-[#2D3748] mb-2">{t("scenario.corrections_pronunciation")}</div>
             <div className="space-y-1.5 max-h-40 overflow-y-auto">
               {assistantTurns
-                .filter((t) => t.hasCorrection || t.hasPronunciation)
-                .map((t) => (
-                  <div key={t.id} className="text-xs text-[#718096] bg-amber-50 rounded-lg p-2.5 flex gap-1.5">
-                    {t.hasCorrection && <IconExclamationCircle className="text-amber-600 shrink-0 mt-0.5" />}
-                    {t.hasPronunciation && <IconCheckCircle className="text-green-600 shrink-0 mt-0.5" />}
-                    <span className="line-clamp-4">{t.content}</span>
+                .filter((turn) => turn.hasCorrection || turn.hasPronunciation)
+                .map((turn) => (
+                  <div key={turn.id} className="text-xs text-[#718096] bg-amber-50 rounded-lg p-2.5 flex gap-1.5">
+                    {turn.hasCorrection && <IconExclamationCircle className="text-amber-600 shrink-0 mt-0.5" />}
+                    {turn.hasPronunciation && <IconCheckCircle className="text-green-600 shrink-0 mt-0.5" />}
+                    <span className="line-clamp-4">{turn.content}</span>
                   </div>
                 ))}
             </div>
@@ -201,19 +206,19 @@ export default function ScenarioReview() {
 
         {userTurns.length > 0 && (
           <div className="bg-white rounded-xl border border-[#E2E8F0] p-3.5">
-            <div className="text-sm font-medium text-[#2D3748] mb-2">对话记录</div>
+            <div className="text-sm font-medium text-[#2D3748] mb-2">{t("scenario.dialogue_log")}</div>
             <div className="space-y-1.5 max-h-52 overflow-y-auto">
-              {session.turns?.map((t, i) => (
+              {session.turns?.map((turn, i) => (
                 <div
-                  key={t.id || i}
+                  key={turn.id || i}
                   className={`text-xs rounded-lg p-2.5 ${
-                    t.role === "user" ? "bg-[#55A3FF]/8" : "bg-[#66BB6A]/8"
+                    turn.role === "user" ? "bg-[#55A3FF]/8" : "bg-[#66BB6A]/8"
                   }`}
                 >
-                  <Tag size="small" color={t.role === "user" ? "arcoblue" : "green"} className="!mr-1.5">
-                    {t.role === "user" ? "你" : "AI"}
+                  <Tag size="small" color={turn.role === "user" ? "arcoblue" : "green"} className="!mr-1.5">
+                    {turn.role === "user" ? t("scenario.role.user") : t("scenario.role.ai")}
                   </Tag>
-                  {t.content}
+                  {turn.content}
                 </div>
               ))}
             </div>
@@ -222,10 +227,12 @@ export default function ScenarioReview() {
 
         {stats && stats.totalSessions > 0 && (
           <div className="rounded-xl border border-[#4ECDC4]/20 bg-[#4ECDC4]/5 px-3.5 py-3 text-xs text-[#718096]">
-            累计练习 <strong>{stats.totalSessions}</strong> 次，平均综合分{" "}
-            <strong className="text-[#4ECDC4]">{stats.avgOverallScore}</strong>
+            {t("scenario.cumulative_stats", {
+              sessions: stats.totalSessions,
+              score: stats.avgOverallScore,
+            })}
             {stats.totalCorrections > 0 && (
-              <> · 累计纠错 <strong>{stats.totalCorrections}</strong> 处</>
+              <> {t("scenario.cumulative_corrections", { count: stats.totalCorrections })}</>
             )}
           </div>
         )}
@@ -233,7 +240,7 @@ export default function ScenarioReview() {
         <Button long type="primary" onClick={() => navigate("/scenario-dialogues")}>
           <span className="inline-flex items-center gap-1.5">
             <IconTrophy />
-            再练一个场景
+            {t("scenario.practice_another")}
           </span>
         </Button>
       </div>

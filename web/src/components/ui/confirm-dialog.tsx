@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./dialog";
 import { CloudButton } from "../cloudsteps";
 
@@ -7,8 +8,8 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmText = "确认",
-  cancelText = "取消",
+  confirmText,
+  cancelText,
   onConfirm,
   confirmVariant = "default",
   loading = false,
@@ -23,6 +24,9 @@ export function ConfirmDialog({
   confirmVariant?: "default" | "destructive";
   loading?: boolean;
 }) {
+  const { t } = useTranslation();
+  const resolvedConfirmText = confirmText ?? t("ui.confirm");
+  const resolvedCancelText = cancelText ?? t("ui.cancel");
   const [internalLoading, setInternalLoading] = React.useState(false);
 
   const isLoading = loading || internalLoading;
@@ -56,7 +60,7 @@ export function ConfirmDialog({
             disabled={isLoading}
             className="h-10 px-4 rounded-xl border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 transition-all duration-200 hover:shadow-sm active:scale-[0.99]"
           >
-            {cancelText}
+            {resolvedCancelText}
           </CloudButton>
           <CloudButton
             type="button"
@@ -72,10 +76,10 @@ export function ConfirmDialog({
             {isLoading ? (
               <span className="inline-flex items-center justify-center gap-2">
                 <span className="inline-block h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                <span>{confirmText}</span>
+                <span>{resolvedConfirmText}</span>
               </span>
             ) : (
-              confirmText
+              resolvedConfirmText
             )}
           </CloudButton>
         </DialogFooter>

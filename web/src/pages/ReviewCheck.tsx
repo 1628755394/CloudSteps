@@ -25,6 +25,8 @@ import { applyUserWordView } from "../components/WordEditControls";
 import { startReviewSession } from "../api/review";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { beginReviewPractice, type ReviewPracticeWord } from "../utils/reviewPractice";
+import { useTranslation } from "react-i18next";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type ReviewWord = {
   id: number;
@@ -46,6 +48,7 @@ type StartReviewData = {
 };
 
 export default function ReviewCheck() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [words, setWords] = useState<ReviewWord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +88,7 @@ export default function ReviewCheck() {
         if (res.code === 200 && data?.finished) {
           setSessionId(0);
           setWords([]);
-          setEmptyMessage(res.msg || "今日无待复习单词");
+          setEmptyMessage(formatApiMessage(res.msg, "practice.no_review_words"));
           return;
         }
 
@@ -105,10 +108,10 @@ export default function ReviewCheck() {
           }))
         );
         if (ws.length === 0 && !data?.finished) {
-          setEmptyMessage(res.msg || "暂无可复习内容");
+          setEmptyMessage(formatApiMessage(res.msg, "practice.no_review_content"));
         }
       } catch (e: unknown) {
-        const msg = e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载失败";
+        const msg = e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.query_failed");
         if (mounted) setLoadError(msg);
       } finally {
         if (mounted) setLoading(false);
@@ -180,11 +183,11 @@ export default function ReviewCheck() {
   const handleSubmit = () => {
     if (submitting) return;
     if (markedWords.length === 0) {
-      setHint("请至少为一个单词选择 ✓ 或 × 后再开始学习");
+      setHint(t("practice.mark_before_study"));
       return;
     }
     if (!sessionId) {
-      setHint("复习会话未就绪，请返回重进");
+      setHint(t("practice.session_not_ready"));
       return;
     }
     setHint(null);
@@ -208,7 +211,7 @@ export default function ReviewCheck() {
       });
       navigate("/word-practice", { replace: true });
     } catch {
-      setHint("无法开始学习，请稍后重试");
+      setHint(t("practice.cannot_start"));
       setSubmitting(false);
     }
   };
@@ -221,7 +224,7 @@ export default function ReviewCheck() {
   return (
     <FlowPageShell>
       <TopBar
-        title="训练检测"
+        title={t("review_check.title")}
         onBack={handleBack}
         rightSlot={
           <PracticeFlowToolbar
@@ -244,14 +247,14 @@ export default function ReviewCheck() {
         defaultTitle="随心记"
       >
         {loading && (
-          <p className="text-center text-[#718096] py-12">加载中…</p>
+          <p className="text-center text-[#718096] py-12">{t("practice.loading")}</p>
         )}
 
         {loadError && (
           <div className="rounded-xl bg-white border border-[#E2E8F0] p-6 text-center space-y-4">
             <p className="text-[#FF6B6B]">{loadError}</p>
             <CloudButton type="button" variant="brand" size="pill" onClick={handleBack}>
-              返回
+              {t("practice.back")}
             </CloudButton>
           </div>
         )}
@@ -260,7 +263,7 @@ export default function ReviewCheck() {
           <div className="rounded-xl bg-white border border-[#E2E8F0] p-8 text-center space-y-4 shadow-sm">
             <BookOpen className="mx-auto text-[#4ECDC4]" size={40} />
             <p className="text-[#2D3748] font-medium">{emptyMessage}</p>
-            <p className="text-sm text-[#718096]">当前词库没有到期的复习任务，可先进行单词训练或改日再来。</p>
+            <p className="text-sm text-[#718096]">{t("practice.empty_review_hint")}</p>
             <CloudButton
               type="button"
               variant="brand"
@@ -268,7 +271,7 @@ export default function ReviewCheck() {
               className="w-full max-w-xs mx-auto"
               onClick={handleBack}
             >
-              返回
+              {t("practice.back")}
             </CloudButton>
           </div>
         )}
@@ -276,7 +279,7 @@ export default function ReviewCheck() {
         {showList && (
           <>
             <p className="text-center text-[#718096] mb-4">
-              当前共有 {words.length} 个可选单词
+              {t("practice.optional_words", { count: words.length })}
             </p>
             <WordMarkStatsBar
               correctCount={correctCount}
@@ -316,8 +319,8 @@ export default function ReviewCheck() {
                         <div onClick={(e) => e.stopPropagation()}>
                           <StudyNoteLauncher
                             storageKey={`study-note:word:${wordBookId}:${word.id}`}
-                            title={`笔记 · ${word.word}`}
-                            label="笔记"
+                            title={t("practice.note_title", { word: word.word })}
+                            label={t("practice.note")}
                             className="h-9 px-2"
                           />
                         </div>
@@ -382,11 +385,11 @@ export default function ReviewCheck() {
                 variant={note.open ? "brand" : "outline"}
                 size="pill"
                 onClick={() => note.setOpen((value) => !value)}
-                aria-label="打开随心记"
-                title="打开随心记"
+                aria-label={t("practice.open_free_note")}
+                title={t("practice.open_free_note")}
               >
                 <PanelTop size={16} className={note.open ? "text-white" : "text-[#c45c78]"} />
-                随心记
+              {t("practice.free_note")}
               </CloudButton>
               <CloudButton
                 variant={detailMode ? "brand" : "outline"}
@@ -399,16 +402,16 @@ export default function ReviewCheck() {
                 }}
               >
                 <BookOpen size={16} />
-                拓展
+              {t("practice.expand")}
               </CloudButton>
             </div>
             <div className="flex gap-2">
               <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
                 <Shuffle size={16} />
-                乱序
+              {t("practice.shuffle")}
               </CloudButton>
               <CloudButton variant="outline" size="pill" onClick={handleSelectAll}>
-                全选
+              {t("practice.select_all")}
               </CloudButton>
             </div>
           </div>
@@ -419,9 +422,9 @@ export default function ReviewCheck() {
             onClick={handleSubmit}
             disabled={submitting}
             loading={submitting}
-            loadingText="准备中…"
+            loadingText={t("practice.preparing")}
           >
-            开始学习
+            {t("practice.start_study")}
             {markedWords.length > 0 ? ` (${markedWords.length})` : ""}
           </CloudButton>
           {hint && (
@@ -429,7 +432,7 @@ export default function ReviewCheck() {
           )}
           {!hint && markedWords.length === 0 && (
             <p className="text-center text-xs text-[#A0AEC0] mt-2">
-              先勾选要复习的词，再进入跟课前检测一样的练习流程
+              {t("practice.hint_select_review")}
             </p>
           )}
           </div>

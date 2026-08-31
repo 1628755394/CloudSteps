@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import i18n from '../i18n'
 
 const SAMPLE_RATE = 16000
 const FRAME_MS = 20
@@ -267,17 +268,17 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
         const err = permErr as DOMException
         if (err.name === 'NotAllowedError') {
           setStatus('error')
-          onError?.('麦克风权限被拒绝。请在浏览器设置中允许访问麦克风。')
+          onError?.(i18n.t('voice.microphone_denied'))
           return
         }
         if (err.name === 'NotFoundError') {
           setStatus('error')
-          onError?.('未找到麦克风设备。请检查硬件连接。')
+          onError?.(i18n.t('voice.microphone_not_found'))
           return
         }
         if (err.name === 'NotReadableError') {
           setStatus('error')
-          onError?.('麦克风被其他应用占用。请关闭其他使用麦克风的应用。')
+          onError?.(i18n.t('voice.microphone_in_use'))
           return
         }
         throw err
@@ -324,7 +325,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
       }
       ws.onerror = () => {
         setStatus('error')
-        onError?.('WebSocket 连接失败')
+        onError?.(i18n.t('voice.websocket_failed'))
       }
       ws.onclose = () => {
         setStatus('disconnected')
@@ -332,7 +333,7 @@ export function useRealtimeVoice(options: UseRealtimeVoiceOptions) {
       }
     } catch (err: unknown) {
       setStatus('error')
-      const errorMsg = err instanceof Error ? err.message : '连接失败'
+      const errorMsg = err instanceof Error ? err.message : i18n.t('voice.connection_failed')
       onError?.(errorMsg)
       cleanup(false)
     }

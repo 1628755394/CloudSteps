@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Volume2 } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import {
@@ -28,6 +29,7 @@ function delay(ms: number) {
  * - 拼读：播放完整单词音频（优先「连读」槽位）
  */
 export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>("split");
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -40,6 +42,15 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
   );
   const parts = partsInfo?.parts || [];
   const hasAudio = Boolean(audioUrl && parseAudioUrlSlots(audioUrl).some(Boolean));
+
+  const modeOptions = useMemo(
+    () =>
+      [
+        { id: "split" as const, label: t("word.phonics.split") },
+        { id: "blend" as const, label: t("word.phonics.blend") },
+      ] as const,
+    [t]
+  );
 
   useEffect(() => {
     return () => {
@@ -119,16 +130,17 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
     else void playSplitSequence();
   };
 
+  const playAriaLabel = playing
+    ? t("word.phonics.stop")
+    : mode === "blend"
+      ? t("word.phonics.play_blend")
+      : t("word.phonics.play_split");
+
   return (
     <div className="mb-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5">
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="inline-flex rounded-full bg-[#EEF2F7] p-0.5">
-          {(
-            [
-              { id: "split" as const, label: "拆分" },
-              { id: "blend" as const, label: "拼读" },
-            ] as const
-          ).map((m) => (
+          {modeOptions.map((m) => (
             <button
               key={m.id}
               type="button"
@@ -148,7 +160,7 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
           variant="ghost"
           size="iconRound"
           className="size-8"
-          aria-label={playing ? "停止播放" : mode === "blend" ? "拼读播放" : "拆分播放"}
+          aria-label={playAriaLabel}
           onClick={onPlayClick}
           disabled={
             isAudioMuted() || (mode === "blend" ? !hasAudio : parts.length === 0 && !hasAudio)
@@ -185,7 +197,7 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
           ))}
         </div>
       ) : (
-        <p className="text-xs text-[#94A3B8]">暂无音标拆分，可直接拼读整词</p>
+        <p className="text-xs text-[#94A3B8]">{t("word.phonics.no_split")}</p>
       )}
     </div>
   );

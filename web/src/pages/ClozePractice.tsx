@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import {
   Button,
@@ -21,6 +22,7 @@ import {
   type ClozePassageListItem,
   type ClozeSubmitResult,
 } from "../api/cloze";
+import { formatApiMessage } from "../utils/apiMessage";
 
 type Phase = "list" | "practice" | "result";
 
@@ -58,6 +60,7 @@ function renderPassageWithBlanks(
 }
 
 export default function ClozePractice() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("list");
   const [loadingList, setLoadingList] = useState(true);
@@ -86,17 +89,15 @@ export default function ClozePractice() {
     try {
       const res = await listClozePassages({ page: 1, pageSize: 50 });
       if (res.code !== 200) {
-        setErr(res.msg || "加载列表失败");
+        setErr(formatApiMessage(res.msg, "cloze.load_list_failed"));
         setPassages([]);
         return;
       }
       setPassages(Array.isArray(res.data?.list) ? res.data.list : []);
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "加载列表失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "cloze.load_list_failed"));
       setPassages([]);
     } finally {
       setLoadingList(false);
@@ -126,7 +127,7 @@ export default function ClozePractice() {
     try {
       const res = await getClozePassage(id);
       if (res.code !== 200 || !res.data) {
-        setErr(res.msg || "加载文章失败");
+        setErr(formatApiMessage(res.msg, "cloze.load_passage_failed"));
         return;
       }
       setPassage(res.data);
@@ -136,11 +137,9 @@ export default function ClozePractice() {
       startedAtRef.current = Date.now();
       setPhase("practice");
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "加载文章失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "cloze.load_passage_failed"));
     } finally {
       setLoadingPassage(false);
     }
@@ -171,18 +170,16 @@ export default function ClozePractice() {
         durationSec,
       });
       if (res.code !== 200 || !res.data) {
-        setErr(res.msg || "提交失败");
+        setErr(formatApiMessage(res.msg, "practice.submit_failed"));
         return;
       }
       setResult(res.data);
       setPhase("result");
       void loadList();
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e
-          ? String((e as { msg: string }).msg)
-          : "提交失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "practice.submit_failed"));
     } finally {
       setSubmitting(false);
     }
@@ -208,7 +205,7 @@ export default function ClozePractice() {
         <div className="flex items-center h-12 px-3 gap-2">
           <Button type="text" shape="circle" icon={<IconLeft />} onClick={headerBack} />
           <div className="min-w-0 flex-1">
-            <Typography.Text className="!font-medium !text-[#2D3748]">完形填空</Typography.Text>
+            <Typography.Text className="!font-medium !text-[#2D3748]">{t("cloze.title")}</Typography.Text>
             {phase === "practice" && passage && (
               <Typography.Text type="secondary" className="block !text-xs truncate">
                 {passage.title} · {passage.level}
@@ -216,7 +213,7 @@ export default function ClozePractice() {
             )}
             {phase === "list" && (
               <Typography.Text type="secondary" className="block !text-xs">
-                选择一篇短文开始填空
+                {t("cloze.subtitle_list")}
               </Typography.Text>
             )}
           </div>
@@ -239,11 +236,11 @@ export default function ClozePractice() {
         <div className="flex-1 min-h-0 overflow-auto px-3 py-3">
           {loadingList || loadingPassage ? (
             <div className="flex justify-center py-16">
-              <Spin tip="加载中…" />
+              <Spin tip={t("common.loading")} />
             </div>
           ) : passages.length === 0 ? (
             <Card className="!rounded-xl">
-              <Empty description="暂无完形填空文章，请先运行 seed" />
+              <Empty description={t("cloze.empty_list")} />
             </Card>
           ) : (
             <Space direction="vertical" size={10} className="w-full">
@@ -274,12 +271,15 @@ export default function ClozePractice() {
                         </Typography.Paragraph>
                       )}
                       <Typography.Text type="secondary" className="!text-xs">
-                        {p.blankCount ?? 0} 空 · 约 {p.estimatedMinutes ?? 5} 分钟
+                        {t("practice.blanks_meta", {
+                          count: p.blankCount ?? 0,
+                          minutes: p.estimatedMinutes ?? 5,
+                        })}
                       </Typography.Text>
                     </div>
                     {typeof p.lastScore === "number" && (
                       <Tag color={p.lastScore >= 80 ? "green" : "orangered"}>
-                        上次 {p.lastScore}分
+                        {t("practice.last_score", { score: p.lastScore })}
                       </Tag>
                     )}
                   </div>
@@ -296,7 +296,10 @@ export default function ClozePractice() {
             <Result
               status={result.score === 100 ? "success" : "info"}
               title={`${result.correctCount} / ${result.blankCount}`}
-              subTitle={`得分 ${result.score} 分 · 用时 ${result.durationSec} 秒`}
+              subTitle={t("practice.score_subtitle", {
+                score: result.score,
+                seconds: result.durationSec,
+              })}
             />
             <div className="space-y-3 mt-2">
               {(result.details || []).map((d) => (
@@ -306,28 +309,36 @@ export default function ClozePractice() {
                     d.correct ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
                   }`}
                 >
-                  <div className="font-medium text-[#2D3748] mb-1">空位 {d.blankNo}</div>
+                  <div className="font-medium text-[#2D3748] mb-1">
+                    {t("cloze.blank_no", { no: d.blankNo })}
+                  </div>
                   <div className="text-[#718096]">
-                    你的答案：{d.answer || "未作答"}
+                    {t("practice.your_answer", {
+                      answer: d.answer || t("practice.no_answer"),
+                    })}
                     {!d.correct && (
-                      <span className="ml-2 text-[#4ECDC4]">正确答案：{d.rightAnswer}</span>
+                      <span className="ml-2 text-[#4ECDC4]">
+                        {t("practice.correct_answer", { answer: d.rightAnswer })}
+                      </span>
                     )}
                   </div>
                   {d.explanation && (
-                    <div className="text-xs text-[#A0AEC0] mt-1">解析：{d.explanation}</div>
+                    <div className="text-xs text-[#A0AEC0] mt-1">
+                      {t("practice.explanation", { text: d.explanation })}
+                    </div>
                   )}
                 </div>
               ))}
             </div>
             <Space className="mt-5 w-full justify-center">
-              <Button onClick={backToList}>返回列表</Button>
+              <Button onClick={backToList}>{t("practice.back_to_list")}</Button>
               <Button
                 type="primary"
                 onClick={() => {
                   if (result.passageId) void openPassage(result.passageId);
                 }}
               >
-                再做一次
+                {t("practice.try_again")}
               </Button>
             </Space>
           </Card>
@@ -337,7 +348,7 @@ export default function ClozePractice() {
       {phase === "practice" && passage && (
         <>
           <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-28">
-            <Card className="!rounded-xl shadow-sm !mb-3" title="Passage">
+            <Card className="!rounded-xl shadow-sm !mb-3" title={t("practice.passage")}>
               <div className="text-[#2D3748] leading-8 text-[15px]">
                 {renderPassageWithBlanks(passage.content, answers, blankNoToId)}
               </div>
@@ -361,7 +372,7 @@ export default function ClozePractice() {
             {activeBlank && (
               <Card
                 className="!rounded-xl shadow-sm"
-                title={`空位 ${activeBlank.blankNo}`}
+                title={t("cloze.blank_no", { no: activeBlank.blankNo })}
               >
                 <Radio.Group
                   direction="vertical"
@@ -390,8 +401,11 @@ export default function ClozePractice() {
               onClick={() => void onSubmit()}
             >
               {allAnswered
-                ? "提交答案"
-                : `请完成全部空位（${answeredCount}/${totalBlanks}）`}
+                ? t("practice.submit")
+                : t("practice.complete_all_blanks", {
+                    answered: answeredCount,
+                    total: totalBlanks,
+                  })}
             </Button>
           </div>
         </>
