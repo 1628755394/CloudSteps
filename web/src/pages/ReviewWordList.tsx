@@ -320,7 +320,7 @@ export default function ReviewWordList() {
       {/* Split container: word content + note panel on the same layer. */}
       <div className={`box-border min-h-[calc(100dvh-11rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}>
         {/* Word content pane */}
-        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
             <p className="text-[#718096] text-sm">
               {viewOnly ? t("lighthouse_words.total_words", { count: words.length }) : t("practice.optional_words", { count: words.length })}

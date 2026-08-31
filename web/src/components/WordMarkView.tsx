@@ -330,6 +330,7 @@ export function WordViewModeToggle({
       type="button"
       variant="outline"
       size="pill"
+      className="shrink-0 max-sm:px-2 max-sm:text-xs"
       onClick={() => onChange(isCard ? "list" : "card")}
       aria-label={isCard ? t("word.switch_list") : t("word.switch_card")}
     >
