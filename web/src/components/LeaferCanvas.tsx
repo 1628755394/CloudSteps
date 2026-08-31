@@ -294,15 +294,18 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
 
     const trimmed = current.text.trim();
     if (trimmed) {
+      const fullWidth = getTextWidth();
       if (current.isNew) {
-        createTextElement(current.x, current.y, current.width, trimmed);
+        createTextElement(TEXT_MARGIN, current.y, fullWidth, trimmed);
       } else {
-        // Update existing text content
+        // Update existing text: always full width aligned to left
         const textEl = textMapRef.current.get(current.id);
         if (textEl) {
           textEl.text = trimmed;
-          (textEl as unknown as { width?: number; textWrap?: string }).width = current.width;
-          (textEl as unknown as { width?: number; textWrap?: string }).textWrap = "break";
+          (textEl as unknown as { x?: number; y?: number; width?: number; textWrap?: string }).x = TEXT_MARGIN;
+          (textEl as unknown as { x?: number; y?: number; width?: number; textWrap?: string }).y = current.y;
+          (textEl as unknown as { x?: number; y?: number; width?: number; textWrap?: string }).width = fullWidth;
+          (textEl as unknown as { x?: number; y?: number; width?: number; textWrap?: string }).textWrap = "break";
           appRef.current?.tree.forceUpdate();
         }
       }
@@ -742,9 +745,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       }
 
       if (foundText) {
-        // Edit existing text
-        const tw = (textMapRef.current.get(foundText.id) as unknown as { width?: number }).width || getTextWidth();
-        startTextEditing(foundText.x, foundText.y, tw, foundText.id, foundText.text);
+        // Edit existing text: align x to left, keep y, use current full width
+        startTextEditing(TEXT_MARGIN, foundText.y, getTextWidth(), foundText.id, foundText.text);
       } else {
         // Create new text at first row (top, y=8), full page width
         startTextEditing(TEXT_MARGIN, TEXT_FIRST_ROW, getTextWidth());
