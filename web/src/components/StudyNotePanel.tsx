@@ -204,20 +204,9 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
         className="relative z-10 h-full w-full overflow-hidden rounded-[24px] border-2 border-[#1f2937] shadow-[0_10px_24px_rgba(38,91,115,0.18)]"
         style={{ background: fill }}
       >
-        {/* Close button: floating top right corner */}
-        <button
-          type="button"
-          className="absolute right-2 top-2 z-50 flex h-7 w-7 items-center justify-center rounded-full bg-[#fffdf5]/80 text-[#5f7890] shadow-sm hover:bg-[#e9dfce] hover:text-[#c45c78] sm:right-3 sm:top-3"
-          onClick={onClose}
-          title="关闭"
-          aria-label="关闭"
-        >
-          <X size={16} />
-        </button>
-
         <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[22px]">
           {/* Title bar */}
-          <div className="flex h-8 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-2 text-[#25344a] sm:h-9 sm:gap-2 sm:pl-11 sm:pr-3">
+          <div className="flex h-8 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-1 text-[#25344a] sm:h-9 sm:gap-2 sm:pl-11 sm:pr-2">
             <span className="truncate text-sm font-bold sm:text-base">{title}</span>
             <span className="hidden truncate text-[11px] text-[#9b927f] sm:inline">随心笔记</span>
             <button
@@ -228,6 +217,15 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
               aria-label={toolbarVisible ? "隐藏工具栏" : "打开工具栏"}
             >
               <PanelLeft size={14} />
+            </button>
+            <button
+              type="button"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#c45c78]"
+              onClick={onClose}
+              title="关闭"
+              aria-label="关闭"
+            >
+              <X size={16} />
             </button>
           </div>
 
