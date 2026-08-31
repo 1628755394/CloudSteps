@@ -206,7 +206,7 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
       >
         <div className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-[22px]">
           {/* Title bar */}
-          <div className="flex h-8 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-1 text-[#25344a] sm:h-9 sm:gap-2 sm:pl-11 sm:pr-2">
+          <div className="flex h-8 shrink-0 items-center gap-1.5 border-b border-[#d8cdb8] pl-10 pr-0 text-[#25344a] sm:h-9 sm:gap-2 sm:pl-11 sm:pr-0">
             <span className="truncate text-sm font-bold sm:text-base">{title}</span>
             <span className="hidden truncate text-[11px] text-[#9b927f] sm:inline">随心笔记</span>
             <button
@@ -220,12 +220,12 @@ export function StudyNotePanel({ open, onClose, storageKey, title = "随心记",
             </button>
             <button
               type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#c45c78]"
+              className="flex h-8 w-8 -mr-1 items-center justify-center rounded-lg text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#c45c78] sm:-mr-1"
               onClick={onClose}
               title="关闭"
               aria-label="关闭"
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           </div>
 
