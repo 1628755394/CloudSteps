@@ -10,6 +10,7 @@ import {
   Palette,
   LayoutTemplate,
   SunMoon,
+  Languages,
 } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
@@ -30,6 +31,7 @@ import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
 import { showToast } from "../utils/toast";
+import { useLocale } from "../hooks/useLocale";
 import {
   bindEmail,
   changePassword,
@@ -99,6 +101,7 @@ export default function Settings() {
   const clearUser = useAuthStore((s) => s.clearUser);
   const refreshUserInfo = useAuthStore((s) => s.refreshUserInfo);
   const user = useAuthStore((s) => s.user);
+  const { t, locale, changeLocale } = useLocale();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
@@ -331,6 +334,37 @@ export default function Settings() {
                 </button>
               );
             })}
+          </div>
+        </CloudCard>
+
+        <CloudCard className="p-1.5 shrink-0">
+          <h2 className="text-xs font-semibold text-muted-foreground px-2.5 pt-1.5 pb-0.5 flex items-center gap-1.5">
+            <Languages size={13} />
+            {t("settings.language")}
+          </h2>
+          <div className="divide-y divide-border">
+            <div className="px-2.5 py-2.5 flex items-center justify-between">
+              <span className="text-sm font-medium text-foreground">{t("settings.language")}</span>
+              <div className="flex gap-1.5">
+                {([
+                  { value: "zh-CN", label: "中文" },
+                  { value: "en", label: "English" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => changeLocale(opt.value)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      locale === opt.value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </CloudCard>
 

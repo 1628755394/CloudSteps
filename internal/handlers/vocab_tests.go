@@ -19,8 +19,10 @@ import (
 	"github.com/LingByte/CloudStepsGo/internal/configs"
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	"github.com/LingByte/CloudStepsGo/pkg/stores"
+	"github.com/LingByte/ling-base/common/logger"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -54,6 +56,16 @@ func (h *Handlers) registerVocabTestRoutes(r *humax.Group) {
 	}
 }
 
+// estimateLevelWeighted 使用「天花板 + 插值」算法估算用户等级和词汇量。
+//
+// 核心思路（适配自适应阶梯测试）：
+//  1. 计算每个等级的 Beta 平滑正确率
+//  2. 天花板 = 正确率 ≥ 55% 且样本 ≥3 的最高等级（用户"够得着"的最高级别）
+//  3. 整体正确率封顶：整体 <50% 天花板≤B1，<60% 天花板≤B2
+//  4. 在天花板等级的词汇量区间内，用天花板正确率(70%) + 下一级正确率(30%) 插值
+//
+// 这比加权平均更准确，因为它直接定位用户的等级边界，
+// 而不是把所有等级的正确率混在一起做平均（会被低等级高正确率拉高）。
 func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, totalAll float64) (string, int) {
 	levels := []string{"A1", "A2", "B1", "B2", "C1"}
 	vocabMap := map[string]int{
@@ -63,39 +75,89 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 		"B2": 4000,
 		"C1": 6000,
 	}
+	vocabCeiling := 8000 // C1 以上的词汇量上限
 
-	// Beta(1,1) 先验做平滑，题目少时更稳定
-	passLine := 0.6
-	finalLevel := "A1"
+	// 1. 计算每级的 Beta(1,1) 平滑正确率 + 记录样本数
+	rates := map[string]float64{}
+	samples := map[string]float64{}
+	hasData := false
 	for _, lv := range levels {
 		wT := totalW[lv]
 		if wT <= 0 {
 			continue
 		}
+		hasData = true
 		wC := correctW[lv]
-		r := (wC + 1.0) / (wT + 2.0)
-		if r >= passLine {
-			finalLevel = lv
-		} else {
-			break
-		}
+		rates[lv] = (wC + 1.0) / (wT + 2.0) // Beta(1,1) 平滑
+		samples[lv] = wT
 	}
 
-	// 若整体加权正确率很高，允许上探一档（避免卡在某一级别题目偏难导致低估）
+	// 无数据 → A1
+	if !hasData {
+		return "A1", 300
+	}
+
+	// 整体正确率（用于封顶）
+	overallRate := 0.0
 	if totalAll > 0 {
-		overall := (correctAll + 1.0) / (totalAll + 2.0)
-		if overall >= 0.8 {
-			finalLevel = nextLevelOf(finalLevel)
+		overallRate = correctAll / totalAll
+	}
+
+	// 2. 找天花板：正确率 ≥ 0.55 且样本 ≥3 的最高等级
+	ceilingIdx := -1
+	for i, lv := range levels {
+		if samples[lv] < 3 {
+			continue // 样本不足，不可靠
+		}
+		if rates[lv] >= 0.55 {
+			ceilingIdx = i
 		}
 	}
 
-	if finalLevel == "" {
-		finalLevel = "A1"
+	// 3. 整体正确率封顶
+	// 整体 <50% → 天花板不超过 B1（index 2）
+	// 整体 <60% → 天花板不超过 B2（index 3）
+	if ceilingIdx > 2 && overallRate < 0.5 {
+		ceilingIdx = 2
 	}
-	if _, ok := vocabMap[finalLevel]; !ok {
-		finalLevel = "A1"
+	if ceilingIdx > 3 && overallRate < 0.6 {
+		ceilingIdx = 3
 	}
-	return finalLevel, vocabMap[finalLevel]
+
+	// 4. 没有合格天花板 → A1（按整体正确率给部分 credit）
+	if ceilingIdx == -1 {
+		vocab := 200 + int(float64(300-200)*overallRate)
+		return "A1", vocab
+	}
+
+	ceilingLevel := levels[ceilingIdx]
+	ceilingRate := rates[ceilingLevel]
+
+	// 5. 下一级正确率（用于判断用户是否接近升级）
+	var nextRate float64
+	nextVocab := vocabCeiling
+	if ceilingIdx+1 < len(levels) {
+		nextLevel := levels[ceilingIdx+1]
+		nextRate = rates[nextLevel] // 可能没有数据 → 0
+		nextVocab = vocabMap[nextLevel]
+	}
+
+	// 6. 在天花板等级内插值词汇量
+	// position = 70% 天花板正确率 + 30% 下一级正确率
+	position := ceilingRate*0.7 + nextRate*0.3
+	if position > 1.0 {
+		position = 1.0
+	}
+
+	baseVocab := vocabMap[ceilingLevel]
+	estimatedVocab := baseVocab + int(float64(nextVocab-baseVocab)*position)
+
+	// 保底：不低于当前等级基数
+	if estimatedVocab < baseVocab {
+		estimatedVocab = baseVocab
+	}
+
+	return ceilingLevel, estimatedVocab
 }
 
 // vocabTestOwnedByStudent 老师代测（student_id）+ 学员自测（user_id 且未绑定）。
@@ -159,7 +221,7 @@ func (h *Handlers) handleVocabTestStart(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 
-	// 每个等级各取 6 题，共 30 题（A1×6 + A2×6 + B1×6 + B2×6 + C1×6）
+	// 每个等级各取 8 题，共 40 题（A1×8 + A2×8 + B1×8 + B2×8 + C1×8）
 	levels := []string{"A1", "A2", "B1", "B2", "C1"}
 	var allQuestions []models.VocabTestQuestion
 
@@ -179,7 +241,7 @@ func (h *Handlers) handleVocabTestStart(c *gin.Context) {
 	}
 
 	for _, lv := range levels {
-		qs, err := pickBalancedRandomQuestionsFromPool(pool, lv, 6, excludeIDs)
+		qs, err := pickBalancedRandomQuestionsFromPool(pool, lv, 8, excludeIDs)
 		if err != nil {
 			response.Fail(c, "题库暂无题目，请联系管理员添加", nil)
 			return
@@ -340,17 +402,19 @@ func (h *Handlers) handleVocabTestNext(c *gin.Context) {
 
 // handleVocabTestSubmit POST /vocab-test/submit
 func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
+	fmt.Println("=== [DEBUG] vocab submit called ===")
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
 
 	var body struct {
 		StudentID uint `json:"studentId"`
 		Answers   []struct {
-			QuestionID uint   `json:"questionId"`
-			Answer     string `json:"answer"`
+			QuestionID json.Number `json:"questionId"`
+			Answer     string      `json:"answer"`
 		} `json:"answers" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
+		logger.Error("vocab submit bind error", zap.Error(err))
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("参数错误"))
 		return
 	}
@@ -361,6 +425,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	}
 	studentID, err := resolveVocabTestStudentID(db, user, body.StudentID)
 	if err != nil {
+		logger.Error("vocab submit resolve student error", zap.Error(err), zap.Uint("studentId", body.StudentID))
 		response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 		return
 	}
@@ -373,11 +438,18 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	// 批量查题目
 	ids := make([]uint, 0, len(body.Answers))
 	for _, a := range body.Answers {
-		ids = append(ids, a.QuestionID)
+		u, err := a.QuestionID.Int64()
+		if err != nil {
+			logger.Error("vocab submit invalid question id", zap.String("id", string(a.QuestionID)), zap.Error(err))
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("存在无效题目ID"))
+			return
+		}
+		ids = append(ids, uint(u))
 	}
 	var questions []models.VocabTestQuestion
 	db.Where("id IN ?", ids).Find(&questions)
 	if len(questions) != len(ids) {
+		logger.Error("vocab submit question count mismatch", zap.Int("expected", len(ids)), zap.Int("got", len(questions)))
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("存在无效题目ID"))
 		return
 	}
@@ -399,7 +471,8 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 	weightedTotalAll := 0.0
 
 	for _, a := range body.Answers {
-		q, ok := qMap[a.QuestionID]
+		qidU, _ := a.QuestionID.Int64()
+		q, ok := qMap[uint(qidU)]
 		if !ok {
 			response.AbortWithStatusJSON(c, http.StatusBadRequest, errors.New("存在无效题目ID"))
 			return
@@ -418,7 +491,7 @@ func (h *Handlers) handleVocabTestSubmit(c *gin.Context) {
 			weightedCorrectAll += w
 		}
 		answerDetails = append(answerDetails, map[string]any{
-			"questionId": a.QuestionID,
+			"questionId": qidU,
 			"answer":     ans,
 			"correct":    isCorrect,
 			"level":      q.Level,

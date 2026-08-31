@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { mediaSrc } from '@/features/wordbooks/word-audio'
 import {
   parseQuestionOptions,
   type VocabQuestion,
@@ -269,6 +270,15 @@ export function VocabQuestionFormDialog({
                 setForm((f) => ({ ...f, audioUrl: e.target.value }))
               }
             />
+            {form.audioUrl.trim() ? (
+              <audio
+                controls
+                preload='metadata'
+                src={mediaSrc(form.audioUrl.trim())}
+                className='w-full mt-1'
+                aria-label='题目音频预览'
+              />
+            ) : null}
           </div>
         </div>
         <DialogFooter>

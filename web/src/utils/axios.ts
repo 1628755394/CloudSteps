@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 import { useAuthStore } from '../stores/authStore'
 import { getApiBaseURL } from '../config/apiConfig'
+import { getStoredLocale } from '../i18n'
 import { toast } from 'sonner'
 
 const getApiBaseUrl = () => {
@@ -54,6 +55,8 @@ axiosInstance.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    // 注入 Accept-Language 让后端 i18n 中间件按语言返回消息
+    config.headers['Accept-Language'] = getStoredLocale()
     // 移除测试token逻辑，让需要认证的接口正确返回401
     
     // 如果是FormData，让浏览器自动设置Content-Type（包含boundary）

@@ -8,7 +8,7 @@ export interface VocabNextRequest {
 }
 
 export interface VocabSubmitRequest {
-  answers: Array<{ questionId: number; answer: string }>
+  answers: Array<{ questionId: number | string; answer: string }>
   studentId?: number
 }
 

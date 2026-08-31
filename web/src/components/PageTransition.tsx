@@ -2,7 +2,7 @@ import { useLocation, useOutlet } from "react-router";
 import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
-const TAB_ORDER = ["/", "/lesson-prep", "/word-books", "/anti-forgetting", "/coach-center"];
+const TAB_ORDER = ["/", "/lesson-prep", "/anti-forgetting", "/coach-center"];
 
 function getTabDirection(from: string, to: string) {
   const fromIdx = TAB_ORDER.findIndex(

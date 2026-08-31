@@ -109,7 +109,6 @@ func main() {
 		bootstrap.WithShutdownTimeout(30*time.Second),
 	)
 
-	// 迁移：使用 ling-base bootstrap 的 WithAutoMigrate
 	if *initDB {
 		lbApp.AddInitHook("auto-migrate", func(ctx context.Context) error {
 			models := app.Models()
@@ -127,7 +126,6 @@ func main() {
 			return nil
 		})
 	} else {
-		// 即使不执行 AutoMigrate，也做后置修复（ensureUsersEmailColumn 等）
 		lbApp.AddInitHook("post-migrate", func(ctx context.Context) error {
 			return app.PostMigrate(db)
 		})
@@ -139,7 +137,6 @@ func main() {
 		return seedSvc.SeedNotificationDefaults()
 	})
 
-	// 非生产环境种子数据
 	if *seed {
 		lbApp.AddInitHook("seed-all", func(ctx context.Context) error {
 			seedSvc := &app.SeedService{DB: db}
