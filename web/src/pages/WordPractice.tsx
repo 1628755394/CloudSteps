@@ -63,6 +63,10 @@ export default function WordPractice() {
     startResize: startNoteResize,
   } = useSplitScreenNote("lb_practice_note_width");
 
+  const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
+  const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
+  const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
+
   const [activeNoteKey, setActiveNoteKey] = useState(`study-note:global:${wordBookId}`);
   const [activeNoteTitle, setActiveNoteTitle] = useState(t("practice.free_note"));
 
@@ -92,10 +96,6 @@ export default function WordPractice() {
     const next = prev >= n ? 1 : prev + 1;
     setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
-
-  const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
-  const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
-  const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
 
   const applyPatchedWord = (view: UserWordView) => {
     const e = view.effective;
