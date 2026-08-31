@@ -102,8 +102,12 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   const textMapRef = useRef<Map<string, Text>>(new Map());
   const [eraserCursor, setEraserCursor] = useState<{ x: number; y: number; show: boolean }>({ x: 0, y: 0, show: false });
   const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
+  const textOverlayRef = useRef<TextOverlay | null>(null);
   const overlayRef = useRef<HTMLTextAreaElement | null>(null);
   const isFinishingRef = useRef(false);
+
+  // Keep textOverlayRef in sync with state
+  useEffect(() => { textOverlayRef.current = textOverlay; }, [textOverlay]);
 
   // Keep refs in sync
   useEffect(() => { toolRef.current = tool; }, [tool]);
@@ -271,42 +275,44 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
   const finishTextEditing = useCallback(() => {
     // Guard against double-call (Enter keydown + blur)
     if (isFinishingRef.current) return;
+    const current = textOverlayRef.current;
+    if (!current) return;
     isFinishingRef.current = true;
-    setTextOverlay((current) => {
-      if (!current) return null;
-      const trimmed = current.text.trim();
-      if (trimmed) {
-        if (current.isNew) {
-          // Create new text element
-          createTextElement(current.x, current.y, trimmed);
-        } else {
-          // Update existing
-          updateTextContent(current.id, trimmed);
-        }
-        pushUndo();
-        onContentChange?.();
-      } else if (!current.isNew) {
-        // Remove empty existing text
-        removeTextElement(current.id);
-        pushUndo();
-        onContentChange?.();
+
+    const trimmed = current.text.trim();
+    if (trimmed) {
+      if (current.isNew) {
+        createTextElement(current.x, current.y, trimmed);
+      } else {
+        updateTextContent(current.id, trimmed);
       }
-      return null;
-    });
-    // Reset guard after state update is processed
+      pushUndo();
+      onContentChange?.();
+    } else if (!current.isNew) {
+      // Remove empty existing text
+      removeTextElement(current.id);
+      pushUndo();
+      onContentChange?.();
+    }
+    // Clear overlay state
+    textOverlayRef.current = null;
+    setTextOverlay(null);
+    // Reset guard on next tick
     setTimeout(() => { isFinishingRef.current = false; }, 0);
   }, [createTextElement, updateTextContent, removeTextElement, pushUndo, onContentChange]);
 
   // ---- Start text editing at position ----
   const startTextEditing = useCallback((x: number, y: number, existingId?: string, existingText?: string) => {
     isFinishingRef.current = false;
-    setTextOverlay({
+    const overlay: TextOverlay = {
       id: existingId || "",
       x,
       y,
       text: existingText || "",
       isNew: !existingId,
-    });
+    };
+    textOverlayRef.current = overlay;
+    setTextOverlay(overlay);
   }, []);
 
   // ---- Init Leafer app ----
@@ -887,7 +893,14 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         <textarea
           ref={overlayRef}
           value={textOverlay.text}
-          onChange={(e) => setTextOverlay((prev) => prev ? { ...prev, text: e.target.value } : null)}
+          onChange={(e) => {
+            const val = e.target.value;
+            setTextOverlay((prev) => {
+              const next = prev ? { ...prev, text: val } : null;
+              textOverlayRef.current = next;
+              return next;
+            });
+          }}
           onBlur={finishTextEditing}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
