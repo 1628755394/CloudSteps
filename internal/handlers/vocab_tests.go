@@ -56,9 +56,17 @@ func (h *Handlers) registerVocabTestRoutes(r *humax.Group) {
 	}
 }
 
+// estimateLevelWeighted 使用「天花板 + 插值」算法估算用户等级和词汇量。
+//
+// 核心思路（适配自适应阶梯测试）：
+//  1. 计算每个等级的 Beta 平滑正确率
+//  2. 天花板 = 正确率 ≥ 50% 的最高等级（用户"够得着"的最高级别）
+//  3. 在天花板等级的词汇量区间内，用天花板正确率(70%) + 下一级正确率(30%) 插值
+//
+// 这比加权平均更准确，因为它直接定位用户的等级边界，
+// 而不是把所有等级的正确率混在一起做平均（会被低等级高正确率拉高）。
 func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, totalAll float64) (string, int) {
 	levels := []string{"A1", "A2", "B1", "B2", "C1"}
-	// 各等级对应的词汇量基数（CEFR 标准）
 	vocabMap := map[string]int{
 		"A1": 300,
 		"A2": 1000,
@@ -66,114 +74,75 @@ func estimateLevelWeighted(correctW, totalW map[string]float64, correctAll, tota
 		"B2": 4000,
 		"C1": 6000,
 	}
+	vocabCeiling := 8000 // C1 以上的词汇量上限
 
-	// 自适应模式下，用户不是按 A1→C1 顺序做完每级题目，
-	// 而是答对升一级、答错降一级，所以逐级判断 ≥passLine 不适用。
-	//
-	// 新算法：用各等级正确率做加权平均，算出能力分（0~1），再映射到等级。
-	// 每级有不同权重：高等级答对的贡献更大（因为题目更难）。
-
-	// 1. 计算每级的 Beta 平滑正确率
-	levelRates := map[string]float64{}
-	totalWeight := 0.0
-	weightedScore := 0.0 // 加权能力分
-
-	for i, lv := range levels {
+	// 1. 计算每级的 Beta(1,1) 平滑正确率
+	rates := map[string]float64{}
+	hasData := false
+	for _, lv := range levels {
 		wT := totalW[lv]
 		if wT <= 0 {
 			continue
 		}
+		hasData = true
 		wC := correctW[lv]
-		// Beta(1,1) 平滑
-		r := (wC + 1.0) / (wT + 2.0)
-		levelRates[lv] = r
-
-		// 等级权重：等级越高，权重越大（A1=1, A2=2, B1=3, B2=4, C1=5）
-		// 这样高等级的表现在能力分中占比更大
-		lvWeight := float64(i + 1)
-		// 该等级的能力贡献 = 等级权重 × 正确率
-		// 答对 C1 题目比答对 A1 题目更能说明水平高
-		weightedScore += lvWeight * r * float64(wT) / float64(totalAll)
-		totalWeight += lvWeight * float64(wT) / float64(totalAll)
+		rates[lv] = (wC + 1.0) / (wT + 2.0) // Beta(1,1) 平滑
 	}
 
-	// 能力分 = 加权平均正确率（0~1）
-	abilityScore := 0.5 // 默认中间值
-	if totalWeight > 0 {
-		abilityScore = weightedScore / totalWeight
+	// 无数据 → A1
+	if !hasData {
+		return "A1", 300
 	}
 
-	// 2. 能力分映射到等级
-	// 能力分 0~1 映射到 5 个等级，每级占 0.2 的区间
-	// 但要考虑高等级答得多说明水平高，低等级答得多说明水平低
-	// 用整体正确率 + 能力分综合判断
-	overallRate := 0.5
-	if totalAll > 0 {
-		overallRate = (correctAll + 1.0) / (totalAll + 2.0)
-	}
-
-	// 综合分 = 60% 能力分 + 40% 整体正确率
-	combinedScore := 0.6*abilityScore + 0.4*overallRate
-
-	// 映射到等级
-	finalLevel := "A1"
-	switch {
-	case combinedScore >= 0.85:
-		finalLevel = "C1"
-	case combinedScore >= 0.70:
-		finalLevel = "B2"
-	case combinedScore >= 0.55:
-		finalLevel = "B1"
-	case combinedScore >= 0.40:
-		finalLevel = "A2"
-	default:
-		finalLevel = "A1"
-	}
-
-	if _, ok := vocabMap[finalLevel]; !ok {
-		finalLevel = "A1"
-	}
-
-	// 3. 词汇量插值：根据综合分在等级之间连续插值
-	estimatedVocab := interpolateVocabByScore(combinedScore, levels, vocabMap)
-
-	return finalLevel, estimatedVocab
-}
-
-// interpolateVocabByScore 根据综合能力分（0~1）在等级之间连续插值估算词汇量
-func interpolateVocabByScore(score float64, levels []string, vocabMap map[string]int) int {
-	// 等级边界：A1=0.0, A2=0.4, B1=0.55, B2=0.70, C1=0.85
-	// 词汇量：A1=300, A2=1000, B1=2500, B2=4000, C1=6000, C1+=8000
-	boundaries := []struct {
-		minScore float64
-		vocab    int
-		nextVocab int
-	}{
-		{0.0, 300, 1000},    // A1
-		{0.4, 1000, 2500},   // A2
-		{0.55, 2500, 4000},  // B1
-		{0.70, 4000, 6000},  // B2
-		{0.85, 6000, 8000},  // C1
-	}
-
-	for i, b := range boundaries {
-		nextBoundary := 1.0
-		if i+1 < len(boundaries) {
-			nextBoundary = boundaries[i+1].minScore
-		}
-		if score < nextBoundary || i == len(boundaries)-1 {
-			if score <= b.minScore {
-				return b.vocab
-			}
-			if score >= nextBoundary && i < len(boundaries)-1 {
-				return b.nextVocab
-			}
-			// 在当前区间内线性插值
-			ratio := (score - b.minScore) / (nextBoundary - b.minScore)
-			return b.vocab + int(float64(b.nextVocab-b.vocab)*ratio)
+	// 2. 找天花板：正确率 ≥ 0.5 的最高等级
+	ceilingIdx := -1
+	for i, lv := range levels {
+		if rates[lv] >= 0.5 {
+			ceilingIdx = i
 		}
 	}
-	return 8000
+
+	// 3. 所有等级正确率都 < 0.5 → A1（但给部分词汇量 credit）
+	if ceilingIdx == -1 {
+		overallRate := 0.0
+		if totalAll > 0 {
+			overallRate = correctAll / totalAll
+		}
+		// 即使全错也给 200 词汇量底线，部分对则按比例给到 A1 上限
+		vocab := 200 + int(float64(300-200)*overallRate)
+		return "A1", vocab
+	}
+
+	ceilingLevel := levels[ceilingIdx]
+	ceilingRate := rates[ceilingLevel]
+
+	// 4. 下一级正确率（用于判断用户是否接近升级）
+	var nextRate float64
+	nextVocab := vocabCeiling
+	if ceilingIdx+1 < len(levels) {
+		nextLevel := levels[ceilingIdx+1]
+		nextRate = rates[nextLevel] // 可能没有数据 → 0
+		nextVocab = vocabMap[nextLevel]
+	}
+
+	// 5. 在天花板等级内插值词汇量
+	// position = 70% 天花板正确率 + 30% 下一级正确率
+	// 天花板正确率高 → 稳固在该等级上半段
+	// 下一级正确率高 → 接近升级，推向上半段
+	position := ceilingRate*0.7 + nextRate*0.3
+	if position > 1.0 {
+		position = 1.0
+	}
+
+	baseVocab := vocabMap[ceilingLevel]
+	estimatedVocab := baseVocab + int(float64(nextVocab-baseVocab)*position)
+
+	// 保底：不低于当前等级基数
+	if estimatedVocab < baseVocab {
+		estimatedVocab = baseVocab
+	}
+
+	return ceilingLevel, estimatedVocab
 }
 
 // vocabTestOwnedByStudent 老师代测（student_id）+ 学员自测（user_id 且未绑定）。
