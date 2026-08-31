@@ -6,14 +6,14 @@ describe("buildWordPracticeSequence", () => {
   it("builds the five-word practice order", () => {
     expect(buildWordPracticeSequence(5)).toEqual([
       0, 1, 0, 1, 2, 1, 0, 1, 2, 3, 2,
-      1, 0, 1, 2, 3, 4, 3, 2, 1,
+      1, 0, 1, 2, 3, 4, 3, 2, 1, 0,
     ]);
   });
 
   it("handles empty and partial batches", () => {
     expect(buildWordPracticeSequence(0)).toEqual([]);
     expect(buildWordPracticeSequence(1)).toEqual([0]);
-    expect(buildWordPracticeSequence(2)).toEqual([0, 1]);
+    expect(buildWordPracticeSequence(2)).toEqual([0, 1, 0]);
   });
 
   it("starts over after switching words and reveals on a continuation tap", () => {

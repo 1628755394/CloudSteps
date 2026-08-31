@@ -4,7 +4,8 @@ export function buildWordPracticeSequence(wordCount: number): number[] {
   const sequence: number[] = [];
   for (let end = 1; end < wordCount; end++) {
     for (let i = 0; i <= end; i++) sequence.push(i);
-    for (let i = end - 1; i >= 1; i--) sequence.push(i);
+    const floor = end === wordCount - 1 ? 0 : 1;
+    for (let i = end - 1; i >= floor; i--) sequence.push(i);
   }
   return sequence;
 }
