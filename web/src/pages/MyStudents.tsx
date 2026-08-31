@@ -30,6 +30,7 @@ import { resolveMediaUrl } from "../utils/mediaUrl";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import { formatApiMessage } from "../utils/apiMessage";
+import { formatTeachingMinutes } from "../utils/formatMinutes";
 
 const DEFAULT_PASSWORD = "student123";
 const PAGE_LIMIT = 20;
@@ -49,11 +50,6 @@ function studentAvatarUrl(row: TeacherCoachingQuotaRow) {
 
 function loginAccount(row: TeacherCoachingQuotaRow) {
   return row.student?.username || row.student?.email || "";
-}
-
-function minsLabel(n: number) {
-  if (!Number.isFinite(n)) return "—";
-  return i18n.t("practice.minutes_unit", { count: Math.max(0, Math.round(n)) });
 }
 
 export default function MyStudents() {
@@ -148,7 +144,7 @@ export default function MyStudents() {
   }, [hasMore, nextCursor, loading, debouncedQ, fetchPage]);
 
   const openDetail = (r: TeacherCoachingQuotaRow) => {
-    navigate(`/my-students/${r.studentId}`, {
+    navigate(`/my-students/${String(r.studentId)}`, {
       state: { studentName: studentLabel(r) },
     });
   };
@@ -352,7 +348,7 @@ export default function MyStudents() {
                           }`}
                         >
                           <Clock size={10} />
-                          {minsLabel(r.remainingMinutes || 0)}
+                          {formatTeachingMinutes(r.remainingMinutes || 0)}
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 truncate">

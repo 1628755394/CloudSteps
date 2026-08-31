@@ -6,6 +6,7 @@ import {
   Clock,
   KeyRound,
   Loader2,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -50,6 +51,8 @@ import {
   normalizeReviewCurvePreset,
   reviewCurveLabel,
 } from "../utils/reviewCurve";
+import { formatTeachingMinutes } from "../utils/formatMinutes";
+import { isValidSnowflakeId, normalizeSnowflakeId, sameSnowflakeId } from "../utils/json-snowflake";
 
 const DEFAULT_PASSWORD = "student123";
 
@@ -58,11 +61,6 @@ type TabKey = "hours" | "wordbooks" | "vocab";
 function studentLabel(row: TeacherCoachingQuotaRow) {
   const s = row.student;
   return s?.displayName || s?.username || s?.email || i18n.t("student_detail.student_fallback", { id: row.studentId });
-}
-
-function minsLabel(n: number) {
-  if (!Number.isFinite(n)) return "—";
-  return i18n.t("practice.minutes_unit", { count: Math.max(0, Math.round(n)) });
 }
 
 function formatDateTime(iso?: string | null) {
@@ -79,7 +77,7 @@ export default function StudentDetail() {
   const { studentId: studentIdParam } = useParams<{ studentId: string }>();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const studentId = Number(studentIdParam);
+  const studentId = normalizeSnowflakeId(studentIdParam);
 
   const tabFromQuery = searchParams.get("tab");
   const initialTab: TabKey =
@@ -112,6 +110,7 @@ export default function StudentDetail() {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [quotaEditOpen, setQuotaEditOpen] = useState(false);
   const [quotaMode, setQuotaMode] = useState<"add" | "set">("add");
   const [quotaInput, setQuotaInput] = useState("60");
   const [quotaSaving, setQuotaSaving] = useState(false);
@@ -122,7 +121,7 @@ export default function StudentDetail() {
   }, [location.state]);
 
   useEffect(() => {
-    if (!Number.isFinite(studentId) || studentId <= 0) {
+    if (!isValidSnowflakeId(studentId)) {
       setLoadingQuota(false);
       return;
     }
@@ -132,7 +131,7 @@ export default function StudentDetail() {
       try {
         const rows = await listAllTeacherCoachingQuotas();
         if (cancelled) return;
-        const row = rows.find((r) => r.studentId === studentId) || null;
+        const row = rows.find((r) => sameSnowflakeId(r.studentId, studentId)) || null;
         setQuota(row);
         if (row) setTitle(studentLabel(row));
         else if (!title) setTitle(t("student_detail.student_fallback", { id: studentId }));
@@ -221,10 +220,11 @@ export default function StudentDetail() {
       );
       showToast.success(
         quotaMode === "add"
-          ? t("student_detail.added_minutes", { n, remaining: minsLabel(nextRemaining) })
-          : t("student_detail.set_minutes", { remaining: minsLabel(nextRemaining) })
+          ? t("student_detail.added_minutes", { n, remaining: formatTeachingMinutes(nextRemaining) })
+          : t("student_detail.set_minutes", { remaining: formatTeachingMinutes(nextRemaining) })
       );
       setQuotaInput(quotaMode === "add" ? "60" : String(nextRemaining));
+      setQuotaEditOpen(false);
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
@@ -244,7 +244,7 @@ export default function StudentDetail() {
   };
 
   const loadWordBooks = useCallback(async () => {
-    if (!Number.isFinite(studentId) || studentId <= 0) return;
+    if (!isValidSnowflakeId(studentId)) return;
     setLoadingBooks(true);
     try {
       const res = await listStudentWordBooksAsTeacher(studentId);
@@ -267,7 +267,7 @@ export default function StudentDetail() {
   }, [studentId]);
 
   const loadVocabTests = useCallback(async () => {
-    if (!Number.isFinite(studentId) || studentId <= 0) return;
+    if (!isValidSnowflakeId(studentId)) return;
     setLoadingVocab(true);
     try {
       const res = await listStudentActivityRecordsAsTeacher(studentId, {
@@ -423,7 +423,7 @@ export default function StudentDetail() {
   const total = quota?.totalAllocatedMinutes ?? 0;
   const low = remaining < 30;
 
-  if (!Number.isFinite(studentId) || studentId <= 0) {
+  if (!isValidSnowflakeId(studentId)) {
     return (
       <div className="p-4">
         <CloudCard className="p-8">
@@ -504,21 +504,40 @@ export default function StudentDetail() {
             <>
               <CloudCard className="p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="text-xs text-muted-foreground">{t("student_detail.remaining_hours")}</div>
                     <div
                       className={`text-2xl font-bold tabular-nums mt-1 ${
                         low ? "text-destructive" : "text-foreground"
                       }`}
                     >
-                      {minsLabel(remaining)}
+                      {formatTeachingMinutes(remaining)}
                     </div>
-                    <div className="text-[11px] text-muted-soft mt-1">
-{t("student_detail.allocated_summary", { total: minsLabel(total), remaining: minsLabel(remaining) })}
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      <div className="text-[11px] text-muted-soft min-w-0">
+                        {t("student_detail.allocated_summary", {
+                          total: formatTeachingMinutes(total),
+                          remaining: formatTeachingMinutes(remaining),
+                        })}
+                      </div>
+                      <CloudButton
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 h-7 px-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setQuotaMode("add");
+                          setQuotaInput("60");
+                          setQuotaEditOpen(true);
+                        }}
+                        aria-label={t("student_detail.edit_quota")}
+                      >
+                        <Pencil size={14} />
+                      </CloudButton>
                     </div>
                   </div>
                   <div
-                    className={`size-12 rounded-2xl flex items-center justify-center ${
+                    className={`size-12 rounded-2xl flex items-center justify-center shrink-0 ${
                       low ? "bg-destructive/10" : "bg-primary-soft"
                     }`}
                   >
@@ -535,75 +554,6 @@ export default function StudentDetail() {
                     />
                   </div>
                 )}
-              </CloudCard>
-
-              <CloudCard className="p-4 space-y-3">
-                <div>
-                  <div className="text-sm font-semibold text-foreground">{t("student_detail.configure_quota")}</div>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                    {t("student_detail.quota_desc")}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <CloudButton
-                    type="button"
-                    size="sm"
-                    variant={quotaMode === "add" ? "brand" : "outline"}
-                    onClick={() => {
-                      setQuotaMode("add");
-                      setQuotaInput("60");
-                    }}
-                  >
-                    {t("student_detail.add_minutes")}
-                  </CloudButton>
-                  <CloudButton
-                    type="button"
-                    size="sm"
-                    variant={quotaMode === "set" ? "brand" : "outline"}
-                    onClick={() => {
-                      setQuotaMode("set");
-                      setQuotaInput(String(Math.max(0, remaining)));
-                    }}
-                  >
-                    {t("student_detail.set_remaining")}
-                  </CloudButton>
-                </div>
-                <div className="flex items-end gap-2">
-                  <div className="flex-1 min-w-0">
-                    <CloudInput
-                      label={quotaMode === "add" ? t("student_detail.add_minutes_label") : t("student_detail.remaining_minutes_label")}
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={quotaInput}
-                      onChange={setQuotaInput}
-                      inputMode="numeric"
-                    />
-                  </div>
-                  <CloudButton
-                    type="button"
-                    variant="brand"
-                    className="shrink-0 mb-0.5"
-                    disabled={quotaSaving}
-                    onClick={() => void saveStudentQuota()}
-                  >
-                    {quotaSaving ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
-                    {t("practice.save")}
-                  </CloudButton>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(quotaMode === "add" ? [30, 60, 120, 180] : [0, 60, 120, 240]).map((n) => (
-                    <CloudButton
-                      key={n}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setQuotaInput(String(n))}
-                    >
-                      {quotaMode === "add" ? `+${n}` : t("create_appointment.duration_min", { n })}
-                    </CloudButton>
-                  ))}
-                </div>
               </CloudCard>
 
               <CloudCard className="p-4 space-y-3">
@@ -783,6 +733,98 @@ export default function StudentDetail() {
         </TabsContent>
 
       </Tabs>
+
+      <Dialog
+        open={quotaEditOpen}
+        onOpenChange={(open) => {
+          if (quotaSaving) return;
+          setQuotaEditOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("student_detail.edit_quota")}</DialogTitle>
+            <DialogDescription>
+              {t("student_detail.allocated_summary", {
+                total: formatTeachingMinutes(total),
+                remaining: formatTeachingMinutes(remaining),
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <CloudButton
+                type="button"
+                size="sm"
+                variant={quotaMode === "add" ? "brand" : "outline"}
+                onClick={() => {
+                  setQuotaMode("add");
+                  setQuotaInput("60");
+                }}
+              >
+                {t("student_detail.add_minutes")}
+              </CloudButton>
+              <CloudButton
+                type="button"
+                size="sm"
+                variant={quotaMode === "set" ? "brand" : "outline"}
+                onClick={() => {
+                  setQuotaMode("set");
+                  setQuotaInput(String(Math.max(0, remaining)));
+                }}
+              >
+                {t("student_detail.set_remaining")}
+              </CloudButton>
+            </div>
+            <CloudInput
+              label={
+                quotaMode === "add"
+                  ? t("student_detail.add_minutes_label")
+                  : t("student_detail.remaining_minutes_label")
+              }
+              type="number"
+              min={0}
+              step={1}
+              value={quotaInput}
+              onChange={setQuotaInput}
+              inputMode="numeric"
+            />
+            <div className="flex flex-wrap gap-2">
+              {(quotaMode === "add" ? [30, 60, 120, 180] : [0, 60, 120, 240]).map((n) => (
+                <CloudButton
+                  key={n}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setQuotaInput(String(n))}
+                >
+                  {quotaMode === "add" ? `+${n}` : t("create_appointment.duration_min", { n })}
+                </CloudButton>
+              ))}
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
+            <CloudButton
+              type="button"
+              variant="outline"
+              className="flex-1"
+              disabled={quotaSaving}
+              onClick={() => setQuotaEditOpen(false)}
+            >
+              {t("practice.cancel")}
+            </CloudButton>
+            <CloudButton
+              type="button"
+              variant="brand"
+              className="flex-1"
+              loading={quotaSaving}
+              onClick={() => void saveStudentQuota()}
+            >
+              {t("practice.save")}
+            </CloudButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-lg rounded-2xl max-h-[85vh] flex flex-col">
