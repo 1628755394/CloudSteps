@@ -76,45 +76,6 @@ function BottomNav({
   );
 }
 
-function TopNavBar({
-  items,
-  pathname,
-}: {
-  items: typeof navItems;
-  pathname: string;
-}) {
-  return (
-    <div className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-sm">
-      <div className="max-w-[1200px] mx-auto px-2 sm:px-4 overflow-x-auto">
-        <div className="flex items-center gap-1 min-w-max py-1.5">
-          {items.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              item.path === "/"
-                ? pathname === "/"
-                : pathname === item.path || pathname.startsWith(`${item.path}/`);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                data-coach={item.path === "/lesson-prep" ? "schedule" : undefined}
-                className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors ${
-                  isActive
-                    ? "text-primary font-medium bg-primary-soft"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                }`}
-              >
-                <Icon size={16} strokeWidth={2} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SidebarPanel({
   items,
   pathname,
@@ -225,9 +186,8 @@ export function Layout() {
   }, [userRole]);
 
   const showSidebar = layout === "sidebar";
-  const showTopNav = layout === "top";
   const showBottomNav = layout === "sidebar" || layout === "bottom";
-  // 侧栏布局：移动端用抽屉；底栏布局不需要汉堡；顶栏布局不需要汉堡
+  // 侧栏布局：移动端用抽屉；底栏布局不需要汉堡
   const showMobileDrawer = layout === "sidebar";
   const showHeaderMenu = layout === "sidebar";
   const isLessonPrep = location.pathname === "/lesson-prep";
@@ -241,10 +201,7 @@ export function Layout() {
 
   const mainMarginLeft = showSidebar ? "lg:ml-60" : "";
 
-  const headerTopOffset =
-    layout === "top"
-      ? "top-[calc(3rem+env(safe-area-inset-top,0px))] lg:top-12"
-      : "top-[calc(2.75rem+env(safe-area-inset-top,0px))] lg:top-11";
+  const headerTopOffset = "top-[calc(2.75rem+env(safe-area-inset-top,0px))] lg:top-11";
 
   const lessonPrepBottom = showBottomNav
     ? layout === "sidebar"
@@ -322,16 +279,8 @@ export function Layout() {
         </main>
       ) : (
         <div
-          className={`flex flex-1 flex-col min-h-0 ${
-            layout === "top"
-              ? "pt-[calc(3rem+env(safe-area-inset-top,0px))] lg:pt-12"
-              : "pt-[calc(2.75rem+env(safe-area-inset-top,0px))] lg:pt-11"
-          }`}
+          className={`flex flex-1 flex-col min-h-0 pt-[calc(2.75rem+env(safe-area-inset-top,0px))] lg:pt-11`}
         >
-          {showTopNav && (
-            <TopNavBar items={filteredNavItems} pathname={location.pathname} />
-          )}
-
           <div className="flex flex-1 min-h-0">
             <main
               className={`flex-1 ${mainMarginLeft} ${mainPadBottom} flex flex-col min-h-0 overflow-x-hidden min-h-[calc(100dvh-2.75rem-env(safe-area-inset-top,0px))]`}

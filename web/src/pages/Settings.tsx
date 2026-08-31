@@ -260,7 +260,7 @@ export default function Settings() {
                 <LayoutTemplate size={12} />
                 布局
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {LAYOUT_KEYS.map((key) => {
                   const preset = LAYOUT_PRESETS[key];
                   const active = layout === key;

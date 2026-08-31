@@ -15,7 +15,7 @@ export type AccentColor = AccentPresetKey | "custom";
  * - top：顶栏横向导航，无侧栏/底栏
  * - bottom：全端底部导航，无侧栏
  */
-export type LayoutMode = "sidebar" | "top" | "bottom";
+export type LayoutMode = "sidebar" | "bottom";
 
 type SurfaceTone = {
   background: string;
@@ -166,7 +166,6 @@ export const ACCENT_PRESETS: Record<AccentPresetKey, AccentPreset> = {
 
 export const LAYOUT_PRESETS: Record<LayoutMode, { label: string; desc: string }> = {
   sidebar: { label: "侧栏", desc: "桌面左侧导航，移动端底部导航" },
-  top: { label: "顶栏", desc: "顶部横向导航，无侧栏与底栏" },
   bottom: { label: "底栏", desc: "全端底部导航，无左侧栏" },
 };
 
@@ -216,8 +215,8 @@ function darkenHex(hex: string, factor = 0.85): string {
 }
 
 function normalizeLayout(raw: unknown): LayoutMode {
-  if (raw === "top" || raw === "bottom" || raw === "sidebar") return raw;
-  // 兼容旧版 default/compact/wide
+  if (raw === "bottom" || raw === "sidebar") return raw;
+  // 兼容旧版 top → sidebar
   return "sidebar";
 }
 
