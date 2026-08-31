@@ -18,6 +18,7 @@ import {
   type WordViewMode,
 } from "../components/WordMarkView";
 import { WordDetailPanel } from "../components/WordDetailPanel";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
 
 import { NoteSplitLayout } from "../components/NoteSplitLayout";
 import { useNote } from "../components/NoteContext";
@@ -401,6 +402,14 @@ export default function PreTrainingCheck() {
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
+          <div onClick={(e) => e.stopPropagation()}>
+            <StudyNoteLauncher
+              storageKey={`study-note:word:${wordBookId}:${word.id}`}
+              title={t("practice.note_title", { word: word.word })}
+              label={t("practice.note")}
+              className="h-9 px-2"
+            />
+          </div>
           <CloudButton
             type="button"
             variant="ghost"

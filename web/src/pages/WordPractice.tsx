@@ -9,7 +9,7 @@ import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { StudyNotePanel } from "../components/StudyNotePanel";
+import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
@@ -365,6 +365,14 @@ export default function WordPractice() {
                 </CloudButton>
               </div>
               <div className="flex items-center justify-center gap-3 border-t border-[#E2E8F0] px-4 py-4">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StudyNoteLauncher
+                    storageKey={wordNoteKey(cardWord.id)}
+                    title={t("practice.note_title", { word: cardWord.word })}
+                    label={t("practice.note")}
+                    className="h-9 px-2"
+                  />
+                </div>
                 {!manualReadMode && parseAudioUrls(cardWord.audioUrl).length > 0 && (
                   <CloudButton
                     variant={playingId === cardWord.id ? "mint" : "mintOutline"}
@@ -419,6 +427,14 @@ export default function WordPractice() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <StudyNoteLauncher
+                        storageKey={wordNoteKey(word.id)}
+                        title={t("practice.note_title", { word: word.word })}
+                        label={t("practice.note")}
+                        className="h-9 px-2"
+                      />
+                    </div>
                     {!manualReadMode && parseAudioUrls(word.audioUrl).length > 0 && (
                       <CloudButton
                         variant={playingId === word.id ? "mint" : "mintOutline"}

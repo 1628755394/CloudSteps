@@ -23,7 +23,7 @@ import { WordDetailPanel } from "../components/WordDetailPanel";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
-import { StudyNotePanel } from "../components/StudyNotePanel";
+import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 import { useTranslation } from "react-i18next";
 import { formatApiMessage } from "../utils/apiMessage";
 
@@ -360,6 +360,14 @@ export default function ReviewWordList() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <StudyNoteLauncher
+                          storageKey={`study-note:word:${wordBookId}:${item.id}`}
+                          title={t("practice.note_title", { word: item.word })}
+                          label={t("practice.note")}
+                          className="h-9 px-2"
+                        />
+                      </div>
                       <CloudButton
                         type="button"
                         variant="ghost"

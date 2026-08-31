@@ -17,6 +17,7 @@ import { playFirstWordAudio } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { applyUserWordView } from "../components/WordEditControls";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
 
 import { useTranslation } from "react-i18next";
 
@@ -203,7 +204,14 @@ export default function ListenIdentify() {
             )}
             {showAnswer && renderRevealed(w)}
           </div>
-
+          <div onClick={(e) => e.stopPropagation()}>
+            <StudyNoteLauncher
+              storageKey={wordNoteKey(w.id)}
+              title={t("practice.note_title", { word: w.word })}
+              label={t("practice.note")}
+              className="h-9 px-2"
+            />
+          </div>
         </div>
         {detailMode && showAnswer && (
           <div className="mt-3" onClick={(e) => e.stopPropagation()}>
@@ -324,6 +332,14 @@ export default function ListenIdentify() {
                 </CloudButton>
               </div>
               <div className="flex items-center justify-center gap-3 border-t border-border/60 px-4 py-4">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StudyNoteLauncher
+                    storageKey={wordNoteKey(cardWord.id)}
+                    title={t("practice.note_title", { word: cardWord.word })}
+                    label={t("practice.note")}
+                    className="h-9 px-2"
+                  />
+                </div>
                 <CloudButton
                   type="button"
                   variant="ghost"
