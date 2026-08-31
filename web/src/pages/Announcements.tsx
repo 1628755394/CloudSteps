@@ -1,12 +1,16 @@
 import { useEffect, useState, useCallback } from "react";
-import { Bell, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { ChevronRight } from "lucide-react";
 import { CloudCard, CloudEmpty, CloudSpin } from "../components/cloudsteps/arco";
+import { PageBackHeader } from "../components/PageBackHeader";
 import { listAnnouncements, markAnnouncementRead, type Announcement } from "../api/announcements";
 import { MarkdownView } from "../components/MarkdownView";
+import { formatApiMessage } from "../utils/apiMessage";
 
 const PAGE_SIZE = 20;
 
 export default function Announcements() {
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -18,15 +22,15 @@ export default function Announcements() {
     try {
       const res = await listAnnouncements({ page: 1, pageSize: PAGE_SIZE });
       if (res.code !== 200) {
-        setErr(res.msg || "加载失败");
+        setErr(formatApiMessage(res.msg, "announcements.load_failed"));
         setItems([]);
         return;
       }
       setItems(Array.isArray(res.data.list) ? res.data.list : []);
     } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : "加载失败";
-      setErr(msg);
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "announcements.load_failed"));
       setItems([]);
     } finally {
       setLoading(false);
@@ -40,19 +44,15 @@ export default function Announcements() {
   const toggleExpand = (item: Announcement) => {
     const isOpening = expandedId !== item.id;
     setExpandedId(isOpening ? item.id : null);
-    // 展开时标记已读
     if (isOpening && !item.read) {
       void markAnnouncementRead(item.id).catch(() => {});
     }
   };
 
   return (
-    <div className="space-y-4 min-w-0 w-full">
-      <div className="flex items-center gap-2">
-        <Bell className="text-primary" size={18} />
-        <h1 className="text-base font-semibold text-foreground">系统公告</h1>
-      </div>
-
+    <div className="min-h-dvh flex flex-col bg-background">
+      <PageBackHeader title={t("announcements.title")} fallbackTo="/settings" maxWidthClass="max-w-2xl" />
+      <div className="flex-1 w-full max-w-2xl mx-auto px-4 py-4 space-y-4 min-w-0">
       {err && (
         <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {err}
@@ -61,11 +61,11 @@ export default function Announcements() {
 
       {loading ? (
         <CloudCard className="p-10">
-          <CloudSpin tip="加载中…" />
+          <CloudSpin tip={t("announcements.loading")} />
         </CloudCard>
       ) : items.length === 0 ? (
         <CloudCard className="p-8">
-          <CloudEmpty description="暂无公告" />
+          <CloudEmpty description={t("announcements.empty")} />
         </CloudCard>
       ) : (
         <div className="space-y-2.5">
@@ -85,7 +85,7 @@ export default function Announcements() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="text-sm font-semibold text-foreground line-clamp-1">
-                        {item.title || "公告"}
+                        {item.title || t("announcements.default_title")}
                       </h3>
                       <ChevronRight
                         size={16}
@@ -94,7 +94,9 @@ export default function Announcements() {
                     </div>
                     {item.publishedAt && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(item.publishedAt).toLocaleDateString("zh-CN")}
+                        {new Date(item.publishedAt).toLocaleDateString(
+                          i18n.language === "zh-CN" ? "zh-CN" : "en-US"
+                        )}
                       </p>
                     )}
                     {expanded && (
@@ -102,7 +104,7 @@ export default function Announcements() {
                         {item.content ? (
                           <MarkdownView content={item.content} />
                         ) : (
-                          <p className="text-muted-foreground">暂无内容</p>
+                          <p className="text-muted-foreground">{t("announcements.no_content")}</p>
                         )}
                       </div>
                     )}
@@ -113,6 +115,7 @@ export default function Announcements() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

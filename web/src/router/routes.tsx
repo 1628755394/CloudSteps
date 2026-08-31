@@ -117,7 +117,6 @@ export const router = createBrowserRouter(
       },
       { path: "profile/edit", element: <ProfileEdit /> },
       { path: "notifications", element: <Notifications /> },
-      { path: "announcements", element: <Announcements /> },
     ],
   },
   // 独立页面（不使用Layout）
@@ -166,6 +165,14 @@ export const router = createBrowserRouter(
     element: (
       <RequireAuth>
         <Feedback />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/announcements",
+    element: (
+      <RequireAuth>
+        <Announcements />
       </RequireAuth>
     ),
   },

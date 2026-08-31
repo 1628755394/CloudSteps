@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import {
   getPendingAnnouncementPopup,
   markAnnouncementRead,
@@ -21,35 +23,58 @@ import {
 
 /**
  * 登录后拉取未读公告；若新手引导正在进行/待展示，则延后弹出，引导结束后再展示。
- * 点「我知道了」立即关闭，后台批量标记已读。
+ * 每次仅展示最新一条；点「我知道了」标记已读；可跳转公告列表查看其余公告。
  */
 export function AnnouncementPopupHost() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const user = useAuthStore((s) => s.user);
   const role = (user as { role?: string } | null)?.role;
   const userId = user?.id;
 
-  const [items, setItems] = useState<Announcement[]>([]);
-  const pendingRef = useRef<Announcement[] | null>(null);
+  const [item, setItem] = useState<Announcement | null>(null);
+  const [moreCount, setMoreCount] = useState(0);
+  const pendingRef = useRef<{ item: Announcement; moreCount: number } | null>(null);
   const loadedRef = useRef(false);
 
   const deferred = shouldDeferSystemPopups(role, userId);
 
   const flushPendingIfReady = useCallback(() => {
     if (shouldDeferSystemPopups(role, userId)) {
-      setItems([]);
+      setItem(null);
+      setMoreCount(0);
       return;
     }
-    if (pendingRef.current?.length) {
-      setItems(pendingRef.current);
+    if (pendingRef.current) {
+      setItem(pendingRef.current.item);
+      setMoreCount(pendingRef.current.moreCount);
       pendingRef.current = null;
     }
   }, [role, userId]);
 
+  const applyList = useCallback(
+    (list: Announcement[]) => {
+      const latest = list[0] ?? null;
+      const extra = Math.max(0, list.length - 1);
+      if (shouldDeferSystemPopups(role, userId)) {
+        pendingRef.current = latest ? { item: latest, moreCount: extra } : null;
+        setItem(null);
+        setMoreCount(0);
+        return;
+      }
+      pendingRef.current = null;
+      setItem(latest);
+      setMoreCount(extra);
+    },
+    [role, userId],
+  );
+
   const load = useCallback(async () => {
     if (!hasHydrated || !isAuthenticated) {
-      setItems([]);
+      setItem(null);
+      setMoreCount(0);
       pendingRef.current = null;
       loadedRef.current = false;
       return;
@@ -64,34 +89,30 @@ export function AnnouncementPopupHost() {
       loadedRef.current = true;
       if (list.length === 0) {
         pendingRef.current = null;
-        setItems([]);
+        setItem(null);
+        setMoreCount(0);
         return;
       }
-      if (shouldDeferSystemPopups(role, userId)) {
-        pendingRef.current = list;
-        setItems([]);
-        return;
-      }
-      pendingRef.current = null;
-      setItems(list);
+      applyList(list);
     } catch {
-      setItems([]);
+      setItem(null);
+      setMoreCount(0);
       pendingRef.current = null;
     }
-  }, [hasHydrated, isAuthenticated, role, userId]);
+  }, [hasHydrated, isAuthenticated, applyList]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  // 引导结束后放出暂存公告；若尚未拉取则补拉一次
   useEffect(() => {
     return subscribeCoachOnboardingUi(() => {
       if (shouldDeferSystemPopups(role, userId)) {
-        setItems([]);
+        setItem(null);
+        setMoreCount(0);
         return;
       }
-      if (pendingRef.current?.length) {
+      if (pendingRef.current) {
         flushPendingIfReady();
         return;
       }
@@ -102,22 +123,31 @@ export function AnnouncementPopupHost() {
   }, [role, userId, flushPendingIfReady, load]);
 
   useEffect(() => {
-    // role/user 就绪后若不再 defer，尝试放出 pending
     flushPendingIfReady();
   }, [deferred, flushPendingIfReady]);
 
-  const dismiss = () => {
-    const ids = items.map((a) => a.id).filter(Boolean);
-    setItems([]);
+  const close = () => {
+    setItem(null);
+    setMoreCount(0);
     pendingRef.current = null;
-    for (const id of ids) {
+  };
+
+  const dismiss = () => {
+    const id = item?.id;
+    close();
+    if (id) {
       void markAnnouncementRead(id).catch(() => {
         // 忽略失败；下次仍可能再弹
       });
     }
   };
 
-  const open = items.length > 0 && !deferred;
+  const viewAll = () => {
+    close();
+    navigate("/announcements");
+  };
+
+  const open = !!item && !deferred;
 
   return (
     <Dialog
@@ -129,37 +159,31 @@ export function AnnouncementPopupHost() {
       <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
           <DialogTitle className="text-base leading-snug pr-6">
-            {items.length > 1 ? `系统公告（${items.length}）` : items[0]?.title || "系统公告"}
+            {item?.title || t("announcements.title")}
           </DialogTitle>
+          {item?.publishedAt ? (
+            <p className="text-xs text-muted-foreground pt-1">
+              {new Date(item.publishedAt).toLocaleDateString()}
+            </p>
+          ) : null}
         </DialogHeader>
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 space-y-4 pb-2">
-          {items.map((item, idx) => (
-            <section
-              key={item.id}
-              className={
-                items.length > 1
-                  ? "rounded-xl border border-border bg-muted/30 p-3.5"
-                  : undefined
-              }
-            >
-              {items.length > 1 ? (
-                <h3 className="text-sm font-semibold text-foreground mb-2 leading-snug">
-                  {idx + 1}. {item.title || "公告"}
-                </h3>
-              ) : null}
-              <div className="text-sm text-foreground leading-relaxed">
-                {item.content ? (
-                  <MarkdownView content={item.content} />
-                ) : (
-                  <p className="text-muted-foreground">暂无内容</p>
-                )}
-              </div>
-            </section>
-          ))}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-2">
+          <div className="text-sm text-foreground leading-relaxed">
+            {item?.content ? (
+              <MarkdownView content={item.content} />
+            ) : (
+              <p className="text-muted-foreground">{t("announcements.no_content")}</p>
+            )}
+          </div>
         </div>
-        <DialogFooter className="px-6 py-4 shrink-0 border-t border-border">
+        <DialogFooter className="px-6 py-4 shrink-0 border-t border-border flex-col sm:flex-row gap-2">
+          <CloudButton type="button" variant="outline" onClick={viewAll} className="w-full sm:w-auto">
+            {moreCount > 0
+              ? t("announcements.view_all_with_more", { count: moreCount })
+              : t("announcements.view_all")}
+          </CloudButton>
           <CloudButton type="button" onClick={dismiss} className="w-full sm:w-auto">
-            我知道了
+            {t("announcements.got_it")}
           </CloudButton>
         </DialogFooter>
       </DialogContent>
