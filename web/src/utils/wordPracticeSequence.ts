@@ -1,10 +1,10 @@
 export function buildWordPracticeSequence(wordCount: number): number[] {
   if (wordCount <= 0) return [];
-  const sequence = [0];
+  if (wordCount === 1) return [0];
+  const sequence: number[] = [];
   for (let end = 1; end < wordCount; end++) {
-    const start = end === 2 ? 0 : 1;
-    for (let index = start; index <= end; index++) sequence.push(index);
-    for (let index = end - 1; index >= 0; index--) sequence.push(index);
+    for (let i = 0; i <= end; i++) sequence.push(i);
+    for (let i = end - 1; i >= 1; i--) sequence.push(i);
   }
   return sequence;
 }
