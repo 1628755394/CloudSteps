@@ -50,12 +50,10 @@ var (
 	PanicRecovery                    = lbmw.PanicRecovery
 	CORS                             = lbmw.CORS
 	CORSWithConfig                   = lbmw.CORSWithConfig
-	CircuitBreakerMiddleware         = lbmw.CircuitBreakerMiddleware
 	InjectDB                         = lbmw.InjectDB
 	SecurityMiddleware               = lbmw.SecurityMiddleware
 	DefaultSecurityConfig            = lbmw.DefaultSecurityConfig
 	InitTimeoutCircuitManager        = lbmw.InitTimeoutCircuitManager
-	CombinedTimeoutCircuitMiddleware = lbmw.CombinedTimeoutCircuitMiddleware
 	GetCircuitBreakerStats           = lbmw.GetCircuitBreakerStats
 	GetTimeoutCircuitManager         = lbmw.GetTimeoutCircuitManager
 	NewTimeoutCircuitManager         = lbmw.NewTimeoutCircuitManager
