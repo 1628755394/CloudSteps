@@ -393,7 +393,7 @@ export default function FlashReview() {
                   size="iconRound"
                   disabled={cardIndex >= visibleWords.length - 1}
                   onClick={() => setCardIndex((i) => Math.min(visibleWords.length - 1, i + 1))}
-                  className="absolute right-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
+                  className="fixed sm:absolute right-2 top-1/2 z-50 sm:z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
                 >
                   <ChevronRight size={24} />
                 </CloudButton>

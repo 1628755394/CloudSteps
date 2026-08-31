@@ -1,0 +1,4 @@
+style(web): 手机端卡片模式下一按钮固定右侧
+
+- FlashReview、ListenIdentify、WordPractice 的下一页右箭头按钮
+- 小屏下 fixed 定位，大屏保持 absolute

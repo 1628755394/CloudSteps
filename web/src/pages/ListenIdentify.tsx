@@ -317,7 +317,7 @@ export default function ListenIdentify() {
                   size="iconRound"
                   disabled={cardIndex >= words.length - 1}
                   onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
-                  className="absolute right-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
+                  className="fixed sm:absolute right-2 top-1/2 z-50 sm:z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
                   aria-label={t("practice.next")}
                 >
                   <ChevronRight size={24} />
