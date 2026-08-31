@@ -35,7 +35,8 @@ interface Props {
 interface Pt { x: number; y: number }
 
 // ---- Document-like text layout constants ----
-const TEXT_MARGIN = 0;
+const TEXT_LEFT_MARGIN = 48;  // avoid notebook rings on the left
+const TEXT_RIGHT_MARGIN = 8;
 const TEXT_FIRST_ROW = 8;
 const MIN_TEXT_WIDTH = 240;
 
@@ -182,7 +183,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     const el = containerRef.current;
     if (!el) return 800;
     const rect = el.getBoundingClientRect();
-    return Math.max(Math.floor(rect.width - TEXT_MARGIN * 2), MIN_TEXT_WIDTH);
+    return Math.max(Math.floor(rect.width - TEXT_LEFT_MARGIN - TEXT_RIGHT_MARGIN), MIN_TEXT_WIDTH);
   }, []);
   const createStrokePath = useCallback((
     pts: Pt[],
@@ -296,13 +297,13 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     if (trimmed) {
       const fullWidth = getTextWidth();
       if (current.isNew) {
-        createTextElement(TEXT_MARGIN, current.y, fullWidth, trimmed);
+        createTextElement(TEXT_LEFT_MARGIN, current.y, fullWidth, trimmed);
       } else {
         // Update existing text: always full width aligned to left
         const textEl = textMapRef.current.get(current.id);
         if (textEl) {
           textEl.text = trimmed;
-          (textEl as unknown as { x?: number; y?: number; width?: number; textWrap?: string }).x = TEXT_MARGIN;
+          (textEl as unknown as { x?: number; y?: number; width?: number; textWrap?: string }).x = TEXT_LEFT_MARGIN;
           (textEl as unknown as { x?: number; y?: number; width?: number; textWrap?: string }).y = current.y;
           (textEl as unknown as { x?: number; y?: number; width?: number; textWrap?: string }).width = fullWidth;
           (textEl as unknown as { x?: number; y?: number; width?: number; textWrap?: string }).textWrap = "break";
@@ -746,10 +747,10 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
 
       if (foundText) {
         // Edit existing text: align x to left, keep y, use current full width
-        startTextEditing(TEXT_MARGIN, foundText.y, getTextWidth(), foundText.id, foundText.text);
+        startTextEditing(TEXT_LEFT_MARGIN, foundText.y, getTextWidth(), foundText.id, foundText.text);
       } else {
         // Create new text at first row (top, y=8), full page width
-        startTextEditing(TEXT_MARGIN, TEXT_FIRST_ROW, getTextWidth());
+        startTextEditing(TEXT_LEFT_MARGIN, TEXT_FIRST_ROW, getTextWidth());
       }
     };
 
@@ -910,7 +911,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     addTextAtCenter: () => {
       const layer = drawLayerRef.current;
       if (!layer) return;
-      startTextEditing(TEXT_MARGIN, TEXT_FIRST_ROW, getTextWidth());
+      startTextEditing(TEXT_LEFT_MARGIN, TEXT_FIRST_ROW, getTextWidth());
     },
   }), [captureSnapshot, restoreSnapshot, pushUndo, onContentChange, startTextEditing]);
 
@@ -966,7 +967,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
           style={{
             left: `${textOverlay.x}px`,
             top: `${textOverlay.y}px`,
-            width: "100%",
+            width: `${textOverlay.width}px`,
             color: color,
             fontSize: `${fontSize}px`,
             fontFamily: "inherit",
