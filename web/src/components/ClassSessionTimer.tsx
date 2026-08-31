@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Clock, Pause } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,7 @@ function goToAntiForgettingSetup() {
 
 /** 设置 / 调整上课定时 */
 export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: SetupProps) {
+  const { t } = useTranslation();
   const storeDuration = useClassTimerStore((s) => s.durationMin);
   const storeRemind = useClassTimerStore((s) => s.remindEveryMin);
   const endsAt = useClassTimerStore((s) => s.endsAt);
@@ -102,19 +104,19 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm rounded-2xl" hideClose>
         <DialogHeader>
-          <DialogTitle>上课定时</DialogTitle>
+          <DialogTitle>{t("coaching.timer_title")}</DialogTitle>
           <DialogDescription>
             {isCoach
               ? studentName
-                ? `当前学员：${studentName}（无排课练习时时长计入该学员）`
-                : "请先在首页选择学员，再开始定时"
-              : "选择课时长与最后提醒"}
+                ? t("coaching.timer_student", { name: studentName })
+                : t("coaching.timer_select_student")
+              : t("coaching.timer_pick_duration")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           <div>
-            <p className="text-sm font-medium text-foreground mb-2">上课时间</p>
+            <p className="text-sm font-medium text-foreground mb-2">{t("coaching.class_duration")}</p>
             <div className="flex flex-wrap gap-2">
               {PRESETS.map((m) => (
                 <button
@@ -130,7 +132,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
                       : "bg-card text-muted-foreground border-border hover:border-primary/40"
                   }`}
                 >
-                  {m} 分钟
+                  {t("ui.minutes", { count: m })}
                 </button>
               ))}
             </div>
@@ -145,16 +147,16 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
                 onKeyDown={(e) => {
                   if (e.key === "Enter") applyCustom();
                 }}
-                placeholder="自定义分钟"
+                placeholder={t("coaching.custom_minutes")}
                 className="w-28 h-9 px-3 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary"
               />
-              <span className="text-xs text-muted-foreground">1–180 分钟</span>
+              <span className="text-xs text-muted-foreground">{t("ui.minutes_range")}</span>
             </div>
           </div>
 
           <div>
             <p className="text-sm font-medium text-foreground mb-2">
-              最后提醒（剩余多少分钟时提醒一次）
+              {t("coaching.final_remind_label")}
             </p>
             <div className="flex flex-wrap gap-2">
               {REMIND_PRESETS.map((m) => (
@@ -168,18 +170,20 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
                       : "bg-card text-muted-foreground border-border hover:border-primary/40"
                   }`}
                 >
-                  {m} 分
+                  {t("ui.minutes_short", { count: m })}
                 </button>
               ))}
             </div>
             <p className="text-[11px] text-muted-foreground mt-2">
-              将在最后 {remindEveryMin} 分钟提醒一次
+              {t("coaching.final_remind_once", { count: remindEveryMin })}
             </p>
           </div>
 
           {endsAt && (
             <p className="text-xs text-amber-700">
-              当前计时进行中{billing?.studentName ? ` · ${billing.studentName}` : ""}，开始将重置
+              {t("coaching.timer_running_reset", {
+                student: billing?.studentName ? ` · ${billing.studentName}` : "",
+              })}
             </p>
           )}
         </div>
@@ -193,16 +197,16 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
                 void (async () => {
                   await settleAndStop();
                   onOpenChange(false);
-                  showToast.info("已结束上课定时");
+                  showToast.info(t("coaching.timer_stopped"));
                   goToAntiForgettingSetup();
                 })();
               }}
             >
-              结束定时
+              {t("coaching.end_timer")}
             </CloudButton>
           ) : (
             <CloudButton type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              关闭
+              {t("ui.close")}
             </CloudButton>
           )}
           <CloudButton
@@ -213,7 +217,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
               void (async () => {
                 const mins = effectiveDuration;
                 if (isCoach && !getTrainingStudent()?.id) {
-                  showToast.warning("请先在首页选择学员");
+                  showToast.warning(t("coaching.timer_select_student"));
                   return;
                 }
                 setStarting(true);
@@ -233,7 +237,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
                   });
                   onOpenChange(false);
                   showToast.success(
-                    `已开始 ${mins} 分钟定时，最后 ${remindEveryMin} 分钟提醒一次`
+                    t("coaching.timer_started", { mins, remind: remindEveryMin })
                   );
                 } finally {
                   setStarting(false);
@@ -241,7 +245,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
               })();
             }}
           >
-            开始定时
+            {t("coaching.start_timer")}
           </CloudButton>
         </DialogFooter>
       </DialogContent>
@@ -251,6 +255,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
 
 /** 顶栏倒计时胶囊：未开定时点开设置；计时中点击暂停并打开菜单 */
 export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
   const endsAt = useClassTimerStore((s) => s.endsAt);
   const pausedRemainingMs = useClassTimerStore((s) => s.pausedRemainingMs);
   const [left, setLeft] = useState(() => useClassTimerStore.getState().remainingMs());
@@ -282,7 +287,7 @@ export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
         variant="ghost"
         size="iconRound"
         onClick={onClick}
-        aria-label="上课定时"
+        aria-label={t("coaching.timer_title")}
         className="text-foreground"
       >
         <Clock size={18} />
@@ -297,7 +302,7 @@ export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
       className={`inline-flex items-center gap-1 tabular-nums text-xs font-semibold px-2 py-1 rounded-full text-white shadow-sm ${
         paused ? "bg-amber-500" : "bg-[#E53E3E]"
       }`}
-      aria-label={paused ? "计时已暂停" : "暂停上课定时"}
+      aria-label={paused ? t("coaching.timer_paused") : t("coaching.pause_timer")}
     >
       {paused ? <Pause size={12} strokeWidth={2.5} /> : null}
       {formatCountdown(left)}
@@ -309,6 +314,7 @@ export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
  * 全站上课定时：浮动倒计时（无顶栏入口的页面）+ 到点 / 最后提醒
  */
 export function ClassSessionTimer() {
+  const { t } = useTranslation();
   const endsAt = useClassTimerStore((s) => s.endsAt);
   const markEndedNotified = useClassTimerStore((s) => s.markEndedNotified);
   const takeIntervalRemind = useClassTimerStore((s) => s.takeIntervalRemind);
@@ -343,7 +349,7 @@ export function ClassSessionTimer() {
       if (ms > 0 && state.takeIntervalRemind()) {
         setIntervalOpen(true);
         playBeep(660, 0.18);
-        showToast.info(`最后 ${state.remindEveryMin} 分钟提醒，剩余 ${formatCountdown(ms)}`);
+        showToast.info(t("coaching.final_remind_toast", { remind: state.remindEveryMin, left: formatCountdown(ms) }));
       }
 
       if (ms <= 0 && !state.endedNotified) {
@@ -351,7 +357,7 @@ export function ClassSessionTimer() {
         setEndOpen(true);
         setIntervalOpen(false);
         playBeep(880, 0.25);
-        showToast.warning("上课时间到");
+        showToast.warning(t("coaching.class_time_up"));
         void finishPracticeBilling(state.billing);
         useClassTimerStore.setState({
           billing: state.billing ? { ...state.billing, owned: false } : null,
@@ -385,16 +391,19 @@ export function ClassSessionTimer() {
       <Dialog open={intervalOpen} onOpenChange={setIntervalOpen}>
         <DialogContent className="max-w-sm rounded-2xl" hideClose>
           <DialogHeader>
-            <DialogTitle>最后提醒</DialogTitle>
+            <DialogTitle>{t("coaching.final_remind_dialog_title")}</DialogTitle>
             <DialogDescription>
-              进入最后 {remindEveryMin} 分钟，剩余 {formatCountdown(left)}
+              {t("coaching.final_remind_dialog_desc", {
+                remind: remindEveryMin,
+                left: formatCountdown(left),
+                words: wordCount > 0 ? t("coaching.words_approx", { count: wordCount }) : "",
+              })}
               {billing?.studentName ? ` · ${billing.studentName}` : ""}
-              {wordCount > 0 ? ` · 本节约 ${wordCount} 词` : ""}。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <CloudButton type="button" variant="brand" onClick={() => setIntervalOpen(false)}>
-              继续上课
+              {t("coaching.continue_class")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>
@@ -409,10 +418,13 @@ export function ClassSessionTimer() {
       >
         <DialogContent className="max-w-sm rounded-2xl" hideClose>
           <DialogHeader>
-            <DialogTitle>上课时间到</DialogTitle>
+            <DialogTitle>{t("coaching.time_up_title")}</DialogTitle>
             <DialogDescription>
-              本节课定时已结束
-              {billing?.studentName ? `，已计入「${billing.studentName}」` : ""}。
+              {t("coaching.time_up_desc", {
+                student: billing?.studentName
+                  ? t("coaching.time_up_student", { name: billing.studentName })
+                  : "",
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -425,7 +437,7 @@ export function ClassSessionTimer() {
                 setSetupOpen(true);
               }}
             >
-              再设一段时间
+              {t("coaching.set_more_time")}
             </CloudButton>
             <CloudButton
               type="button"
@@ -436,7 +448,7 @@ export function ClassSessionTimer() {
                 goToAntiForgettingSetup();
               }}
             >
-              去设置抗遗忘
+              {t("coaching.go_anti_forgetting")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>

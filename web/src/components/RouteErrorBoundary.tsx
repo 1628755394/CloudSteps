@@ -1,18 +1,18 @@
 import { useState } from "react";
 import { isRouteErrorResponse, useRouteError } from "react-router";
+import { useTranslation } from "react-i18next";
 import { CloudButton } from "./cloudsteps";
 import notFoundImg from "../assets/illustrations/not-found.svg";
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const is404 = isRouteErrorResponse(error) && error.status === 404;
 
-  const title = is404 ? "页面不存在" : "页面出错了";
-  const description = is404
-    ? "你访问的页面可能已被移除或暂时不可用"
-    : "页面加载时遇到了问题，请稍后重试";
+  const title = is404 ? t("error.page_not_found") : t("error.page_error");
+  const description = is404 ? t("error.page_not_found_desc") : t("error.page_error_desc");
 
   const rawText = (() => {
     if (isRouteErrorResponse(error)) {
@@ -45,10 +45,9 @@ export function RouteErrorBoundary() {
   return (
     <div className="min-h-screen bg-[#F7F9FC] flex items-center justify-center p-6">
       <div className="w-full max-w-md flex flex-col items-center text-center">
-        {/* 空状态插画 */}
         <img
           src={notFoundImg}
-          alt="页面不存在"
+          alt={t("error.page_not_found")}
           className="w-56 h-auto mb-5"
         />
 
@@ -57,17 +56,15 @@ export function RouteErrorBoundary() {
 
         <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
           <CloudButton type="button" variant="brand" size="sm" onClick={() => window.location.assign("/")}>
-            回到首页
+            {t("error.back_home")}
           </CloudButton>
           <CloudButton type="button" variant="outline" size="sm" onClick={() => window.history.back()}>
-            返回上一页
+            {t("error.go_back")}
           </CloudButton>
         </div>
 
         <div className="w-full border-t border-[#E2E8F0] pt-4">
-          <p className="text-[#A0AEC0] text-xs mb-2">
-            如果问题持续出现，请复制错误信息联系管理员处理
-          </p>
+          <p className="text-[#A0AEC0] text-xs mb-2">{t("error.contact_admin")}</p>
           <CloudButton
             type="button"
             variant="ghost"
@@ -75,7 +72,7 @@ export function RouteErrorBoundary() {
             onClick={copy}
             className="text-[#718096]"
           >
-            {copied ? "已复制" : "复制错误信息"}
+            {copied ? t("ui.copied") : t("ui.copy_error")}
           </CloudButton>
         </div>
       </div>

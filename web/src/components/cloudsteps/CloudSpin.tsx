@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Spin as ArcoSpin } from "@arco-design/web-react";
 
 /**
@@ -10,10 +11,11 @@ export type CloudSpinProps = {
   className?: string;
 };
 
-export function CloudSpin({ tip = "加载中…", className }: CloudSpinProps) {
+export function CloudSpin({ tip, className }: CloudSpinProps) {
+  const { t } = useTranslation();
   return (
     <div className={`flex justify-center items-center py-12 ${className ?? ""}`}>
-      <ArcoSpin tip={tip} />
+      <ArcoSpin tip={tip ?? t("common.loading")} />
     </div>
   );
 }

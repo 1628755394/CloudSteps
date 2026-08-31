@@ -21,6 +21,7 @@ import {
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type Tool = "pen" | "eraser" | "select" | "circle" | "rect" | "text";
 type BrushMode = "fountain" | "pencil" | "highlighter";
@@ -184,6 +185,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
  * 批注层：可描画/擦除/图形/文字，关闭后保留，再次打开恢复
  */
 export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLayerProps) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [tool, setTool] = useState<Tool>("pen");
   const [brushMode, setBrushMode] = useState<BrushMode>("fountain");
@@ -349,7 +351,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
 
     if (tool === "text") {
       const p = getPos(e);
-      const text = window.prompt("输入批注文字");
+      const text = window.prompt(t("annotation.textPrompt"));
       if (!text?.trim()) return;
       const stroke: Stroke = {
         tool: "text",
@@ -571,7 +573,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
               ? "-left-5 rounded-l-md border-r-0"
               : "-right-5 rounded-r-md border-l-0"
           }`}
-          aria-label={collapsed ? "展开画笔工具" : "收起画笔工具"}
+          aria-label={collapsed ? t("annotation.expandTools") : t("annotation.collapseTools")}
         >
           {isRight ? (
             collapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />
@@ -587,20 +589,20 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
           <div
             className={`${isRight ? "-left-1.5" : "-right-1.5"} absolute top-0 bottom-0 z-50 flex w-3 touch-none cursor-ew-resize items-center justify-center`}
             onPointerDown={startPanelResize}
-            aria-label="拖动调整面板宽度"
-            title="拖动调整宽度"
+            aria-label={t("annotation.resizePanel")}
+            title={t("annotation.resizePanelTitle")}
           >
             <span className="h-10 w-0.5 rounded-full bg-muted-foreground/30" />
           </div>
           <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-            <span className="text-sm font-semibold text-foreground">画笔工具</span>
+            <span className="text-sm font-semibold text-foreground">{t("annotation.panelTitle")}</span>
             <div className="flex items-center gap-0.5">
               <button
                 type="button"
                 onClick={toggleDockSide}
                 className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-                aria-label={isRight ? "停靠到左侧" : "停靠到右侧"}
-                title={isRight ? "停靠左侧" : "停靠右侧"}
+                aria-label={isRight ? t("annotation.dockLeft") : t("annotation.dockRight")}
+                title={isRight ? t("annotation.dockLeftShort") : t("annotation.dockRightShort")}
               >
                 <ArrowLeftRight size={16} />
               </button>
@@ -608,7 +610,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
                 type="button"
                 onClick={() => onOpenChange(false)}
                 className="p-1 rounded-md hover:bg-muted text-muted-foreground"
-                aria-label="关闭批注"
+                aria-label={t("annotation.close")}
               >
                 <X size={16} />
               </button>
@@ -617,12 +619,12 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
 
           <div className="p-3 space-y-3">
             <div className="grid grid-cols-5 gap-1.5">
-              {toolBtn("select", ArrowUpLeft, "选择")}
-              {toolBtn("pen", Pencil, "画笔")}
-              {toolBtn("eraser", Eraser, "橡皮")}
+              {toolBtn("select", ArrowUpLeft, t("annotation.select"))}
+              {toolBtn("pen", Pencil, t("annotation.pen"))}
+              {toolBtn("eraser", Eraser, t("annotation.eraser"))}
               <button
                 type="button"
-                title="撤销"
+                title={t("annotation.undo")}
                 onClick={undo}
                 className="h-9 rounded-lg flex items-center justify-center border border-border text-charcoal hover:bg-muted"
               >
@@ -633,7 +635,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
             <div className="grid grid-cols-5 gap-1.5">
               <button
                 type="button"
-                title="重做"
+                title={t("annotation.redo")}
                 onClick={redo}
                 className="h-9 rounded-lg flex items-center justify-center border border-border text-charcoal hover:bg-muted"
               >
@@ -641,29 +643,29 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
               </button>
               <button
                 type="button"
-                title="清空"
+                title={t("annotation.clear")}
                 onClick={clearAll}
                 className="h-9 rounded-lg flex items-center justify-center border border-border text-destructive hover:bg-destructive/5"
               >
                 <Trash2 size={16} />
               </button>
-              {toolBtn("circle", Circle, "圆形")}
-              {toolBtn("rect", Square, "矩形")}
-              {toolBtn("text", Type, "文字")}
+              {toolBtn("circle", Circle, t("annotation.circle"))}
+              {toolBtn("rect", Square, t("annotation.rect"))}
+              {toolBtn("text", Type, t("annotation.text"))}
             </div>
 
             <div>
-              <div className="text-[11px] text-muted-foreground mb-1.5">笔刷</div>
+              <div className="text-[11px] text-muted-foreground mb-1.5">{t("annotation.brush")}</div>
               <div className="flex gap-1.5">
-                {brushChip("fountain", "钢笔", tool === "pen" && brushMode === "fountain", () => {
+                {brushChip("fountain", t("annotation.brushFountain"), tool === "pen" && brushMode === "fountain", () => {
                   setTool("pen");
                   setBrushMode("fountain");
                 })}
-                {brushChip("pencil", "铅笔", tool === "pen" && brushMode === "pencil", () => {
+                {brushChip("pencil", t("annotation.brushPencil"), tool === "pen" && brushMode === "pencil", () => {
                   setTool("pen");
                   setBrushMode("pencil");
                 })}
-                {brushChip("highlighter", "荧光笔", tool === "pen" && brushMode === "highlighter", () => {
+                {brushChip("highlighter", t("annotation.brushHighlighter"), tool === "pen" && brushMode === "highlighter", () => {
                   setTool("pen");
                   setBrushMode("highlighter");
                 })}
@@ -671,7 +673,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
             </div>
 
             <div>
-              <div className="text-[11px] text-muted-foreground mb-1.5">颜色</div>
+              <div className="text-[11px] text-muted-foreground mb-1.5">{t("annotation.color")}</div>
               <div className="flex flex-wrap gap-1.5">
                 {COLORS.map((c) => (
                   <button
@@ -699,7 +701,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
                           : "border-border"
                       }`}
                       style={{ backgroundColor: c }}
-                      aria-label={`自定义 ${c}`}
+                      aria-label={t("annotation.customColorAria", { color: c })}
                     />
                   ))}
                 </div>
@@ -710,23 +712,23 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
                   value={color.length === 7 ? color : "#111827"}
                   onChange={(e) => selectColor(e.target.value)}
                   className="h-8 w-10 cursor-pointer rounded border border-border bg-transparent p-0.5"
-                  title="自定义颜色"
-                  aria-label="自定义颜色"
+                  title={t("annotation.customColor")}
+                  aria-label={t("annotation.customColor")}
                 />
                 <button
                   type="button"
                   onClick={saveCustomColor}
                   className="h-8 px-2 rounded-lg border border-border text-xs text-charcoal hover:bg-muted inline-flex items-center gap-1"
-                  title="保存当前颜色"
+                  title={t("annotation.saveCurrentColor")}
                 >
                   <Plus size={12} />
-                  保存
+                  {t("annotation.save")}
                 </button>
               </div>
             </div>
 
             <div>
-              <div className="text-[11px] text-muted-foreground mb-1.5">粗细 {width}px</div>
+              <div className="text-[11px] text-muted-foreground mb-1.5">{t("annotation.width", { width })}</div>
               <input
                 type="range"
                 min={1}
@@ -739,7 +741,7 @@ export function AnnotationLayer({ storageKey, open, onOpenChange }: AnnotationLa
 
             {tool === "eraser" && (
               <div>
-                <div className="text-[11px] text-muted-foreground mb-1.5">橡皮大小 {eraserWidth}px</div>
+                <div className="text-[11px] text-muted-foreground mb-1.5">{t("annotation.eraserSize", { size: eraserWidth })}</div>
                 <input
                   type="range"
                   min={6}
@@ -764,6 +766,7 @@ export function AnnotationToggleButton({
   active: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
@@ -771,8 +774,8 @@ export function AnnotationToggleButton({
       className={`p-1.5 rounded-lg transition-colors ${
         active ? "bg-primary-soft text-primary" : "text-charcoal hover:bg-muted"
       }`}
-      aria-label="批注"
-      title="批注"
+      aria-label={t("annotation.toggle")}
+      title={t("annotation.toggle")}
     >
       <Pencil size={18} />
     </button>

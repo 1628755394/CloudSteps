@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { DatePicker as ArcoDatePicker } from "@arco-design/web-react";
 import { useIsMobile } from "../ui/use-mobile";
 import { MobileDateWheel } from "./MobileWheelPicker";
@@ -26,8 +27,10 @@ export function CloudDatePicker({
   style,
   allowClear = true,
   disabled,
-  placeholder = "请选择日期",
+  placeholder,
 }: CloudDatePickerProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("ui.please_select_date");
   const isMobile = useIsMobile();
 
   if (isMobile) {
@@ -37,7 +40,7 @@ export function CloudDatePicker({
         value={value}
         onChange={onChange}
         disabled={disabled}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         className={className}
         allowClear={allowClear}
       />
@@ -60,7 +63,7 @@ export function CloudDatePicker({
         value={value || undefined}
         allowClear={allowClear}
         disabled={disabled}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         onChange={(dateString) => onChange?.(dateString || "")}
       />
     </div>

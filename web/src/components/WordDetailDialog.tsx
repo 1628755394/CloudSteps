@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { BookOpen, Loader2, Volume2 } from "lucide-react";
 import {
   Dialog,
@@ -35,6 +36,7 @@ type Props = {
 };
 
 export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props) {
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<WordDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -84,7 +86,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <BookOpen size={20} className="text-[#4ECDC4]" />
-            单词详情
+            {t("word.detail_title")}
           </DialogTitle>
         </DialogHeader>
 
@@ -93,9 +95,9 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
             <Loader2 className="w-8 h-8 animate-spin text-[#4ECDC4]" />
           </div>
         ) : error ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">加载失败，请稍后重试</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">{t("error.load_failed_retry")}</div>
         ) : !detail ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">暂无数据</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">{t("ui.empty")}</div>
         ) : (
           <div className="space-y-5">
             {/* 单词头部 */}
@@ -103,12 +105,12 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
               <div className="flex-1">
                 <h2 className="text-3xl font-bold text-[#1e3a5f]">{word}</h2>
                 <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-2 text-sm text-muted-foreground">
-                  {detail.phoneticUk && <span>英 {detail.phoneticUk}</span>}
-                  {detail.phoneticUs && <span>美 {detail.phoneticUs}</span>}
+                  {detail.phoneticUk && <span>{t("word.phonetic_uk", { phonetic: detail.phoneticUk })}</span>}
+                  {detail.phoneticUs && <span>{t("word.phonetic_us", { phonetic: detail.phoneticUs })}</span>}
                   {detail.partOfSpeech && (
                     <span className="px-1.5 py-0.5 rounded bg-muted text-xs">{detail.partOfSpeech}</span>
                   )}
-                  {detail.syllables && <span className="text-xs">音节: {detail.syllables}</span>}
+                  {detail.syllables && <span className="text-xs">{t("word.syllables", { syllables: detail.syllables })}</span>}
                 </div>
               </div>
               {detail.audioUrl && (
@@ -117,7 +119,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
                   variant="ghost"
                   size="iconRound"
                   onClick={() => playWordAudio(detail.audioUrl!, 200)}
-                  aria-label="播放发音"
+                  aria-label={t("word.play_pronunciation")}
                 >
                   <Volume2 size={20} className="text-[#4ECDC4]" />
                 </CloudButton>
@@ -126,21 +128,21 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
 
             {/* 释义 */}
             {detail.translation && (
-              <Section title="释义">
+              <Section title={t("word.section.translation")}>
                 <p className="text-sm leading-relaxed">{formatTranslation(detail.translation)}</p>
               </Section>
             )}
 
             {/* 英文释义 */}
             {detail.definition && (
-              <Section title="英文释义">
+              <Section title={t("word.section.definition_en")}>
                 <p className="text-sm leading-relaxed text-muted-foreground">{detail.definition}</p>
               </Section>
             )}
 
             {/* 词形变化 */}
             {morphology?.forms && morphology.forms.length > 0 && (
-              <Section title="单词变形">
+              <Section title={t("word.section.morphology")}>
                 <div className="flex flex-wrap gap-2">
                   {morphology.forms.map((f, i) => (
                     <span key={i} className="px-2 py-1 rounded-md bg-[#4ECDC4]/10 text-[#0d9488] text-xs font-medium">
@@ -153,7 +155,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
 
             {/* 例句 */}
             {examples && examples.length > 0 && (
-              <Section title={`例句 (${examples.length})`}>
+              <Section title={t("word.section.examples", { count: examples.length })}>
                 <div className="space-y-3">
                   {examples.slice(0, 6).map((ex, i) => (
                     <div key={i} className="pl-3 border-l-2 border-[#4ECDC4]/30">
@@ -167,7 +169,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
 
             {/* 短语搭配 */}
             {phrases && phrases.length > 0 && (
-              <Section title={`短语搭配 (${phrases.length})`}>
+              <Section title={t("word.section.phrases", { count: phrases.length })}>
                 <div className="space-y-1.5">
                   {phrases.map((p, i) => (
                     <div key={i} className="flex items-baseline gap-2 text-sm">
@@ -181,7 +183,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
 
             {/* 派生词 */}
             {derivations && derivations.length > 0 && (
-              <Section title="派生词">
+              <Section title={t("word.section.derivations")}>
                 <div className="space-y-2">
                   {derivations.map((d, i) => (
                     <div key={i} className="text-sm">
@@ -197,7 +199,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
 
             {/* 同义词 */}
             {synonyms && synonyms.length > 0 && (
-              <Section title="同义词">
+              <Section title={t("word.section.synonyms")}>
                 <div className="flex flex-wrap gap-2">
                   {synonyms.map((s, i) => (
                     <span key={i} className="px-2 py-1 rounded-md bg-muted text-xs">
@@ -211,7 +213,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
 
             {/* 词族 */}
             {wordFamily && wordFamily.length > 0 && (
-              <Section title="词族">
+              <Section title={t("word.section.family")}>
                 <div className="space-y-1">
                   {wordFamily.map((w, i) => (
                     <div key={i} className="text-sm">
@@ -226,7 +228,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
 
             {/* 柯林斯释义 */}
             {collins && collins.length > 0 && (
-              <Section title={`柯林斯释义 (${collins.length})`}>
+              <Section title={t("word.section.collins", { count: collins.length })}>
                 <div className="space-y-3">
                   {collins.slice(0, 3).map((c, i) => (
                     <div key={i} className="pl-3 border-l-2 border-[#f8b4c4]/40">
@@ -250,7 +252,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
 
             {/* 词源 */}
             {detail.etymology && (
-              <Section title="词源">
+              <Section title={t("word.section.etymology")}>
                 <p className="text-sm leading-relaxed text-muted-foreground">{detail.etymology}</p>
               </Section>
             )}
@@ -258,7 +260,7 @@ export function WordDetailDialog({ wordId, wordText, open, onOpenChange }: Props
             {/* 无数据提示 */}
             {!hasAny && (
               <div className="py-8 text-center text-sm text-muted-foreground">
-                该单词暂无详细词典数据
+                {t("word.no_dict_data")}
               </div>
             )}
           </div>

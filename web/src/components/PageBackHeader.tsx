@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 import { CloudButton } from "./cloudsteps";
 
 type PageBackHeaderProps = {
@@ -27,6 +28,7 @@ export function PageBackHeader({
   extra,
 }: PageBackHeaderProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleBack = () => {
     if (onBack) {
@@ -51,7 +53,7 @@ export function PageBackHeader({
           size="icon"
           onClick={handleBack}
           className="shrink-0 size-9 -ml-1 text-charcoal"
-          aria-label="返回"
+          aria-label={t("ui.back")}
         >
           <ChevronLeft size={22} />
         </CloudButton>

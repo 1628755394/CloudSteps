@@ -1,5 +1,6 @@
 import { BookOpen, Check, ChevronLeft, ChevronRight, LayoutGrid, List, Volume2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PRACTICE_TRANS_CLASS, PRACTICE_CARD_WORD_CLASS } from "./PracticeFontSettings";
 import { CloudButton } from "./cloudsteps";
 import { WordDetailPanel } from "./WordDetailPanel";
@@ -88,6 +89,7 @@ type StatsBarProps = {
 };
 
 export function WordMarkStatsBar({ correctCount, wrongCount, total }: StatsBarProps) {
+  const { t } = useTranslation();
   const marked = correctCount + wrongCount;
   const rate = marked > 0 ? Math.round((correctCount / marked) * 100) : 0;
   const progress = total > 0 ? Math.min(100, Math.round((marked / total) * 100)) : 0;
@@ -96,12 +98,12 @@ export function WordMarkStatsBar({ correctCount, wrongCount, total }: StatsBarPr
     <div className="bg-card border border-border rounded-xl px-3 py-2.5 mb-4">
       <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
         <span>
-          正确: <span className="text-[#4ECDC4] font-semibold">{correctCount}</span>
+          {t("word.correct")}: <span className="text-[#4ECDC4] font-semibold">{correctCount}</span>
           {" / "}
-          错误: <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
+          {t("word.wrong")}: <span className="text-[#FF6B6B] font-semibold">{wrongCount}</span>
         </span>
         <span>
-          正确率: <span className="text-foreground font-semibold">{rate}%</span>
+          {t("word.accuracy")}: <span className="text-foreground font-semibold">{rate}%</span>
         </span>
       </div>
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -149,6 +151,7 @@ export function WordCardPanel({
   hideStatus = false,
   noteStorageKey,
 }: CardProps) {
+  const { t } = useTranslation();
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
   const [localDetail, setLocalDetail] = useState(false);
@@ -166,7 +169,7 @@ export function WordCardPanel({
 
   if (!word) {
     return (
-      <div className="py-16 text-center text-sm text-muted-foreground">暂无单词</div>
+      <div className="py-16 text-center text-sm text-muted-foreground">{t("word.no_words")}</div>
     );
   }
 
@@ -195,7 +198,7 @@ export function WordCardPanel({
             size="iconRound"
             disabled={safeIndex <= 0}
             onClick={() => onIndexChange(safeIndex - 1)}
-            aria-label="上一个"
+            aria-label={t("practice.prev")}
             className="absolute left-2 top-1/2 z-10 size-11 shrink-0 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35 sm:left-3"
           >
             <ChevronLeft size={24} />
@@ -229,7 +232,7 @@ export function WordCardPanel({
             size="iconRound"
             disabled={safeIndex >= words.length - 1}
             onClick={() => onIndexChange(safeIndex + 1)}
-            aria-label="下一个"
+            aria-label={t("practice.next")}
             className="absolute right-2 top-1/2 z-10 size-11 shrink-0 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35 sm:right-3"
           >
             <ChevronRight size={24} />
@@ -240,8 +243,8 @@ export function WordCardPanel({
           {noteStorageKey && (
             <StudyNoteLauncher
               storageKey={noteStorageKey(word)}
-              title={`笔记 · ${word.word}`}
-              label="笔记"
+              title={t("word.note_title", { word: word.word })}
+              label={t("word.note")}
               className="h-9 px-2"
             />
           )}
@@ -265,8 +268,8 @@ export function WordCardPanel({
                 setLocalDetail((v) => !v);
               }
             }}
-            aria-label="单词详情"
-            title={amplifyDetail ? "拓展已开启：点单词显示释义时自动展开" : "单词详情"}
+            aria-label={t("word.detail_aria")}
+            title={amplifyDetail ? t("word.detail_auto_expand") : t("word.detail_aria")}
           >
             <BookOpen size={22} />
           </CloudButton>
@@ -320,6 +323,7 @@ export function WordViewModeToggle({
   mode: WordViewMode;
   onChange: (mode: WordViewMode) => void;
 }) {
+  const { t } = useTranslation();
   const isCard = mode === "card";
   return (
     <CloudButton
@@ -327,10 +331,10 @@ export function WordViewModeToggle({
       variant="outline"
       size="pill"
       onClick={() => onChange(isCard ? "list" : "card")}
-      aria-label={isCard ? "切换列表" : "切换词卡"}
+      aria-label={isCard ? t("word.switch_list") : t("word.switch_card")}
     >
       {isCard ? <List size={16} /> : <LayoutGrid size={16} />}
-      {isCard ? "列表" : "词卡"}
+      {isCard ? t("word.view_list") : t("word.view_card")}
     </CloudButton>
   );
 }

@@ -3,6 +3,7 @@ import { App, Group, Path, Text, Rect, Ellipse, UI, DragEvent as LeaferDragEvent
 import "@leafer-in/editor";
 import "@leafer-in/text-editor";
 import "@leafer-in/export";
+import i18n from "../i18n";
 
 // ---- Types ----
 export type Tool = "select" | "pen" | "eraser" | "circle" | "rect" | "text";
@@ -367,7 +368,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
         const cw = containerRef.current!.clientWidth;
         const ch = containerRef.current!.clientHeight;
         const text = new Text({
-          text: "双击编辑文字",
+          text: i18n.t("annotation.double_click_edit"),
           x: cw / 2 - 80,
           y: ch / 2 - fontSizeRef.current / 2,
           fill: colorRef.current,
@@ -720,7 +721,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       const container = containerRef.current;
       if (!app || !layer || !container) return;
       const text = new Text({
-        text: "双击编辑文字",
+        text: i18n.t("annotation.double_click_edit"),
         x: 52,
         y: 12,
         fill: colorRef.current,

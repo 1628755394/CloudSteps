@@ -1,10 +1,12 @@
 import { Pencil } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { UserWordEditor } from "./UserWordEditor";
 import { useWordEditStore } from "../stores/wordEditStore";
 import { formatTranslation, displayTranslationFull, pickPhoneticDisplay } from "../utils/wordFormat";
 import type { UserWordView } from "../api/wordbooks";
 
 export function WordEditTrigger({ wordId }: { wordId: number }) {
+  const { t } = useTranslation();
   const openEditor = useWordEditStore((s) => s.openEditor);
   return (
     <button
@@ -16,7 +18,7 @@ export function WordEditTrigger({ wordId }: { wordId: number }) {
       className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-[#718096] hover:bg-[#F1F5F9] hover:text-[#2C7A7B]"
     >
       <Pencil size={12} />
-      纠错
+      {t("word.edit")}
     </button>
   );
 }

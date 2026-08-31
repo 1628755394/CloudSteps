@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Settings, Type, Check, Minus, Plus, Bold } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 
@@ -20,28 +21,28 @@ type PracticeDisplaySettings = {
 
 const FAMILY_PRESETS: Record<
   PracticeFontFamily,
-  { label: string; value: string; style?: "italic" | "normal" }
+  { labelKey: string; value: string; style?: "italic" | "normal" }
 > = {
   sans: {
-    label: "默认",
+    labelKey: "practice_font.family.sans",
     value:
       'Plus Jakarta Sans, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif',
   },
   nunito: {
-    label: "圆润",
+    labelKey: "practice_font.family.nunito",
     value: 'Nunito, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
   },
   serif: {
-    label: "衬线",
+    labelKey: "practice_font.family.serif",
     value: 'Georgia, "Songti SC", "Noto Serif SC", "STSong", serif',
   },
   italic: {
-    label: "斜体",
+    labelKey: "practice_font.family.italic",
     value: '"Palatino Linotype", Palatino, "Times New Roman", serif',
     style: "italic",
   },
   italian: {
-    label: "意大利体",
+    labelKey: "practice_font.family.italian",
     value: '"Brush Script MT", "Segoe Script", "Apple Chancery", cursive',
     style: "italic",
   },
@@ -135,6 +136,7 @@ export const PRACTICE_TRANS_CLASS =
  * 练习页右上角：可精确调节字号（px）+ 字体族（localStorage 持久化）。
  */
 export function PracticeFontSettingsButton() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<PracticeDisplaySettings>(DEFAULTS);
 
@@ -169,8 +171,8 @@ export function PracticeFontSettingsButton() {
         type="button"
         variant="ghost"
         size="iconRound"
-        aria-label="显示设置"
-        title="显示设置"
+        aria-label={t("practice_font.display_settings")}
+        title={t("practice_font.display_settings")}
         onClick={() => setOpen((v) => !v)}
         className={open ? "bg-primary-soft text-primary" : ""}
       >
@@ -182,17 +184,17 @@ export function PracticeFontSettingsButton() {
           <button
             type="button"
             className="fixed inset-0 z-40 cursor-default"
-            aria-label="关闭设置"
+            aria-label={t("practice_font.close_settings")}
             onClick={() => setOpen(false)}
           />
           <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-xl border border-[#E2E8F0] bg-white shadow-lg p-3">
             <div className="flex items-center gap-1.5 text-xs font-medium text-[#718096] mb-2">
               <Type size={14} />
-              单词显示
+              {t("practice_font.word_display")}
             </div>
 
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] text-[#A0AEC0]">字号</span>
+              <span className="text-[11px] text-[#A0AEC0]">{t("practice_font.font_size")}</span>
               <span className="text-xs font-semibold tabular-nums text-[#2D3748]">
                 {settings.wordSizePx}px
               </span>
@@ -201,7 +203,7 @@ export function PracticeFontSettingsButton() {
             <div className="flex items-center gap-2 mb-1">
               <button
                 type="button"
-                aria-label="减小字号"
+                aria-label={t("practice_font.decrease_size")}
                 disabled={settings.wordSizePx <= WORD_SIZE_MIN}
                 onClick={() => bump(-WORD_SIZE_STEP)}
                 className="shrink-0 size-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#2D3748] hover:border-primary/40 disabled:opacity-40"
@@ -216,11 +218,11 @@ export function PracticeFontSettingsButton() {
                 value={settings.wordSizePx}
                 onChange={(e) => update({ wordSizePx: Number(e.target.value) })}
                 className="flex-1 accent-[#4ECDC4] h-1.5 cursor-pointer"
-                aria-label="单词字号"
+                aria-label={t("practice_font.word_font_size")}
               />
               <button
                 type="button"
-                aria-label="增大字号"
+                aria-label={t("practice_font.increase_size")}
                 disabled={settings.wordSizePx >= WORD_SIZE_MAX}
                 onClick={() => bump(WORD_SIZE_STEP)}
                 className="shrink-0 size-8 rounded-lg border border-[#E2E8F0] flex items-center justify-center text-[#2D3748] hover:border-primary/40 disabled:opacity-40"
@@ -243,7 +245,7 @@ export function PracticeFontSettingsButton() {
                     if (Number.isFinite(v)) update({ wordSizePx: v });
                   }}
                   className="w-14 rounded-md border border-[#E2E8F0] px-1.5 py-0.5 text-xs text-center tabular-nums text-[#2D3748] focus:outline-none focus:border-primary"
-                  aria-label="字号数值"
+                  aria-label={t("practice_font.size_value")}
                 />
                 <span className="text-[10px] text-[#A0AEC0]">px</span>
               </div>
@@ -251,10 +253,10 @@ export function PracticeFontSettingsButton() {
             </div>
 
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] text-[#A0AEC0]">加粗</span>
+              <span className="text-[11px] text-[#A0AEC0]">{t("practice_font.bold")}</span>
               <button
                 type="button"
-                aria-label="加粗"
+                aria-label={t("practice_font.bold")}
                 aria-pressed={settings.bold}
                 onClick={() => update({ bold: !settings.bold })}
                 className={`size-8 rounded-lg border flex items-center justify-center transition-colors ${
@@ -280,7 +282,7 @@ export function PracticeFontSettingsButton() {
               Example
             </p>
 
-            <div className="text-[11px] text-[#A0AEC0] mb-1.5">字体</div>
+            <div className="text-[11px] text-[#A0AEC0] mb-1.5">{t("practice_font.font_family")}</div>
             <div className="space-y-1">
               {(Object.keys(FAMILY_PRESETS) as PracticeFontFamily[]).map((id) => (
                 <button
@@ -297,7 +299,7 @@ export function PracticeFontSettingsButton() {
                     fontStyle: FAMILY_PRESETS[id].style === "italic" ? "italic" : "normal",
                   }}
                 >
-                  <span>{FAMILY_PRESETS[id].label}</span>
+                  <span>{t(FAMILY_PRESETS[id].labelKey)}</span>
                   {settings.fontFamily === id && <Check size={14} />}
                 </button>
               ))}

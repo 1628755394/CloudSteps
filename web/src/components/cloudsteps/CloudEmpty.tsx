@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { EmptyState } from "../EmptyState";
 
 /**
@@ -9,6 +10,13 @@ export type CloudEmptyProps = {
   className?: string;
 };
 
-export function CloudEmpty({ description = "暂无数据", className }: CloudEmptyProps) {
-  return <EmptyState icon="icon-zu" description={description} className={className} />;
+export function CloudEmpty({ description, className }: CloudEmptyProps) {
+  const { t } = useTranslation();
+  return (
+    <EmptyState
+      icon="icon-zu"
+      description={description ?? t("ui.empty")}
+      className={className}
+    />
+  );
 }

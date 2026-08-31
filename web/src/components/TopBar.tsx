@@ -1,4 +1,5 @@
 import { ArrowLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { CloudButton } from "./cloudsteps";
 import { FlowPageTitle } from "./PageTitle";
@@ -12,6 +13,8 @@ type Props = {
 };
 
 export function TopBar({ title, onBack, rightSlot }: Props) {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-white sticky top-0 z-30 shadow-sm">
       <div className="relative flex items-center h-11 px-3">
@@ -21,7 +24,7 @@ export function TopBar({ title, onBack, rightSlot }: Props) {
             size="iconRound"
             onClick={onBack}
             className="-ml-1"
-            aria-label="返回"
+            aria-label={t("ui.back")}
           >
             <ArrowLeft size={18} className="text-[#2D3748]" />
           </CloudButton>

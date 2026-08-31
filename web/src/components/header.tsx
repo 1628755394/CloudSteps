@@ -1,6 +1,7 @@
 import { Bell, Menu, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
 
 import { getUnreadNotificationCount } from "../api/notifications";
 import { useAuthStore } from "../stores/authStore";
@@ -22,6 +23,7 @@ export function Header({
   showMenuButton = true,
 }: HeaderProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const layout = useThemeStore((s) => s.layout);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const NOTIFICATION_PATH = "/notifications";
@@ -77,7 +79,7 @@ export function Header({
               size="icon"
               className="lg:hidden shrink-0 size-9 text-charcoal"
               onClick={onToggleMobileMenu}
-              aria-label={mobileMenuOpen ? "关闭菜单" : "打开菜单"}
+              aria-label={mobileMenuOpen ? t("ui.close_menu") : t("ui.open_menu")}
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </CloudButton>
@@ -86,7 +88,7 @@ export function Header({
             type="button"
             onClick={() => navigate("/")}
             className="flex items-center gap-2 rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30 min-w-0"
-            aria-label="解忧背词首页"
+            aria-label={t("nav.app_home")}
           >
             <img
               src={`${import.meta.env.BASE_URL}logo.png`}
@@ -95,7 +97,7 @@ export function Header({
               loading="eager"
             />
             <span className="text-sm font-semibold tracking-tight text-foreground truncate">
-              解忧背词
+              {t("nav.app_name")}
             </span>
           </button>
         </div>
@@ -105,7 +107,7 @@ export function Header({
           size="icon"
           className="relative size-9 shrink-0 text-muted-foreground hover:text-primary"
           onClick={() => navigate(NOTIFICATION_PATH)}
-          aria-label={unread > 0 ? `通知，${unread} 条未读` : "通知"}
+          aria-label={unread > 0 ? t("nav.notifications_unread", { count: unread }) : t("nav.notifications")}
         >
           <Bell size={18} />
           {badgeLabel ? (

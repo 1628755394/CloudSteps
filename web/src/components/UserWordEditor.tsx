@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { CloudButton } from "./cloudsteps";
 import {
@@ -60,6 +61,7 @@ function fieldsToForm(fields: UserWordFields, notes = ""): FormState {
 }
 
 export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
       .then((res) => {
         if (!mounted) return;
         if (res.code !== 200 || !res.data) {
-          setError(res.msg || "加载失败");
+          setError(res.msg || t("error.load_failed"));
           return;
         }
         setView(res.data);
@@ -88,7 +90,7 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
         const msg =
           e && typeof e === "object" && "msg" in e
             ? String((e as { msg: string }).msg)
-            : "加载失败";
+            : t("error.load_failed");
         setError(msg);
       })
       .finally(() => {
@@ -97,7 +99,7 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
     return () => {
       mounted = false;
     };
-  }, [open, wordId]);
+  }, [open, wordId, t]);
 
   const setField = (key: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -127,7 +129,7 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
         payload.translationShort
     );
     if (!hasDisplay) {
-      setError("请至少修改一项单词内容");
+      setError(t("word.edit_one_field"));
       return;
     }
     setSaving(true);
@@ -135,7 +137,7 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
     try {
       const res = await saveUserWord(wordId, payload);
       if (res.code !== 200 || !res.data) {
-        setError(res.msg || "保存失败");
+        setError(res.msg || t("error.save_failed"));
         return;
       }
       setView(res.data);
@@ -145,7 +147,7 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
       const msg =
         e && typeof e === "object" && "msg" in e
           ? String((e as { msg: string }).msg)
-          : "保存失败";
+          : t("error.save_failed");
       setError(msg);
     } finally {
       setSaving(false);
@@ -159,7 +161,7 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
     try {
       const res = await deleteUserWord(wordId);
       if (res.code !== 200 || !res.data) {
-        setError(res.msg || "恢复失败");
+        setError(res.msg || t("error.restore_failed"));
         return;
       }
       onSaved?.(res.data);
@@ -168,7 +170,7 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
       const msg =
         e && typeof e === "object" && "msg" in e
           ? String((e as { msg: string }).msg)
-          : "恢复失败";
+          : t("error.restore_failed");
       setError(msg);
     } finally {
       setSaving(false);
@@ -182,7 +184,7 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <DialogHeader>
-          <DialogTitle>修正这个单词</DialogTitle>
+          <DialogTitle>{t("word.correct_word")}</DialogTitle>
         </DialogHeader>
 
         {loading ? (
@@ -192,37 +194,37 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
         ) : (
           <div className="grid gap-3">
             {error ? <p className="text-sm text-[#FF6B6B]">{error}</p> : null}
-            <Field label="单词" value={form.word} onChange={(v) => setField("word", v)} />
+            <Field label={t("word.field.word")} value={form.word} onChange={(v) => setField("word", v)} />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="音标" value={form.phonetic} onChange={(v) => setField("phonetic", v)} />
-              <Field label="美音" value={form.phoneticUs} onChange={(v) => setField("phoneticUs", v)} />
-              <Field label="英音" value={form.phoneticUk} onChange={(v) => setField("phoneticUk", v)} />
+              <Field label={t("word.field.phonetic")} value={form.phonetic} onChange={(v) => setField("phonetic", v)} />
+              <Field label={t("word.field.phonetic_us")} value={form.phoneticUs} onChange={(v) => setField("phoneticUs", v)} />
+              <Field label={t("word.field.phonetic_uk")} value={form.phoneticUk} onChange={(v) => setField("phoneticUk", v)} />
             </div>
             <Field
-              label="词性"
+              label={t("word.field.pos")}
               value={form.partOfSpeech}
               onChange={(v) => setField("partOfSpeech", v)}
             />
             <Field
-              label="简译"
+              label={t("word.field.short_translation")}
               value={form.translationShort}
               onChange={(v) => setField("translationShort", v)}
               textarea
             />
             <Field
-              label="完整释义"
+              label={t("word.field.full_translation")}
               value={form.translation}
               onChange={(v) => setField("translation", v)}
               textarea
             />
             <Field
-              label="备注（可选，告诉我们为什么改）"
+              label={t("word.field.notes")}
               value={form.notes}
               onChange={(v) => setField("notes", v)}
               textarea
             />
             {view?.canonical.word && view.canonical.word !== form.word ? (
-              <p className="text-xs text-[#718096]">词库原文：{view.canonical.word}</p>
+              <p className="text-xs text-[#718096]">{t("word.canonical", { word: view.canonical.word })}</p>
             ) : null}
           </div>
         )}
@@ -235,14 +237,14 @@ export function UserWordEditor({ wordId, open, onOpenChange, onSaved }: Props) {
               disabled={saving || loading}
               onClick={() => void handleRestore()}
             >
-              恢复词库原文
+              {t("word.restore_canonical")}
             </CloudButton>
           ) : null}
           <CloudButton type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            取消
+            {t("ui.cancel")}
           </CloudButton>
           <CloudButton type="button" disabled={saving || loading} onClick={() => void handleSave()}>
-            {saving ? "保存中…" : "保存"}
+            {saving ? t("ui.saving") : t("ui.save")}
           </CloudButton>
         </DialogFooter>
       </DialogContent>

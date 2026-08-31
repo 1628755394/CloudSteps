@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import {
   BookOpen,
@@ -69,6 +70,8 @@ function TooltipCard({
   className?: string;
   style?: React.CSSProperties;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div
       className={`w-[min(100vw-2rem,22rem)] rounded-2xl border border-border bg-card shadow-xl ${className ?? ""}`}
@@ -86,7 +89,7 @@ function TooltipCard({
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           onClick={onSkip}
         >
-          跳过
+          {t("coaching.skip")}
         </button>
       </div>
       <div className="px-4 pb-3 pt-1 flex gap-3 items-start">
@@ -121,7 +124,7 @@ function TooltipCard({
             className="flex-1"
             onClick={onPrev}
           >
-            上一步
+            {t("coaching.prev_step")}
           </CloudButton>
         ) : null}
         <CloudButton
@@ -130,7 +133,7 @@ function TooltipCard({
           className="flex-1"
           onClick={onNext}
         >
-          {isLast ? "去添加学员" : "下一步"}
+          {isLast ? t("coaching.go_add_student") : t("coaching.next_step")}
         </CloudButton>
       </div>
     </div>
@@ -138,6 +141,7 @@ function TooltipCard({
 }
 
 export function CoachOnboarding({ open, userId, onDone }: Props) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [hole, setHole] = useState<CoachTargetRect | null>(null);
@@ -146,6 +150,9 @@ export function CoachOnboarding({ open, userId, onDone }: Props) {
   const total = COACH_ONBOARDING_STEPS.length;
   const isLast = step >= total - 1;
   const hasTarget = Boolean(current?.target);
+
+  const stepTitle = current ? t(`coaching.onboarding.${current.id}.title`) : "";
+  const stepBody = current ? t(`coaching.onboarding.${current.id}.body`) : "";
 
   const remountMeasure = useCallback(() => {
     const target = COACH_ONBOARDING_STEPS[step]?.target;
@@ -214,6 +221,9 @@ export function CoachOnboarding({ open, userId, onDone }: Props) {
     setStep((s) => s - 1);
   };
 
+  const fallbackBody =
+    hasTarget && !hole ? `${stepBody}${t("coaching.onboarding_target_missing")}` : stepBody;
+
   // 居中欢迎步 / 找不到锚点时回退居中
   if (!hasTarget || !hole) {
     return (
@@ -221,12 +231,8 @@ export function CoachOnboarding({ open, userId, onDone }: Props) {
         <TooltipCard
           stepIndex={step}
           total={total}
-          title={current.title}
-          body={
-            hasTarget && !hole
-              ? `${current.body}（当前布局下未找到入口，可先跳过或点下一步）`
-              : current.body
-          }
+          title={stepTitle}
+          body={fallbackBody}
           icon={current.icon}
           isLast={isLast}
           showPrev={step > 0}
@@ -312,8 +318,8 @@ export function CoachOnboarding({ open, userId, onDone }: Props) {
         <TooltipCard
           stepIndex={step}
           total={total}
-          title={current.title}
-          body={current.body}
+          title={stepTitle}
+          body={stepBody}
           icon={current.icon}
           isLast={isLast}
           showPrev={step > 0}

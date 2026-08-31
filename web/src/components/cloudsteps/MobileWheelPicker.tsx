@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 type WheelColumnProps = {
   options: string[];
@@ -96,18 +97,19 @@ type SheetProps = {
 };
 
 export function PickerSheet({ open, title, onCancel, onConfirm, children }: SheetProps) {
+  const { t } = useTranslation();
   if (!open || typeof document === "undefined") return null;
   return createPortal(
     <div className="fixed inset-0 z-[200] flex flex-col justify-end">
-      <button type="button" className="absolute inset-0 bg-black/40" aria-label="关闭" onClick={onCancel} />
+      <button type="button" className="absolute inset-0 bg-black/40" aria-label={t("ui.close")} onClick={onCancel} />
       <div className="relative bg-card rounded-t-2xl shadow-xl animate-in slide-in-from-bottom duration-200 max-h-[85dvh] flex flex-col">
         <div className="flex items-center justify-between px-4 h-12 border-b border-border shrink-0">
           <button type="button" className="text-sm text-muted-foreground px-1" onClick={onCancel}>
-            取消
+            {t("ui.cancel")}
           </button>
           <span className="text-sm font-semibold text-foreground">{title}</span>
           <button type="button" className="text-sm text-primary font-medium px-1" onClick={onConfirm}>
-            确认
+            {t("ui.confirm")}
           </button>
         </div>
         <div className="px-2 py-1 min-h-0 overflow-hidden flex flex-col">{children}</div>
@@ -135,10 +137,12 @@ export function MobileTimeWheel({
   value,
   onChange,
   disabled,
-  placeholder = "请选择时间",
+  placeholder,
   className,
   label,
 }: MobileTimeWheelProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("ui.please_select_time");
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => pad2(i)), []);
   const minutes = useMemo(() => Array.from({ length: 60 }, (_, i) => pad2(i)), []);
   const [open, setOpen] = useState(false);
@@ -166,13 +170,13 @@ export function MobileTimeWheel({
         {normalized ? (
           <span className="text-charcoal tabular-nums">{normalized}</span>
         ) : (
-          <span className="text-muted-soft">{placeholder}</span>
+          <span className="text-muted-soft">{resolvedPlaceholder}</span>
         )}
       </button>
 
       <PickerSheet
         open={open}
-        title="选择时间"
+        title={t("ui.select_time")}
         onCancel={() => setOpen(false)}
         onConfirm={() => {
           onChange?.(`${h}:${m}`);
@@ -208,13 +212,16 @@ export function MobileDateWheel({
   value,
   onChange,
   disabled,
-  placeholder = "请选择日期",
+  placeholder,
   className,
   label,
   displayValue,
-  sheetTitle = "选择日期",
+  sheetTitle,
   trigger,
 }: MobileDateWheelProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("ui.please_select_date");
+  const resolvedSheetTitle = sheetTitle ?? t("ui.select_date");
   const yearNow = new Date().getFullYear();
   const years = useMemo(
     () => Array.from({ length: 11 }, (_, i) => String(yearNow - 2 + i)),
@@ -274,14 +281,14 @@ export function MobileDateWheel({
               {displayValue ? display : display.replace(/-/g, "/")}
             </span>
           ) : (
-            <span className="text-muted-soft">{placeholder}</span>
+            <span className="text-muted-soft">{resolvedPlaceholder}</span>
           )}
         </button>
       )}
 
       <PickerSheet
         open={open}
-        title={sheetTitle}
+        title={resolvedSheetTitle}
         onCancel={() => setOpen(false)}
         onConfirm={() => {
           onChange?.(`${y}-${mo}-${d}`);
@@ -324,11 +331,11 @@ export type MobileSelectSheetProps = {
 /** H5 底部弹层单选（取消/确认），支持搜索 */
 export function MobileSelectSheet({
   label,
-  title = "请选择",
+  title,
   value,
   options,
   onChange,
-  placeholder = "请选择",
+  placeholder,
   disabled,
   showSearch,
   className,
@@ -336,6 +343,10 @@ export function MobileSelectSheet({
   size = "default",
   trigger,
 }: MobileSelectSheetProps) {
+  const { t } = useTranslation();
+  const pleaseSelect = t("ui.please_select");
+  const resolvedTitle = title ?? pleaseSelect;
+  const resolvedPlaceholder = placeholder ?? pleaseSelect;
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value || "");
   const [q, setQ] = useState("");
@@ -383,7 +394,7 @@ export function MobileSelectSheet({
         }`}
       >
         <span className={`truncate ${selectedLabel ? "text-charcoal" : "text-muted-soft"}`}>
-          {selectedLabel || placeholder}
+          {selectedLabel || resolvedPlaceholder}
         </span>
         <span className="text-muted-soft shrink-0 text-xs">▼</span>
       </button>
@@ -391,7 +402,7 @@ export function MobileSelectSheet({
 
       <PickerSheet
         open={open}
-        title={title}
+        title={resolvedTitle}
         onCancel={() => setOpen(false)}
         onConfirm={() => {
           if (draft) onChange?.(draft);
@@ -403,14 +414,14 @@ export function MobileSelectSheet({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="搜索…"
+              placeholder={t("ui.search_placeholder")}
               className="w-full h-9 px-3 rounded-lg bg-muted/60 border border-border text-sm outline-none focus:border-primary"
             />
           </div>
         )}
         <div className="max-h-[50dvh] overflow-y-auto overscroll-contain py-1">
           {filtered.length === 0 ? (
-            <p className="text-center text-sm text-muted-soft py-8">无匹配选项</p>
+            <p className="text-center text-sm text-muted-soft py-8">{t("ui.no_match_options")}</p>
           ) : (
             filtered.map((o) => {
               const active = draft === o.value;

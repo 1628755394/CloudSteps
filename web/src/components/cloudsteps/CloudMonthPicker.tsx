@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { DatePicker as ArcoDatePicker } from "@arco-design/web-react";
 import { useIsMobile } from "../ui/use-mobile";
 
@@ -28,8 +29,10 @@ export function CloudMonthPicker({
   style,
   allowClear = true,
   disabled,
-  placeholder = "请选择月份",
+  placeholder,
 }: CloudMonthPickerProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("ui.select_month");
   const isMobile = useIsMobile();
 
   return (
@@ -58,7 +61,7 @@ export function CloudMonthPicker({
           value={value || undefined}
           allowClear={allowClear}
           disabled={disabled}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           onChange={(monthString) => onChange?.(monthString || "")}
         />
       )}
