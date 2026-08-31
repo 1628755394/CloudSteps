@@ -75,6 +75,20 @@ export default function ReviewWordList() {
     return Number(sessionStorage.getItem("lb_review_wordbook_id") || 0);
   }, []);
 
+  const [activeNoteKey, setActiveNoteKey] = useState(`study-note:global:${wordBookId}`);
+  const [activeNoteTitle, setActiveNoteTitle] = useState(t("practice.free_note"));
+
+  const openGlobalNote = () => {
+    setActiveNoteKey(`study-note:global:${wordBookId}`);
+    setActiveNoteTitle(t("practice.free_note"));
+    setGlobalNoteOpen(true);
+  };
+  const openWordNote = (key: string, title: string) => {
+    setActiveNoteKey(key);
+    setActiveNoteTitle(title);
+    setGlobalNoteOpen(true);
+  };
+
   const reviewDate = useMemo(() => {
     const url = new URL(window.location.href);
     const qp = url.searchParams.get("date") || "";
@@ -366,6 +380,7 @@ export default function ReviewWordList() {
                           title={t("practice.note_title", { word: item.word })}
                           label={t("practice.note")}
                           className="h-9 px-2"
+                          onOpen={() => openWordNote(`study-note:word:${wordBookId}:${item.id}`, t("practice.note_title", { word: item.word }))}
                         />
                       </div>
                       <CloudButton
@@ -438,8 +453,8 @@ export default function ReviewWordList() {
               <StudyNotePanel
                 open={globalNoteOpen}
                 onClose={() => setGlobalNoteOpen(false)}
-                storageKey={`study-note:global:${wordBookId}`}
-                title={t("practice.free_note")}
+                storageKey={activeNoteKey}
+                title={activeNoteTitle}
                 side={noteSide}
                 split
                 onSideChange={setNoteSide}
@@ -454,8 +469,8 @@ export default function ReviewWordList() {
         <StudyNotePanel
           open={globalNoteOpen}
           onClose={() => setGlobalNoteOpen(false)}
-          storageKey={`study-note:global:${wordBookId}`}
-          title={t("practice.free_note")}
+          storageKey={activeNoteKey}
+          title={activeNoteTitle}
           side={noteSide}
           onSideChange={setNoteSide}
         />
@@ -485,7 +500,7 @@ export default function ReviewWordList() {
               type="button"
               variant={globalNoteOpen ? "brand" : "outline"}
               size="pill"
-              onClick={() => setGlobalNoteOpen(true)}
+              onClick={() => (globalNoteOpen ? setGlobalNoteOpen(false) : openGlobalNote())}
               aria-label={t("practice.open_free_note")}
               className="max-sm:px-2 max-sm:text-xs"
             >

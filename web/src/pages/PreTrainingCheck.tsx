@@ -408,6 +408,7 @@ export default function PreTrainingCheck() {
               title={t("practice.note_title", { word: word.word })}
               label={t("practice.note")}
               className="h-9 px-2"
+              onOpen={() => note.openNote(`study-note:word:${wordBookId}:${word.id}`, t("practice.note_title", { word: word.word }))}
             />
           </div>
           <CloudButton

@@ -9,9 +9,10 @@ type Props = {
 };
 
 export function NoteSplitLayout({ children, defaultStorageKey = "", defaultTitle = "随心记" }: Props) {
-  const { open, setOpen, side, setSide, width, isDesktop, startResize, storageKey } = useNote();
+  const { open, setOpen, side, setSide, width, isDesktop, startResize, storageKey, noteTitle } = useNote();
 
   const key = storageKey || defaultStorageKey;
+  const title = noteTitle || defaultTitle;
   const split = open && isDesktop;
 
   return (
@@ -52,7 +53,7 @@ export function NoteSplitLayout({ children, defaultStorageKey = "", defaultTitle
                 open={open}
                 onClose={() => setOpen(false)}
                 storageKey={key}
-                title={defaultTitle}
+                title={title}
                 side={side}
                 split
                 onSideChange={setSide}
@@ -66,7 +67,7 @@ export function NoteSplitLayout({ children, defaultStorageKey = "", defaultTitle
           open={open}
           onClose={() => setOpen(false)}
           storageKey={key}
-          title={defaultTitle}
+          title={title}
           side={side}
           onSideChange={setSide}
         />

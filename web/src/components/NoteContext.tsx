@@ -6,7 +6,9 @@ type NoteSide = "left" | "right";
 type NoteContextValue = ReturnType<typeof useSplitScreenNote> & {
   storageKey: string;
   setStorageKey: (key: string) => void;
-  openNote: (key: string) => void;
+  openNote: (key: string, title?: string) => void;
+  noteTitle: string;
+  setNoteTitle: (title: string) => void;
   defaultTitle: string;
   setDefaultTitle: (title: string) => void;
 };
@@ -16,10 +18,12 @@ const NoteContext = createContext<NoteContextValue | null>(null);
 export function NoteProvider({ children }: { children: ReactNode }) {
   const note = useSplitScreenNote("lb_global_note_width");
   const [storageKey, setStorageKey] = useState("");
+  const [noteTitle, setNoteTitle] = useState("随心记");
   const [defaultTitle, setDefaultTitle] = useState("随心记");
 
-  const openNote = (key: string) => {
+  const openNote = (key: string, title?: string) => {
     setStorageKey(key);
+    setNoteTitle(title ?? defaultTitle);
     note.setOpen(true);
   };
 
@@ -30,6 +34,8 @@ export function NoteProvider({ children }: { children: ReactNode }) {
         storageKey,
         setStorageKey,
         openNote,
+        noteTitle,
+        setNoteTitle,
         defaultTitle,
         setDefaultTitle,
       }}

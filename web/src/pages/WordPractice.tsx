@@ -63,6 +63,20 @@ export default function WordPractice() {
     startResize: startNoteResize,
   } = useSplitScreenNote("lb_practice_note_width");
 
+  const [activeNoteKey, setActiveNoteKey] = useState(`study-note:global:${wordBookId}`);
+  const [activeNoteTitle, setActiveNoteTitle] = useState(t("practice.free_note"));
+
+  const openGlobalNote = () => {
+    setActiveNoteKey(`study-note:global:${wordBookId}`);
+    setActiveNoteTitle(t("practice.free_note"));
+    setGlobalNoteOpen(true);
+  };
+  const openWordNote = (key: string, title: string) => {
+    setActiveNoteKey(key);
+    setActiveNoteTitle(title);
+    setGlobalNoteOpen(true);
+  };
+
   const handlePlayNextAudio = (word: PracticeWord) => {
     if (!word.audioUrl) return;
     const urls = parseAudioUrls(word.audioUrl);
@@ -371,6 +385,7 @@ export default function WordPractice() {
                     title={t("practice.note_title", { word: cardWord.word })}
                     label={t("practice.note")}
                     className="h-9 px-2"
+                    onOpen={() => openWordNote(wordNoteKey(cardWord.id), t("practice.note_title", { word: cardWord.word }))}
                   />
                 </div>
                 {!manualReadMode && parseAudioUrls(cardWord.audioUrl).length > 0 && (
@@ -433,6 +448,7 @@ export default function WordPractice() {
                         title={t("practice.note_title", { word: word.word })}
                         label={t("practice.note")}
                         className="h-9 px-2"
+                        onOpen={() => openWordNote(wordNoteKey(word.id), t("practice.note_title", { word: word.word }))}
                       />
                     </div>
                     {!manualReadMode && parseAudioUrls(word.audioUrl).length > 0 && (
@@ -484,8 +500,8 @@ export default function WordPractice() {
               <StudyNotePanel
                 open={globalNoteOpen}
                 onClose={() => setGlobalNoteOpen(false)}
-                storageKey={`study-note:global:${wordBookId}`}
-                title={t("practice.free_note")}
+                storageKey={activeNoteKey}
+                title={activeNoteTitle}
                 side={noteSide}
                 split
                 onSideChange={setNoteSide}
@@ -500,8 +516,8 @@ export default function WordPractice() {
         <StudyNotePanel
           open={globalNoteOpen}
           onClose={() => setGlobalNoteOpen(false)}
-          storageKey={`study-note:global:${wordBookId}`}
-          title={t("practice.free_note")}
+          storageKey={activeNoteKey}
+          title={activeNoteTitle}
           side={noteSide}
           onSideChange={setNoteSide}
         />
@@ -557,7 +573,7 @@ export default function WordPractice() {
                 type="button"
                 variant={globalNoteOpen ? "brand" : "outline"}
                 size="pill"
-                onClick={() => setGlobalNoteOpen((v) => !v)}
+                onClick={() => (globalNoteOpen ? setGlobalNoteOpen(false) : openGlobalNote())}
                 aria-label={t("practice.open_free_note")}
                 className="max-sm:px-2 max-sm:text-xs"
               >

@@ -14,6 +14,7 @@ import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } 
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { applyUserWordView } from "../components/WordEditControls";
 import { NoteSplitLayout } from "../components/NoteSplitLayout";
+import { useNote } from "../components/NoteContext";
 import { StudyNoteLauncher } from "../components/StudyNotePanel";
 
 import {
@@ -68,6 +69,7 @@ function mapToFlashWord(w: Record<string, unknown>): FlashWord {
 export default function FlashReview() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const note = useNote();
   const [words, setWords] = useState<FlashWord[]>([]);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
@@ -406,6 +408,7 @@ export default function FlashReview() {
                     title={t("practice.note_title", { word: visibleWords[cardIndex].word })}
                     label={t("practice.note")}
                     className="h-9 px-2"
+                    onOpen={() => note.openNote(wordNoteKey(visibleWords[cardIndex].id), t("practice.note_title", { word: visibleWords[cardIndex].word }))}
                   />
                 </div>
                 <CloudButton
@@ -485,6 +488,7 @@ export default function FlashReview() {
                         title={t("practice.note_title", { word: word.word })}
                         label={t("practice.note")}
                         className="h-9 px-2"
+                        onOpen={() => note.openNote(wordNoteKey(word.id), t("practice.note_title", { word: word.word }))}
                       />
                     </div>
                     <CloudButton
