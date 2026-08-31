@@ -42,7 +42,7 @@ function sameOriginWsBase(): string {
  */
 function getApiConfig(): ApiConfig {
   // 优先使用环境变量（本地开发常用相对路径 /api，由 Vite 代理到后端）
-  const apiBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7080/api'
+  const apiBaseURL = import.meta.env.VITE_API_BASE_URL || '/api'
 
   let wsBaseURL = import.meta.env.VITE_WS_BASE_URL as string | undefined
   if (!wsBaseURL) {
