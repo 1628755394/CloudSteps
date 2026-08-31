@@ -314,8 +314,8 @@ export default function WordPractice() {
 
       {/* Split container: word content + note panel on the same layer (desktop). */}
       <div
-        className={`box-border min-h-[calc(100dvh-9.5rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2 lg:mx-0" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`}
-        style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}
+        className={`box-border min-h-[calc(100dvh-11rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2 lg:mx-0" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`}
+        style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}
       >
         {/* Word content pane */}
         <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
@@ -491,10 +491,10 @@ export default function WordPractice() {
         />
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-2 sm:py-3 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto">
               <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
               <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">
                 <Shuffle size={15} />
@@ -549,26 +549,14 @@ export default function WordPractice() {
                 <span className="hidden sm:inline">{t("practice.free_note")}</span>
               </CloudButton>
             </div>
-            <div className="hidden sm:flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <div className="w-16 shrink-0" aria-hidden="true" />
-              <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
-                <ArrowRight size={24} />
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <CloudButton variant="brand" size="iconRound" onClick={handleNext} aria-label={t("practice.next")}>
+                <ArrowRight size={20} />
               </CloudButton>
             </div>
           </div>
         </div>
       </div>
-
-      <CloudButton
-        type="button"
-        variant="brand"
-        size="iconRound"
-        onClick={handleNext}
-        className="fixed right-3 bottom-16 z-50 size-12 shadow-lg sm:hidden"
-        aria-label={t("practice.next")}
-      >
-        <ArrowRight size={24} />
-      </CloudButton>
     </FlowPageShell>
   );
 }

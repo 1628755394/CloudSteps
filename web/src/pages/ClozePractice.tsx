@@ -235,7 +235,7 @@ export default function ClozePractice() {
       )}
 
       {phase === "list" && (
-        <div className="flex-1 min-h-0 overflow-auto px-3 py-3">
+        <div className="flex-1 min-h-0 overflow-auto px-3 mt-6">
           {loadingList || loadingPassage ? (
             <div className="flex justify-center py-16">
               <Spin tip={t("common.loading")} />
@@ -293,7 +293,7 @@ export default function ClozePractice() {
       )}
 
       {phase === "result" && result && (
-        <div className="flex-1 min-h-0 overflow-auto px-4 py-6 flex items-start justify-center">
+        <div className="flex-1 min-h-0 overflow-auto px-4 mt-6 flex items-start justify-center">
           <Card className="w-full max-w-md !rounded-2xl shadow-sm">
             <Result
               status={result.score === 100 ? "success" : "info"}
@@ -349,7 +349,7 @@ export default function ClozePractice() {
 
       {phase === "practice" && passage && (
         <>
-          <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-28">
+          <div className="flex-1 min-h-0 overflow-auto px-3 mt-6 pb-28">
             <Card className="!rounded-xl shadow-sm !mb-3" title={t("practice.passage")}>
               <div className="text-[#2D3748] leading-8 text-[15px]">
                 {renderPassageWithBlanks(passage.content, answers, blankNoToId)}

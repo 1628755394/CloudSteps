@@ -1,0 +1,7 @@
+style(web): 统一所有页面内容距顶部 24px (mt-6)
+
+- NoteSplitLayout/StudyNoteSplitLayout: 添加 mt-6，min-h 调整为 calc(100dvh-11rem)
+- WordPractice/ReviewWordList: min-h 调整为 calc(100dvh-11rem)
+- VocabularyTest/Result/Testing: py-* 改为 mt-6
+- WordTraining: mt-8/mt-16/pt-2 统一为 mt-6
+- ClozePractice/GrammarAnalysis/ReadingComprehension: py-3/py-6 改为 mt-6

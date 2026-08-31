@@ -17,12 +17,12 @@ export function NoteSplitLayout({ children, defaultStorageKey = "", defaultTitle
   return (
     <>
       <div
-        className={`box-border min-h-[calc(100dvh-9.5rem)] w-full ${
+        className={`box-border mt-6 min-h-[calc(100dvh-11rem)] w-full ${
           split
             ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2"
             : "pb-20 max-w-2xl lg:max-w-5xl mx-auto px-4"
         }`}
-        style={split ? { height: "calc(100dvh - 3.5rem - 6rem)" } : undefined}
+        style={split ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}
       >
         <div
           className={`${split ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${

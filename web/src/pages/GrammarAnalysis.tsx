@@ -181,7 +181,7 @@ export default function GrammarAnalysis() {
       )}
 
       {phase === "list" && (
-        <div className="flex-1 min-h-0 overflow-auto px-3 py-3">
+        <div className="flex-1 min-h-0 overflow-auto px-3 mt-6">
           {loadingList || loadingLesson ? (
             <div className="flex justify-center py-16">
               <Spin tip={t("common.loading")} />
@@ -245,7 +245,7 @@ export default function GrammarAnalysis() {
 
       {phase === "learn" && lesson && (
         <>
-          <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-24">
+          <div className="flex-1 min-h-0 overflow-auto px-3 mt-6 pb-24">
             <Card className="!rounded-xl shadow-sm !mb-3" title={t("grammar.explanation")}>
               <div
                 className="grammar-html-content !text-[#2D3748] leading-7"
@@ -301,7 +301,7 @@ export default function GrammarAnalysis() {
       )}
 
       {phase === "result" && result && (
-        <div className="flex-1 min-h-0 overflow-auto px-4 py-6 flex items-start justify-center">
+        <div className="flex-1 min-h-0 overflow-auto px-4 mt-6 flex items-start justify-center">
           <Card className="w-full max-w-md !rounded-2xl shadow-sm">
             <Result
               status={result.score === 100 ? "success" : "info"}
@@ -357,7 +357,7 @@ export default function GrammarAnalysis() {
 
       {phase === "practice" && lesson && (
         <>
-          <div className="flex-1 min-h-0 overflow-auto px-3 py-3 pb-24">
+          <div className="flex-1 min-h-0 overflow-auto px-3 mt-6 pb-24">
             <Space direction="vertical" size={12} className="w-full">
               {lesson.questions.map((q, idx) => (
                 <Card

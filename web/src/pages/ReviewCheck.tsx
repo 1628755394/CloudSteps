@@ -371,11 +371,11 @@ export default function ReviewCheck() {
         )}
       </NoteSplitLayout>
 
-      {showList && (<>
+      {showList && (
         <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
           <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-2.5">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto">
                 <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
                 <CloudButton
                   type="button"
@@ -412,21 +412,18 @@ export default function ReviewCheck() {
                 <CloudButton variant="outline" size="pill" onClick={handleSelectAll} className="max-sm:px-2 max-sm:text-xs">
                   {t("practice.select_all")}
                 </CloudButton>
+                <CloudButton
+                  type="button"
+                  variant="brand"
+                  size="iconRound"
+                  onClick={handleSubmit}
+                  disabled={markedWords.length === 0 || submitting}
+                  loading={submitting}
+                  aria-label={t("practice.start_study")}
+                >
+                  <ArrowRight size={20} />
+                </CloudButton>
               </div>
-            </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 w-full">
-              <CloudButton
-                variant="brand"
-                size="pill"
-                className={`hidden sm:flex flex-1 min-w-0 truncate ${markedWords.length === 0 ? "opacity-80" : ""}`}
-                onClick={handleSubmit}
-                disabled={submitting}
-                loading={submitting}
-                loadingText={t("practice.preparing")}
-              >
-                {t("practice.start_study")}
-                {markedWords.length > 0 ? ` (${markedWords.length})` : ""}
-              </CloudButton>
             </div>
             {hint && (
               <p className="text-center text-xs text-amber-600 mt-2">{hint}</p>
@@ -438,19 +435,7 @@ export default function ReviewCheck() {
             )}
           </div>
         </div>
-
-        <CloudButton
-          type="button"
-          variant="brand"
-          size="iconRound"
-          onClick={handleSubmit}
-          disabled={markedWords.length === 0 || submitting}
-          className="fixed right-3 bottom-16 z-50 size-11 shadow-lg sm:hidden"
-          aria-label={t("practice.start_study")}
-        >
-          <ArrowRight size={20} />
-        </CloudButton>
-      </>)}
+      )}
     </FlowPageShell>
   );
 }

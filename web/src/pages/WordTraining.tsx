@@ -295,7 +295,7 @@ export default function WordTraining() {
     return (
       <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
-        <div className="px-4 mt-16 flex justify-center">
+        <div className="px-4 mt-6 flex justify-center">
           <CloudSpin tip={t("word_training.loading_students")} />
         </div>
       </FlowPageShell>
@@ -306,7 +306,7 @@ export default function WordTraining() {
     return (
       <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
-        <div className="px-4 mt-8">
+        <div className="px-4 mt-6">
           <div className="bg-white rounded-xl p-6 shadow-sm text-center space-y-4">
             <div className="mx-auto w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
               <Clock className="text-amber-600" size={22} />
@@ -330,7 +330,7 @@ export default function WordTraining() {
     return (
       <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
-        <div className="px-4 mt-8">
+        <div className="px-4 mt-6">
           <div className="bg-white rounded-xl p-6 shadow-sm text-center space-y-4">
             <div className="mx-auto w-12 h-12 rounded-xl bg-tint-sky flex items-center justify-center">
               <Users className="text-secondary-brand" size={22} />
@@ -370,7 +370,7 @@ export default function WordTraining() {
     <FlowPageShell className="h-dvh max-h-dvh bg-gray-50 flex flex-col overflow-hidden">
       <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
 
-      <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] gap-2 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 mt-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] gap-2 overflow-hidden">
         <CloudSelect
           value={selectedWordBookId ? String(selectedWordBookId) : undefined}
           onChange={(v) => {
