@@ -46,9 +46,10 @@ type StudyNoteLauncherProps = {
   title?: string;
   label?: string;
   className?: string;
+  onOpen?: () => void;
 };
 
-export function StudyNoteLauncher({ storageKey, title, label, className = "" }: StudyNoteLauncherProps) {
+export function StudyNoteLauncher({ storageKey, title, label, className = "", onOpen }: StudyNoteLauncherProps) {
   const { t } = useTranslation();
   const resolvedTitle = title ?? t("studyNote.title");
   const resolvedLabel = label ?? t("studyNote.title");
@@ -59,13 +60,13 @@ export function StudyNoteLauncher({ storageKey, title, label, className = "" }: 
       <button
         type="button"
         className={`inline-flex h-9 items-center justify-center rounded-full border border-[#d8cdb8] px-3 text-xs font-medium text-[#5f7890] hover:bg-[#e9dfce] hover:text-[#25344a] ${className}`}
-        onClick={() => setOpen(true)}
+        onClick={() => (onOpen ? onOpen() : setOpen(true))}
         title={t("studyNote.open", { label: resolvedLabel })}
       >
         <BookOpen size={15} />
         {resolvedLabel && <span className="hidden sm:inline">{resolvedLabel}</span>}
       </button>
-      {open && (
+      {!onOpen && open && (
         <StudyNotePanel
           open={open}
           onClose={() => setOpen(false)}

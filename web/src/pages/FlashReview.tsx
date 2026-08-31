@@ -14,6 +14,8 @@ import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } 
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { applyUserWordView } from "../components/WordEditControls";
 import { NoteSplitLayout } from "../components/NoteSplitLayout";
+import { useNote } from "../components/NoteContext";
+import { StudyNoteLauncher } from "../components/StudyNotePanel";
 
 import {
   clearStudyRetryFlash,
@@ -67,6 +69,7 @@ function mapToFlashWord(w: Record<string, unknown>): FlashWord {
 export default function FlashReview() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const note = useNote();
   const [words, setWords] = useState<FlashWord[]>([]);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [annotationOpen, setAnnotationOpen] = useState(false);
@@ -399,6 +402,15 @@ export default function FlashReview() {
                 </CloudButton>
               </div>
               <div className="flex items-center justify-center gap-3 border-t border-border/60 px-4 py-4">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StudyNoteLauncher
+                    storageKey={wordNoteKey(visibleWords[cardIndex].id)}
+                    title={t("practice.note_title", { word: visibleWords[cardIndex].word })}
+                    label={t("practice.note")}
+                    className="h-9 px-2"
+                    onOpen={() => note.openNote(wordNoteKey(visibleWords[cardIndex].id), t("practice.note_title", { word: visibleWords[cardIndex].word }))}
+                  />
+                </div>
                 <CloudButton
                   type="button"
                   variant="ghost"
@@ -470,6 +482,15 @@ export default function FlashReview() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <StudyNoteLauncher
+                        storageKey={wordNoteKey(word.id)}
+                        title={t("practice.note_title", { word: word.word })}
+                        label={t("practice.note")}
+                        className="h-9 px-2"
+                        onOpen={() => note.openNote(wordNoteKey(word.id), t("practice.note_title", { word: word.word }))}
+                      />
+                    </div>
                     <CloudButton
                       type="button"
                       variant="ghost"

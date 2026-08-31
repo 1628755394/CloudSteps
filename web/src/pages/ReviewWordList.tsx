@@ -23,7 +23,7 @@ import { WordDetailPanel } from "../components/WordDetailPanel";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
-import { StudyNotePanel } from "../components/StudyNotePanel";
+import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 import { useTranslation } from "react-i18next";
 import { formatApiMessage } from "../utils/apiMessage";
 
@@ -74,6 +74,20 @@ export default function ReviewWordList() {
     if (qp) return qp;
     return Number(sessionStorage.getItem("lb_review_wordbook_id") || 0);
   }, []);
+
+  const [activeNoteKey, setActiveNoteKey] = useState(`study-note:global:${wordBookId}`);
+  const [activeNoteTitle, setActiveNoteTitle] = useState(t("practice.free_note"));
+
+  const openGlobalNote = () => {
+    setActiveNoteKey(`study-note:global:${wordBookId}`);
+    setActiveNoteTitle(t("practice.free_note"));
+    setGlobalNoteOpen(true);
+  };
+  const openWordNote = (key: string, title: string) => {
+    setActiveNoteKey(key);
+    setActiveNoteTitle(title);
+    setGlobalNoteOpen(true);
+  };
 
   const reviewDate = useMemo(() => {
     const url = new URL(window.location.href);
@@ -360,6 +374,15 @@ export default function ReviewWordList() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <StudyNoteLauncher
+                          storageKey={`study-note:word:${wordBookId}:${item.id}`}
+                          title={t("practice.note_title", { word: item.word })}
+                          label={t("practice.note")}
+                          className="h-9 px-2"
+                          onOpen={() => openWordNote(`study-note:word:${wordBookId}:${item.id}`, t("practice.note_title", { word: item.word }))}
+                        />
+                      </div>
                       <CloudButton
                         type="button"
                         variant="ghost"
@@ -430,8 +453,8 @@ export default function ReviewWordList() {
               <StudyNotePanel
                 open={globalNoteOpen}
                 onClose={() => setGlobalNoteOpen(false)}
-                storageKey={`study-note:global:${wordBookId}`}
-                title={t("practice.free_note")}
+                storageKey={activeNoteKey}
+                title={activeNoteTitle}
                 side={noteSide}
                 split
                 onSideChange={setNoteSide}
@@ -446,8 +469,8 @@ export default function ReviewWordList() {
         <StudyNotePanel
           open={globalNoteOpen}
           onClose={() => setGlobalNoteOpen(false)}
-          storageKey={`study-note:global:${wordBookId}`}
-          title={t("practice.free_note")}
+          storageKey={activeNoteKey}
+          title={activeNoteTitle}
           side={noteSide}
           onSideChange={setNoteSide}
         />
@@ -477,7 +500,7 @@ export default function ReviewWordList() {
               type="button"
               variant={globalNoteOpen ? "brand" : "outline"}
               size="pill"
-              onClick={() => setGlobalNoteOpen(true)}
+              onClick={() => (globalNoteOpen ? setGlobalNoteOpen(false) : openGlobalNote())}
               aria-label={t("practice.open_free_note")}
               className="max-sm:px-2 max-sm:text-xs"
             >

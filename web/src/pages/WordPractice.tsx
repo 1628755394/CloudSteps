@@ -9,7 +9,7 @@ import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { StudyNotePanel } from "../components/StudyNotePanel";
+import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
@@ -63,6 +63,24 @@ export default function WordPractice() {
     startResize: startNoteResize,
   } = useSplitScreenNote("lb_practice_note_width");
 
+  const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
+  const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
+  const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
+
+  const [activeNoteKey, setActiveNoteKey] = useState(`study-note:global:${wordBookId}`);
+  const [activeNoteTitle, setActiveNoteTitle] = useState(t("practice.free_note"));
+
+  const openGlobalNote = () => {
+    setActiveNoteKey(`study-note:global:${wordBookId}`);
+    setActiveNoteTitle(t("practice.free_note"));
+    setGlobalNoteOpen(true);
+  };
+  const openWordNote = (key: string, title: string) => {
+    setActiveNoteKey(key);
+    setActiveNoteTitle(title);
+    setGlobalNoteOpen(true);
+  };
+
   const handlePlayNextAudio = (word: PracticeWord) => {
     if (!word.audioUrl) return;
     const urls = parseAudioUrls(word.audioUrl);
@@ -78,10 +96,6 @@ export default function WordPractice() {
     const next = prev >= n ? 1 : prev + 1;
     setAudioIndexMap(new Map(audioIndexMap).set(word.id, next));
   };
-
-  const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
-  const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
-  const wordNoteKey = (wordId: number) => `study-note:word:${wordBookId}:${wordId}`;
 
   const applyPatchedWord = (view: UserWordView) => {
     const e = view.effective;
@@ -365,6 +379,15 @@ export default function WordPractice() {
                 </CloudButton>
               </div>
               <div className="flex items-center justify-center gap-3 border-t border-[#E2E8F0] px-4 py-4">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StudyNoteLauncher
+                    storageKey={wordNoteKey(cardWord.id)}
+                    title={t("practice.note_title", { word: cardWord.word })}
+                    label={t("practice.note")}
+                    className="h-9 px-2"
+                    onOpen={() => openWordNote(wordNoteKey(cardWord.id), t("practice.note_title", { word: cardWord.word }))}
+                  />
+                </div>
                 {!manualReadMode && parseAudioUrls(cardWord.audioUrl).length > 0 && (
                   <CloudButton
                     variant={playingId === cardWord.id ? "mint" : "mintOutline"}
@@ -419,6 +442,15 @@ export default function WordPractice() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <StudyNoteLauncher
+                        storageKey={wordNoteKey(word.id)}
+                        title={t("practice.note_title", { word: word.word })}
+                        label={t("practice.note")}
+                        className="h-9 px-2"
+                        onOpen={() => openWordNote(wordNoteKey(word.id), t("practice.note_title", { word: word.word }))}
+                      />
+                    </div>
                     {!manualReadMode && parseAudioUrls(word.audioUrl).length > 0 && (
                       <CloudButton
                         variant={playingId === word.id ? "mint" : "mintOutline"}
@@ -468,8 +500,8 @@ export default function WordPractice() {
               <StudyNotePanel
                 open={globalNoteOpen}
                 onClose={() => setGlobalNoteOpen(false)}
-                storageKey={`study-note:global:${wordBookId}`}
-                title={t("practice.free_note")}
+                storageKey={activeNoteKey}
+                title={activeNoteTitle}
                 side={noteSide}
                 split
                 onSideChange={setNoteSide}
@@ -484,8 +516,8 @@ export default function WordPractice() {
         <StudyNotePanel
           open={globalNoteOpen}
           onClose={() => setGlobalNoteOpen(false)}
-          storageKey={`study-note:global:${wordBookId}`}
-          title={t("practice.free_note")}
+          storageKey={activeNoteKey}
+          title={activeNoteTitle}
           side={noteSide}
           onSideChange={setNoteSide}
         />
@@ -541,7 +573,7 @@ export default function WordPractice() {
                 type="button"
                 variant={globalNoteOpen ? "brand" : "outline"}
                 size="pill"
-                onClick={() => setGlobalNoteOpen((v) => !v)}
+                onClick={() => (globalNoteOpen ? setGlobalNoteOpen(false) : openGlobalNote())}
                 aria-label={t("practice.open_free_note")}
                 className="max-sm:px-2 max-sm:text-xs"
               >
