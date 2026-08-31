@@ -240,8 +240,6 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
     const layer = drawLayerRef.current;
     if (!layer) return "";
     const id = `text-${textIdCounter.current++}`;
-    // draggable follows current tool: only draggable in select mode
-    const canDrag = toolRef.current === "select";
     const textEl = new Text({
       id,
       text,
@@ -249,7 +247,7 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       y,
       fill: colorRef.current,
       fontSize: fontSizeRef.current,
-      draggable: canDrag,
+      draggable: false,
     });
     layer.add(textEl);
     textMapRef.current.set(id, textEl);
@@ -795,7 +793,9 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
       editorConfig.preventEditInner = true;
     }
     for (const child of drawLayerRef.current?.children || []) {
-      (child as unknown as { draggable: boolean }).draggable = canDrag;
+      // Text elements are never draggable
+      const isText = (child as unknown as { tag?: string }).tag === "Text";
+      (child as unknown as { draggable: boolean }).draggable = canDrag && !isText;
     }
     if (!canDrag) {
       app.editor.target = undefined;
@@ -937,8 +937,9 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
               e.preventDefault();
               finishTextEditing();
             }
-            // Enter without shift = finish (single line text)
-            if (e.key === "Enter" && !e.shiftKey) {
+            // Enter now inserts a new line (like a document)
+            // Use Ctrl+Enter to finish editing
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
               e.preventDefault();
               finishTextEditing();
             }
@@ -958,9 +959,8 @@ export const LeaferCanvas = forwardRef<LeaferCanvasHandle, Props>(function Leafe
             margin: "0",
             caretColor: color,
             boxShadow: "none",
-            whiteSpace: "pre",
+            whiteSpace: "pre-wrap",
           }}
-          rows={1}
           autoFocus
         />
       )}
