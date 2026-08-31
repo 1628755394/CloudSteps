@@ -771,7 +771,7 @@ export default function PostTrainingCheck() {
                   autoFocus
                   className="w-full rounded-xl border border-border bg-card px-4 py-3 text-base text-foreground focus:outline-none focus:border-primary"
                 />
-                <div className="flex gap-3">
+                <div className="flex gap-3 mt-4">
                   <CloudButton
                     type="button"
                     variant="outline"
