@@ -1,0 +1,5 @@
+style(web): 删除单词练习卡片中的笔记按钮，并完成手机端适配
+
+- FlashReview、PreTrainingCheck、ListenIdentify、WordPractice、ReviewWordList、ReviewCheck 删除每个单词卡片上的 StudyNoteLauncher
+- 以上页面完成手机端响应式布局（垂直堆叠、小按钮、紧凑工具栏）
+- 统一操作按钮尺寸 size-8/9 和图标大小 18

@@ -14,7 +14,7 @@ import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } 
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { applyUserWordView } from "../components/WordEditControls";
 import { NoteSplitLayout } from "../components/NoteSplitLayout";
-import { StudyNoteLauncher } from "../components/StudyNotePanel";
+
 import {
   clearStudyRetryFlash,
   getStudyRetryWords,
@@ -399,23 +399,15 @@ export default function FlashReview() {
                 </CloudButton>
               </div>
               <div className="flex items-center justify-center gap-3 border-t border-border/60 px-4 py-4">
-                <div onClick={(e) => e.stopPropagation()}>
-                  <StudyNoteLauncher
-                    storageKey={wordNoteKey(visibleWords[cardIndex].id)}
-                    title={t("practice.note_title", { word: visibleWords[cardIndex].word })}
-                    label={t("practice.note")}
-                    className="h-9 px-2"
-                  />
-                </div>
                 <CloudButton
                   type="button"
                   variant="ghost"
                   size="iconRound"
-                  className="size-12"
+                  className="size-8 sm:size-9"
                   onClick={() => handlePlayAudio(visibleWords[cardIndex])}
                 >
                   <Volume2
-                    size={22}
+                    size={18}
                     className={
                       playingId === visibleWords[cardIndex].id
                         ? "text-[#4ECDC4] animate-pulse"
@@ -427,21 +419,21 @@ export default function FlashReview() {
                   type="button"
                   variant="ghost"
                   size="iconRound"
-                  className="size-12"
+                  className="size-8 sm:size-9"
                   onClick={() => handleScissorClick(visibleWords[cardIndex], "red")}
                   title={t("flash_review.red_scissor_tip")}
                 >
-                  <Scissors size={22} className="text-[#FF6B6B]" />
+                  <Scissors size={18} className="text-[#FF6B6B]" />
                 </CloudButton>
                 <CloudButton
                   type="button"
                   variant="ghost"
                   size="iconRound"
-                  className="size-12"
+                  className="size-8 sm:size-9"
                   onClick={() => handleScissorClick(visibleWords[cardIndex], "green")}
                   title={t("flash_review.green_scissor_tip")}
                 >
-                  <Scissors size={22} className="text-[#4ECDC4]" />
+                  <Scissors size={18} className="text-[#4ECDC4]" />
                 </CloudButton>
               </div>
             </div>
@@ -468,28 +460,21 @@ export default function FlashReview() {
                 style={markWordCardStyle(null, isWordCardTapped(word, playingId, word.id))}
                 onClick={() => handleWordTap(word)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1 pr-3">
-                    <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="min-w-0">
                       <div className={`${PRACTICE_WORD_CLASS} mb-1 hover:text-[#4ECDC4] transition-colors`}>
                         {word.word}
                       </div>
                       {renderMeaning(word)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <StudyNoteLauncher
-                        storageKey={wordNoteKey(word.id)}
-                        title={t("practice.note_title", { word: word.word })}
-                        label={t("practice.note")}
-                        className="h-9 px-2"
-                      />
-                    </div>
+                  <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
                     <CloudButton
                       type="button"
                       variant="ghost"
                       size="iconRound"
+                      className="size-8 sm:size-9"
                       onClick={(e) => {
                         e.stopPropagation();
                         handlePlayAudio(word);
@@ -503,7 +488,7 @@ export default function FlashReview() {
                       }}
                     >
                       <Volume2
-                        size={20}
+                        size={18}
                         className={
                           playingId === word.id ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"
                         }
@@ -513,25 +498,27 @@ export default function FlashReview() {
                       type="button"
                       variant="ghost"
                       size="iconRound"
+                      className="size-8 sm:size-9"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleScissorClick(word, "red");
                       }}
                       title={t("flash_review.red_scissor_tip")}
                     >
-                      <Scissors size={20} className="text-[#FF6B6B]" />
+                      <Scissors size={18} className="text-[#FF6B6B]" />
                     </CloudButton>
                     <CloudButton
                       type="button"
                       variant="ghost"
                       size="iconRound"
+                      className="size-8 sm:size-9"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleScissorClick(word, "green");
                       }}
                       title={t("flash_review.green_scissor_tip")}
                     >
-                      <Scissors size={20} className="text-[#4ECDC4]" />
+                      <Scissors size={18} className="text-[#4ECDC4]" />
                     </CloudButton>
                   </div>
                 </div>
@@ -551,27 +538,30 @@ export default function FlashReview() {
         )}
       </NoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
-          <div className="flex gap-2 flex-wrap">
-            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-              <Shuffle size={16} />
-              {t("practice.shuffle")}
-            </CloudButton>
-            <CloudButton
-              variant={detailMode ? "brand" : "outline"}
-              size="pill"
-              onClick={() => {
-                setDetailMode((v) => {
-                  if (v) setDetailWord(null);
-                  return !v;
-                });
-              }}
-            >
-              <BookOpen size={16} />
-              {t("practice.expand")}
-            </CloudButton>
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-2 sm:py-3 shadow-lg">
+        <div className="max-w-5xl mx-auto w-full">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">
+                <Shuffle size={15} />
+                <span className="hidden sm:inline">{t("practice.shuffle")}</span>
+              </CloudButton>
+              <CloudButton
+                variant={detailMode ? "brand" : "outline"}
+                size="pill"
+                onClick={() => {
+                  setDetailMode((v) => {
+                    if (v) setDetailWord(null);
+                    return !v;
+                  });
+                }}
+                className="max-sm:px-2 max-sm:text-xs"
+              >
+                <BookOpen size={15} />
+                <span className="hidden sm:inline">{t("practice.expand")}</span>
+              </CloudButton>
+            </div>
           </div>
         </div>
       </div>

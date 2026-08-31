@@ -9,7 +9,7 @@ import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
 import { SequenceNextMark } from "../components/SequenceNextMark";
 import { WordDetailPanel } from "../components/WordDetailPanel";
-import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
+import { StudyNotePanel } from "../components/StudyNotePanel";
 import { WordViewModeToggle, type WordViewMode } from "../components/WordMarkView";
 import { playFirstWordAudio, playWordAudio, playAudioAtIndex, parseAudioUrls, WORD_AUDIO_SLOT_COUNT } from "../utils/audioPlayer";
 import { displayTranslationFull, displayTranslationShort, pickPhoneticDisplay } from "../utils/wordFormat";
@@ -365,19 +365,11 @@ export default function WordPractice() {
                 </CloudButton>
               </div>
               <div className="flex items-center justify-center gap-3 border-t border-[#E2E8F0] px-4 py-4">
-                <div onClick={(e) => e.stopPropagation()}>
-                  <StudyNoteLauncher
-                    storageKey={wordNoteKey(cardWord.id)}
-                    title={t("practice.note_title", { word: cardWord.word })}
-                    label={t("practice.note")}
-                    className="h-9 px-2"
-                  />
-                </div>
                 {!manualReadMode && parseAudioUrls(cardWord.audioUrl).length > 0 && (
                   <CloudButton
                     variant={playingId === cardWord.id ? "mint" : "mintOutline"}
                     size="iconRound"
-                    className="size-12 text-sm font-bold"
+                    className="size-8 sm:size-9 text-xs sm:text-sm font-bold"
                     onClick={() => handlePlayNextAudio(cardWord)}
                   >
                     {audioIndexMap.get(cardWord.id) ?? 0}
@@ -416,28 +408,22 @@ export default function WordPractice() {
                 <SequenceNextMark
                   show={!manualReadMode && nextGuideIndex >= 0 && index === nextGuideIndex}
                 />
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div
                     onClick={() => handleWordTap(word)}
-                    className="flex-1 cursor-pointer pr-3"
+                    className="flex-1 cursor-pointer min-w-0"
                   >
-                    <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{word.word}</div>
-                    {renderReveal(word)}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <StudyNoteLauncher
-                        storageKey={wordNoteKey(word.id)}
-                        title={t("practice.note_title", { word: word.word })}
-                        label={t("practice.note")}
-                        className="h-9 px-2"
-                      />
+                    <div className="min-w-0">
+                      <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{word.word}</div>
+                      {renderReveal(word)}
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
                     {!manualReadMode && parseAudioUrls(word.audioUrl).length > 0 && (
                       <CloudButton
                         variant={playingId === word.id ? "mint" : "mintOutline"}
                         size="iconRound"
-                        className="size-10 text-sm font-bold"
+                        className="size-8 sm:size-9 text-xs sm:text-sm font-bold"
                         onClick={() => handlePlayNextAudio(word)}
                       >
                         {audioIndexMap.get(word.id) ?? 0}
@@ -505,65 +491,70 @@ export default function WordPractice() {
         />
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E2E8F0] px-4 py-4 shadow-lg">
-        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center justify-between gap-2">
-          <div className="flex gap-2 flex-wrap">
-            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-            <CloudButton variant="outline" size="pill" onClick={handleShuffle}>
-              <Shuffle size={16} />
-              {t("practice.shuffle")}
-            </CloudButton>
-            <CloudButton
-              variant={manualReadMode ? "brand" : "outline"}
-              size="pill"
-              onClick={() => {
-                setManualReadMode(!manualReadMode);
-                setWords((prev) =>
-                  prev.map((w) => ({ ...w, showTranslation: false, heard: false }))
-                );
-              }}
-            >
-              {t("practice.manual_read")}
-            </CloudButton>
-            <CloudButton
-              variant={detailMode ? "brand" : "outline"}
-              size="pill"
-              onClick={() => {
-                setDetailMode((v) => {
-                  const next = !v;
-                  if (next) {
-                    const targetIndex = viewMode === "card" ? cardIndex : (selectedIndex ?? activeIndex);
-                    if (targetIndex >= 0 && words[targetIndex]) {
-                      setWords((prev) =>
-                        prev.map((w, i) => (i === targetIndex ? { ...w, showTranslation: true } : w))
-                      );
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-2 sm:py-3 shadow-lg">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+              <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">
+                <Shuffle size={15} />
+                <span className="hidden sm:inline">{t("practice.shuffle")}</span>
+              </CloudButton>
+              <CloudButton
+                variant={manualReadMode ? "brand" : "outline"}
+                size="pill"
+                onClick={() => {
+                  setManualReadMode(!manualReadMode);
+                  setWords((prev) =>
+                    prev.map((w) => ({ ...w, showTranslation: false, heard: false }))
+                  );
+                }}
+                className="max-sm:px-2 max-sm:text-xs"
+              >
+                {t("practice.manual_read")}
+              </CloudButton>
+              <CloudButton
+                variant={detailMode ? "brand" : "outline"}
+                size="pill"
+                onClick={() => {
+                  setDetailMode((v) => {
+                    const next = !v;
+                    if (next) {
+                      const targetIndex = viewMode === "card" ? cardIndex : (selectedIndex ?? activeIndex);
+                      if (targetIndex >= 0 && words[targetIndex]) {
+                        setWords((prev) =>
+                          prev.map((w, i) => (i === targetIndex ? { ...w, showTranslation: true } : w))
+                        );
+                      }
+                    } else {
+                      setDetailWord(null);
                     }
-                  } else {
-                    setDetailWord(null);
-                  }
-                  return next;
-                });
-              }}
-            >
-              <BookOpen size={16} />
-              {t("practice.expand")}
-            </CloudButton>
-            <CloudButton
-              type="button"
-              variant={globalNoteOpen ? "brand" : "outline"}
-              size="pill"
-              onClick={() => setGlobalNoteOpen((v) => !v)}
-              aria-label={t("practice.open_free_note")}
-            >
-              <PanelTop size={16} className={globalNoteOpen ? "text-white" : "text-[#c45c78]"} />
-              {t("practice.free_note")}
-            </CloudButton>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="w-16 shrink-0" aria-hidden="true" />
-            <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
-            <ArrowRight size={24} />
-          </CloudButton>
+                    return next;
+                  });
+                }}
+                className="max-sm:px-2 max-sm:text-xs"
+              >
+                <BookOpen size={15} />
+                <span className="hidden sm:inline">{t("practice.expand")}</span>
+              </CloudButton>
+              <CloudButton
+                type="button"
+                variant={globalNoteOpen ? "brand" : "outline"}
+                size="pill"
+                onClick={() => setGlobalNoteOpen((v) => !v)}
+                aria-label={t("practice.open_free_note")}
+                className="max-sm:px-2 max-sm:text-xs"
+              >
+                <PanelTop size={15} className={globalNoteOpen ? "text-white" : "text-[#c45c78]"} />
+                <span className="hidden sm:inline">{t("practice.free_note")}</span>
+              </CloudButton>
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <div className="w-16 shrink-0" aria-hidden="true" />
+              <CloudButton variant="brand" size="iconRound" className="size-12 shrink-0" onClick={handleNext}>
+                <ArrowRight size={24} />
+              </CloudButton>
+            </div>
           </div>
         </div>
       </div>
