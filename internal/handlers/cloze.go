@@ -52,7 +52,11 @@ func (h *Handlers) registerClozeRoutes(r *humax.Group) {
 		admin.POST("/passages", h.handleAdminClozeCreatePassage)
 		admin.PUT("/passages/:id", h.handleAdminClozeUpdatePassage)
 		admin.DELETE("/passages/:id", h.handleAdminClozeDeletePassage)
+		admin.GET("/records", h.handleAdminClozeListRecords)
+		admin.GET("/records/:id", h.handleAdminClozeGetRecord)
 	}
+
+	h.registerUserClozeRoutes(rg)
 }
 
 func parseClozeOptions(raw string) []clozeOption {
@@ -630,4 +634,74 @@ func (h *Handlers) handleAdminClozeDeletePassage(c *gin.Context) {
 		return
 	}
 	response.SuccessI18n(c, "common.deleted", nil)
+}
+
+func (h *Handlers) handleAdminClozeListRecords(c *gin.Context) {
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	q := adminReadingRecordQuery(db.Model(&models.ClozeRecord{}), c)
+	var total int64
+	q.Count(&total)
+	var records []models.ClozeRecord
+	q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&records)
+
+	userIDs := make([]uint, 0, len(records))
+	passageIDs := make([]uint, 0, len(records))
+	for _, r := range records {
+		userIDs = append(userIDs, r.UserID)
+		passageIDs = append(passageIDs, r.PassageID)
+	}
+	userMap := loadUserNames(db, userIDs)
+	titleMap := map[uint]string{}
+	levelMap := map[uint]string{}
+	if len(passageIDs) > 0 {
+		var passages []models.ClozePassage
+		db.Select("id, title, level").Where("id IN ?", passageIDs).Find(&passages)
+		for _, p := range passages {
+			titleMap[p.ID] = p.Title
+			levelMap[p.ID] = p.Level
+		}
+	}
+
+	list := make([]gin.H, 0, len(records))
+	for _, r := range records {
+		u := userMap[r.UserID]
+		list = append(list, gin.H{
+			"id": r.ID, "userId": r.UserID, "username": u.Username, "email": u.Email,
+			"passageId": r.PassageID, "title": titleMap[r.PassageID], "level": levelMap[r.PassageID],
+			"blankCount": r.BlankCount, "correctCount": r.CorrectCount, "score": r.Score,
+			"durationSec": r.DurationSec, "isLatest": r.IsLatest, "completedAt": r.CompletedAt, "source": "system",
+		})
+	}
+	response.SuccessI18n(c, "common.success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
+}
+
+func (h *Handlers) handleAdminClozeGetRecord(c *gin.Context) {
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	var record models.ClozeRecord
+	if err := db.Where("id = ?", id).First(&record).Error; err != nil {
+		response.FailI18n(c, "common.record_not_found", nil)
+		return
+	}
+	var passage models.ClozePassage
+	db.Select("id, title, level, content").First(&passage, record.PassageID)
+	var user models.User
+	db.Select("id, username, email").First(&user, record.UserID)
+
+	response.SuccessI18n(c, "common.success", gin.H{
+		"id": record.ID, "userId": record.UserID, "username": user.Username, "email": user.Email,
+		"passageId": record.PassageID, "title": passage.Title, "level": passage.Level,
+		"content": passage.Content, "blankCount": record.BlankCount, "correctCount": record.CorrectCount,
+		"score": record.Score, "durationSec": record.DurationSec, "isLatest": record.IsLatest,
+		"completedAt": record.CompletedAt, "answers": record.Answers, "source": "system",
+	})
 }

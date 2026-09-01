@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   Button,
   Card,
@@ -13,9 +13,14 @@ import {
   Tag,
   Typography,
 } from "@arco-design/web-react";
-import { IconLeft } from "@arco-design/web-react/icon";
+import { IconLeft, IconPlus } from "@arco-design/web-react/icon";
 import { ArrowRight } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
+import {
+  getCustomClozePassage,
+  listCustomClozePassages,
+  submitCustomClozePassage,
+} from "../api/customCloze";
 import {
   getClozePassage,
   listClozePassages,
@@ -25,8 +30,12 @@ import {
   type ClozeSubmitResult,
 } from "../api/cloze";
 import { formatApiMessage } from "../utils/apiMessage";
+import { cn } from "../utils/cn";
 
 type Phase = "list" | "practice" | "result";
+type SourceTab = "system" | "custom";
+
+type PassageItem = ClozePassageListItem & { isCustom?: boolean };
 
 function renderPassageWithBlanks(
   content: string,
@@ -64,14 +73,20 @@ function renderPassageWithBlanks(
 export default function ClozePractice() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialTab =
+    (location.state as { tab?: SourceTab } | null)?.tab === "custom" ? "custom" : "system";
+
   const [phase, setPhase] = useState<Phase>("list");
+  const [sourceTab, setSourceTab] = useState<SourceTab>(initialTab);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingPassage, setLoadingPassage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const [passages, setPassages] = useState<ClozePassageListItem[]>([]);
+  const [passages, setPassages] = useState<PassageItem[]>([]);
   const [passage, setPassage] = useState<ClozePassageDetail | null>(null);
+  const [isCustomPassage, setIsCustomPassage] = useState(false);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [activeBlankId, setActiveBlankId] = useState<number | null>(null);
   const [result, setResult] = useState<ClozeSubmitResult | null>(null);
@@ -89,13 +104,17 @@ export default function ClozePractice() {
     setLoadingList(true);
     setErr(null);
     try {
-      const res = await listClozePassages({ page: 1, pageSize: 50 });
+      const res =
+        sourceTab === "custom"
+          ? await listCustomClozePassages({ page: 1, pageSize: 30 })
+          : await listClozePassages({ page: 1, pageSize: 30 });
       if (res.code !== 200) {
         setErr(formatApiMessage(res.msg, "cloze.load_list_failed"));
         setPassages([]);
         return;
       }
-      setPassages(Array.isArray(res.data?.list) ? res.data.list : []);
+      const list = Array.isArray(res.data?.list) ? res.data.list : [];
+      setPassages(list.map((p) => ({ ...p, isCustom: sourceTab === "custom" })));
     } catch (e: unknown) {
       const apiMsg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
@@ -107,8 +126,9 @@ export default function ClozePractice() {
   };
 
   useEffect(() => {
-    void loadList();
-  }, []);
+    if (phase === "list") void loadList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, sourceTab]);
 
   const answeredCount = useMemo(
     () => Object.keys(answers).filter((k) => answers[Number(k)]).length,
@@ -123,16 +143,17 @@ export default function ClozePractice() {
     [passage, activeBlankId]
   );
 
-  const openPassage = async (id: number) => {
+  const openPassage = async (id: number, isCustom: boolean) => {
     setLoadingPassage(true);
     setErr(null);
     try {
-      const res = await getClozePassage(id);
+      const res = isCustom ? await getCustomClozePassage(id) : await getClozePassage(id);
       if (res.code !== 200 || !res.data) {
         setErr(formatApiMessage(res.msg, "cloze.load_passage_failed"));
         return;
       }
       setPassage(res.data);
+      setIsCustomPassage(isCustom);
       setAnswers({});
       setResult(null);
       setActiveBlankId(res.data.blanks?.[0]?.id ?? null);
@@ -164,13 +185,21 @@ export default function ClozePractice() {
         1,
         Math.round((Date.now() - startedAtRef.current) / 1000)
       );
-      const res = await submitClozePassage(passage.id, {
-        answers: passage.blanks.map((b) => ({
-          blankId: b.id,
-          answer: answers[b.id] || "",
-        })),
-        durationSec,
-      });
+      const res = isCustomPassage
+        ? await submitCustomClozePassage(passage.id, {
+            answers: passage.blanks.map((b) => ({
+              blankId: b.id,
+              answer: answers[b.id] || "",
+            })),
+            durationSec,
+          })
+        : await submitClozePassage(passage.id, {
+            answers: passage.blanks.map((b) => ({
+              blankId: b.id,
+              answer: answers[b.id] || "",
+            })),
+            durationSec,
+          });
       if (res.code !== 200 || !res.data) {
         setErr(formatApiMessage(res.msg, "practice.submit_failed"));
         return;
@@ -190,6 +219,7 @@ export default function ClozePractice() {
   const backToList = () => {
     setPhase("list");
     setPassage(null);
+    setIsCustomPassage(false);
     setAnswers({});
     setResult(null);
     setActiveBlankId(null);
@@ -204,28 +234,52 @@ export default function ClozePractice() {
   return (
     <div className="h-dvh overflow-hidden bg-[#F7F9FC] flex flex-col">
       <header className="shrink-0 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-12 px-3 gap-2">
-          <Button type="text" shape="circle" icon={<IconLeft />} onClick={headerBack} />
+        <div className="flex items-center h-11 px-2 sm:px-3 gap-1.5">
+          <Button type="text" shape="circle" size="small" icon={<IconLeft />} onClick={headerBack} />
           <div className="min-w-0 flex-1">
-            <Typography.Text className="!font-medium !text-[#2D3748]">{t("cloze.title")}</Typography.Text>
+            <Typography.Text className="!font-medium !text-sm !text-[#2D3748]">{t("cloze.title")}</Typography.Text>
             {phase === "practice" && passage && (
-              <Typography.Text type="secondary" className="block !text-xs truncate">
+              <Typography.Text type="secondary" className="block !text-[11px] truncate leading-tight">
                 {passage.title} · {passage.level}
               </Typography.Text>
             )}
-            {phase === "list" && (
-              <Typography.Text type="secondary" className="block !text-xs">
-                {t("cloze.subtitle_list")}
-              </Typography.Text>
-            )}
           </div>
+          {phase === "list" && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex rounded-md bg-[#F1F5F9] p-0.5">
+                {(["system", "custom"] as SourceTab[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={cn(
+                      "px-2 py-0.5 rounded text-[11px] font-medium transition-all whitespace-nowrap",
+                      sourceTab === key
+                        ? "bg-white text-[#2D3748] shadow-sm"
+                        : "text-[#718096] hover:text-[#2D3748]"
+                    )}
+                    onClick={() => setSourceTab(key)}
+                  >
+                    {key === "system" ? t("cloze.tab_system") : t("cloze.tab_custom")}
+                  </button>
+                ))}
+              </div>
+              {sourceTab === "custom" && (
+                <Button
+                  type="primary"
+                  size="mini"
+                  icon={<IconPlus />}
+                  onClick={() => navigate("/cloze-practice/custom/new")}
+                />
+              )}
+            </div>
+          )}
           {phase === "practice" && (
-            <Typography.Text type="secondary" className="!text-xs shrink-0">
+            <Typography.Text type="secondary" className="!text-[11px] shrink-0">
               {answeredCount}/{totalBlanks}
             </Typography.Text>
           )}
         </div>
-        {phase === "practice" && <Progress percent={percent} showText={false} size="small" />}
+        {phase === "practice" && <Progress percent={percent} showText={false} size="small" className="!mb-0" />}
       </header>
 
       {err && (
@@ -235,60 +289,72 @@ export default function ClozePractice() {
       )}
 
       {phase === "list" && (
-        <div className="flex-1 min-h-0 overflow-auto px-3 mt-6">
-          {loadingList || loadingPassage ? (
-            <div className="flex justify-center py-16">
-              <Spin tip={t("common.loading")} />
-            </div>
-          ) : passages.length === 0 ? (
-            <Card className="!rounded-xl">
-              <Empty description={t("cloze.empty_list")} />
-            </Card>
-          ) : (
-            <Space direction="vertical" size={10} className="w-full">
-              {passages.map((p) => (
-                <Card
-                  key={p.id}
-                  hoverable
-                  className="!rounded-xl cursor-pointer"
-                  onClick={() => void openPassage(p.id)}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Typography.Text className="!font-semibold !text-[#2D3748]">
-                          {p.title}
-                        </Typography.Text>
-                        <Tag size="small" color="arcoblue">
-                          {p.level}
-                        </Tag>
-                      </div>
-                      {p.summary && (
-                        <Typography.Paragraph
-                          type="secondary"
-                          ellipsis={{ rows: 2 }}
-                          className="!mb-2 !text-xs"
-                        >
-                          {p.summary}
-                        </Typography.Paragraph>
-                      )}
-                      <Typography.Text type="secondary" className="!text-xs">
-                        {t("practice.blanks_meta", {
-                          count: p.blankCount ?? 0,
-                          minutes: p.estimatedMinutes ?? 5,
-                        })}
-                      </Typography.Text>
-                    </div>
-                    {typeof p.lastScore === "number" && (
-                      <Tag color={p.lastScore >= 80 ? "green" : "orangered"}>
-                        {t("practice.last_score", { score: p.lastScore })}
-                      </Tag>
-                    )}
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-2xl mx-auto px-4 py-3 pb-6">
+            {loadingList || loadingPassage ? (
+              <div className="flex justify-center py-16">
+                <Spin tip={t("common.loading")} />
+              </div>
+            ) : passages.length === 0 ? (
+              <Card className="!rounded-xl !border-[#E2E8F0]">
+                <Empty
+                  description={
+                    sourceTab === "custom" ? t("custom_cloze.empty") : t("cloze.empty_list")
+                  }
+                />
+                {sourceTab === "custom" && (
+                  <div className="flex justify-center mt-3 pb-2">
+                    <Button type="primary" onClick={() => navigate("/cloze-practice/custom/new")}>
+                      {t("custom_cloze.create_btn")}
+                    </Button>
                   </div>
-                </Card>
-              ))}
-            </Space>
-          )}
+                )}
+              </Card>
+            ) : (
+              <div className="space-y-2.5">
+                {passages.map((p) => (
+                  <button
+                    key={`${p.isCustom ? "c" : "s"}-${p.id}`}
+                    type="button"
+                    onClick={() => void openPassage(p.id, !!p.isCustom)}
+                    className="w-full text-left bg-white border border-[#E2E8F0] rounded-xl px-4 py-3.5 hover:border-[#4ECDC4] transition-colors active:bg-[#F7FAFC] shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[15px] font-medium text-[#2D3748] leading-snug">
+                            {p.title}
+                          </span>
+                          <Tag size="small" color="arcoblue">{p.level}</Tag>
+                          {p.isCustom && (
+                            <Tag size="small" color="purple">
+                              {t("reading.custom_tag")}
+                            </Tag>
+                          )}
+                        </div>
+                        {p.summary ? (
+                          <p className="text-xs text-[#718096] mt-1.5 line-clamp-2 leading-relaxed">
+                            {p.summary}
+                          </p>
+                        ) : null}
+                        <p className="text-xs text-[#A0AEC0] mt-1.5">
+                          {t("practice.blanks_meta", {
+                            count: p.blankCount ?? 0,
+                            minutes: p.estimatedMinutes ?? 5,
+                          })}
+                        </p>
+                      </div>
+                      {typeof p.lastScore === "number" && (
+                        <Tag size="small" color={p.lastScore >= 80 ? "green" : "orangered"} className="shrink-0 mt-0.5">
+                          {t("practice.last_score", { score: p.lastScore })}
+                        </Tag>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -337,7 +403,7 @@ export default function ClozePractice() {
               <Button
                 type="primary"
                 onClick={() => {
-                  if (result.passageId) void openPassage(result.passageId);
+                  if (result.passageId) void openPassage(result.passageId, isCustomPassage);
                 }}
               >
                 {t("practice.try_again")}
