@@ -124,9 +124,22 @@ export default function CoachCompletedSessions() {
                 >
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground text-sm">
-                        {s.title || t("coach_sessions.schedule_fallback", { id: s.id })}
-                      </div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="font-medium text-foreground text-sm truncate">
+                      {s.title || t("coach_sessions.schedule_fallback", { id: s.id })}
+                    </div>
+                    <span
+                      className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-md border ${
+                        s.source === "practice"
+                          ? "border-amber-200 bg-amber-50 text-amber-800"
+                          : "border-border bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {s.source === "practice"
+                        ? t("coach_sessions.source_practice")
+                        : t("coach_sessions.source_scheduled")}
+                    </span>
+                  </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
                           <Calendar size={13} className="text-primary" />
@@ -201,6 +214,11 @@ export default function CoachCompletedSessions() {
                 <div className="text-[11px] text-muted-foreground">{t("coach_sessions.course_title")}</div>
                 <div className="font-semibold text-foreground mt-0.5">
                   {detail.title || t("coach_sessions.schedule_fallback", { id: detail.id })}
+                </div>
+                <div className="mt-1.5 text-xs text-muted-foreground">
+                  {detail.source === "practice"
+                    ? t("coach_sessions.source_practice_hint")
+                    : t("coach_sessions.source_scheduled_hint")}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2.5">
