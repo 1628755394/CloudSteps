@@ -93,6 +93,7 @@ export default function PostTrainingCheck() {
   const [detailMode, setDetailMode] = useState(false);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
   const [spellMode, setSpellMode] = useState(false);
+  const [spellRevealed, setSpellRevealed] = useState<Set<number>>(new Set());
   const [spellTarget, setSpellTarget] = useState<CheckWord | null>(null);
   const [spellInput, setSpellInput] = useState("");
   const [spellResult, setSpellResult] = useState<"correct" | "wrong" | null>(null);
@@ -164,6 +165,16 @@ export default function PostTrainingCheck() {
     setSpellResult(null);
   };
 
+  const toggleSpellRevealed = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSpellRevealed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const closeSpellDialog = () => {
     setSpellTarget(null);
     setSpellInput("");
@@ -175,6 +186,7 @@ export default function PostTrainingCheck() {
     const isCorrect = spellInput.trim().toLowerCase() === spellTarget.word.trim().toLowerCase();
     setSpellResult(isCorrect ? "correct" : "wrong");
     if (isCorrect) {
+      setSpellRevealed((prev) => new Set(prev).add(spellTarget.id));
       handleStatusClick(spellTarget.id, "correct");
     } else {
       handleStatusClick(spellTarget.id, "wrong");
@@ -545,12 +557,23 @@ export default function PostTrainingCheck() {
                   <div className="min-w-0">
                     {spellMode ? (
                       <span
-                        className={`${PRACTICE_WORD_CLASS} inline-block select-none rounded-sm bg-[#4ECDC4] align-text-bottom`}
-                        style={{
-                          width: `${Math.max(3, Math.min(12, word.word.length))}ch`,
-                          height: "1.1em",
-                        }}
-                      />
+                        className="inline-block"
+                        onClick={(e) => toggleSpellRevealed(word.id, e)}
+                      >
+                        {spellRevealed.has(word.id) ? (
+                          <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
+                            {word.word}
+                          </span>
+                        ) : (
+                          <span
+                            className={`${PRACTICE_WORD_CLASS} inline-block select-none rounded-sm bg-[#4ECDC4] align-text-bottom`}
+                            style={{
+                              width: `${Math.max(3, Math.min(12, word.word.length))}ch`,
+                              height: "1.1em",
+                            }}
+                          />
+                        )}
+                      </span>
                     ) : (
                       <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
                         {word.word}
@@ -680,7 +703,7 @@ export default function PostTrainingCheck() {
             </div>
             <div className="flex items-center gap-1.5 sm:gap-2 w-full md:w-auto min-w-0 shrink-0">
               <CloudButton
-                variant="mintOutline"
+                variant="mint"
                 size="pill"
                 className="shrink-0 max-sm:px-2 max-sm:text-xs"
                 onClick={() => markNextFive("correct")}
