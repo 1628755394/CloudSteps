@@ -36,10 +36,8 @@ import {
   type StudentWordBookItem,
   type TeacherCoachingQuotaRow,
 } from "../api/coaching";
-import {
-  loadWordBooksStaleWhileRevalidate,
-  type CachedWordBook,
-} from "../utils/wordBooksCache";
+import { listWordBooks } from "../api/wordbooks";
+import type { CachedWordBook } from "../utils/wordBooksCache";
 import { showToast } from "../utils/toast";
 import { resolveMediaUrl } from "../utils/mediaUrl";
 import type { ReviewCurvePreset } from "../api/auth";
@@ -97,8 +95,9 @@ export default function StudentDetail() {
   const [addOpen, setAddOpen] = useState(false);
   const [catalog, setCatalog] = useState<CachedWordBook[]>([]);
   const [catalogQ, setCatalogQ] = useState("");
-  const [addingId, setAddingId] = useState<number | null>(null);
-  const [removingId, setRemovingId] = useState<number | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const [vocabItems, setVocabItems] = useState<StudentActivityListItem[]>([]);
   const [loadingVocab, setLoadingVocab] = useState(false);
@@ -302,23 +301,59 @@ export default function StudentDetail() {
     if (tab === "vocab") void loadVocabTests();
   }, [tab, loadVocabTests]);
 
-  const openAddBook = async () => {
+  const openAddBook = () => {
     setAddOpen(true);
     setCatalogQ("");
-    try {
-      const all = await loadWordBooksStaleWhileRevalidate();
-      setCatalog(all);
-    } catch {
-      setCatalog([]);
-    }
+    setCatalog([]);
   };
 
-  const assignedIds = useMemo(() => new Set(wordBooks.map((b) => b.id)), [wordBooks]);
+  const loadCatalog = useCallback(async (keyword: string) => {
+    setCatalogLoading(true);
+    try {
+      const res = await listWordBooks({
+        page: 1,
+        pageSize: 40,
+        keyword: keyword.trim() || undefined,
+      });
+      if (res.code !== 200) {
+        setCatalog([]);
+        return;
+      }
+      const list = Array.isArray(res.data?.list) ? res.data.list : [];
+      setCatalog(
+        list.map((b) => ({
+          id: b.id,
+          name: b.name,
+          wordCount: b.wordCount,
+          level: b.level,
+          category: b.category,
+        }))
+      );
+    } catch {
+      setCatalog([]);
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!addOpen) return;
+    const delay = catalogQ.trim() ? 300 : 0;
+    const timer = window.setTimeout(() => {
+      void loadCatalog(catalogQ);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [addOpen, catalogQ, loadCatalog]);
+
+  const assignedIds = useMemo(
+    () => new Set(wordBooks.map((b) => normalizeSnowflakeId(b.id))),
+    [wordBooks]
+  );
 
   const filteredCatalog = useMemo(() => {
     const q = catalogQ.trim().toLowerCase();
     return catalog.filter((b) => {
-      if (assignedIds.has(b.id)) return false;
+      if (assignedIds.has(normalizeSnowflakeId(b.id))) return false;
       if (!q) return true;
       return (
         b.name.toLowerCase().includes(q) ||
@@ -329,10 +364,12 @@ export default function StudentDetail() {
     });
   }, [catalog, catalogQ, assignedIds]);
 
-  const handleAddBook = async (wbId: number) => {
-    setAddingId(wbId);
+  const handleAddBook = async (wbId: string | number) => {
+    const bookId = normalizeSnowflakeId(wbId);
+    if (!bookId) return;
+    setAddingId(bookId);
     try {
-      const res = await addStudentWordBookAsTeacher(studentId, wbId);
+      const res = await addStudentWordBookAsTeacher(studentId, bookId);
       if (res.code !== 200) {
         showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
@@ -349,16 +386,18 @@ export default function StudentDetail() {
     }
   };
 
-  const handleRemoveBook = async (wbId: number) => {
-    setRemovingId(wbId);
+  const handleRemoveBook = async (wbId: string | number) => {
+    const bookId = normalizeSnowflakeId(wbId);
+    if (!bookId) return;
+    setRemovingId(bookId);
     try {
-      const res = await removeStudentWordBookAsTeacher(studentId, wbId);
+      const res = await removeStudentWordBookAsTeacher(studentId, bookId);
       if (res.code !== 200) {
         showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
       showToast.success(t("student_detail.removed_wordbook"));
-      setWordBooks((prev) => prev.filter((b) => b.id !== wbId));
+      setWordBooks((prev) => prev.filter((b) => !sameSnowflakeId(b.id, bookId)));
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : formatApiMessage(undefined, "common.operation_failed");
@@ -656,7 +695,7 @@ export default function StudentDetail() {
             </CloudCard>
           ) : (
             wordBooks.map((b) => (
-              <CloudCard key={b.id} className="p-3">
+              <CloudCard key={normalizeSnowflakeId(b.id)} className="p-3">
                 <div className="flex items-center gap-3">
                   <div className="size-10 rounded-xl bg-primary-soft flex items-center justify-center shrink-0">
                     <BookOpen size={18} className="text-primary" />
@@ -672,11 +711,11 @@ export default function StudentDetail() {
                     variant="ghost"
                     size="icon"
                     className="shrink-0 text-destructive"
-                    disabled={removingId === b.id}
+                    disabled={removingId !== null}
                     onClick={() => void handleRemoveBook(b.id)}
                     aria-label={t("student_detail.remove_wordbook")}
                   >
-                    {removingId === b.id ? (
+                    {sameSnowflakeId(removingId, b.id) ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : (
                       <Trash2 size={16} />
@@ -840,14 +879,20 @@ export default function StudentDetail() {
             allowClear
           />
           <div className="flex-1 min-h-0 overflow-y-auto space-y-2 max-h-[50vh] -mx-1 px-1">
-            {filteredCatalog.length === 0 ? (
+            {catalogLoading ? (
+              <div className="py-10 flex justify-center">
+                <CloudSpin tip={t("student_detail.catalog_loading")} />
+              </div>
+            ) : filteredCatalog.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                {catalog.length === 0 ? t("student_detail.catalog_loading") : t("student_detail.no_addable")}
+                {catalogQ.trim()
+                  ? t("student_detail.no_addable")
+                  : t("student_detail.catalog_search_hint")}
               </p>
             ) : (
               filteredCatalog.map((b) => (
                 <div
-                  key={b.id}
+                  key={normalizeSnowflakeId(b.id)}
                   className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5"
                 >
                   <div className="min-w-0 flex-1">
@@ -861,7 +906,7 @@ export default function StudentDetail() {
                     type="button"
                     variant="brand"
                     size="sm"
-                    loading={addingId === b.id}
+                    loading={sameSnowflakeId(addingId, b.id)}
                     disabled={addingId !== null}
                     onClick={() => void handleAddBook(b.id)}
                   >
