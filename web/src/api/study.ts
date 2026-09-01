@@ -44,7 +44,7 @@ export interface StartStudySessionRequest {
 }
 
 export interface StartStudySessionResponse {
-  sessionId?: number
+  sessionId?: string | number
   words?: any[]
   finished?: boolean
 }
@@ -131,14 +131,15 @@ export const submitLighthouseReview = async (
 }
 
 export const completeStudySession = async (
-  sessionId: number,
+  sessionId: string | number,
   results: CompleteSessionResult[]
 ): Promise<ApiResponse<null>> => {
-  return post<null>(`/study/session/${sessionId}/complete`, { results })
+  const id = String(sessionId).trim()
+  return post<null>(`/study/session/${id}/complete`, { results })
 }
 
 export interface StudySessionListItem {
-  id?: number
+  id?: string | number
   sessionType: string
   status: string
   startedAt?: string
@@ -152,7 +153,7 @@ export interface StudySessionListItem {
   day?: string
   latestAt?: string
   sessionCount?: number
-  sessionIds?: number[]
+  sessionIds?: Array<string | number>
 }
 
 export interface StudySessionsListResponse {
@@ -207,14 +208,14 @@ export type UpdatePracticeTimeRequest = {
   startTime: string
   endTime: string
   studentId?: string
-  sessionIds?: number[]
+  sessionIds?: Array<string | number>
 }
 
 /** 课后设置识记练习时段（抗遗忘列表展示用） */
 export const updateStudySessionsPracticeTime = async (
   data: UpdatePracticeTimeRequest
-): Promise<ApiResponse<{ updated: number; sessionIds?: number[] }>> => {
-  return put<{ updated: number; sessionIds?: number[] }>('/study/sessions/practice-time', data)
+): Promise<ApiResponse<{ updated: number; sessionIds?: Array<string | number> }>> => {
+  return put<{ updated: number; sessionIds?: Array<string | number> }>('/study/sessions/practice-time', data)
 }
 
 export type StudyExportWord = {

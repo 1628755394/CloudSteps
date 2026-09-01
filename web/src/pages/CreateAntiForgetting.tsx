@@ -8,7 +8,7 @@ import { showToast } from "../utils/toast";
 import { formatApiMessage } from "../utils/apiMessage";
 import { formatPracticeTimeRange } from "../utils/reviewPracticeTime";
 import { getTrainingStudent } from "../utils/trainingStudent";
-import { normalizeSnowflakeId } from "../utils/json-snowflake";
+import { isValidSnowflakeId, normalizeSnowflakeId } from "../utils/json-snowflake";
 
 function toDateInputValue(d: Date) {
   const yyyy = d.getFullYear();
@@ -47,7 +47,7 @@ export default function CreateAntiForgetting() {
   const [date, setDate] = useState(defaults.date);
   const [startTime, setStartTime] = useState(defaults.startTime);
   const [endTime, setEndTime] = useState(defaults.endTime);
-  const [sessionIds, setSessionIds] = useState<number[]>([]);
+  const [sessionIds, setSessionIds] = useState<string[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -68,8 +68,8 @@ export default function CreateAntiForgetting() {
         if (cancelled) return;
         const list = Array.isArray(res.data?.list) ? res.data.list : [];
         const ids = list
-          .map((row) => Number(row.id || 0))
-          .filter((id) => Number.isFinite(id) && id > 0);
+          .map((row) => normalizeSnowflakeId(row.id))
+          .filter((id) => isValidSnowflakeId(id));
         setSessionIds(ids);
 
         const latest = list.find((row) => row.startedAt) || list[0];
@@ -112,6 +112,10 @@ export default function CreateAntiForgetting() {
       showToast.warning(t("create_anti_forgetting.time_invalid"));
       return;
     }
+    if (sessionIds.length === 0) {
+      showToast.warning(t("create_anti_forgetting.no_sessions_hint"));
+      return;
+    }
     setSaving(true);
     try {
       const studentId = normalizeSnowflakeId(trainingStudent?.id);
@@ -120,7 +124,7 @@ export default function CreateAntiForgetting() {
         startTime,
         endTime,
         ...(studentId ? { studentId } : {}),
-        ...(sessionIds.length > 0 ? { sessionIds } : {}),
+        sessionIds,
       });
       if (res.code !== 200) {
         showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
@@ -185,7 +189,7 @@ export default function CreateAntiForgetting() {
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block space-y-1">
-              <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.start_time")}</span>
+              <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.start")}</span>
               <input
                 type="time"
                 value={startTime}
@@ -194,7 +198,7 @@ export default function CreateAntiForgetting() {
               />
             </label>
             <label className="block space-y-1">
-              <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.end_time")}</span>
+              <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.end")}</span>
               <input
                 type="time"
                 value={endTime}

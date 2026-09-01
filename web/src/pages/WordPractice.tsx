@@ -20,6 +20,7 @@ import { getPracticeTapState } from "../utils/wordPracticeTap";
 import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import type { UserWordView } from "../api/wordbooks";
 import { useTranslation } from "react-i18next";
+import { requestPracticePauseMenu } from "../utils/practiceFlowLock";
 
 type PracticeWord = {
   id: number;
@@ -143,8 +144,7 @@ export default function WordPractice() {
   };
 
   const handleBack = () => {
-    if (window.history.length > 1) navigate(-1);
-    else navigate(mode === "review" ? getReviewReturnPath("/word-training") : "/pre-training-check");
+    requestPracticePauseMenu();
   };
 
   const batchIdx = useMemo(() => {

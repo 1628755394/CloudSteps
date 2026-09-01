@@ -388,7 +388,12 @@ func (h *Handlers) handleStudySessionStart(c *gin.Context) {
 func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
-	sessionID, _ := strconv.Atoi(c.Param("id"))
+	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id64 == 0 {
+		response.FailI18n(c, "coaching.session_not_found", nil)
+		return
+	}
+	sessionID := uint(id64)
 	if user == nil {
 		response.FailI18n(c, "auth.authorization_required", nil)
 		return
@@ -496,7 +501,12 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 func (h *Handlers) handleStudySessionGet(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
-	sessionID, _ := strconv.Atoi(c.Param("id"))
+	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id64 == 0 {
+		response.FailI18n(c, "coaching.session_not_found", nil)
+		return
+	}
+	sessionID := uint(id64)
 	if user == nil {
 		response.FailI18n(c, "auth.authorization_required", nil)
 		return
@@ -1082,11 +1092,11 @@ func (h *Handlers) handleStudySessionsPracticeTime(c *gin.Context) {
 	}
 
 	var body struct {
-		Date       string `json:"date" binding:"required"`
-		StartTime  string `json:"startTime" binding:"required"`
-		EndTime    string `json:"endTime" binding:"required"`
-		StudentID  string `json:"studentId"`
-		SessionIDs []uint `json:"sessionIds"`
+		Date       string           `json:"date" binding:"required"`
+		StartTime  string           `json:"startTime" binding:"required"`
+		EndTime    string           `json:"endTime" binding:"required"`
+		StudentID  string           `json:"studentId"`
+		SessionIDs []utils.JSONUint `json:"sessionIds"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		response.FailI18n(c, "common.invalid_params", nil)
@@ -1115,7 +1125,13 @@ func (h *Handlers) handleStudySessionsPracticeTime(c *gin.Context) {
 		Where("user_id = ? AND session_type = ? AND status = ?", user.ID, "learn", "completed")
 
 	if len(body.SessionIDs) > 0 {
-		q = q.Where("id IN ?", body.SessionIDs)
+		ids := make([]uint, 0, len(body.SessionIDs))
+		for _, id := range body.SessionIDs {
+			if v := id.Uint(); v > 0 {
+				ids = append(ids, v)
+			}
+		}
+		q = q.Where("id IN ?", ids)
 	} else {
 		dayStart, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(body.Date), loc)
 		if err != nil {

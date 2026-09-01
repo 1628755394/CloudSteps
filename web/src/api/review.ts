@@ -81,8 +81,9 @@ export const startReviewSession = async (
 }
 
 export const completeReviewSession = async (
-  sessionId: number,
+  sessionId: string | number,
   results: CompleteReviewResult[]
 ): Promise<ApiResponse<null>> => {
-  return post<null>(`/review/session/${sessionId}/complete`, { results })
+  const id = String(sessionId).trim()
+  return post<null>(`/review/session/${id}/complete`, { results })
 }

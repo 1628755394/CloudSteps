@@ -22,6 +22,7 @@ import { NoteSplitLayout } from "../components/NoteSplitLayout";
 import { useNote } from "../components/NoteContext";
 
 import { useTranslation } from "react-i18next";
+import { requestPracticePauseMenu } from "../utils/practiceFlowLock";
 
 type ListenWord = {
   id: number;
@@ -81,8 +82,7 @@ export default function ListenIdentify() {
   const abortRef = useRef<(() => void) | null>(null);
 
   const handleBack = () => {
-    if (window.history.length > 1) navigate(-1);
-    else navigate(mode === "review" ? getReviewReturnPath("/word-training") : "/word-practice");
+    requestPracticePauseMenu();
   };
 
   useEffect(() => {

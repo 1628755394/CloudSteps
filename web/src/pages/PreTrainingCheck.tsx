@@ -29,6 +29,8 @@ import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { useTranslation } from "react-i18next";
 import { formatApiMessage } from "../utils/apiMessage";
+import { ensurePracticeBillingActive } from "../utils/practiceBilling";
+import { useAuthStore } from "../stores/authStore";
 
 type WordItem = {
   id: number;
@@ -46,6 +48,8 @@ const PAGE_SIZE = 100;
 export default function PreTrainingCheck() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const role = useAuthStore((s) => s.user?.role) || "user";
+  const isCoach = role === "user" || role === "admin" || role === "teacher";
   const [words, setWords] = useState<WordItem[]>([]);
   const [selectedCount, setSelectedCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -190,6 +194,12 @@ export default function PreTrainingCheck() {
     },
     [attachObserver]
   );
+
+  // 刷新 / 直达本页：对齐服务端进行中课次（幂等，不重复开课）
+  useEffect(() => {
+    if (!isCoach) return;
+    void ensurePracticeBillingActive();
+  }, [isCoach]);
 
   // 初始加载
   useEffect(() => {

@@ -7,6 +7,7 @@ import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import { CloudButton } from "../components/cloudsteps";
 import { FlowPageShell } from "../components/PageTransition";
 import { TopBar } from "../components/TopBar";
+import { requestPracticePauseMenu, allowPracticeLeaveOnce } from "../utils/practiceFlowLock";
 import {
   WordCardPanel,
   WordMarkStatsBar,
@@ -58,8 +59,7 @@ export default function ReviewCheck() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const handleBack = () => {
-    if (window.history.length > 1) navigate(-1);
-    else navigate("/word-training");
+    requestPracticePauseMenu();
   };
 
   const wordBookId = useMemo(() => Number(sessionStorage.getItem("lb_wordbook_id") || 0), []);
@@ -254,7 +254,10 @@ export default function ReviewCheck() {
         {loadError && (
           <div className="rounded-xl bg-white border border-[#E2E8F0] p-6 text-center space-y-4">
             <p className="text-[#FF6B6B]">{loadError}</p>
-            <CloudButton type="button" variant="brand" size="pill" onClick={handleBack}>
+            <CloudButton type="button" variant="brand" size="pill" onClick={() => {
+              allowPracticeLeaveOnce();
+              navigate("/word-training", { replace: true });
+            }}>
               {t("practice.back")}
             </CloudButton>
           </div>
@@ -270,7 +273,10 @@ export default function ReviewCheck() {
               variant="brand"
               size="pill"
               className="w-full max-w-xs mx-auto"
-              onClick={handleBack}
+              onClick={() => {
+                allowPracticeLeaveOnce();
+                navigate("/word-training", { replace: true });
+              }}
             >
               {t("practice.back")}
             </CloudButton>

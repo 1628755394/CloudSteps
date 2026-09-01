@@ -27,6 +27,9 @@ import { completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
+import { stampLessonPracticeWindow, finishPracticeBilling } from "../utils/practiceBilling";
+import { allowPracticeLeaveOnce, requestPracticePauseMenu } from "../utils/practiceFlowLock";
+import { normalizeSnowflakeId } from "../utils/json-snowflake";
 import {
   clearStudyRecheck,
   getCheckPhaseLabel,
@@ -43,6 +46,7 @@ import {
 } from "../utils/studyBatchFlow";
 import { clearReviewPracticeSession, getReviewReturnPath } from "../utils/reviewPractice";
 import { formatApiMessage } from "../utils/apiMessage";
+import { showToast } from "../utils/toast";
 
 type CheckWord = {
   id: number;
@@ -117,7 +121,7 @@ export default function PostTrainingCheck() {
 
   const sessionId = useMemo(() => {
     const key = mode === "review" ? "lb_review_session_id" : "lb_study_session_id";
-    return Number(sessionStorage.getItem(key) || 0);
+    return normalizeSnowflakeId(sessionStorage.getItem(key));
   }, [mode]);
 
   const [submitting, setSubmitting] = useState(false);
@@ -195,11 +199,10 @@ export default function PostTrainingCheck() {
 
   const handleBack = () => {
     if (mode === "review") {
-      navigate(getReviewReturnPath("/word-training"));
+      requestPracticePauseMenu();
       return;
     }
-    if (window.history.length > 1) navigate(-1);
-    else navigate("/flash-review");
+    requestPracticePauseMenu();
   };
 
   useEffect(() => {
@@ -330,9 +333,12 @@ export default function PostTrainingCheck() {
     sessionStorage.removeItem("lb_study_total_batches");
     sessionStorage.removeItem(CHECK_PHASE_KEY);
     clearStudyRecheck();
-    // 学完所有组后返回选单词界面，而非直接跳创建抗遗忘
-    // 用户可能还有上课时间，可以继续选词学习
-    navigate("/pre-training-check", { replace: true });
+    // 整段识记练完 → 抗遗忘；并结算本段练习额度
+    stampLessonPracticeWindow();
+    allowPracticeLeaveOnce();
+    void finishPracticeBilling().finally(() => {
+      navigate("/create-anti-forgetting", { replace: true });
+    });
   };
 
   const wrongWords = useMemo(() => words.filter((w) => w.status === "wrong"), [words]);
@@ -423,6 +429,7 @@ export default function PostTrainingCheck() {
           }
           const returnPath = getReviewReturnPath("/word-training");
           clearReviewPracticeSession();
+          allowPracticeLeaveOnce();
           navigate(returnPath, { replace: true });
           return;
         }
@@ -474,13 +481,22 @@ export default function PostTrainingCheck() {
         }
 
         if (sessionId) {
-          await completeStudySession(sessionId, results);
+          const res = await completeStudySession(sessionId, results);
+          if (res.code !== 200) {
+            throw new Error(formatApiMessage(res.msg, "practice.submit_failed"));
+          }
+        } else {
+          throw new Error(t("practice.session_not_ready"));
         }
         finishTrainingAndCreateReview();
-      } catch {
-        if (checkPhase === "final" && wrongWords.length === 0) {
-          finishTrainingAndCreateReview();
-        }
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error
+            ? e.message
+            : e && typeof e === "object" && "msg" in e
+              ? formatApiMessage(String((e as { msg: string }).msg), "practice.submit_failed")
+              : t("practice.submit_failed");
+        showToast.error(msg);
       } finally {
         setSubmitting(false);
       }

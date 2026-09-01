@@ -1,10 +1,11 @@
 import { get, post, del, put, ApiResponse } from '../utils/request'
 import type { ReviewCurvePreset } from './auth'
+import { normalizeSnowflakeId } from '../utils/json-snowflake'
 
 type SnowflakeId = string | number
 
 function studentIdPath(id: SnowflakeId): string {
-  return String(id).trim()
+  return normalizeSnowflakeId(id)
 }
 
 export type TeacherTeachingPoolSummary = {
@@ -271,12 +272,16 @@ export const getStudentCoachingWeek = async (
   return get<{ schedules: CoachingWeekSchedule[] }>('/student/coaching/week', { params: { date } })
 }
 
-export const startCoachingAppointment = async (id: number): Promise<ApiResponse<unknown>> => {
-  return post(`/teacher/coaching/appointments/${id}/start`)
+export const startCoachingAppointment = async (
+  id: string | number
+): Promise<ApiResponse<unknown>> => {
+  return post(`/teacher/coaching/appointments/${normalizeSnowflakeId(id)}/start`)
 }
 
-export const endCoachingAppointment = async (id: number): Promise<ApiResponse<unknown>> => {
-  return post(`/teacher/coaching/appointments/${id}/end`)
+export const endCoachingAppointment = async (
+  id: string | number
+): Promise<ApiResponse<unknown>> => {
+  return post(`/teacher/coaching/appointments/${normalizeSnowflakeId(id)}/end`)
 }
 
 /** 无排课练习：按学员立即开课计时（结束仍走 appointments/:id/end） */
@@ -285,7 +290,7 @@ export const startPracticeSession = async (body: {
   plannedMinutes?: number
 }): Promise<
   ApiResponse<{
-    appointmentId: number
+    appointmentId: SnowflakeId
     studentId: SnowflakeId
     owned: boolean
     reused?: boolean

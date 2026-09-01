@@ -27,6 +27,7 @@ import {
 } from "../utils/studyBatchFlow";
 import { getReviewReturnPath } from "../utils/reviewPractice";
 import { useTranslation } from "react-i18next";
+import { requestPracticePauseMenu } from "../utils/practiceFlowLock";
 
 const CHECK_PHASE_KEY = "lb_study_check_phase";
 
@@ -93,12 +94,12 @@ export default function FlashReview() {
 
   const handleBack = () => {
     if (isRetryMode) {
+      // 错词重练中回课后检测：仍在练习锁路由内
       clearStudyRetryFlash();
       navigate("/post-training-check", { replace: true });
       return;
     }
-    if (window.history.length > 1) navigate(-1);
-    else navigate(mode === "review" ? getReviewReturnPath("/word-training") : "/word-practice");
+    requestPracticePauseMenu();
   };
 
   useEffect(() => {

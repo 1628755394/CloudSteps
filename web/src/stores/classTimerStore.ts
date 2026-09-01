@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { PracticeBillingLink } from "../utils/practiceBilling";
 
 export type ClassTimerState = {
   endsAt: number | null;
@@ -10,8 +9,6 @@ export type ClassTimerState = {
   remindEveryMin: number;
   lastIntervalRemindAt: number | null;
   endedNotified: boolean;
-  /** 关联的陪练课次（无排课练习时临时创建） */
-  billing: PracticeBillingLink | null;
   /** 暂停时冻结的剩余毫秒；非 null 表示计时已暂停 */
   pausedRemainingMs: number | null;
   start: (opts: {
@@ -19,7 +16,6 @@ export type ClassTimerState = {
     endsAt?: number;
     wordCount?: number;
     remindEveryMin?: number;
-    billing?: PracticeBillingLink | null;
   }) => void;
   stop: () => void;
   pause: () => void;
@@ -50,10 +46,9 @@ export const useClassTimerStore = create<ClassTimerState>()(
       remindEveryMin: 0,
       lastIntervalRemindAt: null,
       endedNotified: false,
-      billing: null,
       pausedRemainingMs: null,
 
-      start: ({ durationMin, endsAt: absEnds, wordCount = 0, remindEveryMin = 0, billing = null }) => {
+      start: ({ durationMin, endsAt: absEnds, wordCount = 0, remindEveryMin = 0 }) => {
         const now = Date.now();
         let ends: number;
         let mins: number;
@@ -72,7 +67,6 @@ export const useClassTimerStore = create<ClassTimerState>()(
           remindEveryMin: clampRemind(remindEveryMin),
           lastIntervalRemindAt: now,
           endedNotified: false,
-          billing: billing ?? null,
           pausedRemainingMs: null,
         });
       },
@@ -84,7 +78,6 @@ export const useClassTimerStore = create<ClassTimerState>()(
           endedNotified: false,
           wordCount: 0,
           lastIntervalRemindAt: null,
-          billing: null,
           pausedRemainingMs: null,
         });
       },
@@ -131,11 +124,9 @@ export const useClassTimerStore = create<ClassTimerState>()(
         if (!endsAt || !startedAt || remindEveryMin <= 0 || pausedRemainingMs != null) return false;
         const now = Date.now();
         if (now >= endsAt) return false;
-        // 仅在「最后 N 分钟」提醒一次（进入该窗口后触发一次）
         const windowMs = remindEveryMin * 60_000;
         const remaining = endsAt - now;
         if (remaining > windowMs) return false;
-        // 已提醒过（lastIntervalRemindAt 被标为 endsAt 哨兵）则不再弹
         if (lastIntervalRemindAt != null && lastIntervalRemindAt >= endsAt - windowMs) {
           return false;
         }

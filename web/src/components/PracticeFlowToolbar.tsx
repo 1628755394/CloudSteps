@@ -1,10 +1,12 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AudioMuteToggleButton } from "./AudioMuteToggleButton";
 import { ClassTimerBadge, ClassTimerSetupDialog } from "./ClassSessionTimer";
 import { PracticeFontSettingsButton } from "./PracticeFontSettings";
 import { PracticePauseMenu } from "./PracticePauseMenu";
 import { WordEditHost } from "./WordEditControls";
 import { useClassTimerStore } from "../stores/classTimerStore";
+import { usePracticeFlowLockStore } from "../utils/practiceFlowLock";
+import { usePracticeFlowGuard } from "../hooks/usePracticeFlowGuard";
 import type { UserWordView } from "../api/wordbooks";
 
 type Props = {
@@ -19,6 +21,7 @@ type Props = {
 /**
  * 练习流通用顶栏操作：音效、定时、设置。
  * 计时未开始时点时钟打开设置；计时中点击倒计时暂停，并出现返回/继续/结束。
+ * 练习锁定页拦截浏览器后退，统一打开暂停菜单。
  */
 export function PracticeFlowToolbar({
   extraBefore,
@@ -29,6 +32,18 @@ export function PracticeFlowToolbar({
   const [timerOpen, setTimerOpen] = useState(false);
   const [pauseOpen, setPauseOpen] = useState(false);
   const pauseTimer = useClassTimerStore((s) => s.pause);
+  const lockPauseOpen = usePracticeFlowLockStore((s) => s.pauseMenuOpen);
+  const setLockPauseOpen = usePracticeFlowLockStore((s) => s.setPauseMenuOpen);
+
+  usePracticeFlowGuard();
+
+  useEffect(() => {
+    if (lockPauseOpen) {
+      pauseTimer();
+      setPauseOpen(true);
+      setLockPauseOpen(false);
+    }
+  }, [lockPauseOpen, pauseTimer, setLockPauseOpen]);
 
   return (
     <>
@@ -55,7 +70,10 @@ export function PracticeFlowToolbar({
       />
       <PracticePauseMenu
         open={pauseOpen}
-        onClose={() => setPauseOpen(false)}
+        onClose={() => {
+          setPauseOpen(false);
+          useClassTimerStore.getState().resume();
+        }}
         continueLabel={pauseContinueLabel}
       />
       <WordEditHost onSaved={onWordPatched} />

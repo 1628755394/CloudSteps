@@ -29,6 +29,7 @@ import {
   studentLabelFromQuota,
 } from "../utils/trainingStudent";
 import { sameSnowflakeId, normalizeSnowflakeId } from "../utils/json-snowflake";
+import { ensurePracticeBillingActive } from "../utils/practiceBilling";
 
 type LighthouseDay = { id: string; count: number; label: string };
 
@@ -549,7 +550,16 @@ export default function WordTraining() {
             size="pillLg"
             className="flex-1"
             disabled={!selectedWordBookId}
-            onClick={() => navigate("/pre-training-check")}
+            onClick={() => {
+              void (async () => {
+                if (!selectedWordBookId) return;
+                if (isCoach) {
+                  const link = await ensurePracticeBillingActive();
+                  if (!link) return;
+                }
+                navigate("/pre-training-check");
+              })();
+            }}
           >
             {t("word_training.continue_practice")}
           </CloudButton>

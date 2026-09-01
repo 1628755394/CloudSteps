@@ -1,5 +1,5 @@
 const SNOWFLAKE_FIELD_RE =
-  /"(id|localId|userId|user_id|studentId|bookId|wordId)":\s*(\d{16,})/g
+  /"(id|localId|userId|user_id|studentId|bookId|wordId|wordBookId|appointmentId|sessionId|recordId|teacherId)":\s*(\d{16,})/g
 
 /** Parse API JSON while preserving snowflake IDs as strings (JS Number loses precision). */
 export function parseApiJson<T = unknown>(text: string): T {

@@ -11,10 +11,11 @@ import {
 } from "./ui/dialog";
 import { CloudButton } from "./cloudsteps";
 import { formatCountdown, useClassTimerStore } from "../stores/classTimerStore";
-import { beginPracticeBilling, finishPracticeBilling } from "../utils/practiceBilling";
-import { getTrainingStudent } from "../utils/trainingStudent";
+import {
+  ensurePracticeBillingActive,
+  usePracticeBillingStore,
+} from "../utils/practiceBilling";
 import { showToast } from "../utils/toast";
-import { useAuthStore } from "../stores/authStore";
 
 const PRESETS = [30, 40, 45, 50, 60];
 const REMIND_PRESETS = [5, 10, 15, 20, 30];
@@ -46,49 +47,26 @@ function playBeep(freq = 880, ms = 0.25) {
   }
 }
 
-export async function settleAndStop() {
-  const state = useClassTimerStore.getState();
-  const billing = state.billing;
-  if (state.startedAt) {
-    sessionStorage.setItem("lb_lesson_practice_start", String(state.startedAt));
-  }
-  sessionStorage.setItem("lb_lesson_practice_end", String(Date.now()));
-  useClassTimerStore.getState().stop();
-  await finishPracticeBilling(billing);
-}
-
-/** App 里的计时器在 Router 外，不能用 useNavigate */
-function goToAntiForgettingSetup() {
-  void import("../router/routes").then(({ router }) => {
-    void router.navigate("/create-anti-forgetting");
-  });
-}
-
-/** 设置 / 调整上课定时 */
+/** 设置 / 调整上课定时（纯前端提醒，不扣额度） */
 export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: SetupProps) {
   const { t } = useTranslation();
   const storeDuration = useClassTimerStore((s) => s.durationMin);
   const storeRemind = useClassTimerStore((s) => s.remindEveryMin);
   const endsAt = useClassTimerStore((s) => s.endsAt);
-  const billing = useClassTimerStore((s) => s.billing);
   const start = useClassTimerStore((s) => s.start);
-  const role = useAuthStore((s) => s.user?.role) || "user";
-  const isCoach = role === "user" || role === "admin" || role === "teacher";
+  const billingName = usePracticeBillingStore((s) => s.link?.studentName || "");
 
   const [durationMin, setDurationMin] = useState(storeDuration || 45);
   const [custom, setCustom] = useState("");
   const [remindEveryMin, setRemindEveryMin] = useState(
     REMIND_PRESETS.includes(storeRemind) ? storeRemind : 5
   );
-  const [starting, setStarting] = useState(false);
-  const [studentName, setStudentName] = useState(() => getTrainingStudent()?.name || "");
 
   useEffect(() => {
     if (!open) return;
     setDurationMin(storeDuration || 45);
     setCustom("");
     setRemindEveryMin(REMIND_PRESETS.includes(storeRemind) ? storeRemind : 5);
-    setStudentName(getTrainingStudent()?.name || "");
   }, [open, storeDuration, storeRemind]);
 
   const effectiveDuration = useMemo(() => {
@@ -111,10 +89,8 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
         <DialogHeader>
           <DialogTitle>{t("coaching.timer_title")}</DialogTitle>
           <DialogDescription>
-            {isCoach
-              ? studentName
-                ? t("coaching.timer_student", { name: studentName })
-                : t("coaching.timer_select_student")
+            {billingName
+              ? t("coaching.timer_student", { name: billingName })
               : t("coaching.timer_pick_duration")}
           </DialogDescription>
         </DialogHeader>
@@ -187,7 +163,7 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
           {endsAt && (
             <p className="text-xs text-amber-700">
               {t("coaching.timer_running_reset", {
-                student: billing?.studentName ? ` · ${billing.studentName}` : "",
+                student: billingName ? ` · ${billingName}` : "",
               })}
             </p>
           )}
@@ -199,12 +175,9 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
               type="button"
               variant="outline"
               onClick={() => {
-                void (async () => {
-                  await settleAndStop();
-                  onOpenChange(false);
-                  showToast.info(t("coaching.timer_stopped"));
-                  goToAntiForgettingSetup();
-                })();
+                useClassTimerStore.getState().stop();
+                onOpenChange(false);
+                showToast.info(t("coaching.timer_stopped"));
               }}
             >
               {t("coaching.end_timer")}
@@ -217,37 +190,18 @@ export function ClassTimerSetupDialog({ open, onOpenChange, wordCount = 0 }: Set
           <CloudButton
             type="button"
             variant="brand"
-            loading={starting}
             onClick={() => {
-              void (async () => {
-                const mins = effectiveDuration;
-                if (isCoach && !getTrainingStudent()?.id) {
-                  showToast.warning(t("coaching.timer_select_student"));
-                  return;
-                }
-                setStarting(true);
-                try {
-                  if (endsAt) await settleAndStop();
-
-                  let billingLink = null;
-                  if (isCoach) {
-                    billingLink = await beginPracticeBilling(mins);
-                    if (!billingLink) return;
-                  }
-                  start({
-                    durationMin: mins,
-                    wordCount,
-                    remindEveryMin,
-                    billing: billingLink,
-                  });
-                  onOpenChange(false);
-                  showToast.success(
-                    t("coaching.timer_started", { mins, remind: remindEveryMin })
-                  );
-                } finally {
-                  setStarting(false);
-                }
-              })();
+              const mins = effectiveDuration;
+              if (endsAt) useClassTimerStore.getState().stop();
+              start({
+                durationMin: mins,
+                wordCount,
+                remindEveryMin,
+              });
+              onOpenChange(false);
+              showToast.success(
+                t("coaching.timer_started", { mins, remind: remindEveryMin })
+              );
             }}
           >
             {t("coaching.start_timer")}
@@ -317,6 +271,7 @@ export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
 
 /**
  * 全站上课定时：浮动倒计时（无顶栏入口的页面）+ 到点 / 最后提醒
+ * 额度计费与计时器无关；刷新后若本地有未结课次会静默 ensure
  */
 export function ClassSessionTimer() {
   const { t } = useTranslation();
@@ -325,7 +280,8 @@ export function ClassSessionTimer() {
   const takeIntervalRemind = useClassTimerStore((s) => s.takeIntervalRemind);
   const wordCount = useClassTimerStore((s) => s.wordCount);
   const remindEveryMin = useClassTimerStore((s) => s.remindEveryMin);
-  const billing = useClassTimerStore((s) => s.billing);
+  const billingName = usePracticeBillingStore((s) => s.link?.studentName || "");
+  const hasBillingLink = usePracticeBillingStore((s) => Boolean(s.link?.appointmentId));
   const [left, setLeft] = useState(0);
   const [endOpen, setEndOpen] = useState(false);
   const [intervalOpen, setIntervalOpen] = useState(false);
@@ -338,6 +294,23 @@ export function ClassSessionTimer() {
     const id = window.setInterval(sync, 400);
     return () => window.clearInterval(id);
   }, []);
+
+  // 断网恢复 / 切回前台：强制与服务端对齐（挂载时不打，避免与「继续练习」叠打）
+  useEffect(() => {
+    if (!hasBillingLink) return;
+    const recover = () => {
+      void ensurePracticeBillingActive(180, { force: true });
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") recover();
+    };
+    window.addEventListener("online", recover);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("online", recover);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [hasBillingLink]);
 
   useEffect(() => {
     if (!endsAt) {
@@ -354,7 +327,12 @@ export function ClassSessionTimer() {
       if (ms > 0 && state.takeIntervalRemind()) {
         setIntervalOpen(true);
         playBeep(660, 0.18);
-        showToast.info(t("coaching.final_remind_toast", { remind: state.remindEveryMin, left: formatCountdown(ms) }));
+        showToast.info(
+          t("coaching.final_remind_toast", {
+            remind: state.remindEveryMin,
+            left: formatCountdown(ms),
+          })
+        );
       }
 
       if (ms <= 0 && !state.endedNotified) {
@@ -363,20 +341,13 @@ export function ClassSessionTimer() {
         setIntervalOpen(false);
         playBeep(880, 0.25);
         showToast.warning(t("coaching.class_time_up"));
-        if (state.startedAt) {
-          sessionStorage.setItem("lb_lesson_practice_start", String(state.startedAt));
-        }
-        sessionStorage.setItem("lb_lesson_practice_end", String(Date.now()));
-        void finishPracticeBilling(state.billing);
-        useClassTimerStore.setState({
-          billing: state.billing ? { ...state.billing, owned: false } : null,
-        });
+        // 仅提醒：不结账、不停额度计时
       }
     };
     tick();
     const id = window.setInterval(tick, 500);
     return () => window.clearInterval(id);
-  }, [endsAt, markEndedNotified, takeIntervalRemind]);
+  }, [endsAt, markEndedNotified, takeIntervalRemind, t]);
 
   if (!endsAt && !endOpen && !intervalOpen) return null;
 
@@ -407,7 +378,7 @@ export function ClassSessionTimer() {
                 left: formatCountdown(left),
                 words: wordCount > 0 ? t("coaching.words_approx", { count: wordCount }) : "",
               })}
-              {billing?.studentName ? ` · ${billing.studentName}` : ""}
+              {billingName ? ` · ${billingName}` : ""}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -430,8 +401,8 @@ export function ClassSessionTimer() {
             <DialogTitle>{t("coaching.time_up_title")}</DialogTitle>
             <DialogDescription>
               {t("coaching.time_up_desc", {
-                student: billing?.studentName
-                  ? t("coaching.time_up_student", { name: billing.studentName })
+                student: billingName
+                  ? t("coaching.time_up_student", { name: billingName })
                   : "",
               })}
             </DialogDescription>
@@ -454,10 +425,9 @@ export function ClassSessionTimer() {
               onClick={() => {
                 setEndOpen(false);
                 useClassTimerStore.getState().stop();
-                goToAntiForgettingSetup();
               }}
             >
-              {t("coaching.go_anti_forgetting")}
+              {t("ui.got_it")}
             </CloudButton>
           </DialogFooter>
         </DialogContent>

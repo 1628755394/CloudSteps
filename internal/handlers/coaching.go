@@ -502,7 +502,7 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 
 func (h *Handlers) coachingAdminListTeacherPools(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
-	tx := db.Model(&models.CoachingAppointment{}).Preload("Teacher").Order("teacher_id")
+	tx := db.Model(&models.TeacherTeachingPool{}).Preload("Teacher").Order("teacher_id")
 	if tid := c.Query("teacherId"); tid != "" {
 		if v, _ := strconv.Atoi(tid); v > 0 {
 			tx = tx.Where("teacher_id = ?", v)
@@ -568,7 +568,7 @@ func (h *Handlers) coachingAdminListUsagePeriods(c *gin.Context) {
 			limit = v
 		}
 	}
-	tx := db.Model(&models.CoachingAppointment{}).Preload("Teacher").Order("period_start DESC")
+	tx := db.Model(&models.TeacherCoachingUsagePeriod{}).Preload("Teacher").Order("period_start DESC")
 	if tidStr := c.Query("teacherId"); tidStr != "" {
 		if tid, _ := strconv.Atoi(tidStr); tid > 0 {
 			tx = tx.Where("teacher_id = ?", tid)
@@ -1587,7 +1587,12 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
-	id, _ := strconv.Atoi(c.Param("id"))
+	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id64 == 0 {
+		response.FailI18n(c, "coaching.not_found", nil)
+		return
+	}
+	id := uint(id64)
 
 	var ap models.CoachingAppointment
 	if err := db.Where("id = ?", id).First(&ap).Error; err != nil {
@@ -1599,7 +1604,7 @@ func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 		return
 	}
 
-	rec, apCompleted, err := coachingCompleteAppointment(db, uint(id), time.Now(), c, false)
+	rec, apCompleted, err := coachingCompleteAppointment(db, id, time.Now(), c, false)
 	if err != nil {
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
@@ -1680,11 +1685,13 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 			} else {
 				out = ap
 			}
+			// 练习开课（notes=practice）复用后仍由练习流下课；正式排课仅挂接、不自动下课
+			practiceOwned := strings.EqualFold(strings.TrimSpace(ap.Notes), "practice")
 			response.SuccessI18n(c, "common.ok", gin.H{
 				"appointment":   out,
 				"appointmentId": ap.ID,
 				"studentId":     ap.StudentID,
-				"owned":         false,
+				"owned":         practiceOwned,
 				"reused":        true,
 			})
 			return
