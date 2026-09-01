@@ -13,20 +13,37 @@ const (
 	ScenarioSessionStatusPending   = "pending"
 	ScenarioSessionStatusActive    = "active"
 	ScenarioSessionStatusCompleted = "completed"
+
+	ScenarioReviewApproved = "approved"
+	ScenarioReviewPending  = "pending"
+	ScenarioReviewRejected = "rejected"
 )
 
-// ScenarioDialogueScenario 预设对话场景
+// ScenarioDialogueScenario 对话场景（系统预设或用户自定义）
 type ScenarioDialogueScenario struct {
 	common.BaseModel
-	Slug        string `json:"slug" gorm:"size:64;uniqueIndex;not null;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
-	Name        string `json:"name" gorm:"size:128;not null;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
-	Description string `json:"description" gorm:"size:512;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
-	Icon        string `json:"icon" gorm:"size:32;charset:utf8mb4;collate:utf8mb4_unicode_ci"` // lucide icon name
-	Difficulty  string `json:"difficulty" gorm:"size:16;default:'medium';charset:utf8mb4;collate:utf8mb4_unicode_ci"`
-	AIRole      string `json:"aiRole" gorm:"size:256;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
-	Prompt      string `json:"-" gorm:"type:longtext;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
-	Enabled     bool   `json:"enabled" gorm:"default:true"`
-	SortOrder   int    `json:"sortOrder" gorm:"default:0"`
+	Slug         string `json:"slug" gorm:"size:64;uniqueIndex;not null;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
+	Name         string `json:"name" gorm:"size:128;not null;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
+	Description  string `json:"description" gorm:"size:512;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
+	Icon         string `json:"icon" gorm:"size:32;charset:utf8mb4;collate:utf8mb4_unicode_ci"` // lucide icon name
+	Difficulty   string `json:"difficulty" gorm:"size:16;default:'medium';charset:utf8mb4;collate:utf8mb4_unicode_ci"`
+	AIRole       string `json:"aiRole" gorm:"size:256;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
+	Prompt       string `json:"prompt,omitempty" gorm:"type:longtext;charset:utf8mb4;collate:utf8mb4_unicode_ci"` // 用户自定义可见；系统预设对外隐藏
+	Enabled      bool   `json:"enabled" gorm:"default:true"`
+	SortOrder    int    `json:"sortOrder" gorm:"default:0"`
+	UserID       uint   `json:"userId" gorm:"index;default:0;comment:0=系统预设"`
+	ReviewStatus string `json:"reviewStatus" gorm:"size:32;index;default:approved;comment:pending/approved/rejected"`
+	RejectReason string `json:"rejectReason,omitempty" gorm:"size:512;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
+	ReviewedBy   string `json:"reviewedBy,omitempty" gorm:"size:128;charset:utf8mb4;collate:utf8mb4_unicode_ci"`
+	ReviewedAt   *time.Time `json:"reviewedAt,omitempty"`
+}
+
+// IsSystem 是否为系统预设场景
+func (s *ScenarioDialogueScenario) IsSystem() bool { return s.UserID == 0 }
+
+// IsUsable 是否可对练（已启用且审核通过）
+func (s *ScenarioDialogueScenario) IsUsable() bool {
+	return s.Enabled && s.ReviewStatus == ScenarioReviewApproved
 }
 
 func (ScenarioDialogueScenario) TableName() string {

@@ -1,4 +1,4 @@
-import { get, post, ApiResponse } from '@/utils/request'
+import { get, post, put, del, ApiResponse } from '@/utils/request'
 
 export interface Scenario {
   id: number
@@ -8,6 +8,20 @@ export interface Scenario {
   icon: string
   difficulty: string
   aiRole: string
+  prompt?: string
+  reviewStatus?: string
+  rejectReason?: string
+  isCustom?: boolean
+  enabled?: boolean
+}
+
+export interface CustomScenarioPayload {
+  name: string
+  description?: string
+  icon?: string
+  difficulty?: string
+  aiRole: string
+  prompt: string
 }
 
 export interface ScenarioTurn {
@@ -92,6 +106,18 @@ export interface SpeakingStats {
 
 export const listScenarios = () =>
   get<Scenario[]>('/scenario-dialogue/scenarios')
+
+export const listMyScenarios = () =>
+  get<Scenario[]>('/scenario-dialogue/custom/scenarios')
+
+export const createCustomScenario = (payload: CustomScenarioPayload) =>
+  post<Scenario>('/scenario-dialogue/custom/scenarios', payload)
+
+export const updateCustomScenario = (id: number, payload: CustomScenarioPayload) =>
+  put<Scenario>(`/scenario-dialogue/custom/scenarios/${id}`, payload)
+
+export const deleteCustomScenario = (id: number) =>
+  del<void>(`/scenario-dialogue/custom/scenarios/${id}`)
 
 export const startSession = (scenarioId: number) =>
   post<StartSessionResponse>('/scenario-dialogue/sessions', { scenarioId })

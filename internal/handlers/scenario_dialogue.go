@@ -35,6 +35,8 @@ func (h *Handlers) registerScenarioDialogueRoutes(r *humax.Group) {
 		sd.GET("/voice/ready", h.handleVoiceReady)
 	}
 
+	h.registerCustomScenarioRoutes(sd)
+
 	// Admin scenario management routes
 	admin := r.Group("admin/scenarios")
 	admin.Use(auth.Required, auth.AdminRequired)
@@ -44,7 +46,10 @@ func (h *Handlers) registerScenarioDialogueRoutes(r *humax.Group) {
 		admin.PUT("/:id", h.handleAdminUpdateScenario)
 		admin.DELETE("/:id", h.handleAdminDeleteScenario)
 		admin.PATCH("/:id/toggle", h.handleAdminToggleScenario)
+		admin.POST("/:id/review", h.handleAdminReviewScenario)
 	}
+
+	h.registerScenarioAdminSessionRoutes(r)
 
 	// Direct ling-base realtime WebSocket (validated via device-id)
 	r.GET("/voice/realtime/", h.handleScenarioVoiceWS)
@@ -105,12 +110,26 @@ func (h *Handlers) handleVoiceReady(c *gin.Context) {
 
 func (h *Handlers) handleListScenarios(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
+	if user == nil {
+		response.FailI18n(c, "auth.authorization_required", nil)
+		return
+	}
+
 	var scenarios []models.ScenarioDialogueScenario
-	if err := db.Where("enabled = ?", true).Order("sort_order asc, id asc").Find(&scenarios).Error; err != nil {
+	err := db.Where(
+		"(user_id = 0 AND enabled = ? AND review_status = ?) OR (user_id = ? AND enabled = ? AND review_status = ?)",
+		true, models.ScenarioReviewApproved, user.ID, true, models.ScenarioReviewApproved,
+	).Order("sort_order asc, id asc").Find(&scenarios).Error
+	if err != nil {
 		response.FailI18n(c, "scenario.list_failed", nil)
 		return
 	}
-	response.SuccessI18n(c, "common.ok", scenarios)
+	out := make([]gin.H, 0, len(scenarios))
+	for _, s := range scenarios {
+		out = append(out, scenarioToJSON(s, s.UserID > 0))
+	}
+	response.SuccessI18n(c, "common.ok", out)
 }
 
 type startSessionReq struct {
@@ -132,7 +151,8 @@ func (h *Handlers) handleStartScenarioSession(c *gin.Context) {
 	}
 
 	var scenario models.ScenarioDialogueScenario
-	if err := db.Where("id = ? AND enabled = ?", req.ScenarioID, true).First(&scenario).Error; err != nil {
+	scenario, err := scenarioAccessible(db, req.ScenarioID, user.ID)
+	if err != nil {
 		response.FailI18n(c, "scenario.not_found", nil)
 		return
 	}
@@ -504,12 +524,25 @@ func cleanSpecialChars(s string) string {
 
 func (h *Handlers) handleAdminListScenarios(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	q := db.Model(&models.ScenarioDialogueScenario{})
+	if rs := strings.TrimSpace(c.Query("reviewStatus")); rs != "" {
+		q = q.Where("review_status = ?", rs)
+	}
+	if custom := c.Query("custom"); custom == "1" || custom == "true" {
+		q = q.Where("user_id > 0")
+	} else if custom == "0" || custom == "false" {
+		q = q.Where("user_id = 0")
+	}
 	var scenarios []models.ScenarioDialogueScenario
-	if err := db.Order("sort_order asc, id asc").Find(&scenarios).Error; err != nil {
+	if err := q.Order("sort_order asc, id asc").Find(&scenarios).Error; err != nil {
 		response.FailI18n(c, "scenario.list_failed", nil)
 		return
 	}
-	response.SuccessI18n(c, "common.ok", scenarios)
+	out := make([]gin.H, 0, len(scenarios))
+	for _, s := range scenarios {
+		out = append(out, scenarioToJSON(s, true))
+	}
+	response.SuccessI18n(c, "common.ok", out)
 }
 
 type adminCreateScenarioReq struct {
@@ -533,15 +566,17 @@ func (h *Handlers) handleAdminCreateScenario(c *gin.Context) {
 	}
 
 	scenario := models.ScenarioDialogueScenario{
-		Slug:        req.Slug,
-		Name:        req.Name,
-		Description: req.Description,
-		Icon:        req.Icon,
-		Difficulty:  req.Difficulty,
-		AIRole:      req.AIRole,
-		Prompt:      req.Prompt,
-		Enabled:     req.Enabled,
-		SortOrder:   req.SortOrder,
+		Slug:         req.Slug,
+		Name:         req.Name,
+		Description:  req.Description,
+		Icon:         req.Icon,
+		Difficulty:   req.Difficulty,
+		AIRole:       req.AIRole,
+		Prompt:       req.Prompt,
+		Enabled:      req.Enabled,
+		SortOrder:    req.SortOrder,
+		UserID:       0,
+		ReviewStatus: models.ScenarioReviewApproved,
 	}
 
 	if err := db.Create(&scenario).Error; err != nil {

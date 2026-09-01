@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Button, Empty, Message, Spin, Tag, Typography } from "@arco-design/web-react";
-import { IconLeft, IconVoice, IconDashboard } from "@arco-design/web-react/icon";
+import { IconLeft, IconPlus, IconVoice, IconDashboard } from "@arco-design/web-react/icon";
 import { CloudCard } from "../components/cloudsteps/arco";
 import {
   listScenarios,
+  listMyScenarios,
   startSession,
   getSpeakingStats,
   getVoiceReady,
@@ -15,6 +16,7 @@ import {
 } from "../api/scenarioDialogue";
 import { ScenarioIcon } from "../components/ScenarioIcon";
 import { formatApiMessage } from "../utils/apiMessage";
+import { cn } from "../utils/cn";
 
 const difficultyColor: Record<string, string> = {
   easy: "green",
@@ -22,10 +24,24 @@ const difficultyColor: Record<string, string> = {
   hard: "orangered",
 };
 
+type SourceTab = "system" | "custom";
+
+const reviewColor: Record<string, string> = {
+  pending: "orange",
+  approved: "green",
+  rejected: "red",
+};
+
 export default function ScenarioSelection() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialTab =
+    (location.state as { tab?: SourceTab } | null)?.tab === "custom" ? "custom" : "system";
+
+  const [sourceTab, setSourceTab] = useState<SourceTab>(initialTab);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [myScenarios, setMyScenarios] = useState<Scenario[]>([]);
   const [stats, setStats] = useState<SpeakingStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<number | null>(null);
@@ -40,17 +56,41 @@ export default function ScenarioSelection() {
     return map[key] || key;
   };
 
+  const reviewLabel = (status?: string) => {
+    if (status === "pending") return t("custom_scenario.status_pending");
+    if (status === "rejected") return t("custom_scenario.status_rejected");
+    if (status === "approved") return t("custom_scenario.status_approved");
+    return status || "";
+  };
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [scRes, myRes, stRes, vrRes] = await Promise.all([
+        listScenarios(),
+        listMyScenarios(),
+        getSpeakingStats(),
+        getVoiceReady(),
+      ]);
+      if (scRes.code === 200) setScenarios(scRes.data || []);
+      if (myRes.code === 200) setMyScenarios(myRes.data || []);
+      if (stRes.code === 200) setStats(stRes.data);
+      if (vrRes.code === 200) setVoiceReady(vrRes.data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    Promise.all([listScenarios(), getSpeakingStats(), getVoiceReady()])
-      .then(([scRes, stRes, vrRes]) => {
-        if (scRes.code === 200) setScenarios(scRes.data || []);
-        if (stRes.code === 200) setStats(stRes.data);
-        if (vrRes.code === 200) setVoiceReady(vrRes.data);
-      })
-      .finally(() => setLoading(false));
+    void load();
   }, []);
 
   const handleSelect = async (scenario: Scenario) => {
+    if (sourceTab === "custom" && scenario.reviewStatus !== "approved") {
+      Message.info(t("custom_scenario.not_usable"));
+      return;
+    }
+
     setStarting(scenario.id);
     try {
       const res = await startSession(scenario.id);
@@ -74,6 +114,8 @@ export default function ScenarioSelection() {
     }
   };
 
+  const displayList = sourceTab === "system" ? scenarios : myScenarios;
+
   return (
     <div className="h-dvh overflow-hidden bg-background flex flex-col">
       <div className="bg-card shrink-0 border-b border-border">
@@ -91,12 +133,38 @@ export default function ScenarioSelection() {
           >
             {t("scenario.title")}
           </Typography.Title>
+          {sourceTab === "custom" && (
+            <Button
+              type="primary"
+              size="mini"
+              icon={<IconPlus />}
+              onClick={() => navigate("/scenario-dialogues/custom/new")}
+              className="shrink-0"
+            />
+          )}
+        </div>
+        <div className="px-4 pb-3 flex gap-2">
+          {(["system", "custom"] as SourceTab[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={cn(
+                "flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                sourceTab === key
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              )}
+              onClick={() => setSourceTab(key)}
+            >
+              {key === "system" ? t("scenario.tab_system") : t("scenario.tab_custom")}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <p className="text-center text-sm text-muted-foreground leading-relaxed">
-          {t("scenario.tagline")}
+          {sourceTab === "system" ? t("scenario.tagline") : t("custom_scenario.list_desc")}
         </p>
 
         {voiceReady && !voiceReady.ready && (
@@ -149,40 +217,77 @@ export default function ScenarioSelection() {
           <div className="flex justify-center py-16">
             <Spin tip={t("scenario.loading_scenarios")} />
           </div>
-        ) : scenarios.length === 0 ? (
-          <Empty description={t("scenario.no_scenarios")} />
+        ) : displayList.length === 0 ? (
+          <Empty
+            description={
+              sourceTab === "custom"
+                ? t("custom_scenario.empty")
+                : t("scenario.no_scenarios")
+            }
+          />
         ) : (
           <div className="space-y-2.5">
-            {scenarios.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => void handleSelect(s)}
-                disabled={starting === s.id}
-                className="w-full text-left bg-card border border-border rounded-xl p-4 hover:border-primary transition-colors disabled:opacity-60"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary-soft flex items-center justify-center shrink-0">
-                    <ScenarioIcon name={s.icon} size={18} className="text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-foreground truncate">{s.name}</span>
-                      <Tag size="small" color={difficultyColor[s.difficulty] || "gray"}>
-                        {difficultyLabel(s.difficulty)}
-                      </Tag>
+            {displayList.map((s) => {
+              const usable = sourceTab === "system" || s.reviewStatus === "approved";
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => void handleSelect(s)}
+                  disabled={starting === s.id || !usable}
+                  className={cn(
+                    "w-full text-left bg-card border border-border rounded-xl p-4 transition-colors disabled:opacity-60",
+                    usable ? "hover:border-primary" : "opacity-80"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary-soft flex items-center justify-center shrink-0">
+                      <ScenarioIcon name={s.icon} size={18} className="text-primary" />
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
-                      {s.description}
-                    </p>
-                    {starting === s.id && (
-                      <p className="text-xs text-primary mt-1.5">{t("scenario.preparing_dialogue")}</p>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-foreground truncate">{s.name}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {sourceTab === "custom" && s.reviewStatus && (
+                            <Tag size="small" color={reviewColor[s.reviewStatus] || "gray"}>
+                              {reviewLabel(s.reviewStatus)}
+                            </Tag>
+                          )}
+                          <Tag size="small" color={difficultyColor[s.difficulty] || "gray"}>
+                            {difficultyLabel(s.difficulty)}
+                          </Tag>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
+                        {s.description}
+                      </p>
+                      {sourceTab === "custom" && s.reviewStatus === "rejected" && s.rejectReason && (
+                        <p className="text-xs text-red-500 mt-1.5">{s.rejectReason}</p>
+                      )}
+                      {sourceTab === "custom" && s.reviewStatus === "pending" && (
+                        <p className="text-xs text-orange-600 mt-1.5">{t("custom_scenario.pending_hint")}</p>
+                      )}
+                      {starting === s.id && (
+                        <p className="text-xs text-primary mt-1.5">{t("scenario.preparing_dialogue")}</p>
+                      )}
+                    </div>
+                    {usable && <IconVoice className="text-success shrink-0 mt-1" />}
                   </div>
-                  <IconVoice className="text-success shrink-0 mt-1" />
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {sourceTab === "custom" && !loading && displayList.length === 0 && (
+          <div className="flex justify-center pt-2">
+            <Button
+              type="primary"
+              icon={<IconPlus />}
+              onClick={() => navigate("/scenario-dialogues/custom/new")}
+            >
+              {t("custom_scenario.create_btn")}
+            </Button>
           </div>
         )}
       </div>
