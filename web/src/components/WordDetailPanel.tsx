@@ -5,6 +5,7 @@ import { CloudButton } from "./cloudsteps";
 import { getWordDetail, type WordDetail, type UserWordView } from "../api/wordbooks";
 import { displayTranslationFull, displayTranslationShort, withPartOfSpeech } from "../utils/wordFormat";
 import { playWordAudio } from "../utils/audioPlayer";
+import { splitSyllableParts } from "../utils/syllableSplit";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
 import { UserWordEditor } from "./UserWordEditor";
 
@@ -160,8 +161,8 @@ export function WordDetailPanel({
     : (fallbackTranslation ? withPartOfSpeech("", displayTranslationFull(fallbackTranslation)) : "");
   const showFullInline = active === "translation";
   const syllableParts = useMemo(
-    () => (detail?.syllables || "").split("-").filter(Boolean).map((s) => s.trim()),
-    [detail?.syllables]
+    () => splitSyllableParts({ syllables: detail?.syllables, word }) || [],
+    [detail?.syllables, word]
   );
 
   const tabs: ExtTab[] = useMemo(() => {
