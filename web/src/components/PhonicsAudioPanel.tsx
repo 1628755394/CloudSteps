@@ -9,6 +9,7 @@ import {
   playFirstWordAudio,
 } from "../utils/audioPlayer";
 import { getPhonicsParts } from "../utils/phonicsSplit";
+import { splitSyllableParts } from "../utils/syllableSplit";
 
 type Mode = "split" | "blend";
 
@@ -36,11 +37,15 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
   const abortRef = useRef<(() => void) | null>(null);
   const cancelSeq = useRef(false);
 
-  const partsInfo = useMemo(
-    () => getPhonicsParts({ syllables, phonetic }),
+  const phoneticParts = useMemo(
+    () => getPhonicsParts({ syllables, phonetic })?.parts || [],
     [syllables, phonetic]
   );
-  const parts = partsInfo?.parts || [];
+  const syllableParts = useMemo(
+    () => splitSyllableParts({ syllables, word }) || [],
+    [syllables, word]
+  );
+  const parts = mode === "split" ? phoneticParts : syllableParts;
   const hasAudio = Boolean(audioUrl && parseAudioUrlSlots(audioUrl).some(Boolean));
 
   const modeOptions = useMemo(
@@ -67,8 +72,6 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
     setPlaying(false);
     cancelSeq.current = false;
   }, [word, mode]);
-
-  if (parts.length === 0 && !hasAudio) return null;
 
   const stopAll = () => {
     cancelSeq.current = true;
@@ -137,9 +140,9 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
       : t("word.phonics.play_split");
 
   return (
-    <div className="mb-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5">
+    <div className="mb-3 rounded-xl border border-primary/20 bg-primary-soft/30 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="inline-flex rounded-full bg-[#EEF2F7] p-0.5">
+        <div className="inline-flex rounded-full bg-muted p-0.5">
           {modeOptions.map((m) => (
             <button
               key={m.id}
@@ -147,8 +150,8 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
               onClick={() => setMode(m.id)}
               className={`h-7 min-w-[3.25rem] rounded-full px-3 text-xs font-medium transition-colors ${
                 mode === m.id
-                  ? "bg-[#4ECDC4] text-white shadow-sm"
-                  : "text-[#64748B] hover:text-[#2D3748]"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {m.label}
@@ -168,11 +171,12 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
         >
           <Volume2
             size={16}
-            className={playing ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+            className={playing ? "text-primary animate-pulse" : "text-primary"}
           />
         </CloudButton>
       </div>
 
+      {mode === "blend" && <p className="mb-2 text-sm font-semibold text-foreground">自然拼读</p>}
       {parts.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {parts.map((p, i) => (
@@ -186,18 +190,20 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
               }}
               className={`rounded-lg px-2.5 py-1.5 text-sm font-mono transition-colors ${
                 activeIdx === i
-                  ? "bg-[#4ECDC4] text-white"
+                  ? "bg-primary text-primary-foreground"
                   : mode === "split"
-                    ? "bg-white text-[#0d9488] border border-[#4ECDC4]/25 hover:bg-[#4ECDC4]/10"
-                    : "bg-white/70 text-[#94A3B8] border border-transparent"
+                    ? "bg-muted text-muted-foreground border border-border hover:bg-primary-soft"
+                    : "bg-primary-soft text-primary border border-primary/20 hover:bg-primary-soft/80"
               }`}
             >
-              {`\\ ${p} \\`}
+              {mode === "split" ? `\\ ${p} \\` : p}
             </button>
           ))}
         </div>
       ) : (
-        <p className="text-xs text-[#94A3B8]">{t("word.phonics.no_split")}</p>
+        <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground">
+          {mode === "blend" ? "暂无自然拼读数据" : t("word.phonics.no_split")}
+        </p>
       )}
     </div>
   );

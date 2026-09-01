@@ -7,6 +7,7 @@ import { displayTranslationFull, displayTranslationShort, withPartOfSpeech } fro
 import { playWordAudio } from "../utils/audioPlayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "./PracticeFontSettings";
 import { UserWordEditor } from "./UserWordEditor";
+import { PhonicsAudioPanel } from "./PhonicsAudioPanel";
 
 function parseJSON<T>(raw?: string | null): T | null {
   if (!raw || raw === "[]" || raw === "") return null;
@@ -154,7 +155,6 @@ export function WordDetailPanel({
     ? withPartOfSpeech(detail.partOfSpeech, detailTranslation ? displayTranslationFull(detailTranslation) : "")
     : (fallbackTranslation ? withPartOfSpeech("", displayTranslationFull(fallbackTranslation)) : "");
   const showFullInline = active === "translation";
-
   const tabs: ExtTab[] = useMemo(() => {
     if (!detail || !parsed) return [];
     const list: ExtTab[] = [];
@@ -220,6 +220,13 @@ export function WordDetailPanel({
               {t("word.edit")}
             </button>
           </div>
+
+          <PhonicsAudioPanel
+            word={word}
+            syllables={detail.syllables}
+            phonetic={phonetic}
+            audioUrl={detail.audioUrl}
+          />
 
           {active && active !== "translation" && (
             <div className="pt-2 border-t border-border max-h-[36vh] overflow-y-auto">
@@ -306,6 +313,14 @@ export function WordDetailPanel({
               {showFullInline ? fullMeaning : shortMeaning}
             </p>
           )}
+          <div className="mt-3">
+            <PhonicsAudioPanel
+              word={word}
+              syllables={detail?.syllables}
+              phonetic={phonetic}
+              audioUrl={detail?.audioUrl}
+            />
+          </div>
         </div>
       </div>
       <div className="px-3 pb-4">{tagsBlock}</div>
