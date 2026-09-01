@@ -18,7 +18,7 @@ export const getTeacherTeachingPool = async (): Promise<ApiResponse<TeacherTeach
 }
 
 export type CoachingWeekSchedule = {
-  id: number
+  id: SnowflakeId
   title: string
   scheduledDate: string
   startTime: string
@@ -26,6 +26,9 @@ export type CoachingWeekSchedule = {
   teacherId: number
   studentId: SnowflakeId
   status: string
+  /** practice=无排课练习；scheduled=正式排课 */
+  source?: "practice" | "scheduled" | string
+  notes?: string
   students?: string[]
   session?: {
     status?: string

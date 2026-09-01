@@ -864,8 +864,11 @@ type coachingWeekScheduleDTO struct {
 	TeacherID     uint     `json:"teacherId"`
 	StudentID     uint     `json:"studentId"`
 	Status        string   `json:"status"`
-	Students      []string `json:"students,omitempty"`
-	Session       any      `json:"session,omitempty"`
+	Notes         string   `json:"notes,omitempty"`
+	// source: practice=无排课练习开课；scheduled=正式排课
+	Source   string   `json:"source"`
+	Students []string `json:"students,omitempty"`
+	Session  any      `json:"session,omitempty"`
 }
 
 func coachingToWeekDTO(list []models.CoachingAppointment) []coachingWeekScheduleDTO {
@@ -899,6 +902,10 @@ func coachingToWeekDTO(list []models.CoachingAppointment) []coachingWeekSchedule
 				"plannedMinutes": planned,
 			}
 		}
+		source := "scheduled"
+		if strings.EqualFold(strings.TrimSpace(a.Notes), "practice") {
+			source = "practice"
+		}
 		out = append(out, coachingWeekScheduleDTO{
 			ID:            a.ID,
 			Title:         title,
@@ -908,6 +915,8 @@ func coachingToWeekDTO(list []models.CoachingAppointment) []coachingWeekSchedule
 			TeacherID:     a.TeacherID,
 			StudentID:     a.StudentID,
 			Status:        a.Status,
+			Notes:         a.Notes,
+			Source:        source,
 			Students:      students,
 			Session:       sess,
 		})
