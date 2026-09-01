@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import {
@@ -13,9 +13,14 @@ import {
   Tag,
   Typography,
 } from "@arco-design/web-react";
-import { IconLeft } from "@arco-design/web-react/icon";
+import { IconLeft, IconPlus } from "@arco-design/web-react/icon";
 import { ArrowRight } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
+import {
+  getCustomReadingPassage,
+  listCustomReadingPassages,
+  submitCustomReadingPassage,
+} from "../api/customReading";
 import {
   getReadingPassage,
   listReadingPassages,
@@ -25,35 +30,59 @@ import {
   type ReadingSubmitResult,
 } from "../api/reading";
 import { formatApiMessage } from "../utils/apiMessage";
+import { cn } from "../utils/cn";
 
 type Phase = "list" | "practice" | "result";
+type SourceTab = "system" | "custom";
+type LevelFilter = "" | "初阶" | "中阶" | "高阶";
+
+const LEVELS: LevelFilter[] = ["", "初阶", "中阶", "高阶"];
+
+type PassageItem = ReadingPassageListItem & { isCustom?: boolean };
 
 export default function ReadingComprehension() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>("list");
+  const [sourceTab, setSourceTab] = useState<SourceTab>("system");
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>("");
   const [loadingList, setLoadingList] = useState(true);
   const [loadingPassage, setLoadingPassage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const [passages, setPassages] = useState<ReadingPassageListItem[]>([]);
+  const [passages, setPassages] = useState<PassageItem[]>([]);
   const [passage, setPassage] = useState<ReadingPassageDetail | null>(null);
+  const [isCustomPassage, setIsCustomPassage] = useState(false);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [result, setResult] = useState<ReadingSubmitResult | null>(null);
   const startedAtRef = useRef<number>(Date.now());
 
-  const loadList = async () => {
+  const loadList = useCallback(async () => {
     setLoadingList(true);
     setErr(null);
     try {
-      const res = await listReadingPassages({ page: 1, pageSize: 50 });
+      const params = {
+        page: 1,
+        pageSize: 30,
+        ...(levelFilter ? { level: levelFilter } : {}),
+      };
+      const res =
+        sourceTab === "custom"
+          ? await listCustomReadingPassages(params)
+          : await listReadingPassages(params);
       if (res.code !== 200) {
         setErr(formatApiMessage(res.msg, "reading.load_list_failed"));
         setPassages([]);
         return;
       }
-      setPassages(Array.isArray(res.data?.list) ? res.data.list : []);
+      const list = Array.isArray(res.data?.list) ? res.data.list : [];
+      setPassages(
+        list.map((p) => ({
+          ...p,
+          isCustom: sourceTab === "custom",
+        }))
+      );
     } catch (e: unknown) {
       const apiMsg =
         e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
@@ -62,11 +91,11 @@ export default function ReadingComprehension() {
     } finally {
       setLoadingList(false);
     }
-  };
+  }, [levelFilter, sourceTab]);
 
   useEffect(() => {
-    void loadList();
-  }, []);
+    if (phase === "list") void loadList();
+  }, [phase, loadList]);
 
   const answeredCount = useMemo(
     () => Object.keys(answers).filter((k) => answers[Number(k)]).length,
@@ -77,16 +106,17 @@ export default function ReadingComprehension() {
   const percent =
     totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
 
-  const openPassage = async (id: number) => {
+  const openPassage = async (id: number, isCustom: boolean) => {
     setLoadingPassage(true);
     setErr(null);
     try {
-      const res = await getReadingPassage(id);
+      const res = isCustom ? await getCustomReadingPassage(id) : await getReadingPassage(id);
       if (res.code !== 200 || !res.data) {
         setErr(formatApiMessage(res.msg, "reading.load_passage_failed"));
         return;
       }
       setPassage(res.data);
+      setIsCustomPassage(isCustom);
       setAnswers({});
       setResult(null);
       startedAtRef.current = Date.now();
@@ -116,7 +146,9 @@ export default function ReadingComprehension() {
         })),
         durationSec,
       };
-      const res = await submitReadingPassage(passage.id, payload);
+      const res = isCustomPassage
+        ? await submitCustomReadingPassage(passage.id, payload)
+        : await submitReadingPassage(passage.id, payload);
       if (res.code !== 200 || !res.data) {
         setErr(formatApiMessage(res.msg, "practice.submit_failed"));
         return;
@@ -136,6 +168,7 @@ export default function ReadingComprehension() {
   const backToList = () => {
     setPhase("list");
     setPassage(null);
+    setIsCustomPassage(false);
     setAnswers({});
     setResult(null);
     setErr(null);
@@ -153,33 +186,84 @@ export default function ReadingComprehension() {
     backToList();
   };
 
+  const levelLabel = (lv: LevelFilter) =>
+    lv === "" ? t("reading.level_all") : lv;
+
   return (
     <div className="h-dvh overflow-hidden bg-[#F7F9FC] flex flex-col">
       <header className="shrink-0 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center h-12 px-3 gap-2">
-          <Button type="text" shape="circle" icon={<IconLeft />} onClick={headerBack} />
+        <div className="flex items-center h-11 px-2 sm:px-3 gap-1.5">
+          <Button type="text" shape="circle" size="small" icon={<IconLeft />} onClick={headerBack} />
           <div className="min-w-0 flex-1">
-            <Typography.Text className="!font-medium !text-[#2D3748]">
+            <Typography.Text className="!font-medium !text-sm !text-[#2D3748]">
               {t("reading.title")}
             </Typography.Text>
             {phase === "practice" && passage && (
-              <Typography.Text type="secondary" className="block !text-xs truncate">
+              <Typography.Text type="secondary" className="block !text-[11px] truncate leading-tight">
                 {passage.title} · {passage.level}
-              </Typography.Text>
-            )}
-            {phase === "list" && (
-              <Typography.Text type="secondary" className="block !text-xs">
-                {t("reading.subtitle_list")}
+                {isCustomPassage && (
+                  <Tag size="small" className="ml-1 scale-90 origin-left">
+                    {t("reading.custom_tag")}
+                  </Tag>
+                )}
               </Typography.Text>
             )}
           </div>
+          {phase === "list" && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex rounded-md bg-[#F1F5F9] p-0.5">
+                {(["system", "custom"] as SourceTab[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={cn(
+                      "px-2 py-0.5 rounded text-[11px] font-medium transition-all whitespace-nowrap",
+                      sourceTab === key
+                        ? "bg-white text-[#2D3748] shadow-sm"
+                        : "text-[#718096] hover:text-[#2D3748]"
+                    )}
+                    onClick={() => setSourceTab(key)}
+                  >
+                    {key === "system" ? t("reading.tab_system") : t("reading.tab_custom")}
+                  </button>
+                ))}
+              </div>
+              {sourceTab === "custom" && (
+                <Button
+                  type="primary"
+                  size="mini"
+                  icon={<IconPlus />}
+                  onClick={() => navigate("/reading-comprehension/custom/new")}
+                />
+              )}
+            </div>
+          )}
           {phase === "practice" && (
-            <Typography.Text type="secondary" className="!text-xs shrink-0">
+            <Typography.Text type="secondary" className="!text-[11px] shrink-0">
               {answeredCount}/{totalQuestions}
             </Typography.Text>
           )}
         </div>
-        {phase === "practice" && <Progress percent={percent} showText={false} size="small" />}
+        {phase === "practice" && <Progress percent={percent} showText={false} size="small" className="!mb-0" />}
+        {phase === "list" && (
+          <div className="px-3 pb-2 flex gap-1 overflow-x-auto scrollbar-hide">
+            {LEVELS.map((lv) => (
+              <button
+                key={lv || "all"}
+                type="button"
+                className={cn(
+                  "shrink-0 px-2.5 py-0.5 rounded-md text-[11px] font-medium transition-colors",
+                  levelFilter === lv
+                    ? "bg-[#2D3748] text-white"
+                    : "bg-[#F1F5F9] text-[#718096] hover:bg-[#E2E8F0]"
+                )}
+                onClick={() => setLevelFilter(lv)}
+              >
+                {levelLabel(lv)}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       {err && (
@@ -189,44 +273,54 @@ export default function ReadingComprehension() {
       )}
 
       {phase === "list" && (
-        <div className="flex-1 min-h-0 overflow-auto px-3 mt-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
           {loadingList || loadingPassage ? (
-            <div className="flex justify-center py-16">
+            <div className="flex justify-center py-12">
               <Spin tip={t("common.loading")} />
             </div>
           ) : passages.length === 0 ? (
             <Card className="!rounded-xl">
-              <Empty description={t("reading.empty_list")} />
+              <Empty
+                description={
+                  sourceTab === "custom"
+                    ? t("reading.empty_custom")
+                    : t("reading.empty_list")
+                }
+              />
+              {sourceTab === "custom" && (
+                <div className="flex justify-center mt-3">
+                  <Button
+                    type="primary"
+                    onClick={() => navigate("/reading-comprehension/custom/new")}
+                  >
+                    {t("reading.import_custom")}
+                  </Button>
+                </div>
+              )}
             </Card>
           ) : (
-            <Space direction="vertical" size={10} className="w-full">
+            <div className="space-y-1.5">
               {passages.map((p) => (
-                <Card
-                  key={p.id}
-                  hoverable
-                  className="!rounded-xl cursor-pointer"
-                  onClick={() => void openPassage(p.id)}
+                <button
+                  key={`${p.isCustom ? "c" : "s"}-${p.id}`}
+                  type="button"
+                  onClick={() => void openPassage(p.id, !!p.isCustom)}
+                  className="w-full text-left bg-white border border-[#E2E8F0] rounded-lg px-3 py-2.5 hover:border-[#4ECDC4] transition-colors active:bg-[#F7FAFC]"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Typography.Text className="!font-semibold !text-[#2D3748]">
-                          {p.title}
-                        </Typography.Text>
-                        <Tag size="small" color="arcoblue">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-sm font-medium text-[#2D3748] truncate">{p.title}</span>
+                        <Tag size="small" color="arcoblue" className="!scale-90 shrink-0">
                           {p.level}
                         </Tag>
+                        {p.isCustom && (
+                          <Tag size="small" color="purple" className="!scale-90 shrink-0">
+                            {t("reading.custom_tag")}
+                          </Tag>
+                        )}
                       </div>
-                      {p.summary && (
-                        <Typography.Paragraph
-                          type="secondary"
-                          ellipsis={{ rows: 2 }}
-                          className="!mb-2 !text-xs"
-                        >
-                          {p.summary}
-                        </Typography.Paragraph>
-                      )}
-                      <Typography.Text type="secondary" className="!text-xs">
+                      <p className="text-[11px] text-[#718096] mt-0.5 truncate">
                         {typeof p.wordCount === "number"
                           ? t("practice.questions_meta_words", {
                               count: p.questionCount ?? 0,
@@ -237,17 +331,17 @@ export default function ReadingComprehension() {
                               count: p.questionCount ?? 0,
                               minutes: p.estimatedMinutes ?? 5,
                             })}
-                      </Typography.Text>
+                      </p>
                     </div>
                     {typeof p.lastScore === "number" && (
-                      <Tag color={p.lastScore >= 80 ? "green" : "orangered"}>
+                      <Tag size="small" color={p.lastScore >= 80 ? "green" : "orangered"} className="shrink-0">
                         {t("practice.last_score", { score: p.lastScore })}
                       </Tag>
                     )}
                   </div>
-                </Card>
+                </button>
               ))}
-            </Space>
+            </div>
           )}
         </div>
       )}
@@ -299,7 +393,7 @@ export default function ReadingComprehension() {
               <Button
                 type="primary"
                 onClick={() => {
-                  if (result.passageId) void openPassage(result.passageId);
+                  if (result.passageId) void openPassage(result.passageId, isCustomPassage);
                 }}
               >
                 {t("practice.try_again")}

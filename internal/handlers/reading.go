@@ -52,6 +52,9 @@ func (h *Handlers) registerReadingRoutes(r *humax.Group) {
 		admin.GET("/passages", h.handleAdminListPassages)
 		admin.GET("/passages/:id", h.handleAdminGetPassage)
 	}
+
+	h.registerUserReadingRoutes(rg)
+	h.registerReadingAdminRecordRoutes(rg)
 }
 
 func countEnglishWords(s string) int {
@@ -467,6 +470,13 @@ func (h *Handlers) handleAdminListPassages(c *gin.Context) {
 	q := db.Model(&models.ReadingPassage{})
 	if status := strings.TrimSpace(c.Query("status")); status != "" {
 		q = q.Where("status = ?", status)
+	}
+	if level := strings.TrimSpace(c.Query("level")); level != "" {
+		q = q.Where("level = ?", level)
+	}
+	if kw := strings.TrimSpace(c.Query("keyword")); kw != "" {
+		like := "%" + kw + "%"
+		q = q.Where("title LIKE ? OR summary LIKE ?", like, like)
 	}
 
 	var total int64
