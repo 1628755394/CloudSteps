@@ -152,3 +152,32 @@ func ReviewDueAfterFail(now time.Time, currentStage int, preset string, anchor t
 	}
 	return ReviewDueAtForStage(anchor, newStage, preset, loc), newStage
 }
+
+// ReviewRemainingDueFallsOnDay 从当前 stage 起，剩余抗遗忘计划日是否落在 dayStart 所在自然日。
+// 用于抗遗忘日历：一次性按曲线铺开，翻日期即可看到后续计划（不必等复习推进后才出现）。
+func ReviewRemainingDueFallsOnDay(
+	anchor time.Time,
+	stage int,
+	preset string,
+	dayStart time.Time,
+	loc *time.Location,
+) bool {
+	if loc == nil {
+		loc = time.FixedZone("CST", 8*3600)
+	}
+	if stage < 0 {
+		stage = 0
+	}
+	schedule := ReviewScheduleDaysForPreset(preset)
+	local := dayStart.In(loc)
+	dayStartUTC := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, loc).UTC()
+	dayEndUTC := dayStartUTC.Add(24 * time.Hour)
+	for i := stage; i < len(schedule); i++ {
+		due := ReviewDueAtForStage(anchor, i, preset, loc)
+		if !due.Before(dayStartUTC) && due.Before(dayEndUTC) {
+			return true
+		}
+	}
+	return false
+}
+

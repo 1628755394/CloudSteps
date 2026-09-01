@@ -53,3 +53,28 @@ func TestReviewDueAtForStageExample(t *testing.T) {
 		t.Fatalf("stage9 due=%v want %v", due10, want10)
 	}
 }
+
+func TestReviewRemainingDueFallsOnDayProjectsFullCurve(t *testing.T) {
+	loc := time.FixedZone("CST", 8*3600)
+	anchor := time.Date(2026, 9, 1, 22, 0, 0, 0, loc)
+	// times5: 第1/2/4/7/11 天 → 9/1, 9/2, 9/4, 9/7, 9/11
+	day2 := time.Date(2026, 9, 2, 0, 0, 0, 0, loc)
+	day3 := time.Date(2026, 9, 3, 0, 0, 0, 0, loc)
+	day4 := time.Date(2026, 9, 4, 0, 0, 0, 0, loc)
+	if !ReviewRemainingDueFallsOnDay(anchor, 0, "times5", day2, loc) {
+		t.Fatal("stage0 should appear on day2 plan")
+	}
+	if ReviewRemainingDueFallsOnDay(anchor, 0, "times5", day3, loc) {
+		t.Fatal("stage0 should not appear on day3 (not in times5)")
+	}
+	if !ReviewRemainingDueFallsOnDay(anchor, 0, "times5", day4, loc) {
+		t.Fatal("stage0 should appear on day4 plan")
+	}
+	day1 := time.Date(2026, 9, 1, 0, 0, 0, 0, loc)
+	if ReviewRemainingDueFallsOnDay(anchor, 1, "times5", day1, loc) {
+		t.Fatal("stage1 should not still list day1")
+	}
+	if !ReviewRemainingDueFallsOnDay(anchor, 1, "times5", day2, loc) {
+		t.Fatal("stage1 should still list day2")
+	}
+}

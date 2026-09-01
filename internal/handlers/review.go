@@ -2,14 +2,14 @@ package handlers
 
 import (
 	"errors"
-
-	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
-	lbconstants "github.com/LingByte/ling-base/common/constants"
-
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
+	lbconstants "github.com/LingByte/ling-base/common/constants"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
 	response "github.com/LingByte/ling-base/common/response/gin"
@@ -119,59 +119,163 @@ func reviewResolveTargetUser(db *gorm.DB, actor *models.User, studentIDRaw strin
 	return &student, nil
 }
 
-func reviewBooksByDateForUsers(db *gorm.DB, userIDs []uint, dayStart, dayEnd time.Time, isSelectedToday bool) ([]reviewBookStat, error) {
+func reviewBooksByDateForUsers(db *gorm.DB, userIDs []uint, dayStart, dayEnd time.Time, loc *time.Location, isSelectedToday bool) ([]reviewBookStat, error) {
 	if len(userIDs) == 0 {
 		return []reviewBookStat{}, nil
 	}
-	var stats []reviewBookStat
-	studentIDExpr := reviewQueueStudentIDSQL
-	baseSelect := `
-			SELECT rq.id AS queue_id,
-				` + studentIDExpr + ` AS student_id,
-				COALESCE(NULLIF(TRIM(u.display_name), ''), u.username, u.email, '') AS student_name,
-				COALESCE(ss.id, 0) AS session_id,
-				rq.word_book_id,
-				wb.name,
-				wb.level,
-				ss.started_at AS practice_started_at,
-				ss.completed_at AS practice_ended_at
-			FROM review_queue rq
-			JOIN word_books wb ON wb.id = rq.word_book_id
-			` + reviewSessionJoin + `
-			JOIN users u ON u.id = ` + studentIDExpr
-	groupOuter := `
-		SELECT base.student_id, base.student_name, base.session_id, base.word_book_id,
-			COUNT(*) AS cnt, base.name, base.level,
-			base.practice_started_at, base.practice_ended_at
-		FROM (` + baseSelect + `
-			WHERE rq.user_id IN ? AND rq.status = 'pending'`
-	var q string
-	var args []any
-	if isSelectedToday {
-		q = groupOuter + ` AND rq.due_at < ?
-		) base
-		GROUP BY base.student_id, base.student_name, base.session_id, base.word_book_id,
-			base.name, base.level, base.practice_started_at, base.practice_ended_at
-		ORDER BY base.student_name, base.practice_started_at DESC, base.word_book_id
-		`
-		args = []any{userIDs, dayEnd}
-	} else {
-		q = groupOuter + ` AND rq.due_at >= ? AND rq.due_at < ?
-		) base
-		GROUP BY base.student_id, base.student_name, base.session_id, base.word_book_id,
-			base.name, base.level, base.practice_started_at, base.practice_ended_at
-		ORDER BY base.student_name, base.practice_started_at DESC, base.word_book_id
-		`
-		args = []any{userIDs, dayStart, dayEnd}
+	if loc == nil {
+		loc = time.FixedZone("CST", 8*3600)
 	}
-	if err := db.Raw(q, args...).Scan(&stats).Error; err != nil {
+
+	type pendingRow struct {
+		UserID            uint       `gorm:"column:user_id"`
+		WordID            uint       `gorm:"column:word_id"`
+		WordBookID        uint       `gorm:"column:word_book_id"`
+		Stage             int        `gorm:"column:stage"`
+		DueAt             time.Time  `gorm:"column:due_at"`
+		StudentID         uint       `gorm:"column:student_id"`
+		StudentName       string     `gorm:"column:student_name"`
+		SessionID         uint       `gorm:"column:session_id"`
+		BookName          string     `gorm:"column:name"`
+		Level             string     `gorm:"column:level"`
+		PracticeStartedAt *time.Time `gorm:"column:practice_started_at"`
+		PracticeEndedAt   *time.Time `gorm:"column:practice_ended_at"`
+		FirstLearnedAt    *time.Time `gorm:"column:first_learned_at"`
+	}
+
+	studentIDExpr := reviewQueueStudentIDSQL
+	q := `
+		SELECT rq.user_id, rq.word_id, rq.word_book_id, rq.stage, rq.due_at,
+			` + studentIDExpr + ` AS student_id,
+			COALESCE(NULLIF(TRIM(u.display_name), ''), u.username, u.email, '') AS student_name,
+			COALESCE(ss.id, 0) AS session_id,
+			wb.name, wb.level,
+			ss.started_at AS practice_started_at,
+			ss.completed_at AS practice_ended_at,
+			uws.first_learned_at
+		FROM review_queue rq
+		JOIN word_books wb ON wb.id = rq.word_book_id
+		` + reviewSessionJoin + `
+		JOIN users u ON u.id = ` + studentIDExpr + `
+		LEFT JOIN user_word_states uws ON uws.user_id = rq.user_id AND uws.word_id = rq.word_id
+		WHERE rq.user_id IN ? AND rq.status = 'pending'
+	`
+	var rows []pendingRow
+	if err := db.Raw(q, userIDs).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
+
+	presetIDs := make([]uint, 0, len(rows))
+	seenPreset := map[uint]struct{}{}
+	for _, r := range rows {
+		id := r.StudentID
+		if id == 0 {
+			id = r.UserID
+		}
+		if _, ok := seenPreset[id]; ok {
+			continue
+		}
+		seenPreset[id] = struct{}{}
+		presetIDs = append(presetIDs, id)
+	}
+	presetByUser := map[uint]string{}
+	if len(presetIDs) > 0 {
+		var users []models.User
+		if err := db.Select("id, review_curve_preset").Where("id IN ?", presetIDs).Find(&users).Error; err != nil {
+			return nil, err
+		}
+		for _, u := range users {
+			presetByUser[u.ID] = string(models.NormalizeReviewCurvePreset(u.ReviewCurvePreset))
+		}
+	}
+
+	type aggKey struct {
+		StudentID  uint
+		SessionID  uint
+		WordBookID uint
+	}
+	type aggVal struct {
+		stat  reviewBookStat
+		words map[uint]struct{}
+	}
+	aggs := map[aggKey]*aggVal{}
+
+	dayEndUTC := dayEnd.In(loc)
+	_ = dayEndUTC
+	for _, r := range rows {
+		presetOwner := r.StudentID
+		if presetOwner == 0 {
+			presetOwner = r.UserID
+		}
+		preset := presetByUser[presetOwner]
+		if preset == "" {
+			preset = string(models.ReviewCurveTimes5)
+		}
+
+		anchor := r.DueAt
+		if r.FirstLearnedAt != nil && !r.FirstLearnedAt.IsZero() {
+			anchor = *r.FirstLearnedAt
+		} else if r.PracticeStartedAt != nil && !r.PracticeStartedAt.IsZero() {
+			anchor = *r.PracticeStartedAt
+		}
+
+		onPlan := models.ReviewRemainingDueFallsOnDay(anchor, r.Stage, preset, dayStart, loc)
+		// 今天：额外纳入已到期/逾期（due_at < 明日 0 点），与可开始复习口径一致
+		overdueToday := isSelectedToday && r.DueAt.Before(dayEnd)
+		if !onPlan && !overdueToday {
+			continue
+		}
+
+		key := aggKey{StudentID: r.StudentID, SessionID: r.SessionID, WordBookID: r.WordBookID}
+		cur, ok := aggs[key]
+		if !ok {
+			cur = &aggVal{
+				stat: reviewBookStat{
+					StudentID:         r.StudentID,
+					StudentName:       r.StudentName,
+					SessionID:         r.SessionID,
+					WordBookID:        r.WordBookID,
+					BookName:          r.BookName,
+					Level:             r.Level,
+					PracticeStartedAt: r.PracticeStartedAt,
+					PracticeEndedAt:   r.PracticeEndedAt,
+				},
+				words: map[uint]struct{}{},
+			}
+			aggs[key] = cur
+		}
+		cur.words[r.WordID] = struct{}{}
+	}
+
+	stats := make([]reviewBookStat, 0, len(aggs))
+	for _, v := range aggs {
+		v.stat.Count = int64(len(v.words))
+		stats = append(stats, v.stat)
+	}
+	sort.Slice(stats, func(i, j int) bool {
+		a, b := stats[i], stats[j]
+		if a.StudentName != b.StudentName {
+			return a.StudentName < b.StudentName
+		}
+		at, bt := time.Time{}, time.Time{}
+		if a.PracticeStartedAt != nil {
+			at = *a.PracticeStartedAt
+		}
+		if b.PracticeStartedAt != nil {
+			bt = *b.PracticeStartedAt
+		}
+		if !at.Equal(bt) {
+			return at.After(bt)
+		}
+		return a.WordBookID < b.WordBookID
+	})
+
 	if stats == nil {
 		stats = []reviewBookStat{}
 	}
 	return stats, nil
 }
+
 
 // handleReviewToday GET /review/today?wordBookId=1&date=YYYY-MM-DD&timeZone=Asia/Shanghai&all=true
 // 取词口径与 /review/books-by-date 对齐：今日含逾期至本地明日 0 点前；其它日仅该日 due。
@@ -233,18 +337,54 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 			uint(studySessionID), uint(studySessionID),
 		)
 	}
-	if !allMode {
-		if isSelectedToday {
-			q = q.Where("due_at < ?", dayEnd)
-		} else {
-			q = q.Where("due_at >= ? AND due_at < ?", dayStart, dayEnd)
-		}
+	if !allMode && isSelectedToday {
+		// 今天：可开始复习 = 已到期/逾期
+		q = q.Where("due_at < ?", dayEnd)
 	}
 
 	var items []models.ReviewQueue
-	if err := q.Order("due_at ASC, id ASC").Limit(limit).Find(&items).Error; err != nil {
+	fetchLimit := limit
+	if !allMode && !isSelectedToday {
+		fetchLimit = 2000 // 非今日：先拉 pending 再按曲线投影过滤
+	}
+	if err := q.Order("due_at ASC, id ASC").Limit(fetchLimit).Find(&items).Error; err != nil {
 		response.FailI18n(c, "common.query_failed", err)
 		return
+	}
+
+	if !allMode && !isSelectedToday && len(items) > 0 {
+		preset := string(models.NormalizeReviewCurvePreset(targetUser.ReviewCurvePreset))
+		wordIDsAll := make([]uint, 0, len(items))
+		for _, it := range items {
+			wordIDsAll = append(wordIDsAll, it.WordID)
+		}
+		type learnedAtRow struct {
+			WordID         uint       `gorm:"column:word_id"`
+			FirstLearnedAt *time.Time `gorm:"column:first_learned_at"`
+		}
+		var learned []learnedAtRow
+		_ = db.Model(&models.UserWordState{}).
+			Select("word_id, first_learned_at").
+			Where("user_id = ? AND word_id IN ?", targetUser.ID, wordIDsAll).
+			Scan(&learned).Error
+		learnedMap := map[uint]*time.Time{}
+		for _, r := range learned {
+			learnedMap[r.WordID] = r.FirstLearnedAt
+		}
+		filtered := make([]models.ReviewQueue, 0, len(items))
+		for _, it := range items {
+			anchor := it.DueAt
+			if t := learnedMap[it.WordID]; t != nil && !t.IsZero() {
+				anchor = *t
+			}
+			if models.ReviewRemainingDueFallsOnDay(anchor, it.Stage, preset, dayStart, loc) {
+				filtered = append(filtered, it)
+			}
+		}
+		if len(filtered) > limit {
+			filtered = filtered[:limit]
+		}
+		items = filtered
 	}
 
 	wordIDs := make([]uint, 0, len(items))
@@ -318,9 +458,8 @@ func (h *Handlers) handleReviewBooks(c *gin.Context) {
 }
 
 // handleReviewBooksByDate GET /review/books-by-date?date=2006-01-02&timeZone=Asia/Shanghai
-// 按「用户时区下的自然日」统计该日待复习词数（按词库分组）。
-// - 选中「今天」：与原先 /review/books 一致，包含逾期未复习（due_at < 明天 0 点）。
-// - 选中其它日期：仅包含 due_at 落在该日 0 点～次日 0 点之间的待复习项。
+// 按「用户时区下的自然日」统计该日复习计划（按词库分组）。
+// 以开课日锚点 + 抗遗忘曲线投影剩余次数；今天额外包含已到期/逾期项。
 func (h *Handlers) handleReviewBooksByDate(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
@@ -363,7 +502,7 @@ func (h *Handlers) handleReviewBooksByDate(c *gin.Context) {
 		userIDs = mergeUintIDs([]uint{user.ID}, studentIDs)
 	}
 
-	stats, err := reviewBooksByDateForUsers(db, userIDs, dayStart, dayEnd, isSelectedToday)
+	stats, err := reviewBooksByDateForUsers(db, userIDs, dayStart, dayEnd, loc, isSelectedToday)
 	if err != nil {
 		response.FailI18n(c, "common.query_failed", err)
 		return
@@ -553,7 +692,12 @@ func (h *Handlers) handleReviewSessionStart(c *gin.Context) {
 func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
-	sessionID, _ := strconv.Atoi(c.Param("id"))
+	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id64 == 0 {
+		response.FailI18n(c, "coaching.session_not_found", nil)
+		return
+	}
+	sessionID := uint(id64)
 	if user == nil {
 		response.FailI18n(c, "auth.authorization_required", nil)
 		return
@@ -633,7 +777,7 @@ func (h *Handlers) handleReviewSessionComplete(c *gin.Context) {
 		resMap[r.WordID] = r.Remembered
 	}
 
-	err := db.Transaction(func(tx *gorm.DB) error {
+	err = db.Transaction(func(tx *gorm.DB) error {
 		var items []models.ReviewQueue
 		if err := tx.Where("user_id = ? AND word_id IN ? AND status IN ?", targetUser.ID, wordIDs, []string{"pending", "in_session"}).Find(&items).Error; err != nil {
 			return err
