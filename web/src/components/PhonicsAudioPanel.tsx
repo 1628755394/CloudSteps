@@ -73,8 +73,6 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
     cancelSeq.current = false;
   }, [word, mode]);
 
-  if (phoneticParts.length === 0 && syllableParts.length === 0 && !hasAudio) return null;
-
   const stopAll = () => {
     cancelSeq.current = true;
     abortRef.current?.();
@@ -142,7 +140,7 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
       : t("word.phonics.play_split");
 
   return (
-    <div className="mb-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5">
+    <div className="mb-3 rounded-xl border border-violet-200 bg-violet-50/30 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="inline-flex rounded-full bg-[#EEF2F7] p-0.5">
           {modeOptions.map((m) => (
@@ -152,8 +150,8 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
               onClick={() => setMode(m.id)}
               className={`h-7 min-w-[3.25rem] rounded-full px-3 text-xs font-medium transition-colors ${
                 mode === m.id
-                  ? "bg-[#4ECDC4] text-white shadow-sm"
-                  : "text-[#64748B] hover:text-[#2D3748]"
+                  ? "bg-violet-500 text-white shadow-sm"
+                  : "text-[#64748B] hover:text-violet-600"
               }`}
             >
               {m.label}
@@ -192,10 +190,10 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
               }}
               className={`rounded-lg px-2.5 py-1.5 text-sm font-mono transition-colors ${
                 activeIdx === i
-                  ? "bg-[#4ECDC4] text-white"
+                  ? "bg-violet-500 text-white"
                   : mode === "split"
-                    ? "bg-white text-[#0d9488] border border-[#4ECDC4]/25 hover:bg-[#4ECDC4]/10"
-                    : "bg-white/70 text-[#94A3B8] border border-transparent"
+                    ? "bg-slate-100 text-slate-500 border border-slate-200 hover:bg-violet-50"
+                    : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
               }`}
             >
               {mode === "split" ? `\\ ${p} \\` : p}
