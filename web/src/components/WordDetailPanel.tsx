@@ -248,6 +248,18 @@ export function WordDetailPanel({
             </button>
           </div>
 
+          {splitMode && variant !== "full" && syllableParts.length > 0 && (
+            <div className="pt-2 border-t border-border">
+              <p className={`${PRACTICE_WORD_CLASS} flex flex-wrap items-baseline gap-x-1`}>
+                {syllableParts.map((part, i) => (
+                  <span key={i}>
+                    {part}
+                    {i < syllableParts.length - 1 && <span className="text-primary">-</span>}
+                  </span>
+                ))}
+              </p>
+            </div>
+          )}
           {active && active !== "translation" && (
             <div className="pt-2 border-t border-border max-h-[36vh] overflow-y-auto">
               <ExtContent active={active} detail={detail} parsed={parsed} />
