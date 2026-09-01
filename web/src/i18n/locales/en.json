@@ -1436,6 +1436,7 @@
   "flash_review.finish_retry": "Finish retry",
   "flash_review.next_batch": "Next group",
   "flash_review.enter_group_review": "Enter group review",
+  "flash_review.enter_post_training": "Enter post-training check",
   "review_check.title": "Training check",
   "lighthouse_words.total_words": "{{count}} words total",
   "lighthouse_words.no_words": "No words",

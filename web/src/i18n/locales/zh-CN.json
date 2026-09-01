@@ -1157,6 +1157,7 @@
   "flash_review.finish_retry": "完成重练",
   "flash_review.next_batch": "继续下一组",
   "flash_review.enter_group_review": "进入组内复习",
+  "flash_review.enter_post_training": "进入训后检测",
   "review_check.title": "训练检测",
   "lighthouse_words.total_words": "共 {{count}} 个单词",
   "lighthouse_words.no_words": "暂无单词",
