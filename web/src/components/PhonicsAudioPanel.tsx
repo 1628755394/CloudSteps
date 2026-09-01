@@ -9,6 +9,7 @@ import {
   playFirstWordAudio,
 } from "../utils/audioPlayer";
 import { getPhonicsParts } from "../utils/phonicsSplit";
+import { splitSyllableParts } from "../utils/syllableSplit";
 
 type Mode = "split" | "blend";
 
@@ -36,11 +37,15 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
   const abortRef = useRef<(() => void) | null>(null);
   const cancelSeq = useRef(false);
 
-  const partsInfo = useMemo(
-    () => getPhonicsParts({ syllables, phonetic }),
+  const phoneticParts = useMemo(
+    () => getPhonicsParts({ syllables, phonetic })?.parts || [],
     [syllables, phonetic]
   );
-  const parts = partsInfo?.parts || [];
+  const syllableParts = useMemo(
+    () => splitSyllableParts({ syllables, word }) || [],
+    [syllables, word]
+  );
+  const parts = mode === "split" ? phoneticParts : syllableParts;
   const hasAudio = Boolean(audioUrl && parseAudioUrlSlots(audioUrl).some(Boolean));
 
   const modeOptions = useMemo(
@@ -68,7 +73,7 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
     cancelSeq.current = false;
   }, [word, mode]);
 
-  if (parts.length === 0 && !hasAudio) return null;
+  if (phoneticParts.length === 0 && syllableParts.length === 0 && !hasAudio) return null;
 
   const stopAll = () => {
     cancelSeq.current = true;
@@ -173,6 +178,7 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
         </CloudButton>
       </div>
 
+      {mode === "blend" && <p className="mb-2 text-sm font-semibold text-[#475569]">自然拼读</p>}
       {parts.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {parts.map((p, i) => (
@@ -192,12 +198,14 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
                     : "bg-white/70 text-[#94A3B8] border border-transparent"
               }`}
             >
-              {`\\ ${p} \\`}
+              {mode === "split" ? `\\ ${p} \\` : p}
             </button>
           ))}
         </div>
       ) : (
-        <p className="text-xs text-[#94A3B8]">{t("word.phonics.no_split")}</p>
+        <p className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm font-medium text-[#718096]">
+          {mode === "blend" ? "暂无自然拼读数据" : t("word.phonics.no_split")}
+        </p>
       )}
     </div>
   );
