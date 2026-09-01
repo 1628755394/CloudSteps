@@ -33,11 +33,17 @@ import { Route as AuthenticatedVocabRecordsIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedVocabQuestionsIndexRouteImport } from './routes/_authenticated/vocab-questions/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedUserWordsIndexRouteImport } from './routes/_authenticated/user-words/index'
+import { Route as AuthenticatedUserReadingPassagesIndexRouteImport } from './routes/_authenticated/user-reading-passages/index'
 import { Route as AuthenticatedUserFeedbackIndexRouteImport } from './routes/_authenticated/user-feedback/index'
+import { Route as AuthenticatedUserClozePassagesIndexRouteImport } from './routes/_authenticated/user-cloze-passages/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedStorageIndexRouteImport } from './routes/_authenticated/storage/index'
 import { Route as AuthenticatedStorageStatsIndexRouteImport } from './routes/_authenticated/storage-stats/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as AuthenticatedScenariosIndexRouteImport } from './routes/_authenticated/scenarios/index'
+import { Route as AuthenticatedScenarioSessionsIndexRouteImport } from './routes/_authenticated/scenario-sessions/index'
+import { Route as AuthenticatedReadingRecordsIndexRouteImport } from './routes/_authenticated/reading-records/index'
+import { Route as AuthenticatedReadingPassagesIndexRouteImport } from './routes/_authenticated/reading-passages/index'
 import { Route as AuthenticatedNotificationTemplatesIndexRouteImport } from './routes/_authenticated/notification-templates/index'
 import { Route as AuthenticatedNotificationChannelsIndexRouteImport } from './routes/_authenticated/notification-channels/index'
 import { Route as AuthenticatedMailTemplatesIndexRouteImport } from './routes/_authenticated/mail-templates/index'
@@ -190,10 +196,22 @@ const AuthenticatedUserWordsIndexRoute =
     path: '/user-words/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedUserReadingPassagesIndexRoute =
+  AuthenticatedUserReadingPassagesIndexRouteImport.update({
+    id: '/user-reading-passages/',
+    path: '/user-reading-passages/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedUserFeedbackIndexRoute =
   AuthenticatedUserFeedbackIndexRouteImport.update({
     id: '/user-feedback/',
     path: '/user-feedback/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedUserClozePassagesIndexRoute =
+  AuthenticatedUserClozePassagesIndexRouteImport.update({
+    id: '/user-cloze-passages/',
+    path: '/user-cloze-passages/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedTasksIndexRoute = AuthenticatedTasksIndexRouteImport.update({
@@ -218,6 +236,30 @@ const AuthenticatedSettingsIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
+const AuthenticatedScenariosIndexRoute =
+  AuthenticatedScenariosIndexRouteImport.update({
+    id: '/scenarios/',
+    path: '/scenarios/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedScenarioSessionsIndexRoute =
+  AuthenticatedScenarioSessionsIndexRouteImport.update({
+    id: '/scenario-sessions/',
+    path: '/scenario-sessions/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReadingRecordsIndexRoute =
+  AuthenticatedReadingRecordsIndexRouteImport.update({
+    id: '/reading-records/',
+    path: '/reading-records/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedReadingPassagesIndexRoute =
+  AuthenticatedReadingPassagesIndexRouteImport.update({
+    id: '/reading-passages/',
+    path: '/reading-passages/',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedNotificationTemplatesIndexRoute =
   AuthenticatedNotificationTemplatesIndexRouteImport.update({
@@ -426,11 +468,17 @@ export interface FileRoutesByFullPath {
   '/mail-templates/': typeof AuthenticatedMailTemplatesIndexRoute
   '/notification-channels/': typeof AuthenticatedNotificationChannelsIndexRoute
   '/notification-templates/': typeof AuthenticatedNotificationTemplatesIndexRoute
+  '/reading-passages/': typeof AuthenticatedReadingPassagesIndexRoute
+  '/reading-records/': typeof AuthenticatedReadingRecordsIndexRoute
+  '/scenario-sessions/': typeof AuthenticatedScenarioSessionsIndexRoute
+  '/scenarios/': typeof AuthenticatedScenariosIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/storage-stats/': typeof AuthenticatedStorageStatsIndexRoute
   '/storage/': typeof AuthenticatedStorageIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
+  '/user-cloze-passages/': typeof AuthenticatedUserClozePassagesIndexRoute
   '/user-feedback/': typeof AuthenticatedUserFeedbackIndexRoute
+  '/user-reading-passages/': typeof AuthenticatedUserReadingPassagesIndexRoute
   '/user-words/': typeof AuthenticatedUserWordsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
@@ -481,11 +529,17 @@ export interface FileRoutesByTo {
   '/mail-templates': typeof AuthenticatedMailTemplatesIndexRoute
   '/notification-channels': typeof AuthenticatedNotificationChannelsIndexRoute
   '/notification-templates': typeof AuthenticatedNotificationTemplatesIndexRoute
+  '/reading-passages': typeof AuthenticatedReadingPassagesIndexRoute
+  '/reading-records': typeof AuthenticatedReadingRecordsIndexRoute
+  '/scenario-sessions': typeof AuthenticatedScenarioSessionsIndexRoute
+  '/scenarios': typeof AuthenticatedScenariosIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/storage-stats': typeof AuthenticatedStorageStatsIndexRoute
   '/storage': typeof AuthenticatedStorageIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
+  '/user-cloze-passages': typeof AuthenticatedUserClozePassagesIndexRoute
   '/user-feedback': typeof AuthenticatedUserFeedbackIndexRoute
+  '/user-reading-passages': typeof AuthenticatedUserReadingPassagesIndexRoute
   '/user-words': typeof AuthenticatedUserWordsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/vocab-questions': typeof AuthenticatedVocabQuestionsIndexRoute
@@ -541,11 +595,17 @@ export interface FileRoutesById {
   '/_authenticated/mail-templates/': typeof AuthenticatedMailTemplatesIndexRoute
   '/_authenticated/notification-channels/': typeof AuthenticatedNotificationChannelsIndexRoute
   '/_authenticated/notification-templates/': typeof AuthenticatedNotificationTemplatesIndexRoute
+  '/_authenticated/reading-passages/': typeof AuthenticatedReadingPassagesIndexRoute
+  '/_authenticated/reading-records/': typeof AuthenticatedReadingRecordsIndexRoute
+  '/_authenticated/scenario-sessions/': typeof AuthenticatedScenarioSessionsIndexRoute
+  '/_authenticated/scenarios/': typeof AuthenticatedScenariosIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/storage-stats/': typeof AuthenticatedStorageStatsIndexRoute
   '/_authenticated/storage/': typeof AuthenticatedStorageIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
+  '/_authenticated/user-cloze-passages/': typeof AuthenticatedUserClozePassagesIndexRoute
   '/_authenticated/user-feedback/': typeof AuthenticatedUserFeedbackIndexRoute
+  '/_authenticated/user-reading-passages/': typeof AuthenticatedUserReadingPassagesIndexRoute
   '/_authenticated/user-words/': typeof AuthenticatedUserWordsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/vocab-questions/': typeof AuthenticatedVocabQuestionsIndexRoute
@@ -599,11 +659,17 @@ export interface FileRouteTypes {
     | '/mail-templates/'
     | '/notification-channels/'
     | '/notification-templates/'
+    | '/reading-passages/'
+    | '/reading-records/'
+    | '/scenario-sessions/'
+    | '/scenarios/'
     | '/settings/'
     | '/storage-stats/'
     | '/storage/'
     | '/tasks/'
+    | '/user-cloze-passages/'
     | '/user-feedback/'
+    | '/user-reading-passages/'
     | '/user-words/'
     | '/users/'
     | '/vocab-questions/'
@@ -654,11 +720,17 @@ export interface FileRouteTypes {
     | '/mail-templates'
     | '/notification-channels'
     | '/notification-templates'
+    | '/reading-passages'
+    | '/reading-records'
+    | '/scenario-sessions'
+    | '/scenarios'
     | '/settings'
     | '/storage-stats'
     | '/storage'
     | '/tasks'
+    | '/user-cloze-passages'
     | '/user-feedback'
+    | '/user-reading-passages'
     | '/user-words'
     | '/users'
     | '/vocab-questions'
@@ -713,11 +785,17 @@ export interface FileRouteTypes {
     | '/_authenticated/mail-templates/'
     | '/_authenticated/notification-channels/'
     | '/_authenticated/notification-templates/'
+    | '/_authenticated/reading-passages/'
+    | '/_authenticated/reading-records/'
+    | '/_authenticated/scenario-sessions/'
+    | '/_authenticated/scenarios/'
     | '/_authenticated/settings/'
     | '/_authenticated/storage-stats/'
     | '/_authenticated/storage/'
     | '/_authenticated/tasks/'
+    | '/_authenticated/user-cloze-passages/'
     | '/_authenticated/user-feedback/'
+    | '/_authenticated/user-reading-passages/'
     | '/_authenticated/user-words/'
     | '/_authenticated/users/'
     | '/_authenticated/vocab-questions/'
@@ -915,11 +993,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUserWordsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/user-reading-passages/': {
+      id: '/_authenticated/user-reading-passages/'
+      path: '/user-reading-passages'
+      fullPath: '/user-reading-passages/'
+      preLoaderRoute: typeof AuthenticatedUserReadingPassagesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/user-feedback/': {
       id: '/_authenticated/user-feedback/'
       path: '/user-feedback'
       fullPath: '/user-feedback/'
       preLoaderRoute: typeof AuthenticatedUserFeedbackIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/user-cloze-passages/': {
+      id: '/_authenticated/user-cloze-passages/'
+      path: '/user-cloze-passages'
+      fullPath: '/user-cloze-passages/'
+      preLoaderRoute: typeof AuthenticatedUserClozePassagesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/tasks/': {
@@ -949,6 +1041,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/'
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
+    '/_authenticated/scenarios/': {
+      id: '/_authenticated/scenarios/'
+      path: '/scenarios'
+      fullPath: '/scenarios/'
+      preLoaderRoute: typeof AuthenticatedScenariosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/scenario-sessions/': {
+      id: '/_authenticated/scenario-sessions/'
+      path: '/scenario-sessions'
+      fullPath: '/scenario-sessions/'
+      preLoaderRoute: typeof AuthenticatedScenarioSessionsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reading-records/': {
+      id: '/_authenticated/reading-records/'
+      path: '/reading-records'
+      fullPath: '/reading-records/'
+      preLoaderRoute: typeof AuthenticatedReadingRecordsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reading-passages/': {
+      id: '/_authenticated/reading-passages/'
+      path: '/reading-passages'
+      fullPath: '/reading-passages/'
+      preLoaderRoute: typeof AuthenticatedReadingPassagesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/notification-templates/': {
       id: '/_authenticated/notification-templates/'
@@ -1200,10 +1320,16 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMailTemplatesIndexRoute: typeof AuthenticatedMailTemplatesIndexRoute
   AuthenticatedNotificationChannelsIndexRoute: typeof AuthenticatedNotificationChannelsIndexRoute
   AuthenticatedNotificationTemplatesIndexRoute: typeof AuthenticatedNotificationTemplatesIndexRoute
+  AuthenticatedReadingPassagesIndexRoute: typeof AuthenticatedReadingPassagesIndexRoute
+  AuthenticatedReadingRecordsIndexRoute: typeof AuthenticatedReadingRecordsIndexRoute
+  AuthenticatedScenarioSessionsIndexRoute: typeof AuthenticatedScenarioSessionsIndexRoute
+  AuthenticatedScenariosIndexRoute: typeof AuthenticatedScenariosIndexRoute
   AuthenticatedStorageStatsIndexRoute: typeof AuthenticatedStorageStatsIndexRoute
   AuthenticatedStorageIndexRoute: typeof AuthenticatedStorageIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
+  AuthenticatedUserClozePassagesIndexRoute: typeof AuthenticatedUserClozePassagesIndexRoute
   AuthenticatedUserFeedbackIndexRoute: typeof AuthenticatedUserFeedbackIndexRoute
+  AuthenticatedUserReadingPassagesIndexRoute: typeof AuthenticatedUserReadingPassagesIndexRoute
   AuthenticatedUserWordsIndexRoute: typeof AuthenticatedUserWordsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedVocabQuestionsIndexRoute: typeof AuthenticatedVocabQuestionsIndexRoute
@@ -1241,10 +1367,20 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedNotificationChannelsIndexRoute,
   AuthenticatedNotificationTemplatesIndexRoute:
     AuthenticatedNotificationTemplatesIndexRoute,
+  AuthenticatedReadingPassagesIndexRoute:
+    AuthenticatedReadingPassagesIndexRoute,
+  AuthenticatedReadingRecordsIndexRoute: AuthenticatedReadingRecordsIndexRoute,
+  AuthenticatedScenarioSessionsIndexRoute:
+    AuthenticatedScenarioSessionsIndexRoute,
+  AuthenticatedScenariosIndexRoute: AuthenticatedScenariosIndexRoute,
   AuthenticatedStorageStatsIndexRoute: AuthenticatedStorageStatsIndexRoute,
   AuthenticatedStorageIndexRoute: AuthenticatedStorageIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
+  AuthenticatedUserClozePassagesIndexRoute:
+    AuthenticatedUserClozePassagesIndexRoute,
   AuthenticatedUserFeedbackIndexRoute: AuthenticatedUserFeedbackIndexRoute,
+  AuthenticatedUserReadingPassagesIndexRoute:
+    AuthenticatedUserReadingPassagesIndexRoute,
   AuthenticatedUserWordsIndexRoute: AuthenticatedUserWordsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedVocabQuestionsIndexRoute: AuthenticatedVocabQuestionsIndexRoute,

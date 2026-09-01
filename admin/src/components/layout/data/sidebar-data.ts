@@ -18,6 +18,9 @@ import {
   SpellCheck,
   Megaphone,
   Newspaper,
+  BookOpen,
+  BookMarked,
+  Mic2,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -61,6 +64,36 @@ export const sidebarData: SidebarData = {
           title: '测试记录',
           url: '/vocab-records',
           icon: FileText,
+        },
+        {
+          title: '系统阅读理解',
+          url: '/reading-passages',
+          icon: BookOpen,
+        },
+        {
+          title: '用户自定义阅读',
+          url: '/user-reading-passages',
+          icon: BookMarked,
+        },
+        {
+          title: '阅读练习记录',
+          url: '/reading-records',
+          icon: FileText,
+        },
+        {
+          title: '场景对话',
+          url: '/scenarios',
+          icon: Mic2,
+        },
+        {
+          title: '对话训练记录',
+          url: '/scenario-sessions',
+          icon: FileText,
+        },
+        {
+          title: '用户自定义完形',
+          url: '/user-cloze-passages',
+          icon: BookMarked,
         },
         {
           title: '一对一陪练',

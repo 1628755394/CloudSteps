@@ -12,6 +12,9 @@ import Feedback from "../pages/Feedback";
 import Settings from "../pages/Settings";
 import MaterialSelection from "../pages/MaterialSelection";
 import ReadingComprehension from "../pages/ReadingComprehension";
+import CreateCustomReading from "../pages/CreateCustomReading";
+import CreateCustomScenario from "../pages/CreateCustomScenario";
+import CreateCustomCloze from "../pages/CreateCustomCloze";
 import ClozePractice from "../pages/ClozePractice";
 import GrammarAnalysis from "../pages/GrammarAnalysis";
 import ScenarioSelection from "../pages/ScenarioSelection";
@@ -222,10 +225,26 @@ export const router = createBrowserRouter(
     ),
   },
   {
+    path: "/reading-comprehension/custom/new",
+    element: (
+      <RequireAuth>
+        <CreateCustomReading />
+      </RequireAuth>
+    ),
+  },
+  {
     path: "/cloze-practice",
     element: (
       <RequireAuth>
         <ClozePractice />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/cloze-practice/custom/new",
+    element: (
+      <RequireAuth>
+        <CreateCustomCloze />
       </RequireAuth>
     ),
   },
@@ -242,6 +261,14 @@ export const router = createBrowserRouter(
     element: (
       <RequireAuth>
         <ScenarioSelection />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/scenario-dialogues/custom/new",
+    element: (
+      <RequireAuth>
+        <CreateCustomScenario />
       </RequireAuth>
     ),
   },

@@ -31,10 +31,18 @@ const (
 	TABLE_READING_QUESTIONS = "reading_questions"
 	TABLE_READING_RECORDS   = "reading_records"
 
+	TABLE_USER_READING_PASSAGES  = "user_reading_passages"
+	TABLE_USER_READING_QUESTIONS = "user_reading_questions"
+	TABLE_USER_READING_RECORDS   = "user_reading_records"
+
 	// ── 完形填空 ──
 	TABLE_CLOZE_PASSAGES = "cloze_passages"
 	TABLE_CLOZE_BLANKS   = "cloze_blanks"
 	TABLE_CLOZE_RECORDS  = "cloze_records"
+
+	TABLE_USER_CLOZE_PASSAGES = "user_cloze_passages"
+	TABLE_USER_CLOZE_BLANKS   = "user_cloze_blanks"
+	TABLE_USER_CLOZE_RECORDS  = "user_cloze_records"
 
 	// ── 语法 ──
 	TABLE_GRAMMAR_LESSONS   = "grammar_lessons"
