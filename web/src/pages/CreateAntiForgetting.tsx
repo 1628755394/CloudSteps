@@ -1,38 +1,133 @@
 import { CloudButton } from "../components/cloudsteps";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type ReviewCurvePreset, updateUserPreferences } from "../api/auth";
-import { useAuthStore } from "../stores/authStore";
+import { listStudySessions, updateStudySessionsPracticeTime } from "../api/study";
 import { showToast } from "../utils/toast";
 import { formatApiMessage } from "../utils/apiMessage";
-import {
-  getReviewTimesOptions,
-  normalizeReviewCurvePreset,
-} from "../utils/reviewCurve";
+import { formatPracticeTimeRange } from "../utils/reviewPracticeTime";
+import { getTrainingStudent } from "../utils/trainingStudent";
+import { normalizeSnowflakeId } from "../utils/json-snowflake";
+
+function toDateInputValue(d: Date) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatHmFromTs(ts: number) {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function readLessonDefaults() {
+  const now = Date.now();
+  const endRaw = Number(sessionStorage.getItem("lb_lesson_practice_end") || now);
+  const startRaw = Number(sessionStorage.getItem("lb_lesson_practice_start") || 0);
+  const endTs = Number.isFinite(endRaw) && endRaw > 0 ? endRaw : now;
+  const startTs =
+    Number.isFinite(startRaw) && startRaw > 0 && startRaw < endTs
+      ? startRaw
+      : endTs - 45 * 60_000;
+  return {
+    date: toDateInputValue(new Date(endTs)),
+    startTime: formatHmFromTs(startTs),
+    endTime: formatHmFromTs(endTs),
+  };
+}
 
 export default function CreateAntiForgetting() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
-  const updateProfile = useAuthStore((s) => s.updateProfile);
-  const [preset, setPreset] = useState<ReviewCurvePreset>("times5");
+  const trainingStudent = useMemo(() => getTrainingStudent(), []);
+  const defaults = useMemo(() => readLessonDefaults(), []);
+
+  const [date, setDate] = useState(defaults.date);
+  const [startTime, setStartTime] = useState(defaults.startTime);
+  const [endTime, setEndTime] = useState(defaults.endTime);
+  const [sessionIds, setSessionIds] = useState<number[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setPreset(normalizeReviewCurvePreset(user?.reviewCurvePreset));
-  }, [user?.reviewCurvePreset]);
+    let cancelled = false;
+    (async () => {
+      setLoadingSessions(true);
+      try {
+        const studentId = normalizeSnowflakeId(trainingStudent?.id);
+        const res = await listStudySessions({
+          page: 1,
+          pageSize: 50,
+          sessionType: "study",
+          status: "completed",
+          date: defaults.date,
+          ...(studentId ? { studentId } : {}),
+        });
+        if (cancelled) return;
+        const list = Array.isArray(res.data?.list) ? res.data.list : [];
+        const ids = list
+          .map((row) => Number(row.id || 0))
+          .filter((id) => Number.isFinite(id) && id > 0);
+        setSessionIds(ids);
+
+        const latest = list.find((row) => row.startedAt) || list[0];
+        if (latest?.startedAt) {
+          const start = new Date(latest.startedAt);
+          if (!Number.isNaN(start.getTime())) {
+            setDate(toDateInputValue(start));
+            setStartTime(formatHmFromTs(start.getTime()));
+          }
+        }
+        if (latest?.completedAt) {
+          const end = new Date(latest.completedAt);
+          if (!Number.isNaN(end.getTime())) {
+            setEndTime(formatHmFromTs(end.getTime()));
+          }
+        } else if (latest?.startedAt) {
+          const start = new Date(latest.startedAt);
+          if (!Number.isNaN(start.getTime())) {
+            setEndTime(formatHmFromTs(start.getTime() + 45 * 60_000));
+          }
+        }
+      } catch {
+        if (!cancelled) setSessionIds([]);
+      } finally {
+        if (!cancelled) setLoadingSessions(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [defaults.date, trainingStudent?.id]);
+
+  const preview = formatPracticeTimeRange(
+    `${date}T${startTime}:00`,
+    `${date}T${endTime}:00`
+  );
 
   const handleConfirm = async () => {
+    if (!startTime || !endTime || startTime >= endTime) {
+      showToast.warning(t("create_anti_forgetting.time_invalid"));
+      return;
+    }
     setSaving(true);
     try {
-      const res = await updateUserPreferences({ reviewCurvePreset: preset });
+      const studentId = normalizeSnowflakeId(trainingStudent?.id);
+      const res = await updateStudySessionsPracticeTime({
+        date,
+        startTime,
+        endTime,
+        ...(studentId ? { studentId } : {}),
+        ...(sessionIds.length > 0 ? { sessionIds } : {}),
+      });
       if (res.code !== 200) {
         showToast.error(formatApiMessage(res.msg, "common.operation_failed"));
         return;
       }
-      updateProfile({ reviewCurvePreset: preset });
+      sessionStorage.removeItem("lb_lesson_practice_start");
+      sessionStorage.removeItem("lb_lesson_practice_end");
       showToast.success(t("create_anti_forgetting.saved_toast"));
       navigate("/anti-forgetting");
     } catch (e: unknown) {
@@ -70,35 +165,82 @@ export default function CreateAntiForgetting() {
           <p className="text-sm text-charcoal leading-relaxed">
             {t("create_anti_forgetting.intro")}
           </p>
+          {trainingStudent?.name ? (
+            <p className="text-xs text-muted-foreground mt-2">
+              {t("create_anti_forgetting.student", { name: trainingStudent.name })}
+            </p>
+          ) : null}
         </div>
 
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-foreground">{t("create_anti_forgetting.times_label")}</p>
-          {getReviewTimesOptions().map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setPreset(opt.value)}
-              className={`w-full text-left rounded-xl border p-4 transition-colors ${
-                preset === opt.value
-                  ? "border-primary bg-primary-soft/60"
-                  : "border-border bg-card hover:border-primary/40"
-              }`}
-            >
-              <div className="text-sm font-semibold text-foreground">{opt.label}</div>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{opt.desc}</p>
-            </button>
-          ))}
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-foreground">{t("create_anti_forgetting.time_label")}</p>
+          <label className="block space-y-1">
+            <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.date")}</span>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full h-11 px-3 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block space-y-1">
+              <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.start_time")}</span>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full h-11 px-3 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.end_time")}</span>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full h-11 px-3 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary"
+              />
+            </label>
+          </div>
+          {preview ? (
+            <p className="text-xs text-muted-foreground">
+              {t("create_anti_forgetting.preview", { range: preview })}
+            </p>
+          ) : null}
+          {loadingSessions ? (
+            <p className="text-xs text-muted-foreground">{t("create_anti_forgetting.loading_sessions")}</p>
+          ) : sessionIds.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {t("create_anti_forgetting.sessions_count", { count: sessionIds.length })}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-700">{t("create_anti_forgetting.no_sessions_hint")}</p>
+          )}
         </div>
+
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          {t("create_anti_forgetting.count_hint")}
+        </p>
 
         <CloudButton
           variant="brand"
           className="w-full h-11"
           loading={saving}
+          disabled={!loadingSessions && sessionIds.length === 0}
           onClick={() => void handleConfirm()}
         >
           {t("create_anti_forgetting.save_view")}
         </CloudButton>
+        {!loadingSessions && sessionIds.length === 0 ? (
+          <CloudButton
+            variant="outline"
+            className="w-full h-11"
+            onClick={() => navigate("/anti-forgetting")}
+          >
+            {t("create_anti_forgetting.skip")}
+          </CloudButton>
+        ) : null}
       </div>
     </div>
   );
