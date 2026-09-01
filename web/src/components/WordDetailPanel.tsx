@@ -218,7 +218,7 @@ export function WordDetailPanel({
             ) : (
               <p className="text-sm text-muted-foreground flex-1">{t("word.no_extension")}</p>
             )}
-            {syllableParts.length > 0 && (
+            {syllableParts.length > 1 && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -249,16 +249,20 @@ export function WordDetailPanel({
             </button>
           </div>
 
-          {splitMode && variant !== "full" && syllableParts.length > 0 && (
-            <div className="pt-2 border-t border-border">
-              <p className={`${PRACTICE_WORD_CLASS} flex flex-wrap items-baseline gap-x-1`}>
+          {splitMode && variant !== "full" && syllableParts.length > 1 && (
+            <div className="pt-3 pb-1 border-t border-border">
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
                 {syllableParts.map((part, i) => (
-                  <span key={i}>
-                    {part}
-                    {i < syllableParts.length - 1 && <span className="text-primary">-</span>}
+                  <span key={i} className="inline-flex items-center gap-1.5">
+                    <span className="rounded-lg bg-primary-soft text-primary px-2.5 py-1 text-base font-semibold">
+                      {part}
+                    </span>
+                    {i < syllableParts.length - 1 && (
+                      <span className="text-primary font-bold">·</span>
+                    )}
                   </span>
                 ))}
-              </p>
+              </div>
             </div>
           )}
           {active && active !== "translation" && (
@@ -323,12 +327,12 @@ export function WordDetailPanel({
       <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            {splitMode && syllableParts.length > 0 ? (
+            {splitMode && syllableParts.length > 1 ? (
               <h2 className={`${PRACTICE_WORD_CLASS} !font-bold flex flex-wrap items-center gap-x-1`}>
                 {syllableParts.map((part, i) => (
                   <span key={i}>
                     {part}
-                    {i < syllableParts.length - 1 && <span className="text-primary">-</span>}
+                    {i < syllableParts.length - 1 && <span className="text-primary">·</span>}
                   </span>
                 ))}
               </h2>

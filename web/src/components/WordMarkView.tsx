@@ -211,12 +211,12 @@ export function WordCardPanel({
             className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center outline-none"
             onClick={() => onWordClick(word)}
           >
-            {syllableSplit?.wordId === word.id && syllableSplit.parts.length > 0 ? (
+            {syllableSplit?.wordId === word.id && syllableSplit.parts.length > 1 ? (
               <h2 className={`${PRACTICE_CARD_WORD_CLASS} flex flex-wrap justify-center items-baseline gap-x-2 text-center hover:text-[#4ECDC4] transition-colors`}>
                 {syllableSplit.parts.map((part, i) => (
                   <span key={i}>
                     {part}
-                    {i < syllableSplit.parts.length - 1 && <span className="text-primary">-</span>}
+                    {i < syllableSplit.parts.length - 1 && <span className="text-primary">·</span>}
                   </span>
                 ))}
               </h2>
