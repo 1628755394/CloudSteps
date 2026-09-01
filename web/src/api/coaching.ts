@@ -213,7 +213,7 @@ export const getStudentVocabRecordAsTeacher = async (
 }
 
 export type StudentWordBookItem = {
-  id: number
+  id: SnowflakeId
   name: string
   wordCount: number
 }
@@ -230,19 +230,21 @@ export const listStudentWordBooksAsTeacher = async (
 /** 老师为学员添加词库 */
 export const addStudentWordBookAsTeacher = async (
   studentId: SnowflakeId,
-  wordBookId: number
+  wordBookId: SnowflakeId
 ): Promise<ApiResponse<StudentWordBookItem>> => {
   return post<StudentWordBookItem>(`/teacher/coaching/students/${studentIdPath(studentId)}/wordbooks`, {
-    wordBookId,
+    wordBookId: studentIdPath(wordBookId),
   })
 }
 
 /** 老师移除学员词库 */
 export const removeStudentWordBookAsTeacher = async (
   studentId: SnowflakeId,
-  wordBookId: number
+  wordBookId: SnowflakeId
 ): Promise<ApiResponse<{ studentId: number; wordBookId: number }>> => {
-  return del(`/teacher/coaching/students/${studentIdPath(studentId)}/wordbooks/${wordBookId}`)
+  return del(
+    `/teacher/coaching/students/${studentIdPath(studentId)}/wordbooks/${studentIdPath(wordBookId)}`
+  )
 }
 
 export const getStudentCoachingSessionAsTeacher = async (

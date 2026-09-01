@@ -47,7 +47,12 @@ function playBeep(freq = 880, ms = 0.25) {
 }
 
 export async function settleAndStop() {
-  const billing = useClassTimerStore.getState().billing;
+  const state = useClassTimerStore.getState();
+  const billing = state.billing;
+  if (state.startedAt) {
+    sessionStorage.setItem("lb_lesson_practice_start", String(state.startedAt));
+  }
+  sessionStorage.setItem("lb_lesson_practice_end", String(Date.now()));
   useClassTimerStore.getState().stop();
   await finishPracticeBilling(billing);
 }
@@ -358,6 +363,10 @@ export function ClassSessionTimer() {
         setIntervalOpen(false);
         playBeep(880, 0.25);
         showToast.warning(t("coaching.class_time_up"));
+        if (state.startedAt) {
+          sessionStorage.setItem("lb_lesson_practice_start", String(state.startedAt));
+        }
+        sessionStorage.setItem("lb_lesson_practice_end", String(Date.now()));
         void finishPracticeBilling(state.billing);
         useClassTimerStore.setState({
           billing: state.billing ? { ...state.billing, owned: false } : null,

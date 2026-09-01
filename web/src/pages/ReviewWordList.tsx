@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { Volume2, Check, X, BookOpen, PanelTop, ArrowRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { getReviewToday, startReviewSession, completeReviewSession } from "../api/review";
+import { getLighthouseReviewWords, submitLighthouseReview } from "../api/study";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import {
   PracticeFontSettingsButton,
@@ -27,6 +28,7 @@ import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel"
 import { useTranslation } from "react-i18next";
 import { formatApiMessage } from "../utils/apiMessage";
 import { normalizeSnowflakeId } from "../utils/json-snowflake";
+import { invalidateLighthouseCache } from "../utils/lighthouseCache";
 
 type ReviewWordItem = {
   id: number;
@@ -79,6 +81,12 @@ export default function ReviewWordList() {
   const reviewAll = useMemo(() => {
     const url = new URL(window.location.href);
     const v = url.searchParams.get("all");
+    return v === "1" || v === "true";
+  }, []);
+
+  const lighthouseReview = useMemo(() => {
+    const url = new URL(window.location.href);
+    const v = url.searchParams.get("lighthouse");
     return v === "1" || v === "true";
   }, []);
 
@@ -142,13 +150,15 @@ export default function ReviewWordList() {
     let mounted = true;
     (async () => {
       try {
-        const res = await getReviewToday(wordBookId, {
-          date: reviewDate || undefined,
-          limit: 200,
-          studySessionId: studySessionId > 0 ? studySessionId : undefined,
-          all: reviewAll || undefined,
-          ...(reviewStudentId ? { studentId: reviewStudentId } : {}),
-        });
+        const res = lighthouseReview
+          ? await getLighthouseReviewWords(wordBookId, { pageSize: 200 })
+          : await getReviewToday(wordBookId, {
+              date: reviewDate || undefined,
+              limit: 200,
+              studySessionId: studySessionId > 0 ? studySessionId : undefined,
+              all: reviewAll || undefined,
+              ...(reviewStudentId ? { studentId: reviewStudentId } : {}),
+            });
         const ws = Array.isArray(res.data?.words)
           ? (res.data.words as Array<{
               id: number;
@@ -176,7 +186,7 @@ export default function ReviewWordList() {
     return () => {
       mounted = false;
     };
-  }, [wordBookId, reviewDate, studySessionId, reviewAll, reviewStudentId]);
+  }, [wordBookId, reviewDate, studySessionId, reviewAll, reviewStudentId, lighthouseReview]);
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -254,6 +264,21 @@ export default function ReviewWordList() {
     (async () => {
       setSubmitting(true);
       try {
+        const results = markedWords.map((w) => ({
+          wordId: w.id,
+          remembered: w.status === "correct",
+        }));
+
+        if (lighthouseReview) {
+          const res = await submitLighthouseReview(wordBookId, results);
+          if (res.code !== 200) {
+            throw new Error(formatApiMessage(res.msg, "practice.submit_failed"));
+          }
+          invalidateLighthouseCache(wordBookId);
+          navigate("/word-training", { replace: true });
+          return;
+        }
+
         const wordIds = markedWords.map((w) => w.id);
         const startRes = await startReviewSession({
           wordBookId,
@@ -268,11 +293,6 @@ export default function ReviewWordList() {
           return;
         }
 
-        // 直接提交复习结果：✓ = remembered, ✗ = forgot
-        const results = markedWords.map((w) => ({
-          wordId: w.id,
-          remembered: w.status === "correct",
-        }));
         const res = await completeReviewSession(sid, results);
         if (res.code !== 200) {
           throw new Error(formatApiMessage(res.msg, "practice.submit_failed"));
@@ -323,11 +343,15 @@ export default function ReviewWordList() {
         <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
             <p className="text-[#718096] text-sm">
-              {viewOnly ? t("lighthouse_words.total_words", { count: words.length }) : t("practice.optional_words", { count: words.length })}
+              {lighthouseReview
+                ? t("practice.lighthouse_review_hint", { count: words.length })
+                : viewOnly
+                  ? t("lighthouse_words.total_words", { count: words.length })
+                  : t("practice.optional_words", { count: words.length })}
             </p>
             {words.length === 0 && (
               <p className="text-xs text-amber-600 mt-1">
-                {t("practice.no_words_today")}
+                {lighthouseReview ? t("practice.no_learned_words") : t("practice.no_words_today")}
               </p>
             )}
           </div>

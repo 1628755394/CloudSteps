@@ -1,4 +1,4 @@
-import { Clock, Lightbulb, UserPlus, Users } from "lucide-react";
+import { Clock, Lightbulb, BookOpen, UserPlus, Users } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CloudButton } from "../components/cloudsteps";
@@ -70,6 +70,7 @@ export default function WordTraining() {
 
   const [wordBooks, setWordBooks] = useState<CachedWordBook[]>(initialBooks);
   const [studentWordBooks, setStudentWordBooks] = useState<StudentWordBookItem[]>([]);
+  const [studentBooksLoading, setStudentBooksLoading] = useState(false);
   const userPickedByStudent = useRef<Record<string, string>>({});
   const [selectedWordBookId, setSelectedWordBookId] = useState<string>(() =>
     normalizeSnowflakeId(initialPick?.id)
@@ -173,6 +174,7 @@ export default function WordTraining() {
   }, [isCoach]);
 
   useEffect(() => {
+    if (isCoach) return;
     let mounted = true;
     (async () => {
       try {
@@ -196,15 +198,17 @@ export default function WordTraining() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [isCoach]);
 
-  // 教练选学员时：拉取学员词库，优先展示；仅一本则自动选中（除非该学员已手动选过）
+  // 教练选学员时：仅拉取该学员已分配词库
   useEffect(() => {
     if (!isCoach || coachGate !== "ready" || !studentId) {
       setStudentWordBooks([]);
+      setStudentBooksLoading(false);
       return;
     }
     let mounted = true;
+    setStudentBooksLoading(true);
     (async () => {
       try {
         const res = await listStudentWordBooksAsTeacher(studentId);
@@ -212,27 +216,39 @@ export default function WordTraining() {
         const list = res.code === 200 && Array.isArray(res.data?.list) ? res.data.list : [];
         setStudentWordBooks(list);
 
+        if (list.length === 0) {
+          setSelectedWordBookId("");
+          sessionStorage.removeItem("lb_wordbook_id");
+          sessionStorage.removeItem("lb_wordbook_name");
+          setMemoryData([]);
+          setPendingCount(0);
+          setMasteredCount(0);
+          setTodayNewLearned(0);
+          return;
+        }
+
         const manualId = userPickedByStudent.current[studentId];
         if (manualId) {
           const fromAssigned = list.find((b) => sameSnowflakeId(b.id, manualId));
-          const fromGlobal =
-            fromAssigned ||
-            (getCachedWordBooks() || []).find((b) => sameSnowflakeId(b.id, manualId)) ||
-            wordBooks.find((b) => sameSnowflakeId(b.id, manualId));
           if (fromAssigned) {
             pickWordBook({ id: fromAssigned.id, name: fromAssigned.name });
             return;
           }
-          if (fromGlobal) {
-            pickWordBook({ id: fromGlobal.id, name: fromGlobal.name });
-            return;
-          }
         }
-        if (list.length === 1) {
+
+        const currentValid = list.find((b) => sameSnowflakeId(b.id, selectedWordBookId));
+        if (currentValid) {
+          pickWordBook({ id: currentValid.id, name: currentValid.name });
+        } else {
           pickWordBook({ id: list[0].id, name: list[0].name });
         }
       } catch {
-        if (mounted) setStudentWordBooks([]);
+        if (mounted) {
+          setStudentWordBooks([]);
+          setSelectedWordBookId("");
+        }
+      } finally {
+        if (mounted) setStudentBooksLoading(false);
       }
     })();
     return () => {
@@ -277,26 +293,26 @@ export default function WordTraining() {
   }, [selectedWordBookId, isCoach, coachGate]);
 
   const wordBookOptions = useMemo(() => {
-    const assignedIds = new Set(studentWordBooks.map((b) => normalizeSnowflakeId(b.id)));
-    const assigned = studentWordBooks.map((b) => ({
-      label: t("word_training.student_wordbook", { name: b.name }),
-      value: normalizeSnowflakeId(b.id),
-    }));
-    const rest = wordBooks
-      .filter((w) => !assignedIds.has(normalizeSnowflakeId(w.id)))
-      .map((w) => ({
-        label: w.name,
-        value: normalizeSnowflakeId(w.id),
+    if (isCoach) {
+      return studentWordBooks.map((b) => ({
+        label: b.name,
+        value: normalizeSnowflakeId(b.id),
       }));
-    // 学员词库可能不在全局缓存里，补全名称查找
-    return [...assigned, ...rest];
-  }, [studentWordBooks, wordBooks, t]);
+    }
+    return wordBooks.map((w) => ({
+      label: w.name,
+      value: normalizeSnowflakeId(w.id),
+    }));
+  }, [isCoach, studentWordBooks, wordBooks]);
 
   const findWordBookName = (id: string) => {
-    const fromStudent = studentWordBooks.find((b) => sameSnowflakeId(b.id, id));
-    if (fromStudent) return fromStudent.name;
+    if (isCoach) {
+      return studentWordBooks.find((b) => sameSnowflakeId(b.id, id))?.name || "";
+    }
     return wordBooks.find((x) => sameSnowflakeId(x.id, id))?.name || "";
   };
+
+  const trainingStudentName = getTrainingStudent()?.name || "";
 
   const lighthouseBoxes = memoryData.map(({ count }) => ({ count }));
 
@@ -375,6 +391,50 @@ export default function WordTraining() {
     );
   }
 
+  if (isCoach && coachGate === "ready" && studentId && !studentBooksLoading && studentWordBooks.length === 0) {
+    return (
+      <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
+        <div className="px-4 mt-6">
+          <div className="bg-white rounded-xl p-6 shadow-sm text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-tint-sky flex items-center justify-center">
+              <BookOpen className="text-secondary-brand" size={22} />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-base font-semibold text-[#2D3748]">
+                {t("word_training.no_student_wordbooks_title")}
+              </h2>
+              <p className="text-sm text-[#718096] leading-relaxed">
+                {t("word_training.no_student_wordbooks_desc", {
+                  name: trainingStudentName || t("word_training.this_student"),
+                })}
+              </p>
+            </div>
+            <CloudButton
+              variant="brand"
+              size="pillLg"
+              className="w-full"
+              onClick={() => navigate(`/my-students/${studentId}?tab=wordbooks`)}
+            >
+              {t("word_training.assign_wordbooks")}
+            </CloudButton>
+          </div>
+        </div>
+      </FlowPageShell>
+    );
+  }
+
+  if (isCoach && coachGate === "ready" && studentBooksLoading) {
+    return (
+      <FlowPageShell className="min-h-dvh bg-gray-50 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
+        <div className="px-4 mt-6 flex justify-center">
+          <CloudSpin tip={t("word_training.loading_wordbooks")} />
+        </div>
+      </FlowPageShell>
+    );
+  }
+
   return (
     <FlowPageShell className="h-dvh max-h-dvh bg-gray-50 flex flex-col overflow-hidden">
       <TopBar title={t("word_training.title")} onBack={handleBack} rightSlot={<AudioMuteToggleButton />} />
@@ -388,8 +448,14 @@ export default function WordTraining() {
             if (id && name) pickWordBook({ id, name }, { fromUser: true });
           }}
           options={wordBookOptions}
-          placeholder={wordBooks.length || studentWordBooks.length ? t("word_training.select_wordbook") : t("word_training.loading_wordbooks")}
-          disabled={!wordBooks.length && !studentWordBooks.length}
+          placeholder={
+            studentBooksLoading && isCoach
+              ? t("word_training.loading_wordbooks")
+              : wordBookOptions.length
+                ? t("word_training.select_wordbook")
+                : t("word_training.loading_wordbooks")
+          }
+          disabled={!wordBookOptions.length}
           showSearch
           allowClear={false}
           sheetTitle={t("word_training.select_wordbook")}
@@ -464,17 +530,15 @@ export default function WordTraining() {
             variant="brandOutline"
             size="pillLg"
             className="flex-1"
+            disabled={!selectedWordBookId}
             onClick={() => {
               if (!selectedWordBookId) return;
-              const name = findWordBookName(selectedWordBookId);
               sessionStorage.setItem("lb_mode", "review");
               sessionStorage.setItem("lb_review_wordbook_id", selectedWordBookId);
-              sessionStorage.setItem("lb_review_wordbook_name", name);
-              sessionStorage.setItem("lb_review_date", todayLabel);
               sessionStorage.setItem("lb_review_return", "/word-training");
               sessionStorage.removeItem("lb_review_student_id");
               navigate(
-                `/review-word-list?wordBookId=${encodeURIComponent(selectedWordBookId)}&all=1`
+                `/review-word-list?wordBookId=${encodeURIComponent(selectedWordBookId)}&lighthouse=1`
               );
             }}
           >
@@ -484,6 +548,7 @@ export default function WordTraining() {
             variant="brand"
             size="pillLg"
             className="flex-1"
+            disabled={!selectedWordBookId}
             onClick={() => navigate("/pre-training-check")}
           >
             {t("word_training.continue_practice")}

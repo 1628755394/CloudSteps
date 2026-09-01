@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -107,24 +108,25 @@ func (h *Handlers) coachingTeacherAddStudentWordBook(c *gin.Context) {
 	}
 
 	var body struct {
-		WordBookID uint `json:"wordBookId"`
+		WordBookID utils.JSONUint `json:"wordBookId"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.WordBookID == 0 {
 		response.FailI18n(c, "wordbook.invalid_id", nil)
 		return
 	}
-	if _, err := models.GetWordBookByID(db, body.WordBookID); err != nil {
+	wbID := body.WordBookID.Uint()
+	if _, err := models.GetWordBookByID(db, wbID); err != nil {
 		response.FailI18n(c, "wordbook.not_found", err.Error())
 		return
 	}
 
 	now := time.Now().UTC()
 	var uwb models.UserWordBook
-	err := db.Where("user_id = ? AND word_book_id = ?", sid, body.WordBookID).First(&uwb).Error
+	err := db.Where("user_id = ? AND word_book_id = ?", sid, wbID).First(&uwb).Error
 	if err == gorm.ErrRecordNotFound {
 		uwb = models.UserWordBook{
 			UserID:     sid,
-			WordBookID: body.WordBookID,
+			WordBookID: wbID,
 			Status:     "active",
 			StartedAt:  &now,
 		}
@@ -150,9 +152,9 @@ func (h *Handlers) coachingTeacherAddStudentWordBook(c *gin.Context) {
 		}
 	}
 
-	wb, _ := models.GetWordBookByID(db, body.WordBookID)
+	wb, _ := models.GetWordBookByID(db, wbID)
 	item := teacherStudentWordBookItem{
-		ID:        body.WordBookID,
+		ID:        wbID,
 		Name:      "",
 		WordCount: 0,
 	}
