@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
+	"github.com/LingByte/CloudStepsGo/pkg/utils"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -561,6 +562,7 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 	}
 
 	targetUserID := user.ID
+	var filterStudentID *uint
 	if sidStr := strings.TrimSpace(c.Query("studentId")); sidStr != "" {
 		sid64, err := strconv.ParseUint(sidStr, 10, 64)
 		if err != nil || sid64 == 0 {
@@ -577,12 +579,14 @@ func (h *Handlers) handleStudySessionsList(c *gin.Context) {
 			response.AbortWithStatusJSON(c, http.StatusForbidden, err)
 			return
 		}
-		// 正课会话记在老师账号：studentId 仅做权限校验
-		_ = sid
+		filterStudentID = &sid
 		targetUserID = user.ID
 	}
 
 	q := db.Model(&models.StudySession{}).Where("user_id = ?", targetUserID)
+	if filterStudentID != nil {
+		q = q.Where("student_id = ?", *filterStudentID)
+	}
 	if sessionType != "" {
 		q = q.Where("session_type = ?", sessionType)
 	}
@@ -876,5 +880,296 @@ func (h *Handlers) handleStudySessionsExportWords(c *gin.Context) {
 	response.SuccessI18n(c, "common.success", gin.H{
 		"words": rows,
 		"total": len(rows),
+	})
+}
+
+// lighthouseMasteredAfterStage 九宫格 02–08 对应 review_stage 0–6，通过后进入 09 已掌握。
+const lighthouseMasteredAfterStage = 6
+
+// handleLighthouseReviewWords GET /study/lighthouse/review-words?wordBookId=N
+// 返回词库内所有已学、尚未掌握的单词（九宫格「开始复习」用）。
+func (h *Handlers) handleLighthouseReviewWords(c *gin.Context) {
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
+	if user == nil {
+		response.FailI18n(c, "auth.authorization_required", nil)
+		return
+	}
+
+	wordBookID := parseQueryUintID(c.Query("wordBookId"))
+	if wordBookID == 0 {
+		response.FailI18n(c, "wordbook.id_required", nil)
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "200"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 500 {
+		pageSize = 200
+	}
+	offset := (page - 1) * pageSize
+
+	stateWhere := `uws.user_id = ? AND uws.word_book_id = ? AND uws.learn_status IN ?`
+	stateArgs := []any{user.ID, uint(wordBookID), []string{"learning", "learned"}}
+
+	var total int64
+	countSQL := "SELECT COUNT(*) FROM user_word_states uws WHERE uws.deleted_at IS NULL AND " + stateWhere
+	if err := db.Raw(countSQL, stateArgs...).Scan(&total).Error; err != nil {
+		response.FailI18n(c, "common.query_failed", err)
+		return
+	}
+	if total == 0 {
+		response.SuccessI18n(c, "common.success", gin.H{"words": []models.WordLite{}, "total": 0})
+		return
+	}
+
+	dataSQL := `SELECT w.id, w.word_book_id, w.word, w.phonetic, w.phonetic_uk, w.phonetic_us,
+		w.translation, w.translation_short, w.part_of_speech, w.definition, w.audio_url, w.sort_order
+		FROM user_word_states uws
+		JOIN words w ON w.id = uws.word_id AND w.deleted_at IS NULL
+		WHERE uws.deleted_at IS NULL AND ` + stateWhere + `
+		ORDER BY w.sort_order ASC, w.id ASC
+		LIMIT ? OFFSET ?`
+	dataArgs := append(append(stateArgs, pageSize), offset)
+
+	var words []models.WordLite
+	if err := db.Raw(dataSQL, dataArgs...).Scan(&words).Error; err != nil {
+		response.FailI18n(c, "common.query_failed", err)
+		return
+	}
+	models.OverlayWordLites(db, user.ID, words)
+
+	response.SuccessI18n(c, "common.success", gin.H{
+		"words": words,
+		"total": total,
+	})
+}
+
+// handleLighthouseReviewSubmit POST /study/lighthouse/review-submit
+// body: { wordBookId, results: [{ wordId, remembered }] }
+// remembered=true → review_stage +1（满格后 mastered）；false → 不推进。
+func (h *Handlers) handleLighthouseReviewSubmit(c *gin.Context) {
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
+	if user == nil {
+		response.FailI18n(c, "auth.authorization_required", nil)
+		return
+	}
+
+	var body struct {
+		WordBookID utils.JSONUint `json:"wordBookId" binding:"required"`
+		Results    []struct {
+			WordID     uint `json:"wordId"`
+			Remembered bool `json:"remembered"`
+		} `json:"results" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || len(body.Results) == 0 {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+	wbID := body.WordBookID.Uint()
+	if wbID == 0 {
+		response.FailI18n(c, "wordbook.id_required", nil)
+		return
+	}
+
+	now := time.Now().UTC()
+	wordIDs := make([]uint, 0, len(body.Results))
+	resMap := make(map[uint]bool, len(body.Results))
+	for _, r := range body.Results {
+		if r.WordID == 0 {
+			continue
+		}
+		wordIDs = append(wordIDs, r.WordID)
+		resMap[r.WordID] = r.Remembered
+	}
+	if len(wordIDs) == 0 {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+
+	var advanced, unchanged int
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var states []models.UserWordState
+		if err := tx.Where("user_id = ? AND word_book_id = ? AND word_id IN ? AND learn_status IN ?",
+			user.ID, wbID, wordIDs, []string{"learning", "learned"}).
+			Find(&states).Error; err != nil {
+			return err
+		}
+
+		for _, st := range states {
+			remembered, ok := resMap[st.WordID]
+			if !ok {
+				continue
+			}
+			if !remembered {
+				_ = tx.Model(&st).Updates(map[string]any{
+					"last_reviewed_at": &now,
+					"learn_status":     "learning",
+				}).Error
+				unchanged++
+				continue
+			}
+
+			newStage := st.ReviewStage + 1
+			if newStage > lighthouseMasteredAfterStage {
+				if err := tx.Model(&st).Updates(map[string]any{
+					"learn_status":     "mastered",
+					"mastered_at":      &now,
+					"last_reviewed_at": &now,
+					"next_review_at":   nil,
+					"review_stage":     newStage,
+				}).Error; err != nil {
+					return err
+				}
+			} else {
+				if err := tx.Model(&st).Updates(map[string]any{
+					"review_stage":     newStage,
+					"learn_status":     "learned",
+					"last_reviewed_at": &now,
+				}).Error; err != nil {
+					return err
+				}
+			}
+			advanced++
+		}
+		return nil
+	})
+	if err != nil {
+		response.FailI18n(c, "common.operation_failed", err.Error())
+		return
+	}
+
+	invalidateLighthouseCacheForUser(user.ID)
+
+	response.SuccessI18n(c, "common.success", gin.H{
+		"advanced":  advanced,
+		"unchanged": unchanged,
+	})
+}
+
+func parseLocalDateTime(dateYMD, hm string, loc *time.Location) (time.Time, error) {
+	if loc == nil {
+		loc = time.Local
+	}
+	day, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(dateYMD), loc)
+	if err != nil {
+		return time.Time{}, err
+	}
+	parts := strings.Split(strings.TrimSpace(hm), ":")
+	if len(parts) != 2 {
+		return time.Time{}, strconv.ErrSyntax
+	}
+	h, err1 := strconv.Atoi(parts[0])
+	m, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil || h < 0 || h > 23 || m < 0 || m > 59 {
+		return time.Time{}, strconv.ErrSyntax
+	}
+	return time.Date(day.Year(), day.Month(), day.Day(), h, m, 0, 0, loc), nil
+}
+
+// handleStudySessionsPracticeTime PUT /study/sessions/practice-time
+// body: { date, startTime, endTime, studentId?, sessionIds? }
+func (h *Handlers) handleStudySessionsPracticeTime(c *gin.Context) {
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
+	if user == nil {
+		response.FailI18n(c, "auth.authorization_required", nil)
+		return
+	}
+
+	var body struct {
+		Date       string `json:"date" binding:"required"`
+		StartTime  string `json:"startTime" binding:"required"`
+		EndTime    string `json:"endTime" binding:"required"`
+		StudentID  string `json:"studentId"`
+		SessionIDs []uint `json:"sessionIds"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+
+	loc := models.UserReviewLocation(user)
+	startLocal, err := parseLocalDateTime(body.Date, body.StartTime, loc)
+	if err != nil {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+	endLocal, err := parseLocalDateTime(body.Date, body.EndTime, loc)
+	if err != nil {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+	if !endLocal.After(startLocal) {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+	startUTC := startLocal.UTC()
+	endUTC := endLocal.UTC()
+
+	q := db.Model(&models.StudySession{}).
+		Where("user_id = ? AND session_type = ? AND status = ?", user.ID, "learn", "completed")
+
+	if len(body.SessionIDs) > 0 {
+		q = q.Where("id IN ?", body.SessionIDs)
+	} else {
+		dayStart, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(body.Date), loc)
+		if err != nil {
+			response.FailI18n(c, "common.invalid_params", nil)
+			return
+		}
+		q = q.Where("started_at >= ? AND started_at < ?", dayStart.UTC(), dayStart.Add(24*time.Hour).UTC())
+	}
+
+	sidStr := strings.TrimSpace(body.StudentID)
+	if sidStr != "" {
+		sid64, err := strconv.ParseUint(sidStr, 10, 64)
+		if err != nil || sid64 == 0 {
+			response.FailI18n(c, "coaching.invalid_student_id", nil)
+			return
+		}
+		if uint(sid64) != user.ID {
+			if err := coachingTeacherHasStudentPair(db, user.ID, uint(sid64)); err != nil {
+				response.AbortWithStatusJSON(c, http.StatusForbidden, err)
+				return
+			}
+		}
+		q = q.Where("student_id = ?", uint(sid64))
+	} else {
+		q = q.Where("student_id = 0")
+	}
+
+	var sessions []models.StudySession
+	if err := q.Find(&sessions).Error; err != nil {
+		response.FailI18n(c, "common.query_failed", err.Error())
+		return
+	}
+	if len(sessions) == 0 {
+		response.FailI18n(c, "coaching.session_not_found", nil)
+		return
+	}
+
+	ids := make([]uint, 0, len(sessions))
+	for _, s := range sessions {
+		ids = append(ids, s.ID)
+	}
+	res := db.Model(&models.StudySession{}).
+		Where("id IN ?", ids).
+		Updates(map[string]any{
+			"started_at":   startUTC,
+			"completed_at": endUTC,
+		})
+	if res.Error != nil {
+		response.FailI18n(c, "common.operation_failed", res.Error.Error())
+		return
+	}
+
+	response.SuccessI18n(c, "common.success", gin.H{
+		"updated": res.RowsAffected,
+		"sessionIds": ids,
 	})
 }
