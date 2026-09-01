@@ -186,6 +186,7 @@ export default function PostTrainingCheck() {
     const isCorrect = spellInput.trim().toLowerCase() === spellTarget.word.trim().toLowerCase();
     setSpellResult(isCorrect ? "correct" : "wrong");
     if (isCorrect) {
+      setSpellRevealed((prev) => new Set(prev).add(spellTarget.id));
       handleStatusClick(spellTarget.id, "correct");
     } else {
       handleStatusClick(spellTarget.id, "wrong");
