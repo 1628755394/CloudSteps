@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from "react";
-import { AnnotationToggleButton } from "./AnnotationLayer";
 import { AudioMuteToggleButton } from "./AudioMuteToggleButton";
 import { ClassTimerBadge, ClassTimerSetupDialog } from "./ClassSessionTimer";
 import { PracticeFontSettingsButton } from "./PracticeFontSettings";
@@ -9,8 +8,8 @@ import { useClassTimerStore } from "../stores/classTimerStore";
 import type { UserWordView } from "../api/wordbooks";
 
 type Props = {
-  annotationOpen: boolean;
-  onToggleAnnotation: () => void;
+  annotationOpen?: boolean;
+  onToggleAnnotation?: () => void;
   extraBefore?: ReactNode;
   pauseContinueLabel?: string;
   wordCount?: number;
@@ -18,12 +17,10 @@ type Props = {
 };
 
 /**
- * 练习流通用顶栏操作：音效、定时、画笔、设置。
+ * 练习流通用顶栏操作：音效、定时、设置。
  * 计时未开始时点时钟打开设置；计时中点击倒计时暂停，并出现返回/继续/结束。
  */
 export function PracticeFlowToolbar({
-  annotationOpen,
-  onToggleAnnotation,
   extraBefore,
   pauseContinueLabel,
   wordCount = 0,
@@ -48,10 +45,6 @@ export function PracticeFlowToolbar({
             }
             setTimerOpen(true);
           }}
-        />
-        <AnnotationToggleButton
-          active={annotationOpen}
-          onClick={onToggleAnnotation}
         />
         <PracticeFontSettingsButton />
       </div>

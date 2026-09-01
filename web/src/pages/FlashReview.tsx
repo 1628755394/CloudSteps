@@ -266,13 +266,16 @@ export default function FlashReview() {
 
   const proceedLabel = isRetryMode
     ? t("flash_review.finish_retry")
-    : mode === "study" &&
-        !shouldEnterPostTrainingCheck(
-          batchIdx,
-          Number(sessionStorage.getItem("lb_study_total_batches") || 1)
-        )
-      ? t("flash_review.next_batch")
-      : t("flash_review.enter_group_review");
+    : mode === "review"
+    ? t("flash_review.enter_post_training")
+    : !shouldEnterPostTrainingCheck(
+        batchIdx,
+        Number(sessionStorage.getItem("lb_study_total_batches") || 1)
+      )
+    ? t("flash_review.next_batch")
+    : resolveCheckPhase(batchIdx, totalBatches) === "final"
+    ? t("flash_review.enter_post_training")
+    : t("flash_review.enter_group_review");
 
   const uncutCount = words.filter((w) => w.scissorCount === 0).length;
   const visibleWords = words.filter((w) => w.scissorCount === 0);
