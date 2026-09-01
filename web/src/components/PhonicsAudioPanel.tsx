@@ -140,9 +140,9 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
       : t("word.phonics.play_split");
 
   return (
-    <div className="mb-3 rounded-xl border border-violet-200 bg-violet-50/30 px-3 py-2.5">
+    <div className="mb-3 rounded-xl border border-primary/20 bg-primary-soft/30 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="inline-flex rounded-full bg-[#EEF2F7] p-0.5">
+        <div className="inline-flex rounded-full bg-muted p-0.5">
           {modeOptions.map((m) => (
             <button
               key={m.id}
@@ -150,8 +150,8 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
               onClick={() => setMode(m.id)}
               className={`h-7 min-w-[3.25rem] rounded-full px-3 text-xs font-medium transition-colors ${
                 mode === m.id
-                  ? "bg-violet-500 text-white shadow-sm"
-                  : "text-[#64748B] hover:text-violet-600"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {m.label}
@@ -171,12 +171,12 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
         >
           <Volume2
             size={16}
-            className={playing ? "text-[#4ECDC4] animate-pulse" : "text-[#4ECDC4]"}
+            className={playing ? "text-primary animate-pulse" : "text-primary"}
           />
         </CloudButton>
       </div>
 
-      {mode === "blend" && <p className="mb-2 text-sm font-semibold text-[#475569]">自然拼读</p>}
+      {mode === "blend" && <p className="mb-2 text-sm font-semibold text-foreground">自然拼读</p>}
       {parts.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
           {parts.map((p, i) => (
@@ -190,10 +190,10 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
               }}
               className={`rounded-lg px-2.5 py-1.5 text-sm font-mono transition-colors ${
                 activeIdx === i
-                  ? "bg-violet-500 text-white"
+                  ? "bg-primary text-primary-foreground"
                   : mode === "split"
-                    ? "bg-slate-100 text-slate-500 border border-slate-200 hover:bg-violet-50"
-                    : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                    ? "bg-muted text-muted-foreground border border-border hover:bg-primary-soft"
+                    : "bg-primary-soft text-primary border border-primary/20 hover:bg-primary-soft/80"
               }`}
             >
               {mode === "split" ? `\\ ${p} \\` : p}
@@ -201,7 +201,7 @@ export function PhonicsAudioPanel({ word, syllables, phonetic, audioUrl }: Props
           ))}
         </div>
       ) : (
-        <p className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-sm font-medium text-[#718096]">
+        <p className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground">
           {mode === "blend" ? "暂无自然拼读数据" : t("word.phonics.no_split")}
         </p>
       )}
