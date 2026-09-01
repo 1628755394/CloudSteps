@@ -155,6 +155,7 @@ export function WordCardPanel({
   const safeIndex = words.length ? Math.min(Math.max(0, index), words.length - 1) : 0;
   const word = words[safeIndex];
   const [localDetail, setLocalDetail] = useState(false);
+  const [syllableSplit, setSyllableSplit] = useState<{ wordId: number; parts: string[] } | null>(null);
   const detailControlled = detailWordId !== undefined;
   const detailOpen = amplifyDetail
     ? !!word?.showTranslation
@@ -162,9 +163,10 @@ export function WordCardPanel({
       ? detailWordId === word?.id
       : localDetail;
 
-  // 切换单词时收起本地详情
+  // 切换单词时收起本地详情并关闭音节拆分
   useEffect(() => {
     setLocalDetail(false);
+    setSyllableSplit(null);
   }, [safeIndex]);
 
   if (!word) {
@@ -209,9 +211,20 @@ export function WordCardPanel({
             className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center outline-none"
             onClick={() => onWordClick(word)}
           >
-            <h2 className={`${PRACTICE_CARD_WORD_CLASS} text-center hover:text-[#4ECDC4] transition-colors`}>
-              {word.word}
-            </h2>
+            {syllableSplit?.wordId === word.id && syllableSplit.parts.length > 0 ? (
+              <h2 className={`${PRACTICE_CARD_WORD_CLASS} flex flex-wrap justify-center items-baseline gap-x-2 text-center hover:text-[#4ECDC4] transition-colors`}>
+                {syllableSplit.parts.map((part, i) => (
+                  <span key={i}>
+                    {part}
+                    {i < syllableSplit.parts.length - 1 && <span className="text-primary">-</span>}
+                  </span>
+                ))}
+              </h2>
+            ) : (
+              <h2 className={`${PRACTICE_CARD_WORD_CLASS} text-center hover:text-[#4ECDC4] transition-colors`}>
+                {word.word}
+              </h2>
+            )}
             {word.showTranslation && (
               <>
                 {word.phonetic ? (
@@ -308,6 +321,9 @@ export function WordCardPanel({
             onClose={() => {
               setLocalDetail(false);
               onDetailClose?.();
+            }}
+            onSyllableSplitToggle={(open, _wordId, parts) => {
+              setSyllableSplit(open ? { wordId: _wordId, parts } : null);
             }}
           />
         </div>

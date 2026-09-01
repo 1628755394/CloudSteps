@@ -76,6 +76,8 @@ type Props = {
   /** 简易：只展示部分拓展标签；默认 true */
   simpleMode?: boolean;
   onWordPatched?: (view: UserWordView) => void;
+  /** 拆分音节时通知父组件：开启/关闭、当前词 id、音节数组 */
+  onSyllableSplitToggle?: (open: boolean, wordId: number, parts: string[]) => void;
 };
 
 /**
@@ -88,6 +90,7 @@ export function WordDetailPanel({
   variant = "full",
   simpleMode = true,
   onWordPatched,
+  onSyllableSplitToggle,
 }: Props) {
   const { t } = useTranslation();
   const [detail, setDetail] = useState<WordDetail | null>(null);
@@ -95,6 +98,7 @@ export function WordDetailPanel({
   const [error, setError] = useState(false);
   const [active, setActive] = useState<ExtKey | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [splitMode, setSplitMode] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -102,6 +106,7 @@ export function WordDetailPanel({
     setDetail(null);
     setError(false);
     setActive(null);
+    setSplitMode(false);
     getWordDetail(wordId)
       .then((res) => {
         if (!mounted) return;
@@ -154,6 +159,10 @@ export function WordDetailPanel({
     ? withPartOfSpeech(detail.partOfSpeech, detailTranslation ? displayTranslationFull(detailTranslation) : "")
     : (fallbackTranslation ? withPartOfSpeech("", displayTranslationFull(fallbackTranslation)) : "");
   const showFullInline = active === "translation";
+  const syllableParts = useMemo(
+    () => (detail?.syllables || "").split("-").filter(Boolean).map((s) => s.trim()),
+    [detail?.syllables]
+  );
 
   const tabs: ExtTab[] = useMemo(() => {
     if (!detail || !parsed) return [];
@@ -207,6 +216,24 @@ export function WordDetailPanel({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground flex-1">{t("word.no_extension")}</p>
+            )}
+            {syllableParts.length > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const next = !splitMode;
+                  setSplitMode(next);
+                  onSyllableSplitToggle?.(next, wordId, syllableParts);
+                }}
+                className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors ${
+                  splitMode
+                    ? "bg-primary text-primary-foreground font-medium"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {t("word.phonics.split")}
+              </button>
             )}
             <button
               type="button"
@@ -283,7 +310,18 @@ export function WordDetailPanel({
       <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h2 className={`${PRACTICE_WORD_CLASS} !font-bold break-all`}>{word}</h2>
+            {splitMode && syllableParts.length > 0 ? (
+              <h2 className={`${PRACTICE_WORD_CLASS} !font-bold flex flex-wrap items-center gap-x-1`}>
+                {syllableParts.map((part, i) => (
+                  <span key={i}>
+                    {part}
+                    {i < syllableParts.length - 1 && <span className="text-primary">-</span>}
+                  </span>
+                ))}
+              </h2>
+            ) : (
+              <h2 className={`${PRACTICE_WORD_CLASS} !font-bold break-all`}>{word}</h2>
+            )}
             {detail?.audioUrl && (
               <CloudButton
                 type="button"
