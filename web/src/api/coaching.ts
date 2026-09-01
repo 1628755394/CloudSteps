@@ -1,6 +1,12 @@
 import { get, post, del, put, ApiResponse } from '../utils/request'
 import type { ReviewCurvePreset } from './auth'
 
+type SnowflakeId = string | number
+
+function studentIdPath(id: SnowflakeId): string {
+  return String(id).trim()
+}
+
 export type TeacherTeachingPoolSummary = {
   remainingMinutes: number
   totalAllocatedMinutes: number
@@ -17,7 +23,7 @@ export type CoachingWeekSchedule = {
   startTime: string
   endTime: string
   teacherId: number
-  studentId: number
+  studentId: SnowflakeId
   status: string
   students?: string[]
   session?: {
@@ -41,7 +47,7 @@ export const getTeacherCoachingWeek = async (
 export type TeacherCoachingQuotaRow = {
   id: number
   teacherId: number
-  studentId: number
+  studentId: SnowflakeId
   remainingMinutes: number
   totalAllocatedMinutes?: number
   version?: number
@@ -118,7 +124,7 @@ export type StudentActivityStats = {
 
 /** 学员活动时间线（游标分页 + 月筛选 + 统计） */
 export const listStudentActivityRecordsAsTeacher = async (
-  studentId: number,
+  studentId: SnowflakeId,
   params?: {
     cursor?: string
     limit?: number
@@ -134,7 +140,7 @@ export const listStudentActivityRecordsAsTeacher = async (
     stats: StudentActivityStats
   }>
 > => {
-  return get(`/teacher/coaching/students/${studentId}/vocab-records`, { params })
+  return get(`/teacher/coaching/students/${studentIdPath(studentId)}/vocab-records`, { params })
 }
 
 export type VocabTestRecordDTO = {
@@ -154,7 +160,7 @@ export type CoachingSessionRecordDTO = {
   id: number
   appointmentId: number
   teacherId: number
-  studentId: number
+  studentId: SnowflakeId
   startedAt: string
   endedAt: string
   actualMinutes: number
@@ -198,10 +204,12 @@ export type StudentActivityListItem = {
 /** 合并：陪练完课 + 词汇测评 + 单词训练会话（游标分页见上方 listStudentActivityRecordsAsTeacher） */
 
 export const getStudentVocabRecordAsTeacher = async (
-  studentId: number,
-  recordId: number
+  studentId: SnowflakeId,
+  recordId: SnowflakeId
 ): Promise<ApiResponse<VocabTestRecordDTO>> => {
-  return get<VocabTestRecordDTO>(`/teacher/coaching/students/${studentId}/vocab-records/${recordId}`)
+  return get<VocabTestRecordDTO>(
+    `/teacher/coaching/students/${studentIdPath(studentId)}/vocab-records/${studentIdPath(recordId)}`
+  )
 }
 
 export type StudentWordBookItem = {
@@ -212,46 +220,46 @@ export type StudentWordBookItem = {
 
 /** 老师查看学员已分配词库 */
 export const listStudentWordBooksAsTeacher = async (
-  studentId: number
+  studentId: SnowflakeId
 ): Promise<ApiResponse<{ list: StudentWordBookItem[] }>> => {
   return get<{ list: StudentWordBookItem[] }>(
-    `/teacher/coaching/students/${studentId}/wordbooks`
+    `/teacher/coaching/students/${studentIdPath(studentId)}/wordbooks`
   )
 }
 
 /** 老师为学员添加词库 */
 export const addStudentWordBookAsTeacher = async (
-  studentId: number,
+  studentId: SnowflakeId,
   wordBookId: number
 ): Promise<ApiResponse<StudentWordBookItem>> => {
-  return post<StudentWordBookItem>(`/teacher/coaching/students/${studentId}/wordbooks`, {
+  return post<StudentWordBookItem>(`/teacher/coaching/students/${studentIdPath(studentId)}/wordbooks`, {
     wordBookId,
   })
 }
 
 /** 老师移除学员词库 */
 export const removeStudentWordBookAsTeacher = async (
-  studentId: number,
+  studentId: SnowflakeId,
   wordBookId: number
 ): Promise<ApiResponse<{ studentId: number; wordBookId: number }>> => {
-  return del(`/teacher/coaching/students/${studentId}/wordbooks/${wordBookId}`)
+  return del(`/teacher/coaching/students/${studentIdPath(studentId)}/wordbooks/${wordBookId}`)
 }
 
 export const getStudentCoachingSessionAsTeacher = async (
-  studentId: number,
-  sessionId: number
+  studentId: SnowflakeId,
+  sessionId: SnowflakeId
 ): Promise<ApiResponse<CoachingSessionRecordDTO>> => {
   return get<CoachingSessionRecordDTO>(
-    `/teacher/coaching/students/${studentId}/coaching-sessions/${sessionId}`
+    `/teacher/coaching/students/${studentIdPath(studentId)}/coaching-sessions/${studentIdPath(sessionId)}`
   )
 }
 
 export const getStudentStudySessionAsTeacher = async (
-  studentId: number,
-  sessionId: number
+  studentId: SnowflakeId,
+  sessionId: SnowflakeId
 ): Promise<ApiResponse<{ session: StudySessionDTO; wordBookName: string }>> => {
   return get<{ session: StudySessionDTO; wordBookName: string }>(
-    `/teacher/coaching/students/${studentId}/study-sessions/${sessionId}`
+    `/teacher/coaching/students/${studentIdPath(studentId)}/study-sessions/${studentIdPath(sessionId)}`
   )
 }
 
@@ -276,7 +284,7 @@ export const startPracticeSession = async (body: {
 }): Promise<
   ApiResponse<{
     appointmentId: number
-    studentId: number
+    studentId: SnowflakeId
     owned: boolean
     reused?: boolean
     appointment?: CoachingWeekSchedule
@@ -286,7 +294,7 @@ export const startPracticeSession = async (body: {
 }
 
 export type CoachingStudentSearchResult = {
-  id: number
+  id: SnowflakeId
   username?: string
   displayName?: string
   phone?: string
@@ -300,7 +308,7 @@ export const searchCoachingStudents = async (
 }
 
 export const addTeacherCoachingStudent = async (body: {
-  studentId: number
+  studentId: SnowflakeId
   remainingMinutes: number
 }): Promise<ApiResponse<TeacherCoachingQuotaRow>> => {
   return post<TeacherCoachingQuotaRow>('/teacher/coaching/quotas', body)
@@ -332,40 +340,40 @@ export const createTeacherStudent = async (
 
 /** 老师设置/重置学员登录密码；password 空则重置为 student123 */
 export const setTeacherStudentPassword = async (
-  studentId: number,
+  studentId: SnowflakeId,
   password?: string
 ): Promise<ApiResponse<{ studentId: number; username?: string; password: string }>> => {
-  return post(`/teacher/coaching/students/${studentId}/password`, {
+  return post(`/teacher/coaching/students/${studentIdPath(studentId)}/password`, {
     password: password ?? '',
   })
 }
 
 /** 老师从名下移除学员（解除陪练关系，不删除学员账号） */
 export const removeTeacherStudent = async (
-  studentId: number
+  studentId: SnowflakeId
 ): Promise<ApiResponse<{ studentId: number }>> => {
-  return del(`/teacher/coaching/students/${studentId}`)
+  return del(`/teacher/coaching/students/${studentIdPath(studentId)}`)
 }
 
 /** 老师为学员设置抗遗忘次数（艾宾浩斯曲线） */
 export const setTeacherStudentReviewCurve = async (
-  studentId: number,
+  studentId: SnowflakeId,
   reviewCurvePreset: ReviewCurvePreset
 ): Promise<
   ApiResponse<{
-    studentId: number
+    studentId: SnowflakeId
     reviewCurvePreset: string
     reviewTimes: number
     presetLabel?: string
   }>
 > => {
-  return put(`/teacher/coaching/students/${studentId}/review-curve`, {
+  return put(`/teacher/coaching/students/${studentIdPath(studentId)}/review-curve`, {
     reviewCurvePreset,
   })
 }
 
 export const createTeacherCoachingAppointment = async (body: {
-  studentId: number
+  studentId: SnowflakeId
   scheduledDate: string
   startTime: string
   endTime: string

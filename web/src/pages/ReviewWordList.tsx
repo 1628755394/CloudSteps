@@ -26,6 +26,7 @@ import { useSplitScreenNote } from "../hooks/useSplitScreenNote";
 import { StudyNoteLauncher, StudyNotePanel } from "../components/StudyNotePanel";
 import { useTranslation } from "react-i18next";
 import { formatApiMessage } from "../utils/apiMessage";
+import { normalizeSnowflakeId } from "../utils/json-snowflake";
 
 type ReviewWordItem = {
   id: number;
@@ -70,9 +71,15 @@ export default function ReviewWordList() {
 
   const wordBookId = useMemo(() => {
     const url = new URL(window.location.href);
-    const qp = Number(url.searchParams.get("wordBookId") || 0);
+    const qp = normalizeSnowflakeId(url.searchParams.get("wordBookId"));
     if (qp) return qp;
-    return Number(sessionStorage.getItem("lb_review_wordbook_id") || 0);
+    return normalizeSnowflakeId(sessionStorage.getItem("lb_review_wordbook_id"));
+  }, []);
+
+  const reviewAll = useMemo(() => {
+    const url = new URL(window.location.href);
+    const v = url.searchParams.get("all");
+    return v === "1" || v === "true";
   }, []);
 
   const [activeNoteKey, setActiveNoteKey] = useState(`study-note:global:${wordBookId}`);
@@ -101,6 +108,13 @@ export default function ReviewWordList() {
     const qp = Number(url.searchParams.get("studySessionId") || 0);
     if (qp > 0) return qp;
     return Number(sessionStorage.getItem("lb_review_study_session_id") || 0);
+  }, []);
+
+  const reviewStudentId = useMemo(() => {
+    const url = new URL(window.location.href);
+    const qp = url.searchParams.get("studentId") || "";
+    if (qp) return qp;
+    return sessionStorage.getItem("lb_review_student_id") || "";
   }, []);
 
   const viewOnly = useMemo(() => {
@@ -132,6 +146,8 @@ export default function ReviewWordList() {
           date: reviewDate || undefined,
           limit: 200,
           studySessionId: studySessionId > 0 ? studySessionId : undefined,
+          all: reviewAll || undefined,
+          ...(reviewStudentId ? { studentId: reviewStudentId } : {}),
         });
         const ws = Array.isArray(res.data?.words)
           ? (res.data.words as Array<{
@@ -160,7 +176,7 @@ export default function ReviewWordList() {
     return () => {
       mounted = false;
     };
-  }, [wordBookId, reviewDate, studySessionId]);
+  }, [wordBookId, reviewDate, studySessionId, reviewAll, reviewStudentId]);
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -239,7 +255,11 @@ export default function ReviewWordList() {
       setSubmitting(true);
       try {
         const wordIds = markedWords.map((w) => w.id);
-        const startRes = await startReviewSession({ wordBookId, wordIds });
+        const startRes = await startReviewSession({
+          wordBookId,
+          wordIds,
+          ...(reviewStudentId ? { studentId: reviewStudentId } : {}),
+        });
         const sid = Number(startRes.data?.sessionId || 0);
         if (!sid) {
           setHint(t("practice.no_review_return"));
@@ -300,7 +320,7 @@ export default function ReviewWordList() {
       {/* Split container: word content + note panel on the same layer. */}
       <div className={`box-border min-h-[calc(100dvh-11rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}>
         {/* Word content pane */}
-        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
             <p className="text-[#718096] text-sm">
               {viewOnly ? t("lighthouse_words.total_words", { count: words.length }) : t("practice.optional_words", { count: words.length })}

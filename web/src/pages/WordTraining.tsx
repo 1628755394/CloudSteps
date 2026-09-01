@@ -28,6 +28,7 @@ import {
   setTrainingStudent,
   studentLabelFromQuota,
 } from "../utils/trainingStudent";
+import { sameSnowflakeId, normalizeSnowflakeId } from "../utils/json-snowflake";
 
 type LighthouseDay = { id: string; count: number; label: string };
 
@@ -39,8 +40,12 @@ const fmtYMD = (d: Date) =>
 
 function resolvePick(wbs: CachedWordBook[]): CachedWordBook | undefined {
   const cachedName = sessionStorage.getItem("lb_wordbook_name") || "";
-  const cachedId = Number(sessionStorage.getItem("lb_wordbook_id") || 0);
-  return wbs.find((x) => x.id === cachedId) || wbs.find((x) => x.name === cachedName) || wbs[0];
+  const cachedId = normalizeSnowflakeId(sessionStorage.getItem("lb_wordbook_id"));
+  return (
+    wbs.find((x) => cachedId && sameSnowflakeId(x.id, cachedId)) ||
+    wbs.find((x) => x.name === cachedName) ||
+    wbs[0]
+  );
 }
 
 export default function WordTraining() {
@@ -65,22 +70,24 @@ export default function WordTraining() {
 
   const [wordBooks, setWordBooks] = useState<CachedWordBook[]>(initialBooks);
   const [studentWordBooks, setStudentWordBooks] = useState<StudentWordBookItem[]>([]);
-  const userPickedByStudent = useRef<Record<string, number>>({});
-  const [selectedWordBookId, setSelectedWordBookId] = useState<number>(initialPick?.id || 0);
+  const userPickedByStudent = useRef<Record<string, string>>({});
+  const [selectedWordBookId, setSelectedWordBookId] = useState<string>(() =>
+    normalizeSnowflakeId(initialPick?.id)
+  );
   const [memoryData, setMemoryData] = useState<LighthouseDay[]>(() => {
-    const id = initialPick?.id || 0;
+    const id = normalizeSnowflakeId(initialPick?.id);
     return id ? getCachedLighthouse(id)?.days || [] : [];
   });
   const [pendingCount, setPendingCount] = useState<number>(() => {
-    const id = initialPick?.id || 0;
+    const id = normalizeSnowflakeId(initialPick?.id);
     return id ? Number(getCachedLighthouse(id)?.pendingCount || 0) : 0;
   });
   const [masteredCount, setMasteredCount] = useState<number>(() => {
-    const id = initialPick?.id || 0;
+    const id = normalizeSnowflakeId(initialPick?.id);
     return id ? Number(getCachedLighthouse(id)?.masteredCount || 0) : 0;
   });
   const [todayNewLearned, setTodayNewLearned] = useState<number>(() => {
-    const id = initialPick?.id || 0;
+    const id = normalizeSnowflakeId(initialPick?.id);
     return id ? Number(getCachedLighthouse(id)?.todayNewLearned || 0) : 0;
   });
 
@@ -102,14 +109,16 @@ export default function WordTraining() {
     setTodayNewLearned(Number(data.todayNewLearned ?? 0));
   };
 
-  const pickWordBook = (wb: { id: number; name: string }, opts?: { fromUser?: boolean }) => {
-    const cached = getCachedLighthouse(wb.id);
+  const pickWordBook = (wb: { id: string | number; name: string }, opts?: { fromUser?: boolean }) => {
+    const id = normalizeSnowflakeId(wb.id);
+    if (!id) return;
+    const cached = getCachedLighthouse(id);
     if (cached) applyLighthouse(cached);
-    setSelectedWordBookId(wb.id);
-    sessionStorage.setItem("lb_wordbook_id", String(wb.id));
+    setSelectedWordBookId(id);
+    sessionStorage.setItem("lb_wordbook_id", id);
     sessionStorage.setItem("lb_wordbook_name", wb.name);
     if (opts?.fromUser && studentId) {
-      userPickedByStudent.current[studentId] = wb.id;
+      userPickedByStudent.current[studentId] = id;
     }
   };
 
@@ -146,7 +155,7 @@ export default function WordTraining() {
         }
         const saved = getTrainingStudent();
         const selected =
-          (saved?.id && rows.find((row) => row.studentId === saved.id)) || rows[0];
+          (saved?.id && rows.find((row) => sameSnowflakeId(row.studentId, saved.id))) || rows[0];
         setTrainingStudent(String(selected.studentId), studentLabelFromQuota(selected));
         setStudentId(String(selected.studentId));
         setCoachGate("ready");
@@ -173,10 +182,11 @@ export default function WordTraining() {
 
         const pick = resolvePick(all);
         if (pick) {
-          setSelectedWordBookId((prev) => prev || pick.id);
-          sessionStorage.setItem("lb_wordbook_id", String(pick.id));
+          const pickId = normalizeSnowflakeId(pick.id);
+          setSelectedWordBookId((prev) => prev || pickId);
+          sessionStorage.setItem("lb_wordbook_id", pickId);
           sessionStorage.setItem("lb_wordbook_name", pick.name);
-          const cached = getCachedLighthouse(pick.id);
+          const cached = getCachedLighthouse(pickId);
           if (cached) applyLighthouse(cached);
         }
       } catch {
@@ -195,21 +205,20 @@ export default function WordTraining() {
       return;
     }
     let mounted = true;
-    const sid = Number(studentId);
     (async () => {
       try {
-        const res = await listStudentWordBooksAsTeacher(sid);
+        const res = await listStudentWordBooksAsTeacher(studentId);
         if (!mounted) return;
         const list = res.code === 200 && Array.isArray(res.data?.list) ? res.data.list : [];
         setStudentWordBooks(list);
 
         const manualId = userPickedByStudent.current[studentId];
         if (manualId) {
-          const fromAssigned = list.find((b) => b.id === manualId);
+          const fromAssigned = list.find((b) => sameSnowflakeId(b.id, manualId));
           const fromGlobal =
             fromAssigned ||
-            (getCachedWordBooks() || []).find((b) => b.id === manualId) ||
-            wordBooks.find((b) => b.id === manualId);
+            (getCachedWordBooks() || []).find((b) => sameSnowflakeId(b.id, manualId)) ||
+            wordBooks.find((b) => sameSnowflakeId(b.id, manualId));
           if (fromAssigned) {
             pickWordBook({ id: fromAssigned.id, name: fromAssigned.name });
             return;
@@ -268,25 +277,25 @@ export default function WordTraining() {
   }, [selectedWordBookId, isCoach, coachGate]);
 
   const wordBookOptions = useMemo(() => {
-    const assignedIds = new Set(studentWordBooks.map((b) => b.id));
+    const assignedIds = new Set(studentWordBooks.map((b) => normalizeSnowflakeId(b.id)));
     const assigned = studentWordBooks.map((b) => ({
       label: t("word_training.student_wordbook", { name: b.name }),
-      value: String(b.id),
+      value: normalizeSnowflakeId(b.id),
     }));
     const rest = wordBooks
-      .filter((w) => !assignedIds.has(w.id))
+      .filter((w) => !assignedIds.has(normalizeSnowflakeId(w.id)))
       .map((w) => ({
         label: w.name,
-        value: String(w.id),
+        value: normalizeSnowflakeId(w.id),
       }));
     // 学员词库可能不在全局缓存里，补全名称查找
     return [...assigned, ...rest];
-  }, [studentWordBooks, wordBooks]);
+  }, [studentWordBooks, wordBooks, t]);
 
-  const findWordBookName = (id: number) => {
-    const fromStudent = studentWordBooks.find((b) => b.id === id);
+  const findWordBookName = (id: string) => {
+    const fromStudent = studentWordBooks.find((b) => sameSnowflakeId(b.id, id));
     if (fromStudent) return fromStudent.name;
-    return wordBooks.find((x) => x.id === id)?.name || "";
+    return wordBooks.find((x) => sameSnowflakeId(x.id, id))?.name || "";
   };
 
   const lighthouseBoxes = memoryData.map(({ count }) => ({ count }));
@@ -372,9 +381,9 @@ export default function WordTraining() {
 
       <div className="flex-1 min-h-0 flex flex-col px-3 sm:px-4 mt-6 pb-[max(0.75rem,env(safe-area-inset-bottom))] gap-2 overflow-hidden">
         <CloudSelect
-          value={selectedWordBookId ? String(selectedWordBookId) : undefined}
+          value={selectedWordBookId || undefined}
           onChange={(v) => {
-            const id = Number(v);
+            const id = normalizeSnowflakeId(v);
             const name = findWordBookName(id);
             if (id && name) pickWordBook({ id, name }, { fromUser: true });
           }}
@@ -459,12 +468,13 @@ export default function WordTraining() {
               if (!selectedWordBookId) return;
               const name = findWordBookName(selectedWordBookId);
               sessionStorage.setItem("lb_mode", "review");
-              sessionStorage.setItem("lb_review_wordbook_id", String(selectedWordBookId));
+              sessionStorage.setItem("lb_review_wordbook_id", selectedWordBookId);
               sessionStorage.setItem("lb_review_wordbook_name", name);
               sessionStorage.setItem("lb_review_date", todayLabel);
               sessionStorage.setItem("lb_review_return", "/word-training");
+              sessionStorage.removeItem("lb_review_student_id");
               navigate(
-                `/review-word-list?wordBookId=${selectedWordBookId}&all=1`
+                `/review-word-list?wordBookId=${encodeURIComponent(selectedWordBookId)}&all=1`
               );
             }}
           >

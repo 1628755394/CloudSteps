@@ -26,7 +26,7 @@ export function NoteSplitLayout({ children, defaultStorageKey = "", defaultTitle
         style={split ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}
       >
         <div
-          className={`${split ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${
+          className={`${split ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-y-auto" : ""} ${
             split && side === "left" ? "lg:order-2" : ""
           }`}
         >

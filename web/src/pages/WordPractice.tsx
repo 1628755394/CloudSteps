@@ -332,7 +332,7 @@ export default function WordPractice() {
         style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}
       >
         {/* Word content pane */}
-        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
+        <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "left" ? "lg:order-2" : ""}`}>
         <div className="text-center text-sm text-[#718096] mb-6">{t("practice.batch_group", { current: batchIdx + 1, total: totalBatches })}</div>
 
         {viewMode === "card" && cardWord ? (
@@ -415,64 +415,71 @@ export default function WordPractice() {
           </div>
         ) : (
           <div
-            className={globalNoteOpen && isDesktop
-              ? "grid min-h-0 flex-1 grid-rows-[repeat(5,minmax(0,auto))] gap-2.5 overflow-y-auto"
-              : "space-y-3 mb-6"}
+            className={
+              globalNoteOpen && isDesktop
+                ? "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain pr-1"
+                : "mb-6 space-y-3"
+            }
           >
             {words.map((word, index) => (
-              <div key={word.id} className={globalNoteOpen && isDesktop ? "min-h-0" : ""}>
+              <div key={word.id} className="shrink-0">
                 <div
-                  className={`relative min-h-0 bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
+                  className={`relative bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
                     !manualReadMode && index === selectedIndex
                       ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
                       : "border-transparent"
                   }`}
                 >
-                <SequenceNextMark
-                  show={!manualReadMode && nextGuideIndex >= 0 && index === nextGuideIndex}
-                />
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div
-                    onClick={() => handleWordTap(word)}
-                    className="flex-1 cursor-pointer min-w-0"
-                  >
-                    <div className="min-w-0">
-                      <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{word.word}</div>
-                      {renderReveal(word)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <StudyNoteLauncher
-                        storageKey={wordNoteKey(word.id)}
-                        title={t("practice.note_title", { word: word.word })}
-                        label={t("practice.note")}
-                        className="h-9 px-2"
-                        onOpen={() => openWordNote(wordNoteKey(word.id), t("practice.note_title", { word: word.word }))}
-                      />
-                    </div>
-                    {!manualReadMode && parseAudioUrls(word.audioUrl).length > 0 && (
-                      <CloudButton
-                        variant={playingId === word.id ? "mint" : "mintOutline"}
-                        size="iconRound"
-                        className="size-8 sm:size-9 text-xs sm:text-sm font-bold"
-                        onClick={() => handlePlayNextAudio(word)}
-                      >
-                        {audioIndexMap.get(word.id) ?? 0}
-                      </CloudButton>
-                    )}
-                  </div>
-                </div>
-                {detailMode && word.showTranslation && (
-                  <WordDetailPanel
-                    wordId={word.id}
-                    wordText={word.word}
-                    fallbackTranslation={meaningText(word)}
-                    variant="inline"
-                    onClose={() => setDetailWord(null)}
-                    onWordPatched={applyPatchedWord}
+                  <SequenceNextMark
+                    show={!manualReadMode && nextGuideIndex >= 0 && index === nextGuideIndex}
                   />
-                )}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div
+                      onClick={() => handleWordTap(word)}
+                      className="flex-1 cursor-pointer min-w-0"
+                    >
+                      <div className="min-w-0">
+                        <div className={`${PRACTICE_WORD_CLASS} mb-1`}>{word.word}</div>
+                        {renderReveal(word)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <StudyNoteLauncher
+                          storageKey={wordNoteKey(word.id)}
+                          title={t("practice.note_title", { word: word.word })}
+                          label={t("practice.note")}
+                          className="h-9 px-2"
+                          onOpen={() =>
+                            openWordNote(
+                              wordNoteKey(word.id),
+                              t("practice.note_title", { word: word.word })
+                            )
+                          }
+                        />
+                      </div>
+                      {!manualReadMode && parseAudioUrls(word.audioUrl).length > 0 && (
+                        <CloudButton
+                          variant={playingId === word.id ? "mint" : "mintOutline"}
+                          size="iconRound"
+                          className="size-8 sm:size-9 text-xs sm:text-sm font-bold"
+                          onClick={() => handlePlayNextAudio(word)}
+                        >
+                          {audioIndexMap.get(word.id) ?? 0}
+                        </CloudButton>
+                      )}
+                    </div>
+                  </div>
+                  {detailMode && word.showTranslation && (
+                    <WordDetailPanel
+                      wordId={word.id}
+                      wordText={word.word}
+                      fallbackTranslation={meaningText(word)}
+                      variant="inline"
+                      onClose={() => setDetailWord(null)}
+                      onWordPatched={applyPatchedWord}
+                    />
+                  )}
                 </div>
               </div>
             ))}

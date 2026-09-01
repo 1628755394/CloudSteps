@@ -39,6 +39,8 @@ export interface StartStudySessionRequest {
   wordBookId: number
   knownIds: number[]
   unknownIds: number[]
+  /** 老师代练时传当前学员 ID */
+  studentId?: string
 }
 
 export interface StartStudySessionResponse {
@@ -68,7 +70,9 @@ export const getStudyWords = async (
   })
 }
 
-export const getStudyLighthouse = async (wordBookId: number): Promise<ApiResponse<StudyLighthouseResponse>> => {
+export const getStudyLighthouse = async (
+  wordBookId: string | number
+): Promise<ApiResponse<StudyLighthouseResponse>> => {
   return get<StudyLighthouseResponse>('/study/lighthouse', { params: { wordBookId } })
 }
 

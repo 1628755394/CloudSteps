@@ -926,17 +926,17 @@ func displayNameOrEmail(u *models.User) string {
 }
 
 type coachingTeacherApptBody struct {
-	StudentID     uint   `json:"studentId" binding:"required"`
-	ScheduledDate string `json:"scheduledDate" binding:"required"`
-	StartTime     string `json:"startTime" binding:"required"`
-	EndTime       string `json:"endTime" binding:"required"`
-	Title         string `json:"title"`
-	Notes         string `json:"notes"`
+	StudentID     utils.JSONUint `json:"studentId" binding:"required"`
+	ScheduledDate string         `json:"scheduledDate" binding:"required"`
+	StartTime     string         `json:"startTime" binding:"required"`
+	EndTime       string         `json:"endTime" binding:"required"`
+	Title         string         `json:"title"`
+	Notes         string         `json:"notes"`
 }
 
 type coachingTeacherQuotaBody struct {
-	StudentID        uint `json:"studentId" binding:"required"`
-	RemainingMinutes int  `json:"remainingMinutes"`
+	StudentID        utils.JSONUint `json:"studentId" binding:"required"`
+	RemainingMinutes int            `json:"remainingMinutes"`
 }
 
 const coachingDefaultStudentPassword = "student123"
@@ -1327,16 +1327,21 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 		response.FailI18n(c, "coaching.quota_negative", nil)
 		return
 	}
-	if err := coachingLoadUserRoles(db, body.StudentID, "student"); err != nil {
+	studentID := body.StudentID.Uint()
+	if studentID == 0 {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+	if err := coachingLoadUserRoles(db, studentID, "student"); err != nil {
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
 		return
 	}
 
 	var q models.StudentTeacherCoachingQuota
-	err := db.Unscoped().Where("teacher_id = ? AND student_id = ?", tid, body.StudentID).First(&q).Error
+	err := db.Unscoped().Where("teacher_id = ? AND student_id = ?", tid, studentID).First(&q).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		q = models.StudentTeacherCoachingQuota{
-			TeacherID: tid, StudentID: body.StudentID,
+			TeacherID: tid, StudentID: studentID,
 			RemainingMinutes: body.RemainingMinutes, TotalAllocatedMinutes: body.RemainingMinutes, Version: 0,
 		}
 		if err := db.Create(&q).Error; err != nil {
@@ -1345,7 +1350,7 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 		}
 		_ = db.Preload("Student").First(&q, q.ID).Error
 		coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "老师添加学员", map[string]any{
-			"teacherId": tid, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
+			"teacherId": tid, "studentId": studentID, "remainingMinutes": body.RemainingMinutes,
 		})
 		response.SuccessI18n(c, "common.ok", q)
 		return
@@ -1368,7 +1373,7 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 	}
 	_ = db.Preload("Student").First(&q, q.ID).Error
 	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "老师更新学员额度", map[string]any{
-		"teacherId": tid, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
+		"teacherId": tid, "studentId": studentID, "remainingMinutes": body.RemainingMinutes,
 	})
 	response.SuccessI18n(c, "common.ok", q)
 }
@@ -1385,7 +1390,12 @@ func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
 		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
-	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
+	studentID := body.StudentID.Uint()
+	if studentID == 0 {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+	if err := coachingTeacherHasStudentPair(db, tid, studentID); err != nil {
 		response.FailI18n(c, "coaching.add_student_first", nil)
 		return
 	}
@@ -1400,7 +1410,7 @@ func (h *Handlers) coachingTeacherCreateAppointment(c *gin.Context) {
 		return
 	}
 	ap := models.CoachingAppointment{
-		TeacherID: tid, StudentID: body.StudentID,
+		TeacherID: tid, StudentID: studentID,
 		ScheduledDate: coachingDateOnly(sd), StartTime: body.StartTime, EndTime: body.EndTime,
 		DurationMinutes: dur, Status: models.CoachingStatusScheduled, Title: body.Title, Notes: body.Notes,
 	}
@@ -1447,7 +1457,12 @@ func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
 		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
-	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
+	studentID := body.StudentID.Uint()
+	if studentID == 0 {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+	if err := coachingTeacherHasStudentPair(db, tid, studentID); err != nil {
 		response.FailI18n(c, "coaching.add_student_first", nil)
 		return
 	}
@@ -1461,7 +1476,7 @@ func (h *Handlers) coachingTeacherUpdateAppointment(c *gin.Context) {
 		response.FailI18n(c, "coaching.invalid_time", nil)
 		return
 	}
-	ap.StudentID = body.StudentID
+	ap.StudentID = studentID
 	ap.ScheduledDate = coachingDateOnly(sd)
 	ap.StartTime = body.StartTime
 	ap.EndTime = body.EndTime
@@ -1593,8 +1608,8 @@ func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 }
 
 type coachingPracticeStartBody struct {
-	StudentID      uint `json:"studentId" binding:"required"`
-	PlannedMinutes int  `json:"plannedMinutes"` // 计划练习分钟，默认 45，范围 1–180
+	StudentID      utils.JSONUint `json:"studentId" binding:"required"`
+	PlannedMinutes int            `json:"plannedMinutes"` // 计划练习分钟，默认 45，范围 1–180
 }
 
 // coachingTeacherStartPractice 无排课练习开课：为所选学员创建临时课次并立即开始，结束时走普通下课扣额度。
@@ -1606,7 +1621,12 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 		return
 	}
 	var body coachingPracticeStartBody
-	if err := c.ShouldBindJSON(&body); err != nil || body.StudentID == 0 {
+	if err := c.ShouldBindJSON(&body); err != nil {
+		response.FailI18n(c, "coaching.select_student", nil)
+		return
+	}
+	studentID := body.StudentID.Uint()
+	if studentID == 0 {
 		response.FailI18n(c, "coaching.select_student", nil)
 		return
 	}
@@ -1618,11 +1638,11 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 		planned = 180
 	}
 
-	if err := coachingTeacherHasStudentPair(db, tid, body.StudentID); err != nil {
+	if err := coachingTeacherHasStudentPair(db, tid, studentID); err != nil {
 		response.FailI18n(c, "coaching.add_student_first", nil)
 		return
 	}
-	q, err := coachingGetQuota(db, tid, body.StudentID)
+	q, err := coachingGetQuota(db, tid, studentID)
 	if errors.Is(err, gorm.ErrRecordNotFound) || q.RemainingMinutes <= 0 {
 		response.FailI18n(c, "coaching.quota_insufficient", nil)
 		return
@@ -1651,7 +1671,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 	}
 	for i := range inProgress {
 		ap := inProgress[i]
-		if ap.StudentID == body.StudentID {
+		if ap.StudentID == studentID {
 			_ = db.Preload("Teacher").Preload("Student").First(&ap, ap.ID).Error
 			dto := coachingToWeekDTO([]models.CoachingAppointment{ap})
 			var out any
@@ -1687,7 +1707,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 
 	title := "单词练习"
 	ap := models.CoachingAppointment{
-		TeacherID: tid, StudentID: body.StudentID,
+		TeacherID: tid, StudentID: studentID,
 		ScheduledDate:   coachingDateOnly(now),
 		StartTime:       startHm,
 		EndTime:         endHm,

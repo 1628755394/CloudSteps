@@ -8,6 +8,7 @@ import {
   searchCoachingStudents,
   type CoachingStudentSearchResult,
 } from "../api/coaching";
+import { normalizeSnowflakeId } from "../utils/json-snowflake";
 import { showToast } from "../utils/toast";
 
 type Props = {
@@ -60,7 +61,7 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
     setAdding(true);
     try {
       const res = await addTeacherCoachingStudent({
-        studentId: picked.id,
+        studentId: normalizeSnowflakeId(picked.id),
         remainingMinutes: mins,
       });
       if (res.code !== 200) {

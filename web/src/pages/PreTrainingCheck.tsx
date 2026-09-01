@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import { getStudyWords, startStudySession } from "../api/study";
+import { getTrainingStudent } from "../utils/trainingStudent";
 import { AnnotationLayer } from "../components/AnnotationLayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
 import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
@@ -338,7 +339,13 @@ export default function PreTrainingCheck() {
 
     setStarting(true);
     try {
-      const res = await startStudySession({ wordBookId, knownIds, unknownIds });
+      const trainingStudent = getTrainingStudent();
+      const res = await startStudySession({
+        wordBookId,
+        knownIds,
+        unknownIds,
+        ...(trainingStudent?.id ? { studentId: trainingStudent.id } : {}),
+      });
       const sessionId = res.data?.sessionId;
       const sessionWords = res.data?.words;
       if (res.data?.finished || !Array.isArray(sessionWords) || sessionWords.length === 0) {
@@ -559,102 +566,129 @@ export default function PreTrainingCheck() {
       </NoteSplitLayout>
 
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
-        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-3">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+            <CloudButton
+              type="button"
+              variant={note.open ? "brand" : "outline"}
+              size="pill"
+              onClick={() => note.setOpen((value) => !value)}
+              aria-label={t("practice.open_free_note")}
+              title={t("practice.open_free_note")}
+              className="shrink-0 max-sm:px-2 max-sm:text-xs"
+            >
+              <PanelTop size={15} className={note.open ? "text-white" : "text-[#c45c78]"} />
+              <span className="hidden sm:inline">{t("practice.free_note")}</span>
+            </CloudButton>
+            <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
+            <CloudButton
+              variant={detailMode ? "brand" : "outline"}
+              size="pill"
+              onClick={() => {
+                setDetailMode((v) => {
+                  if (v) setDetailWord(null);
+                  return !v;
+                });
+              }}
+              className="shrink-0 max-sm:px-2 max-sm:text-xs"
+              aria-label={t("practice.expand")}
+              title={t("practice.expand")}
+            >
+              <BookOpen size={15} />
+              <span className="hidden sm:inline">{t("practice.expand")}</span>
+            </CloudButton>
+            {detailMode && (
               <CloudButton
-                type="button"
-                variant={note.open ? "brand" : "outline"}
+                variant={simpleDetail ? "brand" : "outline"}
                 size="pill"
-                onClick={() => note.setOpen((value) => !value)}
-                aria-label={t("practice.open_free_note")}
-                title={t("practice.open_free_note")}
-                className="max-sm:px-2 max-sm:text-xs"
+                onClick={() => setSimpleDetail((v) => !v)}
+                title={simpleDetail ? t("practice.simple_tip_on") : t("practice.simple_tip_off")}
+                className="shrink-0 max-sm:px-2 max-sm:text-xs"
               >
-                <PanelTop size={15} className={note.open ? "text-white" : "text-[#c45c78]"} />
-                <span className="hidden sm:inline">{t("practice.free_note")}</span>
+                {t("practice.simple")}
               </CloudButton>
-              <WordViewModeToggle mode={viewMode} onChange={setViewMode} />
-              <CloudButton
-                variant={detailMode ? "brand" : "outline"}
-                size="pill"
-                onClick={() => {
-                  setDetailMode((v) => {
-                    if (v) setDetailWord(null);
-                    return !v;
-                  });
-                }}
-                className="max-sm:px-2 max-sm:text-xs"
-              >
-                <BookOpen size={15} />
-                <span className="hidden sm:inline">{t("practice.expand")}</span>
-              </CloudButton>
-              {detailMode && (
+            )}
+            {shuffleMode ? (
+              <>
                 <CloudButton
-                  variant={simpleDetail ? "brand" : "outline"}
+                  variant="outline"
                   size="pill"
-                  onClick={() => setSimpleDetail((v) => !v)}
-                  title={simpleDetail ? t("practice.simple_tip_on") : t("practice.simple_tip_off")}
-                  className="max-sm:px-2 max-sm:text-xs"
+                  onClick={handleShuffle}
+                  className="shrink-0 max-sm:px-2 max-sm:text-xs"
+                  aria-label={t("practice.reshuffle")}
+                  title={t("practice.reshuffle")}
                 >
-                  {t("practice.simple")}
-                </CloudButton>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              {shuffleMode && (
-                <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">
                   <Shuffle size={15} />
                   <span className="hidden sm:inline">{t("practice.reshuffle")}</span>
                 </CloudButton>
-              )}
-              {shuffleMode ? (
-                <CloudButton variant="outline" size="pill" onClick={handleSequential} className="max-sm:px-2 max-sm:text-xs">
+                <CloudButton
+                  variant="outline"
+                  size="pill"
+                  onClick={handleSequential}
+                  className="shrink-0 max-sm:px-2 max-sm:text-xs"
+                  aria-label={t("practice.sequential")}
+                  title={t("practice.sequential")}
+                >
                   <ArrowDownAZ size={15} />
                   <span className="hidden sm:inline">{t("practice.sequential")}</span>
                 </CloudButton>
-              ) : (
-                <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">
-                  <Shuffle size={15} />
-                  <span className="hidden sm:inline">{t("practice.shuffle")}</span>
-                </CloudButton>
-              )}
-              <CloudButton variant="outline" size="pill" onClick={handleSelectAll} className="max-sm:px-2 max-sm:text-xs">
-                {t("practice.select_all")}
+              </>
+            ) : (
+              <CloudButton
+                variant="outline"
+                size="pill"
+                onClick={handleShuffle}
+                className="shrink-0 max-sm:px-2 max-sm:text-xs"
+                aria-label={t("practice.shuffle")}
+                title={t("practice.shuffle")}
+              >
+                <Shuffle size={15} />
+                <span className="hidden sm:inline">{t("practice.shuffle")}</span>
               </CloudButton>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 w-full mt-2 md:mt-3">
-            <CloudButton variant="brandOutline" size="pill" className="shrink-0 max-sm:px-2 max-sm:text-xs" onClick={handleSelect5}>
-              {t("practice.select_five")}
+            )}
+            <CloudButton
+              variant="outline"
+              size="pill"
+              onClick={handleSelectAll}
+              className="shrink-0 max-sm:px-2 max-sm:text-xs"
+            >
+              {t("practice.select_all")}
             </CloudButton>
             <CloudButton
-              type="button"
-              variant="brand"
+              variant="brandOutline"
               size="pill"
-              className="hidden sm:flex flex-1 min-w-0 truncate"
-              onClick={handleStartLearning}
-              disabled={selectedCount === 0}
-              loading={starting}
-              loadingText={t("practice.starting")}
+              className="shrink-0 max-sm:px-2 max-sm:text-xs"
+              onClick={handleSelect5}
             >
-              {t("practice.start_learning")}{selectedCount > 0 && `（${selectedCount}个）`}
+              {t("practice.select_five")}
             </CloudButton>
           </div>
+          <CloudButton
+            type="button"
+            variant="brand"
+            size="pill"
+            className="hidden sm:flex shrink-0"
+            onClick={handleStartLearning}
+            disabled={selectedCount === 0}
+            loading={starting}
+            loadingText={t("practice.starting")}
+          >
+            {t("practice.start_learning")}
+            {selectedCount > 0 ? `（${selectedCount}）` : ""}
+          </CloudButton>
+          <CloudButton
+            type="button"
+            variant="brand"
+            size="iconRound"
+            onClick={handleStartLearning}
+            disabled={selectedCount === 0 || starting}
+            className="shrink-0 size-10 sm:hidden"
+            aria-label={t("practice.start_learning")}
+          >
+            <ArrowRight size={20} />
+          </CloudButton>
         </div>
       </div>
-
-      <CloudButton
-        type="button"
-        variant="brand"
-        size="iconRound"
-        onClick={handleStartLearning}
-        disabled={selectedCount === 0 || starting}
-        className="fixed right-3 bottom-16 z-50 size-11 shadow-lg sm:hidden"
-        aria-label={t("practice.start_learning")}
-      >
-        <ArrowRight size={20} />
-      </CloudButton>
 
     </FlowPageShell>
   );

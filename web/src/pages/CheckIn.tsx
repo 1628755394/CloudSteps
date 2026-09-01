@@ -94,7 +94,7 @@ export default function CheckIn() {
     }
 
     return { weeks, monthLabels, startDateStr };
-  }, [status]);
+  }, [status, t]);
 
   const tiers = status?.rewardPreview?.length ? status.rewardPreview : FALLBACK_TIERS;
   const streak = status?.currentStreak ?? 0;
@@ -270,9 +270,9 @@ export default function CheckIn() {
                 <div className="flex gap-[4px]">
                   {/* 星期标签列 */}
                   <div className="flex flex-col gap-[4px] shrink-0 w-6">
-                    {[["sun","mon","tue","wed","thu","fri","sat"] as const].map((w, i) => (
+                    {(["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const).map((w) => (
                       <div
-                        key={i}
+                        key={w}
                         className="text-[9px] text-muted-soft leading-none flex items-center justify-end pr-1"
                         style={{ height: "var(--cell-size)" }}
                       >

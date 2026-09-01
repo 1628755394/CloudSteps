@@ -10,8 +10,9 @@ export interface ReviewTodayResponse {
 }
 
 export interface StartReviewSessionRequest {
-  wordBookId: number
+  wordBookId: string | number
   wordIds?: number[]
+  studentId?: string | number
 }
 
 export interface StartReviewSessionResponse {
@@ -27,23 +28,30 @@ export interface CompleteReviewResult {
 }
 
 export const getReviewToday = async (
-  wordBookId: number,
-  opts?: { date?: string; timeZone?: string; limit?: number; studySessionId?: number; all?: boolean }
+  wordBookId: string | number,
+  opts?: { date?: string; timeZone?: string; limit?: number; studySessionId?: number; all?: boolean; studentId?: string | number }
 ): Promise<ApiResponse<ReviewTodayResponse>> => {
+  const id = String(wordBookId).trim()
+  if (!id || id === '0') {
+    return { code: 400, msg: 'wordBookId required', data: { words: [] } } as ApiResponse<ReviewTodayResponse>
+  }
   const tz = opts?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
   return get<ReviewTodayResponse>('/review/today', {
     params: {
-      wordBookId,
+      wordBookId: id,
       ...(opts?.date ? { date: opts.date } : {}),
       timeZone: tz,
       ...(opts?.limit ? { limit: opts.limit } : {}),
       ...(opts?.studySessionId ? { studySessionId: opts.studySessionId } : {}),
       ...(opts?.all ? { all: 'true' } : {}),
+      ...(opts?.studentId ? { studentId: String(opts.studentId) } : {}),
     },
   })
 }
 
 export type ReviewBookStatRow = {
+  studentId?: string | number
+  studentName?: string
   wordBookId: number
   cnt: number
   name: string

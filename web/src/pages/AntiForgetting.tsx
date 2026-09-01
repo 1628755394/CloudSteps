@@ -1,27 +1,71 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { BookOpen, ChevronLeft, ChevronRight, Clock, Eye } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudDatePicker, CloudEmpty, CloudSpin } from "../components/cloudsteps/arco";
 import { listReviewBooksByDate, type ReviewBookStatRow } from "../api/review";
 import { useAuthStore } from "../stores/authStore";
-import { formatPracticeTimeRange } from "../utils/reviewPracticeTime";
 import { reviewCurveLabel } from "../utils/reviewCurve";
+import { normalizeSnowflakeId } from "../utils/json-snowflake";
 import { useTranslation } from "react-i18next";
-
-type ReviewBookStat = ReviewBookStatRow;
+import i18n from "../i18n";
 
 type ReviewTask = {
   id: string;
-  practiceTimeLabel: string;
+  studentId: string;
   student: string;
   vocabularyPack: string;
-  trainingTime: string;
-  status: "pending" | "completed";
+  level: string;
   wordBookId: number;
   sessionId: number;
   count: number;
+  timeSlot: string;
+  timeSort: number;
+  trainingAt: string;
+  practiceStartedAt?: string;
 };
+
+type TimeSlotGroup = {
+  timeSlot: string;
+  timeSort: number;
+  tasks: ReviewTask[];
+};
+
+function studentDisplayName(row: ReviewBookStatRow): string {
+  const name = String(row.studentName || "").trim();
+  if (name) return name;
+  const id = normalizeSnowflakeId(row.studentId);
+  return id ? i18n.t("student_detail.student_fallback", { id }) : i18n.t("anti_forgetting.current_user");
+}
+
+function clockParts(iso: string | null | undefined, tz: string) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const timeFmt = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const dateFmt = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = dateFmt.formatToParts(d);
+  const y = parts.find((p) => p.type === "year")?.value ?? "";
+  const mo = parts.find((p) => p.type === "month")?.value ?? "";
+  const day = parts.find((p) => p.type === "day")?.value ?? "";
+  const slot = timeFmt.format(d);
+  const [hh, mm] = slot.split(":").map((x) => Number(x));
+  return {
+    slot,
+    sort: (Number.isFinite(hh) ? hh : 0) * 60 + (Number.isFinite(mm) ? mm : 0),
+    trainingAt: `${y}-${mo}-${day} ${slot}`,
+  };
+}
 
 function toDateInputValue(d: Date) {
   const yyyy = d.getFullYear();
@@ -42,7 +86,7 @@ export default function AntiForgetting() {
   const navigate = useNavigate();
   const reviewCurvePreset = useAuthStore((s) => s.user?.reviewCurvePreset) || "times5";
 
-  const [bookStats, setBookStats] = useState<ReviewBookStat[]>([]);
+  const [bookStats, setBookStats] = useState<ReviewBookStatRow[]>([]);
   const [loadingBooks, setLoadingBooks] = useState(true);
 
   useEffect(() => {
@@ -52,7 +96,7 @@ export default function AntiForgetting() {
       try {
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai";
         const res = await listReviewBooksByDate(selectedDate, tz);
-        const arr = Array.isArray(res.data) ? (res.data as ReviewBookStat[]) : [];
+        const arr = Array.isArray(res.data) ? (res.data as ReviewBookStatRow[]) : [];
         if (mounted) setBookStats(arr);
       } catch {
         if (mounted) setBookStats([]);
@@ -65,32 +109,47 @@ export default function AntiForgetting() {
     };
   }, [selectedDate]);
 
-  const reviewTasks = useMemo<ReviewTask[]>(() => {
-    const student = sessionStorage.getItem("lb_user_name") || t("anti_forgetting.current_user");
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai";
-    return bookStats.map((b) => {
-      const minutes = Math.min(60, Math.max(10, Math.ceil(b.cnt / 20) * 10));
-      return {
-      id: `${b.wordBookId}-${b.sessionId ?? 0}`,
-      practiceTimeLabel: formatPracticeTimeRange(b.practiceStartedAt, b.practiceEndedAt, tz),
-      student,
-      vocabularyPack: b.name,
-      trainingTime: t("create_appointment.duration_min", { n: minutes }),
-      status: "pending",
-      wordBookId: b.wordBookId,
-      sessionId: b.sessionId ?? 0,
-      count: b.cnt,
-    };
-    });
-  }, [bookStats, t]);
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Shanghai";
 
-  const groupedByStudent: { [key: string]: typeof reviewTasks } = {};
-  reviewTasks.forEach((task) => {
-    if (!groupedByStudent[task.student]) {
-      groupedByStudent[task.student] = [];
+  const reviewTasks = useMemo<ReviewTask[]>(() => {
+    return bookStats.map((b) => {
+      const studentId = normalizeSnowflakeId(b.studentId) || "self";
+      const clock = clockParts(b.practiceStartedAt, timeZone);
+      return {
+        id: `${studentId}-${b.wordBookId}-${b.sessionId ?? 0}`,
+        studentId,
+        student: studentDisplayName(b),
+        vocabularyPack: b.name,
+        level: String(b.level || "").trim(),
+        wordBookId: b.wordBookId,
+        sessionId: b.sessionId ?? 0,
+        count: b.cnt,
+        timeSlot: clock?.slot || "—",
+        timeSort: clock?.sort ?? 9999,
+        trainingAt: clock?.trainingAt || "—",
+        practiceStartedAt: b.practiceStartedAt,
+      };
+    });
+  }, [bookStats, timeZone]);
+
+  const timelineGroups = useMemo<TimeSlotGroup[]>(() => {
+    const map = new Map<string, TimeSlotGroup>();
+    for (const task of reviewTasks) {
+      const key = task.timeSlot;
+      const group = map.get(key);
+      if (group) {
+        group.tasks.push(task);
+      } else {
+        map.set(key, { timeSlot: key, timeSort: task.timeSort, tasks: [task] });
+      }
     }
-    groupedByStudent[task.student].push(task);
-  });
+    return Array.from(map.values())
+      .sort((a, b) => a.timeSort - b.timeSort || a.timeSlot.localeCompare(b.timeSlot))
+      .map((group) => ({
+        ...group,
+        tasks: [...group.tasks].sort((x, y) => x.student.localeCompare(y.student, "zh-CN")),
+      }));
+  }, [reviewTasks]);
 
   const shiftDate = (deltaDays: number) => {
     const d = parseYMDLocal(selectedDate);
@@ -106,17 +165,26 @@ export default function AntiForgetting() {
     sessionStorage.setItem("lb_review_wordbook_name", task.vocabularyPack);
     sessionStorage.setItem("lb_review_date", selectedDate);
     sessionStorage.setItem("lb_review_return", "/anti-forgetting");
+    if (task.studentId && task.studentId !== "self") {
+      sessionStorage.setItem("lb_review_student_id", task.studentId);
+    } else {
+      sessionStorage.removeItem("lb_review_student_id");
+    }
     if (task.sessionId > 0) {
       sessionStorage.setItem("lb_review_study_session_id", String(task.sessionId));
     } else {
       sessionStorage.removeItem("lb_review_study_session_id");
     }
+    const studentQ =
+      task.studentId && task.studentId !== "self"
+        ? `&studentId=${encodeURIComponent(task.studentId)}`
+        : "";
     if (isToday) {
       sessionStorage.setItem("lb_mode", "review");
       const sessionQ =
         task.sessionId > 0 ? `&studySessionId=${encodeURIComponent(String(task.sessionId))}` : "";
       navigate(
-        `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}${sessionQ}`
+        `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}${sessionQ}${studentQ}`
       );
       return;
     }
@@ -124,20 +192,16 @@ export default function AntiForgetting() {
     const sessionQ =
       task.sessionId > 0 ? `&studySessionId=${encodeURIComponent(String(task.sessionId))}` : "";
     navigate(
-      `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}&view=1${sessionQ}`
+      `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}&view=1${sessionQ}${studentQ}`
     );
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <p className="text-xs text-muted-foreground">
-          {t("anti_forgetting.curve", { label: reviewCurveLabel(reviewCurvePreset) })}
-        </p>
-        <CloudButton variant="ghost" size="sm" onClick={() => navigate("/create-anti-forgetting")}>
-          {t("anti_forgetting.adjust_curve")}
-        </CloudButton>
-      </div>
+      <p className="text-xs text-muted-foreground px-1">
+        {t("anti_forgetting.curve", { label: reviewCurveLabel(reviewCurvePreset) })}
+      </p>
+
       <CloudCard className="p-4 sm:p-5">
         <div className="flex items-center gap-2 sm:gap-4">
           <CloudButton
@@ -178,61 +242,80 @@ export default function AntiForgetting() {
           <CloudEmpty description={t("anti_forgetting.empty")} />
         </CloudCard>
       ) : (
-        <div className="space-y-4">
-          {Object.entries(groupedByStudent).map(([student, tasks]) => (
-            <CloudCard key={student} className="overflow-hidden">
-              <div className="flex items-center gap-3 px-4 py-4 sm:px-5 border-b border-border">
-                <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center text-sm font-semibold shrink-0">
-                  {student.charAt(0)}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-base font-semibold text-foreground truncate">{student}</div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {t("anti_forgetting.tasks_today", { count: tasks.length })}
-                  </p>
-                </div>
-              </div>
+        <CloudCard className="overflow-hidden border border-border/80">
+          <div className="flex items-center gap-1.5 px-4 py-2.5 bg-muted/45 border-b border-border/80 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground/80 tabular-nums">{selectedDate}</span>
+            <ChevronDown size={14} className="opacity-50" />
+          </div>
 
-              <div className="divide-y divide-border">
-                {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3.5 sm:px-5 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      {task.practiceTimeLabel ? (
-                        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground tabular-nums shrink-0 max-w-[11rem] sm:max-w-none">
-                          <Clock size={14} className="text-primary shrink-0" />
-                          <span className="truncate">{task.practiceTimeLabel}</span>
-                        </span>
-                      ) : null}
-                      <span className="inline-flex items-center gap-2 min-w-0 flex-1">
-                        <BookOpen size={15} className="text-secondary-brand shrink-0" />
-                        <span className="text-sm text-charcoal truncate">{task.vocabularyPack}</span>
-                      </span>
-                      <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">
-                        {t("anti_forgetting.words_time", { count: task.count, time: task.trainingTime })}
-                      </span>
+          <div className="relative px-3 py-4 sm:px-5 sm:py-5">
+            <div
+              className="absolute left-[4.35rem] sm:left-[4.85rem] top-4 bottom-4 w-px bg-border/90"
+              aria-hidden
+            />
+
+            <div className="space-y-0">
+              {timelineGroups.map((group) => (
+                <div key={group.timeSlot} className="relative">
+                  {group.tasks.map((task, idx) => (
+                    <div
+                      key={task.id}
+                      className={`relative flex gap-3 sm:gap-4 ${idx < group.tasks.length - 1 ? "pb-5" : "pb-6 last:pb-0"}`}
+                    >
+                      <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-end pt-1">
+                        {idx === 0 ? (
+                          <div className="relative z-[1] min-w-[3rem] px-1.5 py-2 rounded-md border border-border bg-card text-center text-xs font-medium text-foreground tabular-nums shadow-sm">
+                            {group.timeSlot}
+                          </div>
+                        ) : (
+                          <div className="w-[3rem]" aria-hidden />
+                        )}
+                      </div>
+
+                      <div className="relative flex-1 min-w-0 pt-0.5 pl-1">
+                        <div
+                          className="absolute -left-[1.15rem] sm:-left-[1.35rem] top-[0.85rem] w-2.5 h-px bg-border"
+                          aria-hidden
+                        />
+
+                        <div className="text-[15px] font-semibold text-foreground leading-snug mb-1.5">
+                          {task.student}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenTask(task)}
+                          disabled={task.count <= 0}
+                          className="w-full text-left group disabled:opacity-50"
+                        >
+                          <div className="flex items-start gap-1 text-sm text-foreground leading-relaxed">
+                            <span className="text-muted-foreground shrink-0 mt-0.5">•</span>
+                            <span className="min-w-0 flex-1">
+                              {task.level ? (
+                                <span className="text-muted-foreground">【{task.level}】</span>
+                              ) : null}
+                              {task.count > 0 ? (
+                                <span className="text-muted-foreground">
+                                  【{t("anti_forgetting.word_count_tag", { count: task.count })}】
+                                </span>
+                              ) : null}
+                              <span className="text-foreground group-hover:text-primary transition-colors">
+                                {task.vocabularyPack}
+                              </span>
+                            </span>
+                          </div>
+                          <p className="mt-1 pl-3.5 text-xs text-muted-foreground">
+                            {t("anti_forgetting.training_at", { time: task.trainingAt })}
+                          </p>
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                      <span className="text-xs text-muted-foreground sm:hidden">{task.trainingTime}</span>
-                      <CloudButton
-                        variant="brand"
-                        size="sm"
-                        onClick={() => handleOpenTask(task)}
-                        disabled={task.count <= 0}
-                        className="gap-1.5"
-                      >
-                        <Eye size={14} />
-                        {task.count <= 0 ? t("anti_forgetting.no_words") : isToday ? t("anti_forgetting.review") : t("practice.view")}
-                      </CloudButton>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CloudCard>
-          ))}
-        </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </CloudCard>
       )}
     </div>
   );

@@ -10,6 +10,7 @@ import (
 type StudySession struct {
 	common.BaseModel
 	UserID       uint       `json:"userId" gorm:"index;index:idx_user_type_created;not null"`
+	StudentID    uint       `json:"studentId" gorm:"index;default:0;comment:老师代练时的学员ID，0表示本人自练"`
 	WordBookID   uint       `json:"wordBookId" gorm:"index"`
 	SessionType  string     `json:"sessionType" gorm:"size:20;not null;index:idx_user_type_created"`
 	Status       string     `json:"status" gorm:"size:20;default:'in_progress';index"`
