@@ -33,9 +33,9 @@ const comparison = [
 ];
 
 const paymentMethods = [
-  { id: "wechat", label: "微信支付", icon: "icon-weixinzhifu" },
-  { id: "alipay", label: "支付宝", icon: "icon-zhifubaozhifu" },
-  { id: "bank", label: "信用卡银行卡", icon: "icon-xinyongkayinhangka" },
+  { id: "wechat", label: "微信支付", icon: "icon-weixinzhifu", color: "text-success" },
+  { id: "alipay", label: "支付宝", icon: "icon-zhifubaozhifu", color: "text-secondary-brand" },
+  { id: "bank", label: "信用卡银行卡", icon: "icon-xinyongkayinhangka", color: "text-primary" },
 ];
 
 const money = (value: number) => `¥${value.toFixed(0)}`;
@@ -128,9 +128,9 @@ export default function Recharge() {
               <div className="mt-6 border-t border-border/70 pt-5">
                 <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold">会员服务保障</h3><span className="text-xs text-muted-foreground">开通即生效</span></div>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="group rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-sm"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-110" /><div><p className="text-sm font-medium">安全支付</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">支付信息全程加密</p></div></div>
-                  <div className="group rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-sm"><Sparkles size={17} className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-110" /><div><p className="text-sm font-medium">持续更新</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">新内容持续加入</p></div></div>
-                  <div className="group rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-sm"><Headphones size={17} className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-110" /><div><p className="text-sm font-medium">专属支持</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">遇到问题随时咨询</p></div></div>
+                  <div className="group h-full rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-sm"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-110" /><div><p className="text-sm font-medium">安全支付</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">支付信息全程加密</p></div></div>
+                  <div className="group h-full rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-sm"><Sparkles size={17} className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-110" /><div><p className="text-sm font-medium">持续更新</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">新内容持续加入</p></div></div>
+                  <div className="group h-full rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-sm"><Headphones size={17} className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-110" /><div><p className="text-sm font-medium">专属支持</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">遇到问题随时咨询</p></div></div>
                 </div>
               </div>
             </CloudCard>
@@ -151,7 +151,7 @@ export default function Recharge() {
 
               <CloudCard className="mt-3 p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Crown size={16} className="text-primary" />支付方式</div>
-                <div className="grid grid-cols-3 gap-2">{paymentMethods.map((item) => <button key={item.id} type="button" onClick={() => setMethod(item.label)} aria-pressed={method === item.label} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-md border px-1 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${method === item.label ? "border-primary bg-primary-soft font-medium text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}><i className={`payment-iconfont ${item.icon} text-lg leading-none`} aria-hidden="true" />{item.label}</button>)}</div>
+                <div className="grid grid-cols-3 gap-2">{paymentMethods.map((item) => <button key={item.id} type="button" onClick={() => setMethod(item.label)} aria-pressed={method === item.label} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-md border px-1 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${method === item.label ? "border-primary bg-primary-soft font-medium text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}><i className={`payment-iconfont ${item.icon} ${item.color} text-lg leading-none`} aria-hidden="true" />{item.label}</button>)}</div>
                 <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">已选择：{method}<ChevronRight size={13} /></p>
               </CloudCard>
             </aside>
