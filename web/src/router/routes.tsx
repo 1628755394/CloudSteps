@@ -35,6 +35,8 @@ import Announcements from "../pages/Announcements";
 import Login from "../pages/Login";
 import Forbidden from "../pages/Forbidden";
 import ProfileEdit from "../pages/ProfileEdit";
+import InviteCode from "../pages/InviteCode";
+import Recharge from "../pages/Recharge";
 import About from "../pages/About";
 import Terms from "../pages/Terms";
 import Privacy from "../pages/Privacy";
@@ -119,6 +121,8 @@ export const router = createBrowserRouter(
         ),
       },
       { path: "profile/edit", element: <ProfileEdit /> },
+      { path: "invite-code", element: <InviteCode /> },
+      { path: "recharge", element: <Recharge /> },
       { path: "notifications", element: <Notifications /> },
     ],
   },
