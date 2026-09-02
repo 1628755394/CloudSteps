@@ -60,20 +60,22 @@ export default function Recharge() {
 
   return (
     <div className="h-dvh overflow-hidden bg-background text-foreground">
-      <header className="flex min-h-24 items-center border-t-2 border-primary/25 bg-card px-4 py-3 shadow-sm sm:px-6">
-        <button type="button" onClick={() => navigate("/coach-center")} className="mr-3 flex size-10 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-primary-soft" aria-label="返回"><ArrowLeft size={25} /></button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">会员中心</h1>
-          <p className="mt-1 text-sm text-muted-foreground">选择适合你的会员方案</p>
+      <header className="border-t-2 border-primary/20 bg-card shadow-sm">
+        <div className="mx-auto flex min-h-20 w-full max-w-4xl items-center px-3 py-3 sm:px-5">
+          <button type="button" onClick={() => navigate("/coach-center")} className="mr-3 flex size-10 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" aria-label="返回"><ArrowLeft size={25} /></button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">会员中心</h1>
+            <p className="mt-1 text-sm text-muted-foreground">选择适合你的会员方案</p>
+          </div>
+          <div className="ml-auto flex size-9 items-center justify-center rounded-full bg-primary-soft text-primary" aria-hidden="true"><span className="text-lg tracking-widest">•••</span></div>
         </div>
-        <div className="ml-auto flex size-9 items-center justify-center rounded-full bg-primary-soft text-primary"><span className="text-lg tracking-widest">•••</span></div>
       </header>
 
-      <main className="h-[calc(100dvh-6rem)] overflow-y-auto px-3 pb-5 pt-4 sm:px-5">
+      <main className="h-[calc(100dvh-5rem)] overflow-y-auto px-3 pb-5 pt-3 sm:px-5">
         <div className="mx-auto max-w-4xl space-y-4 pb-8">
           <CloudCard className="p-4 sm:p-5">
             <div className="mb-4 flex items-start justify-between"><div><h2 className="text-xl font-bold">选择会员套餐，解锁全部学习能力</h2><p className="mt-1 text-sm text-muted-foreground">开通立即解锁全部会员权益</p></div><span className="flex items-center gap-1 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary"><LockKeyhole size={13} />安全支付</span></div>
-            <div className="flex overflow-x-auto rounded-xl bg-muted p-1">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => { setSelectedId(plan.id); setCouponChecked(false); }} className={`relative min-w-[92px] flex-1 rounded-lg px-2 py-2.5 text-sm transition-all ${selected.id === plan.id ? "bg-primary font-bold text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{plan.tab}{plan.id === "yearly" ? <span className="absolute -top-2 right-1 rounded-full bg-secondary-brand px-1.5 py-0.5 text-[9px] font-medium text-primary-foreground">推荐</span> : null}</button>)}</div>
+            <div className="flex overflow-x-auto rounded-xl bg-muted p-1">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => { setSelectedId(plan.id); setCouponChecked(false); }} className={`relative min-w-[92px] flex-1 rounded-lg px-2 py-2.5 text-sm transition-all ${selected.id === plan.id ? "bg-primary font-bold text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{plan.tab}{plan.id === "yearly" ? <span className="ml-1 rounded-full bg-secondary-brand px-1.5 py-0.5 text-[9px] font-medium text-primary-foreground">推荐</span> : null}</button>)}</div>
 
             <div className="mt-4 rounded-2xl border border-primary/20 bg-gradient-to-b from-primary-soft/40 to-card p-4 sm:p-5">
               <div className="flex items-start justify-between"><div><p className="text-lg font-bold">{selected.name}</p><p className="mt-1 text-sm text-muted-foreground">{selected.period}</p></div><div className="text-right">{selected.save ? <span className="rounded bg-primary-soft px-2 py-1 text-xs font-semibold text-primary">{selected.save}</span> : null}<p className="mt-2 text-4xl font-bold tracking-tight">{couponChecked ? <><span className="mr-2 text-base font-normal text-muted-foreground line-through">{money(selected.price)}</span>{money(finalPrice)}</> : money(selected.price)}</p><p className="text-sm text-muted-foreground">折合 {selected.monthly} · {selected.period}有效期</p></div></div>
