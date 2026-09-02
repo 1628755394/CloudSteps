@@ -59,13 +59,16 @@ export default function Recharge() {
 
   return (
     <div className="h-dvh overflow-hidden bg-background text-foreground">
-      <header className="flex h-14 items-center justify-between bg-gradient-to-r from-primary to-secondary-brand px-4 text-primary-foreground shadow-sm">
-        <button type="button" onClick={() => navigate("/coach-center")} className="flex size-9 items-center justify-center rounded-full hover:bg-white/15" aria-label="返回"><ArrowLeft size={22} /></button>
-        <h1 className="text-lg font-semibold">会员中心</h1>
-        <div className="flex size-9 items-center justify-center rounded-full bg-black/10"><span className="text-lg tracking-widest">•••</span></div>
+      <header className="flex min-h-24 items-center border-t-2 border-primary/25 bg-card px-4 py-3 shadow-sm sm:px-6">
+        <button type="button" onClick={() => navigate("/coach-center")} className="mr-3 flex size-10 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-primary-soft" aria-label="返回"><ArrowLeft size={25} /></button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">会员中心</h1>
+          <p className="mt-1 text-sm text-muted-foreground">选择适合你的会员方案</p>
+        </div>
+        <div className="ml-auto flex size-9 items-center justify-center rounded-full bg-primary-soft text-primary"><span className="text-lg tracking-widest">•••</span></div>
       </header>
 
-      <main className="h-[calc(100dvh-3.5rem)] overflow-y-auto px-3 pb-5 sm:px-5">
+      <main className="h-[calc(100dvh-6rem)] overflow-y-auto px-3 pb-5 sm:px-5">
         <div className="mx-auto max-w-3xl space-y-4 pb-8">
           <CloudCard className="p-4 sm:p-5">
             <div className="mb-4 flex items-start justify-between"><div><h2 className="text-xl font-bold">选择会员套餐</h2><p className="mt-1 text-sm text-muted-foreground">按需选择，开通即享完整权益</p></div><span className="flex items-center gap-1 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary"><LockKeyhole size={13} />安全支付</span></div>
