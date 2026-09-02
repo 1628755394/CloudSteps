@@ -18,7 +18,7 @@ type Plan = {
 };
 
 const plans: Plan[] = [
-  { id: "monthly", tab: "月付", name: "月度会员", period: "1个月", price: 58, monthly: "¥58 / 月", features: ["无限学习", "全部功能无限制", "开通推广返佣", "优先客服支持"] },
+  { id: "monthly", tab: "月付", name: "月度会员", period: "1个月", price: 58, monthly: "¥58 / 月", features: ["全部功能无限制", "无限学习", "开通推广返佣", "优先客服支持"] },
   { id: "quarterly", tab: "季付", name: "季度会员", period: "3个月", price: 98, monthly: "¥32.7 / 月", save: "省 ¥76", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 300 积分", "优先客服支持"] },
   { id: "yearly", tab: "年付", name: "年度会员", period: "12个月", price: 198, monthly: "¥16.5 / 月", save: "比月付省 72%", tag: "推荐", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 1200 积分", "优先客服支持"] },
   { id: "lifetime", tab: "永久会员", name: "永久会员", period: "永久有效", price: 498, monthly: "一次购买", save: "买断最划算", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 3000 积分", "优先客服支持", "后续内容持续更新"] },
@@ -42,9 +42,10 @@ export default function Recharge() {
   const [couponChecked, setCouponChecked] = useState(false);
   const [method, setMethod] = useState("微信支付");
   const selected = useMemo(() => plans.find((plan) => plan.id === selectedId) ?? plans[2], [selectedId]);
+  const finalPrice = couponChecked ? selected.price * 0.9 : selected.price;
 
-  const checkCoupon = () => {
-    if (coupon.length !== 6) {
+  const checkCoupon = (value = coupon) => {
+    if (value.length !== 6) {
       showToast.error("请输入 6 位优惠码");
       return;
     }
@@ -53,7 +54,7 @@ export default function Recharge() {
   };
 
   const submit = () => {
-    const finalPrice = couponChecked ? selected.price * 0.9 : selected.price;
+    if (!window.confirm(`确认开通${selected.name}？一次性购买，不会自动续费。`)) return;
     showToast.success(`${selected.name}开通成功：${money(finalPrice)}（mock）`);
   };
 
@@ -71,17 +72,17 @@ export default function Recharge() {
       <main className="h-[calc(100dvh-6rem)] overflow-y-auto px-3 pb-5 pt-4 sm:px-5">
         <div className="mx-auto max-w-3xl space-y-4 pb-8">
           <CloudCard className="p-4 sm:p-5">
-            <div className="mb-4 flex items-start justify-between"><div><h2 className="text-xl font-bold">选择会员套餐</h2><p className="mt-1 text-sm text-muted-foreground">按需选择，开通即享完整权益</p></div><span className="flex items-center gap-1 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary"><LockKeyhole size={13} />安全支付</span></div>
-            <div className="grid grid-cols-4 rounded-xl bg-muted p-1">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => { setSelectedId(plan.id); setCouponChecked(false); }} className={`rounded-lg px-1 py-2.5 text-sm transition-all ${selected.id === plan.id ? "bg-card font-bold text-foreground shadow-sm" : "text-muted-foreground"}`}>{plan.tab}</button>)}</div>
+            <div className="mb-4 flex items-start justify-between"><div><h2 className="text-xl font-bold">选择会员套餐，解锁全部学习能力</h2><p className="mt-1 text-sm text-muted-foreground">开通立即解锁全部会员权益</p></div><span className="flex items-center gap-1 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary"><LockKeyhole size={13} />安全支付</span></div>
+            <div className="flex overflow-x-auto rounded-xl bg-muted p-1">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => { setSelectedId(plan.id); setCouponChecked(false); }} className={`relative min-w-[92px] flex-1 rounded-lg px-2 py-2.5 text-sm transition-all ${selected.id === plan.id ? "bg-primary font-bold text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{plan.tab}{plan.id === "yearly" ? <span className="absolute -top-2 right-1 rounded-full bg-secondary-brand px-1.5 py-0.5 text-[9px] font-medium text-primary-foreground">推荐</span> : null}</button>)}</div>
 
             <div className="mt-4 rounded-2xl border border-primary/20 bg-gradient-to-b from-primary-soft/40 to-card p-4 sm:p-5">
-              <div className="flex items-start justify-between"><div><p className="text-lg font-bold">{selected.name}</p><p className="mt-1 text-sm text-muted-foreground">{selected.period}</p></div><div className="text-right">{selected.save ? <span className="rounded bg-primary-soft px-2 py-1 text-xs font-semibold text-primary">{selected.save}</span> : null}<p className="mt-2 text-4xl font-bold tracking-tight">{money(selected.price)}</p><p className="text-sm text-muted-foreground">{selected.monthly}</p></div></div>
+              <div className="flex items-start justify-between"><div><p className="text-lg font-bold">{selected.name}</p><p className="mt-1 text-sm text-muted-foreground">{selected.period}</p></div><div className="text-right">{selected.save ? <span className="rounded bg-primary-soft px-2 py-1 text-xs font-semibold text-primary">{selected.save}</span> : null}<p className="mt-2 text-4xl font-bold tracking-tight">{couponChecked ? <><span className="mr-2 text-base font-normal text-muted-foreground line-through">{money(selected.price)}</span>{money(finalPrice)}</> : money(selected.price)}</p><p className="text-sm text-muted-foreground">折合 {selected.monthly} · {selected.period}有效期</p></div></div>
               <div className="my-4 h-px bg-border" />
               <div className="grid gap-2 sm:grid-cols-2">{selected.features.map((feature) => <p key={feature} className="flex items-center gap-2 text-sm text-muted-foreground"><Check size={16} className="shrink-0 text-primary" />{feature}</p>)}</div>
 
-              <div className="mt-5 rounded-xl border border-primary/20 bg-primary-soft/40 p-3"><div className="flex items-center gap-3"><div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-sm"><span className="text-xs font-bold">券</span></div><div className="min-w-0 flex-1"><p className="font-semibold text-foreground">优惠码</p><p className="text-xs text-muted-foreground">使用有效优惠码，当前套餐可享 9 折</p></div><span className="rounded-full bg-secondary-brand px-2.5 py-1 text-xs font-bold text-white">首单 9 折</span></div><div className="mt-3 flex gap-2"><input value={coupon} maxLength={6} onChange={(event) => { setCoupon(event.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()); setCouponChecked(false); }} placeholder="输入 6 位优惠码" className="min-w-0 flex-1 rounded-lg border border-input bg-white px-3 py-2.5 text-sm outline-none focus:border-primary" /><button type="button" onClick={checkCoupon} className="rounded-lg px-4 text-sm font-medium text-muted-foreground hover:text-primary">验证</button></div><p className="mt-2 text-xs text-muted-foreground">仅限从未购买过会员的用户，续费和升级不参与</p></div>
+              <div className="mt-5 rounded-xl border border-primary/20 bg-primary-soft/40 p-3"><div className="flex items-center gap-3"><div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-sm"><span className="text-xs font-bold">券</span></div><div className="min-w-0 flex-1"><p className="font-semibold text-foreground">优惠码</p><p className="text-xs text-muted-foreground">使用有效优惠码，当前套餐可享 9 折</p></div><span className="rounded-full bg-secondary-brand px-2.5 py-1 text-xs font-bold text-white">首单 9 折</span></div><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={coupon} maxLength={6} onChange={(event) => { const value = event.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase(); setCoupon(value); setCouponChecked(false); if (value.length === 6) checkCoupon(value); }} placeholder="输入 6 位优惠码" className="min-w-0 flex-1 rounded-lg border border-input bg-white px-3 py-2.5 text-sm outline-none focus:border-primary" /><button type="button" onClick={checkCoupon} className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-primary sm:py-0">验证</button></div><p className="mt-2 text-xs text-muted-foreground">仅限从未购买过会员的用户，续费和升级不参与</p></div>
 
-              <CloudButton onClick={submit} className="mt-4 h-12 w-full bg-primary-soft text-base font-bold text-primary hover:bg-primary-soft">立即开通 {selected.name}</CloudButton><p className="mt-2 text-center text-xs text-muted-foreground">一次性购买，不会自动续费</p>
+              <CloudButton onClick={submit} className="mt-4 h-12 w-full bg-primary text-base font-bold text-primary-foreground hover:bg-primary/90 active:scale-[0.99]">立即开通 {selected.name}</CloudButton><p className="mt-2 text-center text-xs text-muted-foreground">一次性购买，不会自动续费</p>
             </div>
           </CloudCard>
 
