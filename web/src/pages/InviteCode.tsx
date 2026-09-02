@@ -155,7 +155,7 @@ export default function InviteCode() {
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden">
       <PageBackHeader title="邀请码" subtitle="邀请好友一起学习云阶" fallbackTo="/coach-center" />
-      <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5">
+      <main className="flex-1 min-h-0 overflow-y-auto px-3 pb-5 sm:px-5">
         <div className="mx-auto max-w-2xl space-y-3 pb-6">
           <CloudCard tint="mint" className="relative overflow-hidden bg-gradient-to-br from-primary-soft/65 via-card/90 to-secondary-brand/10 p-5 text-center">
             <div className="pointer-events-none absolute -right-10 -top-12 size-36 rounded-full bg-primary/10 blur-2xl" />

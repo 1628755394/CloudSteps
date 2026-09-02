@@ -121,8 +121,6 @@ export const router = createBrowserRouter(
         ),
       },
       { path: "profile/edit", element: <ProfileEdit /> },
-      { path: "invite-code", element: <InviteCode /> },
-      { path: "recharge", element: <Recharge /> },
       { path: "notifications", element: <Notifications /> },
     ],
   },
@@ -164,6 +162,22 @@ export const router = createBrowserRouter(
     element: (
       <RequireAuth>
         <Settings />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/invite-code",
+    element: (
+      <RequireAuth>
+        <InviteCode />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: "/recharge",
+    element: (
+      <RequireAuth>
+        <Recharge />
       </RequireAuth>
     ),
   },
