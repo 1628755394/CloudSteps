@@ -13,7 +13,12 @@ const mockRecords = [
   { name: "186****1190", date: "2026-08-21", status: "已激活" },
 ];
 
-const inviteUrl = (code: string) => `https://cloudsteps.example.com/i/${code.split("-")[1]}`;
+const inviteUrl = (code: string) => {
+  const url = new URL("login", window.location.origin + import.meta.env.BASE_URL);
+  url.searchParams.set("register", "1");
+  url.searchParams.set("inviteCode", code);
+  return url.toString();
+};
 
 async function makePoster(code: string): Promise<Blob> {
   const size = 900;
@@ -88,6 +93,24 @@ export default function InviteCode() {
     }
   };
 
+  const downloadQr = () => {
+    const canvas = qrCanvasRef.current;
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        showToast.error("二维码保存失败");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `云阶二维码-${code}.png`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showToast.success("二维码已保存");
+    }, "image/png");
+  };
+
   const downloadPoster = async () => {
     setSharing(true);
     try {
@@ -147,7 +170,7 @@ export default function InviteCode() {
           <CloudCard className="p-4">
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
               <div className="rounded-xl border border-border bg-white p-2"><canvas ref={qrCanvasRef} aria-label="邀请码二维码" /></div>
-              <div className="min-w-0 flex-1 text-center sm:text-left"><p className="text-sm font-semibold">分享图片邀请好友</p><p className="mt-1 text-xs leading-5 text-muted-foreground">生成带二维码的分享海报，适合在链接被屏蔽的地方发送。</p><div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start"><CloudButton size="sm" onClick={() => void sharePoster()} disabled={sharing}><Share2 size={14} />{sharing ? "生成中…" : "分享图片"}</CloudButton><CloudButton size="sm" variant="ghost" onClick={() => void downloadPoster()} disabled={sharing}><Download size={14} />保存图片</CloudButton></div></div>
+              <div className="min-w-0 flex-1 text-center sm:text-left"><p className="text-sm font-semibold">分享图片邀请好友</p><p className="mt-1 text-xs leading-5 text-muted-foreground">生成带二维码的分享海报，适合在链接被屏蔽的地方发送。</p><div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start"><CloudButton size="sm" onClick={() => void sharePoster()} disabled={sharing}><Share2 size={14} />{sharing ? "生成中…" : "分享图片"}</CloudButton><CloudButton size="sm" variant="ghost" onClick={downloadQr}><Download size={14} />保存二维码</CloudButton><CloudButton size="sm" variant="ghost" onClick={() => void downloadPoster()} disabled={sharing}><Download size={14} />保存分享图</CloudButton></div></div>
             </div>
             <div className="mt-4 flex items-center gap-2 border-t border-border pt-3"><span className="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-foreground">{link}</span><CloudButton size="sm" variant="ghost" onClick={() => void copy(link, "邀请链接")}><Copy size={14} /></CloudButton></div>
           </CloudCard>
