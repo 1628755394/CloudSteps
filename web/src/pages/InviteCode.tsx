@@ -29,10 +29,7 @@ async function makePoster(code: string): Promise<Blob> {
   const context = canvas.getContext("2d");
   if (!context) throw new Error("无法生成分享图片");
 
-  const gradient = context.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, "#e6f8f1");
-  gradient.addColorStop(1, "#d9f0ff");
-  context.fillStyle = gradient;
+  context.fillStyle = "#e8f8f5";
   context.fillRect(0, 0, size, size);
 
   context.fillStyle = "#ffffff";
@@ -45,12 +42,6 @@ async function makePoster(code: string): Promise<Blob> {
     logoImage.onerror = () => resolve();
     logoImage.src = `${import.meta.env.BASE_URL}logo.png`;
   });
-  if (logoImage.complete && logoImage.naturalWidth > 0) {
-    const logoWidth = 120;
-    const logoHeight = (logoImage.naturalHeight / logoImage.naturalWidth) * logoWidth;
-    context.drawImage(logoImage, (size - logoWidth) / 2, 72, logoWidth, logoHeight);
-  }
-
   context.fillStyle = "#25344a";
   context.textAlign = "center";
   context.font = "600 42px sans-serif";
@@ -71,6 +62,16 @@ async function makePoster(code: string): Promise<Blob> {
     qrImage.src = qrDataUrl;
   });
   context.drawImage(qrImage, 235, 245, 430, 430);
+  if (logoImage.complete && logoImage.naturalWidth > 0) {
+    const logoWidth = 46;
+    const logoHeight = (logoImage.naturalHeight / logoImage.naturalWidth) * logoWidth;
+    const logoX = size / 2 - logoWidth / 2;
+    const logoY = size / 2 - logoHeight / 2;
+    context.fillStyle = "#ffffff";
+    context.roundRect(logoX - 9, logoY - 9, logoWidth + 18, logoHeight + 18, 10);
+    context.fill();
+    context.drawImage(logoImage, logoX, logoY, logoWidth, logoHeight);
+  }
   context.fillStyle = "#25344a";
   context.font = "700 38px monospace";
   context.fillText(code, size / 2, 755);
@@ -181,12 +182,12 @@ export default function InviteCode() {
       <PageBackHeader title="邀请码" subtitle="邀请好友一起学习云阶" fallbackTo="/coach-center" />
       <main className="flex-1 min-h-0 overflow-y-auto px-3 pb-5 sm:px-5">
         <div className="mx-auto max-w-2xl space-y-3 pb-6">
-          <CloudCard tint="mint" className="relative overflow-hidden bg-gradient-to-br from-primary-soft/65 via-card/90 to-secondary-brand/10 p-5 text-center">
+          <CloudCard tint="mint" className="relative overflow-hidden bg-card p-5 text-center">
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" aria-hidden="true" className="pointer-events-none absolute -right-8 top-1/2 h-40 w-auto -translate-y-1/2 object-contain opacity-[0.08]" />
             <div className="pointer-events-none absolute -right-10 -top-12 size-36 rounded-full bg-primary/10 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-16 -left-10 size-32 rounded-full bg-secondary-brand/10 blur-2xl" />
             <div className="relative">
-              <p className="text-xs text-muted-foreground">我的专属邀请码</p>
+              <p className="text-xs font-medium text-primary">我的专属邀请码</p>
             <p className="mt-1 font-mono text-2xl font-bold tracking-wider text-foreground">{code}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <CloudButton size="sm" onClick={() => void copy(code, "邀请码")}><Copy size={14} />复制邀请码</CloudButton>
