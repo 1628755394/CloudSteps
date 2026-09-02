@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, ChevronRight, CircleHelp, Crown, Headphones, LockKeyhole, ShieldCheck, Sparkles, Tag } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, CircleHelp, Crown, Headphones, LockKeyhole, ShieldCheck, Sparkles, Tag } from "lucide-react";
 import { useNavigate } from "react-router";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
@@ -66,13 +66,13 @@ export default function Recharge() {
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
       <header className="shrink-0 border-b border-border/70 bg-card/95 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center px-4 sm:px-6">
-          <button type="button" onClick={() => navigate("/coach-center")} className="mr-3 flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary-soft hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" aria-label="返回教练中心">
-            <ArrowLeft size={19} />
+        <div className="mx-auto flex h-12 w-full max-w-6xl items-center px-3 sm:px-5">
+          <button type="button" onClick={() => navigate("/coach-center")} className="mr-1 flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary-soft hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" aria-label="返回教练中心">
+            <ChevronLeft size={16} strokeWidth={1.8} />
           </button>
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-lg font-semibold tracking-tight">会员中心</h1>
-            <span className="hidden text-xs text-muted-foreground sm:inline">选择适合你的会员方案</span>
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-sm font-semibold tracking-tight">会员中心</h1>
+            <span className="hidden text-[11px] text-muted-foreground sm:inline">选择适合你的会员方案</span>
           </div>
           <button type="button" onClick={() => showToast.info("如需帮助，请联系在线客服")} className="ml-auto flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" aria-label="查看会员帮助">
             <CircleHelp size={18} />

@@ -46,7 +46,9 @@ async function makePoster(code: string): Promise<Blob> {
     logoImage.src = `${import.meta.env.BASE_URL}logo.png`;
   });
   if (logoImage.complete && logoImage.naturalWidth > 0) {
-    context.drawImage(logoImage, 400, 75, 100, 55);
+    const logoWidth = 120;
+    const logoHeight = (logoImage.naturalHeight / logoImage.naturalWidth) * logoWidth;
+    context.drawImage(logoImage, (size - logoWidth) / 2, 72, logoWidth, logoHeight);
   }
 
   context.fillStyle = "#25344a";
@@ -180,14 +182,16 @@ export default function InviteCode() {
       <main className="flex-1 min-h-0 overflow-y-auto px-3 pb-5 sm:px-5">
         <div className="mx-auto max-w-2xl space-y-3 pb-6">
           <CloudCard tint="mint" className="relative overflow-hidden bg-gradient-to-br from-primary-soft/65 via-card/90 to-secondary-brand/10 p-5 text-center">
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" aria-hidden="true" className="pointer-events-none absolute -right-8 top-1/2 h-40 w-auto -translate-y-1/2 object-contain opacity-[0.08]" />
             <div className="pointer-events-none absolute -right-10 -top-12 size-36 rounded-full bg-primary/10 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-16 -left-10 size-32 rounded-full bg-secondary-brand/10 blur-2xl" />
-            <div className="relative mx-auto mb-2 flex h-14 items-center justify-center"><img src={`${import.meta.env.BASE_URL}logo.png`} alt="云阶 Logo" className="h-14 w-auto object-contain" /></div>
-            <p className="text-xs text-muted-foreground">我的专属邀请码</p>
+            <div className="relative">
+              <p className="text-xs text-muted-foreground">我的专属邀请码</p>
             <p className="mt-1 font-mono text-2xl font-bold tracking-wider text-foreground">{code}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <CloudButton size="sm" onClick={() => void copy(code, "邀请码")}><Copy size={14} />复制邀请码</CloudButton>
               <CloudButton size="sm" variant="secondary" onClick={() => setCode(`CLOUD-${Math.random().toString(36).slice(2, 8).toUpperCase()}`)}>换一个</CloudButton>
+            </div>
             </div>
           </CloudCard>
 
@@ -212,7 +216,7 @@ export default function InviteCode() {
       </main>
 
       <Dialog open={Boolean(posterUrl)} onOpenChange={(open) => { if (!open && posterUrl) { URL.revokeObjectURL(posterUrl); setPosterUrl(null); } }}>
-        <DialogContent className="max-w-sm rounded-2xl border-primary/20 bg-card p-4 sm:max-w-md">
+        <DialogContent className="max-w-sm rounded-2xl border-primary/20 bg-card p-4 sm:max-w-2xl">
           <div className="overflow-hidden rounded-xl bg-primary-soft/40 p-2">
             {posterUrl ? <img src={posterUrl} alt="云阶邀请码分享图片预览" className="mx-auto max-h-[65vh] w-full rounded-lg object-contain" /> : null}
           </div>
