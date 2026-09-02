@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, ChevronRight, CircleHelp, Crown, LockKeyhole, Sparkles, Tag } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, CircleHelp, Crown, Headphones, LockKeyhole, ShieldCheck, Sparkles, Tag } from "lucide-react";
 import { useNavigate } from "react-router";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
@@ -117,6 +117,15 @@ export default function Recharge() {
                 <ul className="grid gap-2 sm:grid-cols-2" aria-label={`${selected.name}权益`}>
                   {selected.features.map((feature, index) => <li key={feature} className={`flex items-center gap-2 text-sm ${index < 2 ? "font-medium text-foreground" : "text-muted-foreground"}`}><Check size={15} className="shrink-0 text-primary" />{feature}</li>)}
                 </ul>
+              </div>
+
+              <div className="mt-6 border-t border-border/70 pt-5">
+                <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold">会员服务保障</h3><span className="text-xs text-muted-foreground">开通即生效</span></div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="flex gap-2.5"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-sm font-medium">安全支付</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">支付信息全程加密</p></div></div>
+                  <div className="flex gap-2.5"><Sparkles size={17} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-sm font-medium">持续更新</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">新内容持续加入</p></div></div>
+                  <div className="flex gap-2.5"><Headphones size={17} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-sm font-medium">专属支持</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">遇到问题随时咨询</p></div></div>
+                </div>
               </div>
             </CloudCard>
 
