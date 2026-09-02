@@ -122,9 +122,9 @@ export default function Recharge() {
               <div className="mt-6 border-t border-border/70 pt-5">
                 <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold">会员服务保障</h3><span className="text-xs text-muted-foreground">开通即生效</span></div>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="flex gap-2.5"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-sm font-medium">安全支付</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">支付信息全程加密</p></div></div>
-                  <div className="flex gap-2.5"><Sparkles size={17} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-sm font-medium">持续更新</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">新内容持续加入</p></div></div>
-                  <div className="flex gap-2.5"><Headphones size={17} className="mt-0.5 shrink-0 text-primary" /><div><p className="text-sm font-medium">专属支持</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">遇到问题随时咨询</p></div></div>
+                  <div className="group rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-sm"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-110" /><div><p className="text-sm font-medium">安全支付</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">支付信息全程加密</p></div></div>
+                  <div className="group rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-sm"><Sparkles size={17} className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-110" /><div><p className="text-sm font-medium">持续更新</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">新内容持续加入</p></div></div>
+                  <div className="group rounded-xl border border-border/70 bg-card/70 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-sm"><Headphones size={17} className="mt-0.5 shrink-0 text-primary transition-transform duration-200 group-hover:scale-110" /><div><p className="text-sm font-medium">专属支持</p><p className="mt-0.5 text-xs leading-5 text-muted-foreground">遇到问题随时咨询</p></div></div>
                 </div>
               </div>
             </CloudCard>
