@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { Copy, Download, Gift, Share2, Ticket, Users } from "lucide-react";
+import { Copy, Download, Gift, Share2, Users } from "lucide-react";
 import { PageBackHeader } from "../components/PageBackHeader";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
@@ -37,6 +37,17 @@ async function makePoster(code: string): Promise<Blob> {
   context.fillStyle = "#ffffff";
   context.roundRect(55, 55, size - 110, size - 110, 36);
   context.fill();
+
+  const logoImage = new Image();
+  await new Promise<void>((resolve) => {
+    logoImage.onload = () => resolve();
+    logoImage.onerror = () => resolve();
+    logoImage.src = `${import.meta.env.BASE_URL}logo.png`;
+  });
+  if (logoImage.complete && logoImage.naturalWidth > 0) {
+    context.drawImage(logoImage, 400, 75, 100, 55);
+  }
+
   context.fillStyle = "#25344a";
   context.textAlign = "center";
   context.font = "600 42px sans-serif";
@@ -160,7 +171,7 @@ export default function InviteCode() {
           <CloudCard tint="mint" className="relative overflow-hidden bg-gradient-to-br from-primary-soft/65 via-card/90 to-secondary-brand/10 p-5 text-center">
             <div className="pointer-events-none absolute -right-10 -top-12 size-36 rounded-full bg-primary/10 blur-2xl" />
             <div className="pointer-events-none absolute -bottom-16 -left-10 size-32 rounded-full bg-secondary-brand/10 blur-2xl" />
-            <div className="relative mx-auto mb-2 flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Ticket size={22} /></div>
+            <div className="relative mx-auto mb-2 flex h-14 items-center justify-center"><img src={`${import.meta.env.BASE_URL}logo.png`} alt="云阶 Logo" className="h-14 w-auto object-contain" /></div>
             <p className="text-xs text-muted-foreground">我的专属邀请码</p>
             <p className="mt-1 font-mono text-2xl font-bold tracking-wider text-foreground">{code}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
