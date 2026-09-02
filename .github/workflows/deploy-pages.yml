@@ -1,10 +1,10 @@
-name: Deploy admin to GitHub Pages
+name: Deploy web to GitHub Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - "admin/**"
+      - "web/**"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
@@ -17,8 +17,8 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-# 部署 admin 后台到 GitHub Pages，用于 UI 预览（demo 模式，无后端）。
-# 核心仓库 LingByte/CloudSteps 未启用 Pages，fork 仍可自行部署。
+# 该工作流来自分叉仓库的 GitHub Pages 预览，核心仓库 LingByte/CloudSteps 未启用 Pages。
+# 在官方仓库跳过，避免 deploy-pages 404；fork 仍可自行部署。
 jobs:
   build:
     if: github.repository != 'LingByte/CloudSteps'
@@ -34,29 +34,27 @@ jobs:
         with:
           node-version: "20"
           cache: pnpm
-          cache-dependency-path: admin/pnpm-lock.yaml
+          cache-dependency-path: web/pnpm-lock.yaml
 
       - name: 安装依赖
-        working-directory: admin
+        working-directory: web
         run: pnpm install --frozen-lockfile
 
-      - name: 构建（项目页子路径 + demo 模式）
-        working-directory: admin
+      - name: 构建（项目页子路径 + 后端 API 地址）
+        working-directory: web
         env:
-          # 仓库名作为 GitHub Pages 项目页子路径
+          # 仓库名作为 GitHub Pages 项目页子路径，如需自定义域名可改为 "/"
           VITE_BASE_PATH: "/${{ github.event.repository.name }}/"
-          VITE_ROUTER_BASE_PATH: "/${{ github.event.repository.name }}"
-          # demo 模式：跳过登录校验，直接放行看 UI
-          VITE_DEMO_MODE: "1"
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
         run: pnpm run build
 
       - name: SPA 路由回退（history 模式在 GitHub Pages 刷新深层路径会 404）
-        working-directory: admin
+        working-directory: web
         run: cp dist/index.html dist/404.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: admin/dist
+          path: web/dist
 
   deploy:
     if: github.repository != 'LingByte/CloudSteps'
