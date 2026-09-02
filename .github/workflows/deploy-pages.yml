@@ -45,6 +45,7 @@ jobs:
         env:
           # 仓库名作为 GitHub Pages 项目页子路径
           VITE_BASE_PATH: "/${{ github.event.repository.name }}/"
+          VITE_ROUTER_BASE_PATH: "/${{ github.event.repository.name }}"
           # demo 模式：跳过登录校验，直接放行看 UI
           VITE_DEMO_MODE: "1"
         run: pnpm run build
