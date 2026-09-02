@@ -5,6 +5,7 @@ import { PageBackHeader } from "../components/PageBackHeader";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
 import { showToast } from "../utils/toast";
+import { Dialog, DialogContent, DialogFooter } from "../components/ui/dialog";
 
 const mockRecords = [
   { name: "138****2041", date: "2026-08-30", status: "已激活" },
@@ -83,6 +84,7 @@ async function makePoster(code: string): Promise<Blob> {
 export default function InviteCode() {
   const [code, setCode] = useState("CLOUD-7K9F2A");
   const [sharing, setSharing] = useState(false);
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const link = inviteUrl(code);
 
@@ -132,7 +134,23 @@ export default function InviteCode() {
       anchor.download = `云阶邀请码-${code}.png`;
       anchor.click();
       URL.revokeObjectURL(url);
-      showToast.success("分享图片已生成");
+      showToast.success("分享图片已保存");
+    } catch {
+      showToast.error("分享图片生成失败");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const openPosterPreview = async () => {
+    setSharing(true);
+    try {
+      const blob = await makePoster(code);
+      const url = URL.createObjectURL(blob);
+      setPosterUrl((previous) => {
+        if (previous) URL.revokeObjectURL(previous);
+        return url;
+      });
     } catch {
       showToast.error("分享图片生成失败");
     } finally {
@@ -141,25 +159,18 @@ export default function InviteCode() {
   };
 
   const sharePoster = async () => {
-    setSharing(true);
+    if (!posterUrl) return;
     try {
-      const blob = await makePoster(code);
+      const response = await fetch(posterUrl);
+      const blob = await response.blob();
       const file = new File([blob], `云阶邀请码-${code}.png`, { type: "image/png" });
       if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         await navigator.share({ title: "云阶邀请码", text: "扫码加入云阶学习", files: [file] });
       } else {
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = file.name;
-        anchor.click();
-        URL.revokeObjectURL(url);
-        showToast.success("当前设备不支持直接分享，已下载图片");
+        await downloadPoster();
       }
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) showToast.error("分享图片生成失败");
-    } finally {
-      setSharing(false);
+      if (!(error instanceof DOMException && error.name === "AbortError")) showToast.error("分享图片失败");
     }
   };
 
@@ -183,7 +194,7 @@ export default function InviteCode() {
           <CloudCard className="p-4">
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
               <div className="rounded-xl border border-border bg-white p-2"><canvas ref={qrCanvasRef} aria-label="邀请码二维码" /></div>
-              <div className="min-w-0 flex-1 text-center sm:text-left"><p className="text-sm font-semibold">分享图片邀请好友</p><p className="mt-1 text-xs leading-5 text-muted-foreground">生成带二维码的分享海报，适合在链接被屏蔽的地方发送。</p><div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start"><CloudButton size="sm" onClick={() => void sharePoster()} disabled={sharing}><Share2 size={14} />{sharing ? "生成中…" : "分享图片"}</CloudButton><CloudButton size="sm" variant="ghost" onClick={downloadQr}><Download size={14} />保存二维码</CloudButton><CloudButton size="sm" variant="ghost" onClick={() => void downloadPoster()} disabled={sharing}><Download size={14} />保存分享图</CloudButton></div></div>
+              <div className="min-w-0 flex-1 text-center sm:text-left"><p className="text-sm font-semibold">分享图片邀请好友</p><p className="mt-1 text-xs leading-5 text-muted-foreground">生成带二维码的分享海报，适合在链接被屏蔽的地方发送。</p><div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start"><CloudButton size="sm" onClick={() => void openPosterPreview()} disabled={sharing}><Share2 size={14} />{sharing ? "生成中…" : "分享图片"}</CloudButton><CloudButton size="sm" variant="ghost" onClick={downloadQr}><Download size={14} />保存二维码</CloudButton><CloudButton size="sm" variant="ghost" onClick={() => void downloadPoster()} disabled={sharing}><Download size={14} />保存分享图</CloudButton></div></div>
             </div>
             <div className="mt-4 flex items-center gap-2 border-t border-border pt-3"><span className="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-foreground">{link}</span><CloudButton size="sm" variant="ghost" onClick={() => void copy(link, "邀请链接")}><Copy size={14} /></CloudButton></div>
           </CloudCard>
@@ -199,6 +210,18 @@ export default function InviteCode() {
           </CloudCard>
         </div>
       </main>
+
+      <Dialog open={Boolean(posterUrl)} onOpenChange={(open) => { if (!open && posterUrl) { URL.revokeObjectURL(posterUrl); setPosterUrl(null); } }}>
+        <DialogContent className="max-w-sm rounded-2xl border-primary/20 bg-card p-4 sm:max-w-md">
+          <div className="overflow-hidden rounded-xl bg-primary-soft/40 p-2">
+            {posterUrl ? <img src={posterUrl} alt="云阶邀请码分享图片预览" className="mx-auto max-h-[65vh] w-full rounded-lg object-contain" /> : null}
+          </div>
+          <DialogFooter className="grid grid-cols-2 gap-2 sm:flex-row">
+            <CloudButton variant="secondary" onClick={() => void sharePoster()}><Share2 size={15} />分享</CloudButton>
+            <CloudButton onClick={() => void downloadPoster()}><Download size={15} />保存图片</CloudButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
