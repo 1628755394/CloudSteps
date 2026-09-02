@@ -32,6 +32,12 @@ const comparison = [
   ["推广返佣", "—", "20%", "20%", "20%", "20%"],
 ];
 
+const paymentMethods = [
+  { id: "wechat", label: "微信支付", icon: "icon-weixinzhifu" },
+  { id: "alipay", label: "支付宝", icon: "icon-zhifubaozhifu" },
+  { id: "bank", label: "信用卡银行卡", icon: "icon-xinyongkayinhangka" },
+];
+
 const money = (value: number) => `¥${value.toFixed(0)}`;
 
 export default function Recharge() {
@@ -145,7 +151,7 @@ export default function Recharge() {
 
               <CloudCard className="mt-3 p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Crown size={16} className="text-primary" />支付方式</div>
-                <div className="grid grid-cols-3 gap-2">{["微信支付", "支付宝", "银行卡"].map((item) => <button key={item} type="button" onClick={() => setMethod(item)} aria-pressed={method === item} className={`rounded-md border px-1 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${method === item ? "border-primary bg-primary-soft font-medium text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>{method === item ? "✓ " : ""}{item.replace("支付", "")}</button>)}</div>
+                <div className="grid grid-cols-3 gap-2">{paymentMethods.map((item) => <button key={item.id} type="button" onClick={() => setMethod(item.label)} aria-pressed={method === item.label} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-md border px-1 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${method === item.label ? "border-primary bg-primary-soft font-medium text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}><i className={`payment-iconfont ${item.icon} text-lg leading-none`} aria-hidden="true" />{item.label}</button>)}</div>
                 <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">已选择：{method}<ChevronRight size={13} /></p>
               </CloudCard>
             </aside>
