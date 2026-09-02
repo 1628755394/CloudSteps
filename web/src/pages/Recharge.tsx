@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, ChevronRight, Crown, LockKeyhole, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, CircleHelp, Crown, LockKeyhole, Sparkles, Tag } from "lucide-react";
 import { useNavigate } from "react-router";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
@@ -13,14 +13,13 @@ type Plan = {
   price: number;
   monthly: string;
   save?: string;
-  tag?: string;
   features: string[];
 };
 
 const plans: Plan[] = [
   { id: "monthly", tab: "月付", name: "月度会员", period: "1个月", price: 58, monthly: "¥58 / 月", features: ["全部功能无限制", "无限学习", "开通推广返佣", "优先客服支持"] },
   { id: "quarterly", tab: "季付", name: "季度会员", period: "3个月", price: 98, monthly: "¥32.7 / 月", save: "省 ¥76", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 300 积分", "优先客服支持"] },
-  { id: "yearly", tab: "年付", name: "年度会员", period: "12个月", price: 198, monthly: "¥16.5 / 月", save: "比月付省 72%", tag: "推荐", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 1200 积分", "优先客服支持"] },
+  { id: "yearly", tab: "年付", name: "年度会员", period: "12个月", price: 198, monthly: "¥16.5 / 月", save: "比月付省 72%", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 1200 积分", "优先客服支持"] },
   { id: "lifetime", tab: "永久会员", name: "永久会员", period: "永久有效", price: 498, monthly: "一次购买", save: "买断最划算", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 3000 积分", "优先客服支持", "后续内容持续更新"] },
 ];
 
@@ -59,38 +58,94 @@ export default function Recharge() {
   };
 
   return (
-    <div className="h-dvh overflow-hidden bg-background text-foreground">
-      <header className="border-t-2 border-primary/20 bg-card shadow-sm">
-        <div className="mx-auto flex min-h-20 w-full max-w-4xl items-center px-3 py-3 sm:px-5">
-          <button type="button" onClick={() => navigate("/coach-center")} className="mr-3 flex size-10 shrink-0 items-center justify-center rounded-full text-foreground hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" aria-label="返回"><ArrowLeft size={25} /></button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">会员中心</h1>
-            <p className="mt-1 text-sm text-muted-foreground">选择适合你的会员方案</p>
+    <div className="flex h-dvh flex-col bg-background text-foreground">
+      <header className="shrink-0 border-b border-border/70 bg-card/95 backdrop-blur">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center px-4 sm:px-6">
+          <button type="button" onClick={() => navigate("/coach-center")} className="mr-3 flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary-soft hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" aria-label="返回教练中心">
+            <ArrowLeft size={19} />
+          </button>
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-lg font-semibold tracking-tight">会员中心</h1>
+            <span className="hidden text-xs text-muted-foreground sm:inline">选择适合你的会员方案</span>
           </div>
-          <div className="ml-auto flex size-9 items-center justify-center rounded-full bg-primary-soft text-primary" aria-hidden="true"><span className="text-lg tracking-widest">•••</span></div>
+          <button type="button" onClick={() => showToast.info("如需帮助，请联系在线客服")} className="ml-auto flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" aria-label="查看会员帮助">
+            <CircleHelp size={18} />
+          </button>
         </div>
       </header>
 
-      <main className="h-[calc(100dvh-5rem)] overflow-y-auto px-3 pb-5 pt-3 sm:px-5">
-        <div className="mx-auto max-w-4xl space-y-4 pb-8">
-          <CloudCard className="p-4 sm:p-5">
-            <div className="mb-4 flex items-start justify-between"><div><h2 className="text-xl font-bold">选择会员套餐，解锁全部学习能力</h2><p className="mt-1 text-sm text-muted-foreground">开通立即解锁全部会员权益</p></div><span className="flex items-center gap-1 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary"><LockKeyhole size={13} />安全支付</span></div>
-            <div className="flex overflow-x-auto rounded-xl bg-muted p-1">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => { setSelectedId(plan.id); setCouponChecked(false); }} className={`relative min-w-[92px] flex-1 rounded-lg px-2 py-2.5 text-sm transition-all ${selected.id === plan.id ? "bg-primary font-bold text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{plan.tab}{plan.id === "yearly" ? <span className="ml-1 rounded-full bg-secondary-brand px-1.5 py-0.5 text-[9px] font-medium text-primary-foreground">推荐</span> : null}</button>)}</div>
-
-            <div className="mt-4 rounded-2xl border border-primary/20 bg-gradient-to-b from-primary-soft/40 to-card p-4 sm:p-5">
-              <div className="flex items-start justify-between"><div><p className="text-lg font-bold">{selected.name}</p><p className="mt-1 text-sm text-muted-foreground">{selected.period}</p></div><div className="text-right">{selected.save ? <span className="rounded bg-primary-soft px-2 py-1 text-xs font-semibold text-primary">{selected.save}</span> : null}<p className="mt-2 text-4xl font-bold tracking-tight">{couponChecked ? <><span className="mr-2 text-base font-normal text-muted-foreground line-through">{money(selected.price)}</span>{money(finalPrice)}</> : money(selected.price)}</p><p className="text-sm text-muted-foreground">折合 {selected.monthly} · {selected.period}有效期</p></div></div>
-              <div className="my-4 h-px bg-border" />
-              <div className="grid gap-2 sm:grid-cols-2">{selected.features.map((feature, index) => <p key={feature} className={`flex items-center gap-2 text-sm ${index < 2 ? "font-semibold text-foreground" : "text-muted-foreground"}`}><Check size={index < 2 ? 17 : 15} className="shrink-0 text-primary" />{feature}</p>)}</div>
-
-              <div className="mt-5 rounded-xl border border-primary/20 bg-primary-soft/40 p-3"><div className="flex items-center gap-3"><div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm"><span className="text-xs font-bold">券</span></div><div className="min-w-0 flex-1"><p className="font-semibold text-foreground">优惠码</p><p className="text-xs text-muted-foreground">使用有效优惠码，当前套餐可享 9 折</p></div><span className="rounded-full bg-secondary-brand px-2.5 py-1 text-xs font-bold text-primary-foreground">首单 9 折</span></div><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={coupon} maxLength={6} onChange={(event) => { const value = event.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase(); setCoupon(value); setCouponChecked(false); if (value.length === 6) checkCoupon(value); }} placeholder="输入 6 位优惠码" className="min-w-0 flex-1 rounded-lg border border-input bg-card px-3 py-2.5 text-sm outline-none focus:border-primary" /><button type="button" onClick={checkCoupon} className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-primary sm:py-0">验证</button></div><p className="mt-2 text-xs text-muted-foreground">仅限从未购买过会员的用户，续费和升级不参与</p></div>
-
-              <CloudButton onClick={submit} className="mt-4 h-12 w-full bg-primary text-base font-bold text-primary-foreground hover:bg-primary/90 active:scale-[0.99]">立即开通 {selected.name}</CloudButton><p className="mt-2 text-center text-xs text-muted-foreground">一次性购买，不会自动续费</p>
+      <main className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-primary">CloudSteps Plus</p>
+              <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">解锁完整学习能力</h2>
+              <p className="mt-1 text-sm text-muted-foreground">一次购买，立即享受全部会员权益。</p>
             </div>
+            <span className="hidden items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary sm:flex"><LockKeyhole size={13} />安全支付</span>
+          </div>
+
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <CloudCard className="p-4 sm:p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-base font-semibold">选择套餐</h3>
+                <span className="text-xs text-muted-foreground">按需选择，随时升级</span>
+              </div>
+              <div className="grid grid-cols-4 gap-1 rounded-xl bg-muted p-1" role="tablist" aria-label="会员套餐周期">
+                {plans.map((plan) => (
+                  <button key={plan.id} type="button" role="tab" aria-selected={selected.id === plan.id} onClick={() => { setSelectedId(plan.id); setCouponChecked(false); }} className={`relative rounded-lg px-1 py-2 text-xs transition-all sm:text-sm ${selected.id === plan.id ? "bg-card font-semibold text-foreground shadow-sm ring-1 ring-border/60" : "text-muted-foreground hover:text-foreground"}`}>
+                    {plan.tab}
+                    {plan.id === "yearly" ? <span className="absolute -right-1 -top-2 rounded-full bg-secondary-brand px-1.5 py-0.5 text-[10px] font-medium text-white">推荐</span> : null}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-4 rounded-xl border border-primary/20 bg-accent/45 p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <span className="mb-2 inline-flex size-8 items-center justify-center rounded-lg bg-primary text-white"><Crown size={16} /></span>
+                    <h4 className="text-lg font-semibold">{selected.name}</h4>
+                    <p className="mt-1 text-sm text-muted-foreground">{selected.period} · {selected.monthly}</p>
+                  </div>
+                  <div className="text-right">
+                    {selected.save ? <span className="inline-block rounded-md bg-primary-soft px-2 py-1 text-xs font-semibold text-primary">{selected.save}</span> : null}
+                    <p className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">{couponChecked ? <><span className="mr-2 text-base font-normal text-muted-foreground line-through">{money(selected.price)}</span>{money(finalPrice)}</> : money(selected.price)}</p>
+                    <p className="text-xs text-muted-foreground">一次性支付</p>
+                  </div>
+                </div>
+                <div className="my-4 h-px bg-border/70" />
+                <ul className="grid gap-2 sm:grid-cols-2" aria-label={`${selected.name}权益`}>
+                  {selected.features.map((feature, index) => <li key={feature} className={`flex items-center gap-2 text-sm ${index < 2 ? "font-medium text-foreground" : "text-muted-foreground"}`}><Check size={15} className="shrink-0 text-primary" />{feature}</li>)}
+                </ul>
+              </div>
+            </CloudCard>
+
+            <aside className="lg:sticky lg:top-5">
+              <CloudCard className="p-4 sm:p-5">
+                <div className="mb-4 flex items-center justify-between"><h3 className="text-base font-semibold">订单摘要</h3><span className="rounded-full bg-primary-soft px-2 py-1 text-xs text-primary">不自动续费</span></div>
+                <div className="flex items-center justify-between border-b border-border/70 pb-3 text-sm"><span className="text-muted-foreground">{selected.name}</span><span className="font-medium">{money(selected.price)}</span></div>
+                <div className="mt-4 rounded-lg border border-border bg-surface-soft p-3">
+                  <label htmlFor="coupon" className="flex items-center gap-2 text-sm font-medium"><Tag size={15} className="text-primary" />优惠码</label>
+                  <div className="mt-2 flex gap-2"><input id="coupon" value={coupon} maxLength={6} onChange={(event) => { const value = event.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase(); setCoupon(value); setCouponChecked(false); }} placeholder="输入 6 位优惠码" className="min-w-0 flex-1 rounded-md border border-input bg-card px-2.5 py-2 text-sm uppercase outline-none transition-shadow focus:border-primary focus:ring-2 focus:ring-primary-soft" /><button type="button" onClick={() => checkCoupon()} className="rounded-md px-2 text-sm font-medium text-muted-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">验证</button></div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">首单可享 9 折，仅限未购买过会员的用户</p>
+                </div>
+                <div className="mt-4 flex items-end justify-between"><span className="text-sm text-muted-foreground">应付金额</span><span className="text-2xl font-semibold text-primary">{money(finalPrice)}</span></div>
+                <CloudButton onClick={submit} className="mt-4 h-11 w-full bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-[0.99]">立即开通</CloudButton>
+                <p className="mt-2 text-center text-xs text-muted-foreground">支付即代表同意会员服务条款</p>
+              </CloudCard>
+
+              <CloudCard className="mt-3 p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Crown size={16} className="text-primary" />支付方式</div>
+                <div className="grid grid-cols-3 gap-2">{["微信支付", "支付宝", "银行卡"].map((item) => <button key={item} type="button" onClick={() => setMethod(item)} aria-pressed={method === item} className={`rounded-md border px-1 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${method === item ? "border-primary bg-primary-soft font-medium text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>{method === item ? "✓ " : ""}{item.replace("支付", "")}</button>)}</div>
+                <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">已选择：{method}<ChevronRight size={13} /></p>
+              </CloudCard>
+            </aside>
+          </div>
+
+          <CloudCard className="mt-5 overflow-hidden p-4 sm:p-5">
+            <div className="mb-4 flex items-end justify-between gap-4"><div><h3 className="flex items-center gap-2 text-base font-semibold"><Sparkles size={17} className="text-primary" />会员权益对比</h3><p className="mt-1 text-xs text-muted-foreground">清晰比较不同方案，选择最适合你的会员</p></div><span className="text-xs text-muted-foreground">左右滑动查看</span></div>
+            <div className="overflow-x-auto"><table className="min-w-[650px] w-full border-collapse text-sm"><caption className="sr-only">会员套餐权益对比表</caption><thead><tr>{comparison[0].map((item, index) => <th key={item} scope="col" className={`border border-border bg-muted/50 px-3 py-2.5 text-left font-medium ${index === 0 ? "w-24" : "text-center"}`}>{item}</th>)}</tr></thead><tbody>{comparison.slice(1).map((row) => <tr key={row[0]}>{row.map((item, index) => <td key={`${row[0]}-${item}`} className={`border border-border px-3 py-2.5 ${index === 0 ? "font-medium text-foreground" : "text-center text-muted-foreground"}`}>{item}</td>)}</tr>)}</tbody></table></div>
           </CloudCard>
-
-          <CloudCard className="overflow-hidden p-4 sm:p-5"><div className="mb-4 flex items-end justify-between"><div><h2 className="flex items-center gap-2 text-xl font-bold"><Sparkles size={19} className="text-primary" />会员权益对比</h2><p className="mt-1 text-sm text-muted-foreground">选择更适合你的方案</p></div><span className="text-xs text-muted-foreground">左右滑动查看全部</span></div><div className="overflow-x-auto"><table className="min-w-[680px] w-full border-collapse text-sm"><thead><tr>{comparison[0].map((item, index) => <th key={item} className={`border border-border bg-muted/40 px-3 py-3 text-left font-semibold ${index === 0 ? "w-24" : "text-center"}`}>{item}</th>)}</tr></thead><tbody>{comparison.slice(1).map((row) => <tr key={row[0]}>{row.map((item, index) => <td key={`${row[0]}-${item}`} className={`border border-border px-3 py-3 ${index === 0 ? "font-semibold text-foreground" : "text-center text-muted-foreground"}`}>{item}</td>)}</tr>)}</tbody></table></div></CloudCard>
-
-          <CloudCard className="p-4"><div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Crown size={16} className="text-primary" />选择支付方式</div><div className="flex flex-wrap gap-2">{["微信支付", "支付宝", "银行卡"].map((item) => <button key={item} type="button" onClick={() => setMethod(item)} className={`rounded-lg border px-3 py-2 text-sm ${method === item ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>{method === item ? "✓ " : ""}{item}</button>)}</div><p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">当前选择：{method}<ChevronRight size={13} /></p></CloudCard>
         </div>
       </main>
     </div>
