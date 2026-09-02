@@ -85,8 +85,8 @@ export default function Recharge() {
             <span className="hidden items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-medium text-primary sm:flex"><LockKeyhole size={13} />安全支付</span>
           </div>
 
-          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-            <CloudCard className="p-4 sm:p-5">
+          <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <CloudCard className="h-full p-4 sm:p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-base font-semibold">选择套餐</h3>
                 <span className="text-xs text-muted-foreground">按需选择，随时升级</span>
