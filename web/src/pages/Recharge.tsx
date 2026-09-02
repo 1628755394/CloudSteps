@@ -1,95 +1,90 @@
-import { useState } from "react";
-import { Check, CreditCard, Crown, Sparkles } from "lucide-react";
-import { PageBackHeader } from "../components/PageBackHeader";
+import { useMemo, useState } from "react";
+import { ArrowLeft, Check, ChevronRight, Crown, LockKeyhole, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
 import { showToast } from "../utils/toast";
 
-type MembershipPlan = {
+type Plan = {
   id: string;
+  tab: string;
   name: string;
   period: string;
   price: number;
-  description: string;
-  features: string[];
+  monthly: string;
+  save?: string;
   tag?: string;
+  features: string[];
 };
 
-const plans: MembershipPlan[] = [
-  {
-    id: "monthly",
-    name: "包月会员",
-    period: "1个月",
-    price: 18,
-    description: "灵活订阅，随时开始学习",
-    features: ["全站学习内容", "智能复习计划", "学习数据统计"],
-  },
-  {
-    id: "yearly",
-    name: "包年会员",
-    period: "12个月",
-    price: 168,
-    description: "全年畅学，平均每月仅 ¥14",
-    features: ["全站学习内容", "智能复习计划", "学习数据统计", "专属会员标识"],
-    tag: "最受欢迎",
-  },
-  {
-    id: "lifetime",
-    name: "永久会员",
-    period: "永久有效",
-    price: 498,
-    description: "一次购买，终身享受会员权益",
-    features: ["全站学习内容", "智能复习计划", "学习数据统计", "专属会员标识", "后续内容持续更新"],
-    tag: "超值推荐",
-  },
+const plans: Plan[] = [
+  { id: "monthly", tab: "月付", name: "月度会员", period: "1个月", price: 58, monthly: "¥58 / 月", features: ["无限学习", "全部功能无限制", "开通推广返佣", "优先客服支持"] },
+  { id: "quarterly", tab: "季付", name: "季度会员", period: "3个月", price: 98, monthly: "¥32.7 / 月", save: "省 ¥76", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 300 积分", "优先客服支持"] },
+  { id: "yearly", tab: "年付", name: "年度会员", period: "12个月", price: 198, monthly: "¥16.5 / 月", save: "比月付省 72%", tag: "推荐", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 1200 积分", "优先客服支持"] },
+  { id: "lifetime", tab: "永久会员", name: "永久会员", period: "永久有效", price: 498, monthly: "一次购买", save: "买断最划算", features: ["无限学习", "全部功能无限制", "开通推广返佣", "赠送 3000 积分", "优先客服支持", "后续内容持续更新"] },
+];
+
+const comparison = [
+  ["价格", "免费", "¥58", "¥98", "¥198", "¥498"],
+  ["有效期", "长期", "1个月", "3个月", "12个月", "永久"],
+  ["学生数量", "1名", "无限", "无限", "无限", "无限"],
+  ["核心功能", "部分可用", "全部功能", "全部功能", "全部功能", "全部功能"],
+  ["开通积分", "—", "100", "300", "1200", "3000"],
+  ["推广返佣", "—", "20%", "20%", "20%", "20%"],
 ];
 
 const money = (value: number) => `¥${value.toFixed(0)}`;
 
 export default function Recharge() {
+  const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState("yearly");
+  const [coupon, setCoupon] = useState("");
+  const [couponChecked, setCouponChecked] = useState(false);
   const [method, setMethod] = useState("微信支付");
-  const selected = plans.find((plan) => plan.id === selectedId) ?? plans[1];
+  const selected = useMemo(() => plans.find((plan) => plan.id === selectedId) ?? plans[2], [selectedId]);
+
+  const checkCoupon = () => {
+    if (coupon.length !== 6) {
+      showToast.error("请输入 6 位优惠码");
+      return;
+    }
+    setCouponChecked(true);
+    showToast.success("优惠码可用，已享 9 折");
+  };
 
   const submit = () => {
-    showToast.success(`${selected.name}购买成功，支付方式：${method}`);
+    const finalPrice = couponChecked ? selected.price * 0.9 : selected.price;
+    showToast.success(`${selected.name}开通成功：${money(finalPrice)}（mock）`);
   };
 
   return (
-    <div className="h-dvh flex flex-col bg-background overflow-hidden">
-      <PageBackHeader title="会员中心" subtitle="选择适合你的会员方案" fallbackTo="/coach-center" />
-      <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5">
-        <div className="mx-auto max-w-3xl space-y-3 pb-6">
-          <CloudCard tint="mint" className="relative overflow-hidden p-5">
-            <div className="pointer-events-none absolute -right-8 -top-10 size-32 rounded-full bg-primary/15 blur-2xl" />
-            <div className="relative flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Crown size={22} /></div>
-              <div><p className="text-xs text-muted-foreground">当前会员状态</p><p className="text-lg font-bold text-foreground">普通用户</p><p className="text-[11px] text-muted-foreground">开通会员，解锁全部学习权益</p></div>
+    <div className="h-dvh overflow-hidden bg-[#f5f7f9] text-foreground">
+      <header className="flex h-14 items-center justify-between bg-gradient-to-r from-[#ff663b] to-[#ff7540] px-4 text-white shadow-sm">
+        <button type="button" onClick={() => navigate("/coach-center")} className="flex size-9 items-center justify-center rounded-full hover:bg-white/15" aria-label="返回"><ArrowLeft size={22} /></button>
+        <h1 className="text-lg font-semibold">会员中心</h1>
+        <div className="flex size-9 items-center justify-center rounded-full bg-black/10"><span className="text-lg tracking-widest">•••</span></div>
+      </header>
+
+      <main className="h-[calc(100dvh-3.5rem)] overflow-y-auto px-3 py-5 sm:px-5">
+        <div className="mx-auto max-w-3xl space-y-4 pb-8">
+          <CloudCard className="p-4 sm:p-5">
+            <div className="mb-4 flex items-start justify-between"><div><h2 className="text-xl font-bold">选择会员套餐</h2><p className="mt-1 text-sm text-muted-foreground">按需选择，开通即享完整权益</p></div><span className="flex items-center gap-1 rounded-full bg-[#e9f8ef] px-3 py-1.5 text-xs font-medium text-[#3a9b66]"><LockKeyhole size={13} />安全支付</span></div>
+            <div className="grid grid-cols-4 rounded-xl bg-[#f1f2f4] p-1">{plans.map((plan) => <button key={plan.id} type="button" onClick={() => { setSelectedId(plan.id); setCouponChecked(false); }} className={`rounded-lg px-1 py-2.5 text-sm transition-all ${selected.id === plan.id ? "bg-card font-bold text-foreground shadow-sm" : "text-muted-foreground"}`}>{plan.tab}</button>)}</div>
+
+            <div className="mt-4 rounded-2xl border border-[#eadfce] bg-gradient-to-b from-[#fffdf8] to-white p-4 sm:p-5">
+              <div className="flex items-start justify-between"><div><p className="text-lg font-bold">{selected.name}</p><p className="mt-1 text-sm text-muted-foreground">{selected.period}</p></div><div className="text-right">{selected.save ? <span className="rounded bg-[#fff2d7] px-2 py-1 text-xs font-semibold text-[#ae7d2b]">{selected.save}</span> : null}<p className="mt-2 text-4xl font-bold tracking-tight">{money(selected.price)}</p><p className="text-sm text-muted-foreground">{selected.monthly}</p></div></div>
+              <div className="my-4 h-px bg-border" />
+              <div className="grid gap-2 sm:grid-cols-2">{selected.features.map((feature) => <p key={feature} className="flex items-center gap-2 text-sm text-muted-foreground"><Check size={16} className="shrink-0 text-[#c48c35]" />{feature}</p>)}</div>
+
+              <div className="mt-5 rounded-xl border border-[#f1e4d1] bg-[#fffaf1] p-3"><div className="flex items-center gap-3"><div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e9a92e] text-white shadow-sm"><span className="text-xs font-bold">券</span></div><div className="min-w-0 flex-1"><p className="font-semibold text-[#74552d]">优惠码</p><p className="text-xs text-[#9d896d]">使用有效优惠码，当前套餐可享 9 折</p></div><span className="rounded-full bg-[#f35b3d] px-2.5 py-1 text-xs font-bold text-white">首单 9 折</span></div><div className="mt-3 flex gap-2"><input value={coupon} maxLength={6} onChange={(event) => { setCoupon(event.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase()); setCouponChecked(false); }} placeholder="输入 6 位优惠码" className="min-w-0 flex-1 rounded-lg border border-[#e5d4b4] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#d99d3c]" /><button type="button" onClick={checkCoupon} className="rounded-lg px-4 text-sm font-medium text-[#c5b7a0] hover:text-[#a77e40]">验证</button></div><p className="mt-2 text-xs text-[#ad9a7e]">仅限从未购买过会员的用户，续费和升级不参与</p></div>
+
+              <CloudButton onClick={submit} className="mt-4 h-12 w-full bg-[#fff0d9] text-base font-bold text-[#ae7025] hover:bg-[#ffe7c5]">立即开通 {selected.name}</CloudButton><p className="mt-2 text-center text-xs text-muted-foreground">一次性购买，不会自动续费</p>
             </div>
           </CloudCard>
 
-          <CloudCard className="p-4">
-            <div className="flex items-center gap-2"><Sparkles size={17} className="text-primary" /><h2 className="text-sm font-semibold">选择会员套餐</h2></div>
-            <p className="mt-1 text-xs text-muted-foreground">包月、包年、永久会员，按需选择。</p>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              {plans.map((plan) => {
-                const active = selected.id === plan.id;
-                return <button key={plan.id} type="button" onClick={() => setSelectedId(plan.id)} className={`relative text-left rounded-2xl border-2 p-4 transition-all ${active ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/45"}`}>
-                  {plan.tag ? <span className="absolute -top-2 right-3 rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">{plan.tag}</span> : null}
-                  <div className="flex items-start justify-between gap-2"><div><p className="text-base font-semibold">{plan.name}</p><p className="mt-1 text-xs text-muted-foreground">{plan.period}</p></div>{active ? <span className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"><Check size={13} /></span> : null}</div>
-                  <p className="mt-4 text-3xl font-bold">{money(plan.price)}</p><p className="mt-1 text-[11px] text-muted-foreground">{plan.description}</p>
-                  <div className="mt-4 space-y-2 border-t border-border pt-3">{plan.features.map((feature) => <p key={feature} className="flex items-center gap-1.5 text-xs text-muted-foreground"><Check size={13} className="text-primary" />{feature}</p>)}</div>
-                </button>;
-              })}
-            </div>
-          </CloudCard>
+          <CloudCard className="overflow-hidden p-4 sm:p-5"><div className="mb-4 flex items-end justify-between"><div><h2 className="flex items-center gap-2 text-xl font-bold"><Sparkles size={19} className="text-[#e49c36]" />会员权益对比</h2><p className="mt-1 text-sm text-muted-foreground">选择更适合你的方案</p></div><span className="text-xs text-muted-foreground">左右滑动查看全部</span></div><div className="overflow-x-auto"><table className="min-w-[680px] w-full border-collapse text-sm"><thead><tr>{comparison[0].map((item, index) => <th key={item} className={`border border-border bg-muted/40 px-3 py-3 text-left font-semibold ${index === 0 ? "w-24" : "text-center"}`}>{item}</th>)}</tr></thead><tbody>{comparison.slice(1).map((row) => <tr key={row[0]}>{row.map((item, index) => <td key={`${row[0]}-${item}`} className={`border border-border px-3 py-3 ${index === 0 ? "font-semibold text-foreground" : "text-center text-muted-foreground"}`}>{item}</td>)}</tr>)}</tbody></table></div></CloudCard>
 
-          <CloudCard className="p-4">
-            <h2 className="flex items-center gap-2 text-sm font-semibold"><CreditCard size={16} />支付方式</h2>
-            <div className="mt-3 flex flex-wrap gap-2">{["微信支付", "支付宝", "银行卡"].map((item) => <button key={item} type="button" onClick={() => setMethod(item)} className={`flex items-center gap-1 rounded-xl border px-3 py-2 text-sm ${method === item ? "border-primary bg-primary/5 text-primary" : "border-border"}`}>{method === item ? <Check size={14} /> : null}{item}</button>)}</div>
-            <div className="mt-4 flex items-center justify-between border-t border-border pt-4"><div><p className="text-xs text-muted-foreground">已选 {selected.name}</p><b className="text-xl">{money(selected.price)}</b></div><CloudButton onClick={submit}>立即开通</CloudButton></div>
-            <p className="mt-2 text-center text-[10px] text-muted-foreground">演示页面，仅使用 mock 数据，不会真实扣款</p>
-          </CloudCard>
+          <CloudCard className="p-4"><div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Crown size={16} className="text-[#e49c36]" />选择支付方式</div><div className="flex flex-wrap gap-2">{["微信支付", "支付宝", "银行卡"].map((item) => <button key={item} type="button" onClick={() => setMethod(item)} className={`rounded-lg border px-3 py-2 text-sm ${method === item ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}>{method === item ? "✓ " : ""}{item}</button>)}</div><p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">当前选择：{method}<ChevronRight size={13} /></p></CloudCard>
         </div>
       </main>
     </div>
