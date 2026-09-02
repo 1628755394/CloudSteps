@@ -157,8 +157,10 @@ export default function InviteCode() {
       <PageBackHeader title="邀请码" subtitle="邀请好友一起学习云阶" fallbackTo="/coach-center" />
       <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5">
         <div className="mx-auto max-w-2xl space-y-3 pb-6">
-          <CloudCard tint="mint" className="p-5 text-center">
-            <div className="mx-auto mb-2 flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Ticket size={22} /></div>
+          <CloudCard tint="mint" className="relative overflow-hidden bg-gradient-to-br from-primary-soft/65 via-card/90 to-secondary-brand/10 p-5 text-center">
+            <div className="pointer-events-none absolute -right-10 -top-12 size-36 rounded-full bg-primary/10 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-16 -left-10 size-32 rounded-full bg-secondary-brand/10 blur-2xl" />
+            <div className="relative mx-auto mb-2 flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Ticket size={22} /></div>
             <p className="text-xs text-muted-foreground">我的专属邀请码</p>
             <p className="mt-1 font-mono text-2xl font-bold tracking-wider text-foreground">{code}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
