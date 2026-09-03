@@ -314,7 +314,7 @@ export default function ReviewWordList() {
   const wrongCount = words.filter((word) => word.status === "wrong").length;
 
   return (
-    <FlowPageShell className="min-h-dvh bg-[#F7F9FC] pb-[max(7.5rem,env(safe-area-inset-bottom))]">
+    <FlowPageShell className="min-h-dvh bg-[#F7F9FC] pb-[max(9rem,env(safe-area-inset-bottom))]">
       <TopBar
         title={viewOnly ? t("practice.view") : t("practice.start_review")}
         onBack={handleBack}
@@ -338,7 +338,7 @@ export default function ReviewWordList() {
       />
 
       {/* Split container: word content + note panel on the same layer. */}
-      <div className={`box-border min-h-[calc(100dvh-11rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "pb-28 max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}>
+      <div className={`box-border min-h-[calc(100dvh-11rem)] px-4 mt-6 w-full ${globalNoteOpen && isDesktop ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2" : "pb-36 max-w-2xl lg:max-w-5xl mx-auto"}`} style={globalNoteOpen && isDesktop ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}>
         {/* Word content pane */}
         <div className={`${globalNoteOpen && isDesktop ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-y-auto" : ""} ${globalNoteOpen && isDesktop && noteSide === "right" ? "" : globalNoteOpen && isDesktop ? "lg:order-2" : ""}`}>
           <div className="mb-3">
@@ -519,8 +519,8 @@ export default function ReviewWordList() {
           onSideChange={setNoteSide}
         />
       )}
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
-        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-2.5">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1 sm:py-2 pb-[max(0.25rem,env(safe-area-inset-bottom))] shadow-lg">
+        <div className="max-w-2xl lg:max-w-5xl mx-auto w-full space-y-1.5 sm:space-y-2.5">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {!viewOnly && (
               <>
@@ -610,7 +610,7 @@ export default function ReviewWordList() {
           size="iconRound"
           onClick={handleSubmit}
           disabled={!allMarked || submitting}
-          className="fixed right-3 bottom-16 z-50 size-11 shadow-lg sm:hidden"
+          className="fixed right-3 bottom-[calc(6.5rem+env(safe-area-inset-bottom,0px))] z-50 size-11 shadow-lg sm:hidden"
           aria-label={t("practice.submit_review")}
         >
           <ArrowRight size={20} />
