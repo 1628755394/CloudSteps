@@ -756,7 +756,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     <div className="flex h-full flex-col min-h-0 overflow-hidden bg-card sm:rounded-xl sm:border sm:border-border">
       {/* 紧凑顶栏：标题 + 周切换同一行 */}
       <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 border-b border-border">
-        <h2 className="text-[15px] font-semibold text-foreground shrink-0 leading-none">
+        <h2 className="text-[13px] sm:text-[15px] font-semibold text-foreground shrink-0 leading-none">
           {isCoach ? t("coaching.schedule_title") : t("coaching.my_schedule")}
         </h2>
         <span className="inline-flex items-center rounded-md bg-primary-soft px-1.5 py-0.5 text-[10px] font-medium text-primary shrink-0 leading-none">
@@ -768,14 +768,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         <CloudButton
           variant="outline"
           size="sm"
-          className="shrink-0 size-8 p-0 touch-manipulation"
+          className="shrink-0 size-7 sm:size-8 p-0 touch-manipulation"
           aria-label={t("ui.prev_week")}
           onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}
         >
           <ChevronLeft size={16} />
         </CloudButton>
 
-        <div className="w-[7.5rem] sm:w-[9.5rem] shrink-0">
+        <div className="w-[6.5rem] sm:w-[9.5rem] shrink-0">
           {isMobile ? (
             <MobileDateWheel
               value={fmtYMD(weekMon)}
@@ -805,7 +805,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         <CloudButton
           variant="outline"
           size="sm"
-          className="shrink-0 size-8 p-0 touch-manipulation"
+          className="shrink-0 size-7 sm:size-8 p-0 touch-manipulation"
           aria-label={t("ui.next_week")}
           onClick={() => setWeekAnchor(addDays(weekAnchor, 7))}
         >
@@ -1094,14 +1094,22 @@ function SectionGrid({
   onCellClick: (weekDay: number, section: number) => void;
   onItemClick: (item: GridItem) => void;
 }) {
+  const isMobile = useIsMobile();
   const totalRows = sections.length;
   const gridStyle = {
-    gridTemplateColumns: `48px repeat(7, minmax(0, 1fr))`,
-    gridTemplateRows: `40px repeat(${totalRows}, 60px)`,
+    gridTemplateColumns: isMobile
+      ? `32px repeat(7, minmax(40px, 1fr))`
+      : `48px repeat(7, minmax(0, 1fr))`,
+    gridTemplateRows: isMobile
+      ? `36px repeat(${totalRows}, 52px)`
+      : `40px repeat(${totalRows}, 60px)`,
   } as const;
 
   return (
-    <div className="grid min-w-[680px] rounded-md border border-border bg-card" style={gridStyle}>
+    <div
+      className={`grid rounded-md border border-border bg-card ${isMobile ? "min-w-[312px] w-full" : "min-w-[680px]"}`}
+      style={gridStyle}
+    >
       {/* 左上角 */}
       <div
         className="flex items-center justify-center border-b border-r border-border text-[10px] font-medium text-muted-foreground"
@@ -1124,10 +1132,10 @@ function SectionGrid({
             } ${isCoach ? "active:bg-primary/10" : ""} ${i < 6 ? "border-r border-border/40" : ""}`}
             style={{ gridColumn: i + 2, gridRow: 1 }}
           >
-            <span className={`text-[11px] font-semibold ${isToday ? "text-primary" : "text-foreground"}`}>
+            <span className={`font-semibold ${isMobile ? "text-[10px]" : "text-[11px]"} ${isToday ? "text-primary" : "text-foreground"}`}>
               {t("coaching.weekday_prefix", { day: t(`coaching.weekday.${i}`) })}
             </span>
-            <span className={`text-[10px] tabular-nums ${isToday ? "text-primary" : "text-muted-foreground"}`}>
+            <span className={`tabular-nums ${isMobile ? "text-[9px]" : "text-[10px]"} ${isToday ? "text-primary" : "text-muted-foreground"}`}>
               {fmtMD(d)}
             </span>
           </button>
@@ -1141,9 +1149,9 @@ function SectionGrid({
             className="flex flex-col items-center justify-center border-b border-r border-border px-0.5 text-center"
             style={{ gridColumn: 1, gridRow: sec.no + 1 }}
           >
-            <span className="text-xs font-semibold text-foreground">{sec.no}</span>
-            <span className="text-[9px] leading-tight text-muted-foreground">{sec.start}</span>
-            <span className="text-[9px] leading-tight text-muted-foreground">{sec.end}</span>
+            <span className={`${isMobile ? "text-[11px]" : "text-xs"} font-semibold text-foreground`}>{sec.no}</span>
+            <span className={`${isMobile ? "text-[8px]" : "text-[9px]"} leading-tight text-muted-foreground`}>{sec.start}</span>
+            <span className={`${isMobile ? "text-[8px]" : "text-[9px]"} leading-tight text-muted-foreground`}>{sec.end}</span>
           </div>
           {Array.from({ length: 7 }, (_, dayIdx) => (
             <button
@@ -1173,7 +1181,7 @@ function SectionGrid({
               e.stopPropagation();
               onItemClick(item);
             }}
-            className="group relative m-0.5 flex flex-col overflow-hidden rounded-md p-1 text-left text-white shadow-sm transition-transform hover:z-10 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className={`group relative m-0.5 flex flex-col overflow-hidden text-left text-white shadow-sm transition-transform hover:z-10 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${isMobile ? "rounded-[4px] p-0.5" : "rounded-md p-1"}`}
             style={{
               gridColumn: col,
               gridRow: `${rowStart} / ${rowEnd}`,
@@ -1182,8 +1190,8 @@ function SectionGrid({
             }}
             title={`${item.title}${item.subtitle ? " " + item.subtitle : ""}${item.meta ? " · " + item.meta : ""}`}
           >
-            <span className="line-clamp-2 text-[11px] font-semibold leading-tight">{item.title}</span>
-            {showDetail && (
+            <span className={`line-clamp-2 font-semibold leading-tight ${isMobile ? "text-[9px]" : "text-[11px]"}`}>{item.title}</span>
+            {showDetail && !isMobile && (
               <>
                 {item.subtitle && (
                   <span className="mt-0.5 line-clamp-1 text-[9px] leading-tight opacity-90">{item.subtitle}</span>
