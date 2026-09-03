@@ -43,6 +43,15 @@ import { useIsMobile } from "./ui/use-mobile";
 import { MobileDateWheel } from "./cloudsteps/MobileWheelPicker";
 import { CloudSpin } from "./cloudsteps/arco";
 import { CloudButton } from "./cloudsteps";
+import { useTimetableStore, blankCourseInput } from "../stores/timetableStore";
+import { CourseEditorDialog } from "./timetable/CourseEditorDialog";
+import { timeToSections } from "../utils/coachingSectionMap";
+import { isCourseShow, weekRangeLabel } from "../utils/timetableFilter";
+import {
+  DEFAULT_SECTIONS,
+  type Course,
+  type TimetableConfig,
+} from "../api/timetable";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const fmtYMD = (d: Date) =>
@@ -343,6 +352,15 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   const [tipHole, setTipHole] = useState<CoachTargetRect | null>(null);
   const [tipReady, setTipReady] = useState(false);
 
+  // localStorage 自定义课程
+  const ttLoad = useTimetableStore((s) => s.load);
+  const ttLoaded = useTimetableStore((s) => s.loaded);
+  const ttCourses = useTimetableStore((s) => s.courses);
+  const ttConfig = useTimetableStore((s) => s.config);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [coursePreset, setCoursePreset] = useState<{ weekDay: number; startSection: number } | null>(null);
+
   const timetableHostRef = useRef<HTMLDivElement>(null);
   const [axisHeightPx, setAxisHeightPx] = useState(280);
 
@@ -446,7 +464,8 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   useEffect(() => {
     void loadWeek();
     void loadQuotas();
-  }, [loadWeek, loadQuotas]);
+    if (!ttLoaded) void ttLoad();
+  }, [loadWeek, loadQuotas, ttLoad, ttLoaded]);
 
   useLayoutEffect(() => {
     const el = timetableHostRef.current;
@@ -658,6 +677,64 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     !!parseCoachingSlotEnd(selected.scheduledDate, selected.endTime) &&
     parseCoachingSlotEnd(selected.scheduledDate, selected.endTime)!.getTime() < nowTs;
 
+  /**
+   * 节次网格合并项：后端预约（按时间映射到节次）+ localStorage 自定义课程。
+   * 每项带来源标记 kind，点击时按 kind 分流交互。
+   */
+  const gridItems = useMemo(() => {
+    const sections = ttConfig.sections.length > 0 ? ttConfig.sections : DEFAULT_SECTIONS;
+    const items: GridItem[] = [];
+
+    // 后端预约：按 scheduledDate 算出属于本周第几天，时间映射到节次
+    for (const s of schedules) {
+      const ymd = s.scheduledDate?.slice?.(0, 10) || s.scheduledDate;
+      if (!ymd) continue;
+      const dayIdx = weekDays.findIndex((d) => fmtYMD(d) === ymd);
+      if (dayIdx < 0) continue;
+      const { startSection, endSection } = timeToSections(s.startTime, s.endTime, sections);
+      const past = isSchedulePast(s, nowTs);
+      const soft = past ? PAST_SOFT : STATUS_SOFT[s.status] || STATUS_SOFT.scheduled;
+      const { title, subtitle } = lessonDisplay(t, s);
+      items.push({
+        key: `co-${s.id}`,
+        kind: "coaching",
+        weekDay: dayIdx + 1,
+        startSection,
+        endSection,
+        color: soft.bar.replace("bg-", "").startsWith("muted") ? "#7A8A99" : "#4ECDC4",
+        title,
+        subtitle,
+        meta: `${s.startTime?.slice(0, 5)}-${s.endTime?.slice(0, 5)}`,
+        schedule: s,
+      });
+    }
+
+    // localStorage 自定义课程：按 weekDay 归属到本周（不区分具体日期）
+    for (const c of ttCourses) {
+      if (c.weekDay < 1 || c.weekDay > 7) continue;
+      items.push({
+        key: `cu-${c.id}`,
+        kind: "course",
+        weekDay: c.weekDay,
+        startSection: c.startSection,
+        endSection: c.endSection,
+        color: c.color,
+        title: c.name,
+        subtitle: c.room ? `@${c.room}` : undefined,
+        meta: weekRangeLabel(c),
+        course: c,
+      });
+    }
+
+    return items;
+  }, [schedules, ttCourses, ttConfig.sections, weekDays, t, nowTs]);
+
+  function openCourseEditor(course: Course | null, preset: { weekDay: number; startSection: number } | null) {
+    setEditingCourse(course);
+    setCoursePreset(preset);
+    setEditorOpen(true);
+  }
+
   const weekTrigger = (
     <button
       type="button"
@@ -736,237 +813,33 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
             <CloudSpin tip={t("coaching.loading_schedule")} />
           </div>
         ) : (
-          <div className="h-full min-h-0 overflow-x-auto overflow-y-auto overscroll-contain">
-            {!axisRange ? (
-              <div
-                className="grid h-full min-h-0"
-                style={{
-                  width: isMobile ? emptyGridMinW : "100%",
-                  minWidth: emptyGridMinW,
-                  gridTemplateColumns: isMobile
-                    ? `repeat(7, ${dayColPx}px)`
-                    : `repeat(7, minmax(${dayColPx}px, 1fr))`,
-                  gridTemplateRows: `${DAY_HEADER_H}px minmax(0, 1fr)`,
-                }}
-              >
-                {weekDays.map((d, i) => {
-                  const ymd = fmtYMD(d);
-                  const isToday = ymd === todayYMD;
-                  return (
-                    <button
-                      key={`h-${ymd}`}
-                      type="button"
-                      data-coach={i === 0 ? "timetable-day" : undefined}
-                      disabled={!isCoach}
-                      onClick={() => {
-                        if (!isCoach) return;
-                        dismissCellTip();
-                        openScheduleForDay(d);
-                      }}
-                      className={`sticky top-0 z-20 border-b border-border/70 px-0.5 py-1.5 text-center touch-manipulation ${
-                        isToday ? "bg-primary-soft/70" : "bg-surface-soft"
-                      } ${isCoach ? "active:bg-primary/10" : ""} ${
-                        i < 6 ? "border-r border-border/40" : ""
-                      }`}
-                    >
-                      <div
-                        className={`text-[11px] font-semibold ${
-                          isToday ? "text-primary" : "text-foreground"
-                        }`}
-                      >
-                        {t("coaching.weekday_prefix", { day: t(`coaching.weekday.${i}`) })}
-                      </div>
-                      <div
-                        className={`text-[10px] tabular-nums mt-0.5 ${
-                          isToday ? "text-primary" : "text-muted-foreground"
-                        }`}
-                      >
-                        {fmtMD(d)}
-                      </div>
-                    </button>
-                  );
-                })}
-                {weekDays.map((d, i) => {
-                  const ymd = fmtYMD(d);
-                  const isToday = ymd === todayYMD;
-                  return (
-                    <button
-                      key={`b-${ymd}`}
-                      type="button"
-                      disabled={!isCoach}
-                      onClick={() => {
-                        if (!isCoach) return;
-                        dismissCellTip();
-                        openScheduleForDay(d);
-                      }}
-                      className={`flex flex-col items-center justify-center gap-1.5 touch-manipulation min-h-0 h-full ${
-                        isToday ? "bg-primary/[0.04]" : ""
-                      } ${isCoach ? "active:bg-primary/[0.08]" : ""} ${
-                        i < 6 ? "border-r border-border/30" : ""
-                      }`}
-                    >
-                      {isCoach ? (
-                        <>
-                          <span className="inline-flex size-10 items-center justify-center rounded-full bg-primary/12 text-primary">
-                            <Plus size={18} />
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">{t("coaching.schedule_lesson")}</span>
-                        </>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground">{t("coaching.no_lessons")}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div
-                className="grid"
-                style={{
-                  width: isMobile ? weekGridMinW : "100%",
-                  minWidth: weekGridMinW,
-                  gridTemplateColumns: isMobile
-                    ? `${timeGutterPx}px repeat(7, ${dayColPx}px)`
-                    : `${timeGutterPx}px repeat(7, minmax(${dayColPx}px, 1fr))`,
-                  gridTemplateRows: `${DAY_HEADER_H}px ${axisHeightPx}px`,
-                }}
-              >
-                <div className="sticky top-0 left-0 z-30 bg-surface-soft border-b border-r border-border/70" />
-                {weekDays.map((d, i) => {
-                  const ymd = fmtYMD(d);
-                  const isToday = ymd === todayYMD;
-                  return (
-                    <button
-                      key={ymd}
-                      type="button"
-                      data-coach={i === 0 ? "timetable-day" : undefined}
-                      disabled={!isCoach}
-                      onClick={() => {
-                        if (!isCoach) return;
-                        dismissCellTip();
-                        openScheduleForDay(d);
-                      }}
-                      className={`sticky top-0 z-20 border-b border-border/70 px-0.5 py-1.5 text-center touch-manipulation ${
-                        isToday ? "bg-primary-soft/70" : "bg-surface-soft"
-                      } ${isCoach ? "active:bg-primary/10" : ""} ${
-                        i < 6 ? "border-r border-border/40" : ""
-                      }`}
-                    >
-                      <div
-                        className={`text-[11px] font-semibold ${
-                          isToday ? "text-primary" : "text-foreground"
-                        }`}
-                      >
-                        {t("coaching.weekday_prefix", { day: t(`coaching.weekday.${i}`) })}
-                      </div>
-                      <div
-                        className={`text-[10px] tabular-nums mt-0.5 ${
-                          isToday ? "text-primary" : "text-muted-foreground"
-                        }`}
-                      >
-                        {fmtMD(d)}
-                        {isCoach ? (
-                          <Plus size={10} className="inline ml-0.5 align-[-1px] text-primary/70" />
-                        ) : null}
-                      </div>
-                    </button>
-                  );
-                })}
-
-                <div className="sticky left-0 z-10 bg-card border-r border-border/70 relative row-start-2" style={{ height: axisHeightPx }}>
-                  {axisMarks.map((m) => (
-                    <div
-                      key={m}
-                      className="absolute left-0 right-0 px-1 -translate-y-1/2"
-                      style={{ top: ((m - axisRange.startMin) / axisSpan) * axisHeightPx }}
-                    >
-                      <span className="text-[10px] text-muted-foreground tabular-nums leading-none">
-                        {fmtMinutes(m).slice(0, 5)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {weekDays.map((d, dIdx) => {
-                  const ymd = fmtYMD(d);
-                  const isToday = ymd === todayYMD;
-                  const isPastDay = ymd < todayYMD;
-                  const dayItems = byDay[ymd] || [];
-                  const laidOut = layoutDayEvents(
-                    dayItems,
-                    axisRange.startMin,
-                    axisRange.endMin,
-                    axisHeightPx,
-                  );
-                  const nowLocalM = new Date(nowTs).getHours() * 60 + new Date(nowTs).getMinutes();
-                  const todayPastHeightPx =
-                    isToday && nowLocalM > axisRange.startMin
-                      ? Math.min(
-                          axisHeightPx,
-                          ((Math.min(nowLocalM, axisRange.endMin) - axisRange.startMin) / axisSpan) *
-                            axisHeightPx,
-                        )
-                      : 0;
-                  return (
-                    <div
-                      key={ymd}
-                      className={`relative row-start-2 ${isToday ? "bg-primary/[0.04]" : ""} ${
-                        dIdx < 6 ? "border-r border-border/30" : ""
-                      }`}
-                      style={{ height: axisHeightPx }}
-                    >
-                      {isPastDay ? (
-                        <div
-                          className="absolute inset-0 z-0 bg-muted/45 pointer-events-none"
-                          aria-hidden
-                        />
-                      ) : null}
-                      {todayPastHeightPx > 0 ? (
-                        <div
-                          className="absolute left-0 right-0 top-0 z-0 bg-muted/40 pointer-events-none"
-                          style={{ height: todayPastHeightPx }}
-                          aria-hidden
-                        />
-                      ) : null}
-                      {axisMarks.map((m) => (
-                        <div
-                          key={m}
-                          className="absolute left-0 right-0 border-t border-border/20 pointer-events-none"
-                          style={{ top: ((m - axisRange.startMin) / axisSpan) * axisHeightPx }}
-                        />
-                      ))}
-
-                      {isCoach ? (
-                        <button
-                          type="button"
-                          aria-label={t("coaching.schedule_on_day", { date: ymd })}
-                          className="absolute inset-0 z-0 touch-manipulation"
-                          onClick={() => {
-                            dismissCellTip();
-                            openScheduleForDay(d);
-                          }}
-                        />
-                      ) : null}
-
-                      {laidOut.map((ev) => (
-                        <TimetableBlock
-                          key={ev.schedule.id}
-                          schedule={ev.schedule}
-                          topPx={ev.topPx}
-                          heightPx={ev.heightPx}
-                          showDetail={ev.showDetail}
-                          col={ev.col}
-                          colCount={ev.colCount}
-                          nowTs={nowTs}
-                          onClick={() => setSelected(ev.schedule)}
-                          t={t}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <div className="h-full min-h-0 overflow-auto overscroll-contain">
+            <SectionGrid
+              weekDays={weekDays}
+              todayYMD={todayYMD}
+              sections={ttConfig.sections.length > 0 ? ttConfig.sections : DEFAULT_SECTIONS}
+              items={gridItems}
+              isCoach={isCoach}
+              t={t}
+              onDayHeaderClick={(d) => {
+                if (!isCoach) return;
+                dismissCellTip();
+                openScheduleForDay(d);
+              }}
+              onCellClick={(weekDay, section) => {
+                if (!isCoach) return;
+                dismissCellTip();
+                openCourseEditor(null, { weekDay, startSection: section });
+              }}
+              onItemClick={(item) => {
+                dismissCellTip();
+                if (item.kind === "coaching" && item.schedule) {
+                  setSelected(item.schedule);
+                } else if (item.kind === "course" && item.course) {
+                  openCourseEditor(item.course, null);
+                }
+              }}
+            />
           </div>
         )}
       </div>
@@ -1159,6 +1032,155 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
           </div>
         </div>
       )}
+
+      <CourseEditorDialog
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        course={editingCourse}
+        preset={coursePreset}
+        config={ttConfig}
+      />
+    </div>
+  );
+}
+
+// ===== 节次网格子组件 =====
+
+type GridItem = {
+  key: string;
+  kind: "coaching" | "course";
+  weekDay: number;
+  startSection: number;
+  endSection: number;
+  color: string;
+  title: string;
+  subtitle?: string;
+  meta?: string;
+  schedule?: CoachingWeekSchedule;
+  course?: Course;
+};
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+function SectionGrid({
+  weekDays,
+  todayYMD,
+  sections,
+  items,
+  isCoach,
+  t,
+  onDayHeaderClick,
+  onCellClick,
+  onItemClick,
+}: {
+  weekDays: Date[];
+  todayYMD: string;
+  sections: TimetableConfig["sections"];
+  items: GridItem[];
+  isCoach: boolean;
+  t: TFunction;
+  onDayHeaderClick: (d: Date) => void;
+  onCellClick: (weekDay: number, section: number) => void;
+  onItemClick: (item: GridItem) => void;
+}) {
+  const totalRows = sections.length;
+  const gridStyle = {
+    gridTemplateColumns: `48px repeat(7, minmax(0, 1fr))`,
+    gridTemplateRows: `40px repeat(${totalRows}, 60px)`,
+  } as const;
+
+  return (
+    <div className="grid min-w-[680px] rounded-md border border-border bg-card" style={gridStyle}>
+      {/* 左上角 */}
+      <div className="flex items-center justify-center border-b border-r border-border text-[10px] font-medium text-muted-foreground">
+        {t("timetable.section")}
+      </div>
+      {/* 表头：7 天 */}
+      {weekDays.map((d, i) => {
+        const ymd = fmtYMD(d);
+        const isToday = ymd === todayYMD;
+        return (
+          <button
+            key={`h-${ymd}`}
+            type="button"
+            data-coach={i === 0 ? "timetable-day" : undefined}
+            onClick={() => onDayHeaderClick(d)}
+            className={`flex flex-col items-center justify-center border-b border-border px-0.5 text-center touch-manipulation ${
+              isToday ? "bg-primary-soft/70" : "bg-surface-soft"
+            } ${isCoach ? "active:bg-primary/10" : ""} ${i < 6 ? "border-r border-border/40" : ""}`}
+          >
+            <span className={`text-[11px] font-semibold ${isToday ? "text-primary" : "text-foreground"}`}>
+              {t("coaching.weekday_prefix", { day: t(`coaching.weekday.${i}`) })}
+            </span>
+            <span className={`text-[10px] tabular-nums ${isToday ? "text-primary" : "text-muted-foreground"}`}>
+              {fmtMD(d)}
+            </span>
+          </button>
+        );
+      })}
+
+      {/* 节次标签 + 空白格 */}
+      {sections.map((sec) => (
+        <div key={`sec-${sec.no}`} className="contents">
+          <div className="flex flex-col items-center justify-center border-b border-r border-border px-0.5 text-center">
+            <span className="text-xs font-semibold text-foreground">{sec.no}</span>
+            <span className="text-[9px] leading-tight text-muted-foreground">{sec.start}</span>
+            <span className="text-[9px] leading-tight text-muted-foreground">{sec.end}</span>
+          </div>
+          {Array.from({ length: 7 }, (_, dayIdx) => (
+            <button
+              key={`cell-${sec.no}-${dayIdx}`}
+              type="button"
+              onClick={() => onCellClick(dayIdx + 1, sec.no)}
+              className={`border-b border-border ${dayIdx < 6 ? "border-r" : ""} hover:bg-accent/40 transition-colors`}
+              aria-label={`${t(`coaching.weekday.${dayIdx}`)} ${sec.no}`}
+            />
+          ))}
+        </div>
+      ))}
+
+      {/* 课程/预约色块 */}
+      {items.map((item) => {
+        const col = item.weekDay + 1;
+        const rowStart = item.startSection + 1;
+        const rowEnd = item.endSection + 2;
+        const span = item.endSection - item.startSection + 1;
+        const showDetail = span >= 2;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onItemClick(item);
+            }}
+            className="group relative m-0.5 flex flex-col overflow-hidden rounded-md p-1 text-left text-white shadow-sm transition-transform hover:z-10 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            style={{
+              gridColumn: col,
+              gridRow: `${rowStart} / ${rowEnd}`,
+              backgroundColor: item.color,
+              borderColor: hexToRgba(item.color, 0.5),
+            }}
+            title={`${item.title}${item.subtitle ? " " + item.subtitle : ""}${item.meta ? " · " + item.meta : ""}`}
+          >
+            <span className="line-clamp-2 text-[11px] font-semibold leading-tight">{item.title}</span>
+            {showDetail && (
+              <>
+                {item.subtitle && (
+                  <span className="mt-0.5 line-clamp-1 text-[9px] leading-tight opacity-90">{item.subtitle}</span>
+                )}
+                {item.meta && (
+                  <span className="mt-auto line-clamp-1 text-[9px] leading-tight opacity-80">{item.meta}</span>
+                )}
+              </>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
