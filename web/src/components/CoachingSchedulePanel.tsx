@@ -693,7 +693,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       if (dayIdx < 0) continue;
       const { startSection, endSection } = timeToSections(s.startTime, s.endTime, sections);
       const past = isSchedulePast(s, nowTs);
-      const soft = past ? PAST_SOFT : STATUS_SOFT[s.status] || STATUS_SOFT.scheduled;
+      const statusColor =
+        past || s.status === "completed"
+          ? "#7A8A99"
+          : s.status === "in_progress"
+            ? "#55A3FF"
+            : s.status === "cancelled"
+              ? "#E85555"
+              : "#4ECDC4";
       const { title, subtitle } = lessonDisplay(t, s);
       items.push({
         key: `co-${s.id}`,
@@ -701,7 +708,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         weekDay: dayIdx + 1,
         startSection,
         endSection,
-        color: soft.bar.replace("bg-", "").startsWith("muted") ? "#7A8A99" : "#4ECDC4",
+        color: statusColor,
         title,
         subtitle,
         meta: `${s.startTime?.slice(0, 5)}-${s.endTime?.slice(0, 5)}`,
@@ -1096,7 +1103,10 @@ function SectionGrid({
   return (
     <div className="grid min-w-[680px] rounded-md border border-border bg-card" style={gridStyle}>
       {/* 左上角 */}
-      <div className="flex items-center justify-center border-b border-r border-border text-[10px] font-medium text-muted-foreground">
+      <div
+        className="flex items-center justify-center border-b border-r border-border text-[10px] font-medium text-muted-foreground"
+        style={{ gridColumn: 1, gridRow: 1 }}
+      >
         {t("timetable.section")}
       </div>
       {/* 表头：7 天 */}
@@ -1112,6 +1122,7 @@ function SectionGrid({
             className={`flex flex-col items-center justify-center border-b border-border px-0.5 text-center touch-manipulation ${
               isToday ? "bg-primary-soft/70" : "bg-surface-soft"
             } ${isCoach ? "active:bg-primary/10" : ""} ${i < 6 ? "border-r border-border/40" : ""}`}
+            style={{ gridColumn: i + 2, gridRow: 1 }}
           >
             <span className={`text-[11px] font-semibold ${isToday ? "text-primary" : "text-foreground"}`}>
               {t("coaching.weekday_prefix", { day: t(`coaching.weekday.${i}`) })}
@@ -1126,7 +1137,10 @@ function SectionGrid({
       {/* 节次标签 + 空白格 */}
       {sections.map((sec) => (
         <div key={`sec-${sec.no}`} className="contents">
-          <div className="flex flex-col items-center justify-center border-b border-r border-border px-0.5 text-center">
+          <div
+            className="flex flex-col items-center justify-center border-b border-r border-border px-0.5 text-center"
+            style={{ gridColumn: 1, gridRow: sec.no + 1 }}
+          >
             <span className="text-xs font-semibold text-foreground">{sec.no}</span>
             <span className="text-[9px] leading-tight text-muted-foreground">{sec.start}</span>
             <span className="text-[9px] leading-tight text-muted-foreground">{sec.end}</span>
@@ -1137,6 +1151,7 @@ function SectionGrid({
               type="button"
               onClick={() => onCellClick(dayIdx + 1, sec.no)}
               className={`border-b border-border ${dayIdx < 6 ? "border-r" : ""} hover:bg-accent/40 transition-colors`}
+              style={{ gridColumn: dayIdx + 2, gridRow: sec.no + 1 }}
               aria-label={`${t(`coaching.weekday.${dayIdx}`)} ${sec.no}`}
             />
           ))}
