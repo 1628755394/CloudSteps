@@ -230,7 +230,7 @@ export function Layout() {
   }`;
 
   const lessonPrepInnerClass =
-    "h-full flex flex-col max-w-[1200px] w-full mx-auto min-h-0 px-2 py-1 sm:px-3 lg:px-4 overflow-hidden";
+    "h-full flex flex-col max-w-[1600px] w-full mx-auto min-h-0 px-2 py-1 sm:px-3 lg:px-4 overflow-hidden";
 
   return (
     <div
