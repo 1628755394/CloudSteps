@@ -9,6 +9,7 @@ import {
   BookOpen,
   Menu,
   X,
+  CalendarDays,
 } from "lucide-react";
 import { Header } from "./header";
 import { NavMenu } from "./NavMenu";
@@ -23,6 +24,7 @@ import { teacherAvatarSrc } from "../utils/avatar";
 const navItemDefs = [
   { path: "/", labelKey: "nav.home", icon: Home },
   { path: "/lesson-prep", labelKey: "nav.lesson_prep", icon: BookOpen },
+  { path: "/timetable", labelKey: "nav.timetable", icon: CalendarDays },
   { path: "/anti-forgetting", labelKey: "nav.anti_forgetting", icon: RefreshCw },
   { path: "/coach-center", labelKey: "nav.coach_center", icon: Users },
 ] as const;

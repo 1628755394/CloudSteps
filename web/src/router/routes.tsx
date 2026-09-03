@@ -52,6 +52,7 @@ import WordBookShelf from "../pages/WordBookShelf";
 import CreateCustomWordBook from "../pages/CreateCustomWordBook";
 import LighthouseWords from "../pages/LighthouseWords";
 import TrainingRecords from "../pages/TrainingRecords";
+import Timetable from "../pages/Timetable";
 
 export const router = createBrowserRouter(
   [
@@ -102,6 +103,7 @@ export const router = createBrowserRouter(
       { path: "word-books/custom/new", element: <CreateCustomWordBook /> },
       { path: "word-books/:id", element: <WordBookWords /> },
       { path: "training-records", element: <TrainingRecords /> },
+      { path: "timetable", element: <Timetable /> },
       { path: "anti-forgetting", element: <AntiForgetting /> },
       { path: "coach-center", element: <CoachCenter /> },
       {
