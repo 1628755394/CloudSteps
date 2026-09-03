@@ -1981,7 +1981,6 @@
   "review.empty_session": "Review session or word list is empty",
   "auth.fetch_user_failed": "Failed to fetch user info",
   "notification.invalid_id": "Invalid notification ID",
-  "nav.timetable": "Timetable",
   "timetable.title": "My Timetable",
   "timetable.subtitle": "Section-grid timetable · supports odd/even weeks and week ranges",
   "timetable.section": "Section",

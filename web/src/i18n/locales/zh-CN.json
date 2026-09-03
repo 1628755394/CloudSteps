@@ -1981,7 +1981,6 @@
   "review.empty_session": "复习会话或单词为空",
   "auth.fetch_user_failed": "获取用户信息失败",
   "notification.invalid_id": "无效的通知 ID",
-  "nav.timetable": "课表",
   "timetable.title": "我的课表",
   "timetable.subtitle": "节次网格课表 · 支持单双周与起止周",
   "timetable.section": "节次",
