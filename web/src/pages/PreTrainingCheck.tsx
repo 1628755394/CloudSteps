@@ -418,7 +418,7 @@ export default function PreTrainingCheck() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 -mr-1 sm:mr-0">
+        <div className="flex items-center justify-end gap-2 sm:gap-3 -mr-1 sm:mr-0">
           <div onClick={(e) => e.stopPropagation()}>
             <StudyNoteLauncher
               storageKey={`study-note:word:${wordBookId}:${word.id}`}
@@ -489,7 +489,7 @@ export default function PreTrainingCheck() {
   );
 
   return (
-    <FlowPageShell>
+    <FlowPageShell className="min-h-screen bg-gray-50 pb-20 sm:pb-24">
       <TopBar
         title={t("pre_training_check.title")}
         onBack={handleBack}

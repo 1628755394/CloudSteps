@@ -262,7 +262,7 @@ export default function AntiForgetting() {
                       key={task.id}
                       className={`relative flex gap-3 sm:gap-4 ${idx < group.tasks.length - 1 ? "pb-5" : "pb-6 last:pb-0"}`}
                     >
-                      <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-end items-center">
+                      <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-center items-center">
                         {idx === 0 ? (
                           <div className="relative z-[1] min-w-[3rem] px-1.5 py-2 rounded-md border border-border bg-card text-center text-xs font-medium text-foreground tabular-nums shadow-sm">
                             {group.timeSlot}
