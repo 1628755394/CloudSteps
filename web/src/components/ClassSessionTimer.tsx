@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router";
 import { Clock, Pause } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -12,10 +13,12 @@ import {
 import { CloudButton } from "./cloudsteps";
 import { formatCountdown, useClassTimerStore } from "../stores/classTimerStore";
 import {
+  canSyncPracticeBilling,
   ensurePracticeBillingActive,
   usePracticeBillingStore,
 } from "../utils/practiceBilling";
 import { showToast } from "../utils/toast";
+import { isTimerZonePath } from "../utils/practiceFlowLock";
 
 const PRESETS = [30, 40, 45, 50, 60];
 const REMIND_PRESETS = [5, 10, 15, 20, 30];
@@ -270,11 +273,12 @@ export function ClassTimerBadge({ onClick }: { onClick: () => void }) {
 }
 
 /**
- * 全站上课定时：浮动倒计时（无顶栏入口的页面）+ 到点 / 最后提醒
- * 额度计费与计时器无关；刷新后若本地有未结课次会静默 ensure
+ * 单词训练流程内：顶栏倒计时 + 到点 / 最后提醒（不在区外浮动展示）
  */
 export function ClassSessionTimer() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const inTimerZone = isTimerZonePath(location.pathname);
   const endsAt = useClassTimerStore((s) => s.endsAt);
   const markEndedNotified = useClassTimerStore((s) => s.markEndedNotified);
   const takeIntervalRemind = useClassTimerStore((s) => s.takeIntervalRemind);
@@ -295,11 +299,12 @@ export function ClassSessionTimer() {
     return () => window.clearInterval(id);
   }, []);
 
-  // 断网恢复 / 切回前台：强制与服务端对齐（挂载时不打，避免与「继续练习」叠打）
+  // 断网恢复 / 切回前台：仅在练习区内、已选学员时与服务端对齐
   useEffect(() => {
-    if (!hasBillingLink) return;
+    if (!inTimerZone || !hasBillingLink) return;
     const recover = () => {
-      void ensurePracticeBillingActive(180, { force: true });
+      if (!canSyncPracticeBilling()) return;
+      void ensurePracticeBillingActive(180, { force: true, silent: true });
     };
     const onVis = () => {
       if (document.visibilityState === "visible") recover();
@@ -310,7 +315,7 @@ export function ClassSessionTimer() {
       window.removeEventListener("online", recover);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [hasBillingLink]);
+  }, [hasBillingLink, inTimerZone]);
 
   useEffect(() => {
     if (!endsAt) {
@@ -349,6 +354,7 @@ export function ClassSessionTimer() {
     return () => window.clearInterval(id);
   }, [endsAt, markEndedNotified, takeIntervalRemind, t]);
 
+  if (!inTimerZone) return null;
   if (!endsAt && !endOpen && !intervalOpen) return null;
 
   return (

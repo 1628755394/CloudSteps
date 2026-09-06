@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router";
+import { AppShell } from "../components/AppShell";
 import { Layout } from "../components/Layout";
 import Home from "../pages/Home";
 import AntiForgetting from "../pages/AntiForgetting";
@@ -29,6 +30,7 @@ import WordPractice from "../pages/WordPractice";
 import FlashReview from "../pages/FlashReview";
 import PostTrainingCheck from "../pages/PostTrainingCheck";
 import ListenIdentify from "../pages/ListenIdentify";
+import SessionReport from "../pages/SessionReport";
 import CreateAntiForgetting from "../pages/CreateAntiForgetting";
 import Notifications from "../pages/Notifications";
 import Announcements from "../pages/Announcements";
@@ -55,6 +57,9 @@ import TrainingRecords from "../pages/TrainingRecords";
 
 export const router = createBrowserRouter(
   [
+  {
+    element: <AppShell />,
+    children: [
   {
     path: "/",
     element: (
@@ -387,12 +392,22 @@ export const router = createBrowserRouter(
     ),
   },
   {
+    path: "/session-report/:sessionId",
+    element: (
+      <RequireAuth>
+        <SessionReport />
+      </RequireAuth>
+    ),
+  },
+  {
     path: "/create-anti-forgetting",
     element: (
       <RequireAuth>
         <CreateAntiForgetting />
       </RequireAuth>
     ),
+  },
+    ],
   },
   ],
   // 部署到 GitHub Pages 项目页时，Vite 的 base（import.meta.env.BASE_URL）

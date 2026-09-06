@@ -65,6 +65,55 @@ type WordBook struct {
 
 func (WordBook) TableName() string { return constants.TABLE_WORD_BOOKS }
 
+// PublicWordBook is the learner-facing wordbook payload (no admin-only intro/provenance fields).
+type PublicWordBook struct {
+	ID              uint   `json:"id,string"`
+	Name            string `json:"name"`
+	Level           string `json:"level"`
+	WordCount       int    `json:"wordCount"`
+	CoverURL        string `json:"coverUrl"`
+	IsActive        bool   `json:"isActive"`
+	SortOrder       int    `json:"sortOrder"`
+	Category        string `json:"category"`
+	Language        string `json:"language"`
+	TargetLanguage  string `json:"targetLanguage"`
+	Difficulty      int8   `json:"difficulty"`
+	OwnerUserID     uint   `json:"ownerUserId"`
+	ExamTags        string `json:"examTags,omitempty"`
+	CEFRRange       string `json:"cefrRange,omitempty"`
+	RegionalVariant string `json:"regionalVariant,omitempty"`
+}
+
+// ToPublicWordBook strips admin-only fields (description, source, license, author, etc.).
+func ToPublicWordBook(b WordBook) PublicWordBook {
+	return PublicWordBook{
+		ID:              b.ID,
+		Name:            b.Name,
+		Level:           b.Level,
+		WordCount:       b.WordCount,
+		CoverURL:        b.CoverURL,
+		IsActive:        b.IsActive,
+		SortOrder:       b.SortOrder,
+		Category:        b.Category,
+		Language:        b.Language,
+		TargetLanguage:  b.TargetLanguage,
+		Difficulty:      b.Difficulty,
+		OwnerUserID:     b.OwnerUserID,
+		ExamTags:        b.ExamTags,
+		CEFRRange:       b.CEFRRange,
+		RegionalVariant: b.RegionalVariant,
+	}
+}
+
+// ToPublicWordBooks maps a slice of wordbooks to learner-facing payloads.
+func ToPublicWordBooks(books []WordBook) []PublicWordBook {
+	out := make([]PublicWordBook, 0, len(books))
+	for _, b := range books {
+		out = append(out, ToPublicWordBook(b))
+	}
+	return out
+}
+
 // Word 单词
 type Word struct {
 	common.BaseModel
@@ -341,6 +390,12 @@ func UpdateWordBook(db *gorm.DB, id uint, vals map[string]any) error {
 // 注意：这里使用 Unscoped，硬删除词库及相关数据（与 DeletedAt 软删无关）。
 func DeleteWordBook(db *gorm.DB, id uint, operator string) error {
 	_ = operator // operator currently only used for soft delete audit; keep signature compatibility
+	if id == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	if err := db.First(&WordBook{}, id).Error; err != nil {
+		return err
+	}
 
 	tx := db.Unscoped()
 
@@ -365,7 +420,14 @@ func DeleteWordBook(db *gorm.DB, id uint, operator string) error {
 	}
 
 	// 最后删除词库主表
-	return tx.Where("id = ?", id).Delete(&WordBook{}).Error
+	res := tx.Where("id = ?", id).Delete(&WordBook{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // SetWordBookActive 上架 / 下架词库

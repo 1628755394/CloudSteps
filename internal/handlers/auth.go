@@ -423,7 +423,6 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	// 执行登录操作（设置session等）
 	models.Login(c, user)
 
-	// 检查是否被中止（models.Login内部可能出错并中止请求）
 	if c.IsAborted() {
 		logger.Error("Login failed: models.Login aborted the request", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
 		return
@@ -431,30 +430,13 @@ func (h *Handlers) handleUserSigninByPassword(c *gin.Context) {
 	updatedUser, err := models.GetUserByUID(db, user.ID)
 	if err != nil {
 		logger.Warn("Failed to reload user after login, using original user object", zap.Error(err))
-		updatedUser = user // 如果加载失败，使用原始user对象
+		updatedUser = user
 	} else {
-		user = updatedUser // 使用更新后的用户信息
-	}
-
-	// 生成认证Token
-	expired := h.authTokenTTL()
-	user.AuthToken = models.BuildAuthToken(user, expired, false)
-
-	// 8. 返回登录结果
-	responseData := gin.H{
-		"token": user.AuthToken,
-		"user": gin.H{
-			"id":          user.ID,
-			"email":       firstNonEmpty(user.Email, user.Username),
-			"account":     user.Username,
-			"displayName": user.DisplayName,
-			"role":        user.Role,
-			"avatar":      user.Avatar,
-		},
+		user = updatedUser
 	}
 
 	logger.Info("Login successful", zap.String("email", form.Username), zap.Uint("userID", user.ID), zap.String("ip", clientIP))
-	response.SuccessI18n(c, "auth.login_success", responseData)
+	response.SuccessI18n(c, "auth.login_success", h.authSessionPayload(user))
 }
 
 // handleUserSignup handle user signup
@@ -468,7 +450,7 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	clientIP := c.ClientIP()
 
 	if err := utils.PreparePasswordRegister(&form); err != nil {
-		response.FailI18n(c, "common.invalid_params", err)
+		failUserMessage(c, err)
 		return
 	}
 
@@ -496,16 +478,16 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	if utils.GlobalRegistrationGuard != nil {
 		if err := utils.GlobalRegistrationGuard.CheckRegistrationAllowed(clientIP, form.Username, form.Password); err != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
-			status := http.StatusBadRequest
-			if utils.IsRegistrationThrottleError(err) {
-				status = http.StatusTooManyRequests
-			}
-			response.AbortWithStatusJSON(c, status, err)
+			failUserMessage(c, err)
 			return
 		}
 	}
 
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	if err := previewInviteCode(db, form.InviteCode); err != nil {
+		response.FailI18n(c, inviteErrMsg(err), err)
+		return
+	}
 	if models.IsExistsByUsername(db, form.Username) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "username already exists")
@@ -531,6 +513,10 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 		}
 		logger.Warn("create user failed", zap.String("username", form.Username), zap.Error(err))
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
+		return
+	}
+	if err := applyInviteAfterRegister(db, user.ID, form.InviteCode); err != nil {
+		response.FailI18n(c, inviteErrMsg(err), err)
 		return
 	}
 
@@ -575,10 +561,13 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 		return
 	}
 	models.Login(c, user)
-	response.SuccessI18n(c, "auth.register_success", gin.H{
-		"username": user.Username,
-		"email":    user.Email,
-	})
+	if c.IsAborted() {
+		return
+	}
+	if updated, err := models.GetUserByUID(db, user.ID); err == nil && updated != nil {
+		user = updated
+	}
+	response.SuccessI18n(c, "auth.register_success", h.authSessionPayload(user))
 }
 
 // handleUserSignupByEmail email register email activation
@@ -592,7 +581,7 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	clientIP := c.ClientIP()
 
 	if err := utils.PrepareEmailRegister(&form); err != nil {
-		response.FailI18n(c, "common.invalid_params", err)
+		failUserMessage(c, err)
 		return
 	}
 
@@ -620,16 +609,16 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 	if utils.GlobalRegistrationGuard != nil {
 		if err := utils.GlobalRegistrationGuard.CheckRegistrationAllowed(clientIP, form.Username, form.Password); err != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, err.Error())
-			status := http.StatusBadRequest
-			if utils.IsRegistrationThrottleError(err) {
-				status = http.StatusTooManyRequests
-			}
-			response.AbortWithStatusJSON(c, status, err)
+			failUserMessage(c, err)
 			return
 		}
 	}
 
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	if err := previewInviteCode(db, form.InviteCode); err != nil {
+		response.FailI18n(c, inviteErrMsg(err), err)
+		return
+	}
 	if models.IsExistsByUsername(db, form.Username) || models.IsExistsByEmail(db, form.Username) {
 		if utils.GlobalRegistrationGuard != nil {
 			utils.GlobalRegistrationGuard.RecordRegistrationAttempt(clientIP, form.Username, false, "username already exists")
@@ -668,6 +657,10 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		}
 		logger.Warn("create user failed", zap.Any("email", form.Username), zap.Error(err))
 		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
+		return
+	}
+	if err := applyInviteAfterRegister(db, user.ID, form.InviteCode); err != nil {
+		response.FailI18n(c, inviteErrMsg(err), err)
 		return
 	}
 
@@ -1736,6 +1729,22 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+func (h *Handlers) authSessionPayload(user *models.User) gin.H {
+	token := models.BuildAuthToken(user, h.authTokenTTL(), false)
+	user.AuthToken = token
+	return gin.H{
+		"token": token,
+		"user": gin.H{
+			"id":          user.ID,
+			"email":       firstNonEmpty(user.Email, user.Username),
+			"account":     user.Username,
+			"displayName": user.DisplayName,
+			"role":        user.Role,
+			"avatar":      user.Avatar,
+		},
+	}
 }
 
 // authTokenTTL reads AUTH_TOKEN_EXPIRED (Go duration: 168h, not 7d).
