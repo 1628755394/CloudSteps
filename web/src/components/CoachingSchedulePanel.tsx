@@ -371,6 +371,8 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   );
   const todayYMD = fmtYMD(new Date());
   const weekShortLabel = `${fmtMD(weekMon)}–${fmtMD(addDays(weekMon, 6))}`;
+  const currentWeekMon = useMemo(() => weekMonday(new Date()), []);
+  const isCurrentCalendarWeek = fmtYMD(weekMon) === fmtYMD(currentWeekMon);
 
   const byDay = useMemo(() => {
     const map: Record<string, CoachingWeekSchedule[]> = {};
@@ -712,6 +714,8 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         title,
         subtitle,
         meta: `${s.startTime?.slice(0, 5)}-${s.endTime?.slice(0, 5)}`,
+        typeLabel: t("coaching.schedule_type"),
+        statusLabel: t(`coaching.status.${s.status}`, { defaultValue: s.status }),
         schedule: s,
       });
     }
@@ -729,11 +733,21 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         title: c.name,
         subtitle: c.room ? `@${c.room}` : undefined,
         meta: weekRangeLabel(c),
+        typeLabel: t("timetable.custom_course"),
         course: c,
       });
     }
 
-    return items;
+    return items.map((item) => ({
+      ...item,
+      conflict: items.some(
+        (other) =>
+          other.key !== item.key &&
+          other.weekDay === item.weekDay &&
+          other.startSection <= item.endSection &&
+          other.endSection >= item.startSection,
+      ),
+    }));
   }, [schedules, ttCourses, ttConfig.sections, weekDays, t, nowTs]);
 
   function openCourseEditor(course: Course | null, preset: { weekDay: number; startSection: number } | null) {
@@ -754,63 +768,89 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
 
   return (
     <div className="flex h-full flex-col min-h-0 overflow-hidden bg-card sm:rounded-xl sm:border sm:border-border">
-      {/* 紧凑顶栏：标题 + 周切换同一行 */}
-      <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 border-b border-border">
-        <h2 className="text-[13px] sm:text-[15px] font-semibold text-foreground shrink-0 leading-none">
-          {isCoach ? t("coaching.schedule_title") : t("coaching.my_schedule")}
-        </h2>
-        <span className="inline-flex items-center rounded-md bg-primary-soft px-1.5 py-0.5 text-[10px] font-medium text-primary shrink-0 leading-none">
-          {t("coaching.pending_count", { count: activeCount })}
-        </span>
-
-        <div className="flex-1 min-w-0" />
-
-        <CloudButton
-          variant="outline"
-          size="sm"
-          className="shrink-0 size-7 sm:size-8 p-0 touch-manipulation"
-          aria-label={t("ui.prev_week")}
-          onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}
-        >
-          <ChevronLeft size={16} />
-        </CloudButton>
-
-        <div className="w-[6.5rem] sm:w-[9.5rem] shrink-0">
-          {isMobile ? (
-            <MobileDateWheel
-              value={fmtYMD(weekMon)}
-              allowClear={false}
-              placeholder={t("coaching.select_week")}
-              displayValue={weekShortLabel}
-              sheetTitle={t("coaching.select_week_day")}
-              className="!h-8 !min-h-8 !text-xs !text-center !flex !items-center !justify-center !px-1 !rounded-lg"
-              onChange={(dateString) => jumpToWeekOf(dateString)}
-            />
-          ) : (
-            <DatePicker.WeekPicker
-              dayStartOfWeek={1}
-              allowClear={false}
-              value={weekMon}
-              className="cloud-datepicker w-full"
-              style={{ width: "100%", borderRadius: 8, height: 32 }}
-              triggerElement={weekTrigger}
-              onChange={(_val, date) => {
-                const d = toPickerDate(date) || toPickerDate(_val);
-                if (d) setWeekAnchor(weekMonday(d));
-              }}
-            />
+      {/* 页面头部：标题、业务操作与周切换 */}
+      <div className="shrink-0 border-b border-border bg-card px-3 py-2.5 sm:px-4 sm:py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-base font-semibold tracking-tight text-foreground sm:text-lg">
+                {isCoach ? t("coaching.schedule_title") : t("coaching.my_schedule")}
+              </h2>
+              <span className="inline-flex shrink-0 items-center rounded-full bg-primary-soft px-2 py-0.5 text-[10px] font-medium text-primary">
+                {t("coaching.pending_count", { count: activeCount })}
+              </span>
+            </div>
+            <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">{t("coaching.schedule_hint")}</p>
+          </div>
+          {isCoach && (
+            <CloudButton
+              variant="brand"
+              size="sm"
+              className="shrink-0"
+              onClick={() => openCourseEditor(null, null)}
+            >
+              <Plus size={14} />
+              {t("timetable.add_course")}
+            </CloudButton>
           )}
         </div>
 
-        <CloudButton
-          variant="outline"
-          size="sm"
-          className="shrink-0 size-7 sm:size-8 p-0 touch-manipulation"
-          aria-label={t("ui.next_week")}
-          onClick={() => setWeekAnchor(addDays(weekAnchor, 7))}
-        >
-          <ChevronRight size={16} />
-        </CloudButton>
+        <div className="mt-2 flex items-center justify-end gap-1.5 sm:mt-3">
+          {!isCurrentCalendarWeek && (
+            <CloudButton
+              variant="brandOutline"
+              size="sm"
+              className="mr-auto shrink-0"
+              onClick={() => setWeekAnchor(currentWeekMon)}
+            >
+              {t("timetable.back_to_current")}
+            </CloudButton>
+          )}
+          <CloudButton
+            variant="outline"
+            size="sm"
+            className="shrink-0 size-8 p-0 touch-manipulation"
+            aria-label={t("ui.prev_week")}
+            onClick={() => setWeekAnchor(addDays(weekAnchor, -7))}
+          >
+            <ChevronLeft size={16} />
+          </CloudButton>
+          <div className="w-[7.5rem] shrink-0 sm:w-[9.5rem]">
+            {isMobile ? (
+              <MobileDateWheel
+                value={fmtYMD(weekMon)}
+                allowClear={false}
+                placeholder={t("coaching.select_week")}
+                displayValue={weekShortLabel}
+                sheetTitle={t("coaching.select_week_day")}
+                className="!h-8 !min-h-8 !text-xs !text-center !flex !items-center !justify-center !px-1 !rounded-lg"
+                onChange={(dateString) => jumpToWeekOf(dateString)}
+              />
+            ) : (
+              <DatePicker.WeekPicker
+                dayStartOfWeek={1}
+                allowClear={false}
+                value={weekMon}
+                className="cloud-datepicker w-full"
+                style={{ width: "100%", borderRadius: 8, height: 32 }}
+                triggerElement={weekTrigger}
+                onChange={(_val, date) => {
+                  const d = toPickerDate(date) || toPickerDate(_val);
+                  if (d) setWeekAnchor(weekMonday(d));
+                }}
+              />
+            )}
+          </div>
+          <CloudButton
+            variant="outline"
+            size="sm"
+            className="shrink-0 size-8 p-0 touch-manipulation"
+            aria-label={t("ui.next_week")}
+            onClick={() => setWeekAnchor(addDays(weekAnchor, 7))}
+          >
+            <ChevronRight size={16} />
+          </CloudButton>
+        </div>
       </div>
 
       {/* 周课表：高度贴合可视区，仅横向滑动 */}
@@ -1063,6 +1103,9 @@ type GridItem = {
   title: string;
   subtitle?: string;
   meta?: string;
+  typeLabel: string;
+  statusLabel?: string;
+  conflict?: boolean;
   schedule?: CoachingWeekSchedule;
   course?: Course;
 };
@@ -1099,20 +1142,20 @@ function SectionGrid({
   const gridStyle = {
     gridTemplateColumns: isMobile
       ? `32px repeat(7, minmax(40px, 1fr))`
-      : `48px repeat(7, minmax(0, 1fr))`,
+      : `80px repeat(7, minmax(0, 1fr))`,
     gridTemplateRows: isMobile
-      ? `36px repeat(${totalRows}, 52px)`
-      : `40px repeat(${totalRows}, 60px)`,
+      ? `42px repeat(${totalRows}, 52px)`
+      : `56px repeat(${totalRows}, 64px)`,
   } as const;
 
   return (
     <div
-      className={`grid rounded-md border border-border bg-card ${isMobile ? "min-w-[312px] w-full" : "min-w-[680px]"}`}
+      className={`relative grid rounded-lg border border-border/60 bg-card ${isMobile ? "min-w-[312px] w-full" : "min-w-[720px]"}`}
       style={gridStyle}
     >
       {/* 左上角 */}
       <div
-        className="flex items-center justify-center border-b border-r border-border text-[10px] font-medium text-muted-foreground"
+        className="sticky left-0 top-0 z-40 flex items-center justify-center border-b border-r border-border/60 bg-surface-soft text-[10px] font-medium text-muted-foreground"
         style={{ gridColumn: 1, gridRow: 1 }}
       >
         {t("timetable.section")}
@@ -1127,8 +1170,8 @@ function SectionGrid({
             type="button"
             data-coach={i === 0 ? "timetable-day" : undefined}
             onClick={() => onDayHeaderClick(d)}
-            className={`flex flex-col items-center justify-center border-b border-border px-0.5 text-center touch-manipulation ${
-              isToday ? "bg-primary-soft/70" : "bg-surface-soft"
+            className={`sticky top-0 z-30 flex flex-col items-center justify-center border-b border-border/60 px-0.5 text-center touch-manipulation ${
+              isToday ? "bg-primary-soft/85" : "bg-surface-soft"
             } ${isCoach ? "active:bg-primary/10" : ""} ${i < 6 ? "border-r border-border/40" : ""}`}
             style={{ gridColumn: i + 2, gridRow: 1 }}
           >
@@ -1146,7 +1189,7 @@ function SectionGrid({
       {sections.map((sec) => (
         <div key={`sec-${sec.no}`} className="contents">
           <div
-            className="flex flex-col items-center justify-center border-b border-r border-border px-0.5 text-center"
+            className="sticky left-0 z-20 flex flex-col items-center justify-center border-b border-r border-border/60 bg-card px-0.5 text-center"
             style={{ gridColumn: 1, gridRow: sec.no + 1 }}
           >
             <span className={`${isMobile ? "text-[11px]" : "text-xs"} font-semibold text-foreground`}>{sec.no}</span>
@@ -1158,13 +1201,33 @@ function SectionGrid({
               key={`cell-${sec.no}-${dayIdx}`}
               type="button"
               onClick={() => onCellClick(dayIdx + 1, sec.no)}
-              className={`border-b border-border ${dayIdx < 6 ? "border-r" : ""} hover:bg-accent/40 transition-colors`}
+              className={`group relative border-b border-border/50 bg-card ${dayIdx < 6 ? "border-r border-border/50" : ""} hover:bg-primary/[0.045] transition-colors`}
               style={{ gridColumn: dayIdx + 2, gridRow: sec.no + 1 }}
               aria-label={`${t(`coaching.weekday.${dayIdx}`)} ${sec.no}`}
-            />
+            >
+              {isCoach && (
+                <Plus
+                  size={isMobile ? 10 : 12}
+                  className="pointer-events-none absolute right-1 top-1 text-primary opacity-0 transition-opacity group-hover:opacity-70"
+                  aria-hidden
+                />
+              )}
+            </button>
           ))}
         </div>
       ))}
+
+      {items.length === 0 && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
+          <div className="max-w-xs text-center">
+            <div className="mx-auto mb-2 flex size-9 items-center justify-center rounded-full bg-primary-soft text-primary">
+              <Plus size={18} />
+            </div>
+            <p className="text-sm font-medium text-foreground">{t("coaching.empty_schedule_title")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("coaching.empty_schedule_desc")}</p>
+          </div>
+        </div>
+      )}
 
       {/* 课程/预约色块 */}
       {items.map((item) => {
@@ -1181,25 +1244,40 @@ function SectionGrid({
               e.stopPropagation();
               onItemClick(item);
             }}
-            className={`group relative m-0.5 flex flex-col overflow-hidden text-left text-white shadow-sm transition-transform hover:z-10 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${isMobile ? "rounded-[4px] p-0.5" : "rounded-md p-1"}`}
+            className={`group relative m-0.5 flex flex-col overflow-hidden text-left shadow-sm transition-[transform,box-shadow] hover:z-10 hover:scale-[1.015] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${isMobile ? "rounded-[4px] p-0.5" : "rounded-md p-2"} ${item.conflict ? "border-2" : "border"}`}
             style={{
               gridColumn: col,
               gridRow: `${rowStart} / ${rowEnd}`,
-              backgroundColor: item.color,
-              borderColor: hexToRgba(item.color, 0.5),
+              color: "#2D3748",
+              backgroundColor: hexToRgba(item.color, 0.14),
+              borderColor: item.conflict ? "#EF4444" : hexToRgba(item.color, 0.55),
+              boxShadow: item.conflict ? "0 0 0 1px rgba(239,68,68,0.12)" : undefined,
             }}
             title={`${item.title}${item.subtitle ? " " + item.subtitle : ""}${item.meta ? " · " + item.meta : ""}`}
           >
-            <span className={`line-clamp-2 font-semibold leading-tight ${isMobile ? "text-[9px]" : "text-[11px]"}`}>{item.title}</span>
+            <span className={`line-clamp-1 font-medium leading-tight text-primary ${isMobile ? "text-[8px]" : "text-[9px]"}`}>
+              {item.typeLabel}
+            </span>
+            <span className={`line-clamp-2 font-semibold leading-tight ${isMobile ? "text-[9px]" : "text-xs"}`}>
+              {item.title}
+            </span>
             {showDetail && !isMobile && (
               <>
                 {item.subtitle && (
-                  <span className="mt-0.5 line-clamp-1 text-[9px] leading-tight opacity-90">{item.subtitle}</span>
+                  <span className="mt-0.5 line-clamp-1 text-[10px] leading-tight text-muted-foreground">{item.subtitle}</span>
                 )}
                 {item.meta && (
-                  <span className="mt-auto line-clamp-1 text-[9px] leading-tight opacity-80">{item.meta}</span>
+                  <span className="mt-auto line-clamp-1 text-[10px] leading-tight text-muted-foreground">{item.meta}</span>
+                )}
+                {item.statusLabel && (
+                  <span className="mt-0.5 line-clamp-1 text-[9px] leading-tight text-muted-foreground">{item.statusLabel}</span>
                 )}
               </>
+            )}
+            {item.conflict && (
+              <span className="pointer-events-none absolute right-1 top-1 text-[8px] font-semibold text-red-600">
+                {t("coaching.schedule_conflict")}
+              </span>
             )}
           </button>
         );
