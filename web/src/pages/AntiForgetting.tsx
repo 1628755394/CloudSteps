@@ -262,7 +262,7 @@ export default function AntiForgetting() {
                     return (
                     <div
                       key={task.id}
-                      className={`relative flex gap-3 sm:gap-4 ${hasNextTask ? "-mx-3 sm:-mx-5 border-b-2 border-border px-3 sm:px-5 pb-5" : "pb-6 last:pb-0"}`}
+                      className={`group relative flex gap-3 sm:gap-4 transition-colors hover:bg-primary/[0.035] ${hasNextTask ? "-mx-3 sm:-mx-5 border-b-2 border-border px-3 sm:px-5 pb-5" : "pb-6 last:pb-0"}`}
                     >
                       <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-center items-center">
                         {idx === 0 ? (
@@ -274,29 +274,14 @@ export default function AntiForgetting() {
                         )}
                       </div>
 
-                      <div className="relative flex-1 min-w-0 pt-0.5 pl-1">
+                      <div className="relative flex-1 min-w-0 pt-0.5 pl-1 pr-24 sm:pr-28">
                         <div
                           className="absolute -left-[1.15rem] sm:-left-[1.35rem] top-[0.85rem] w-2.5 h-px bg-border"
                           aria-hidden
                         />
 
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="text-[15px] font-semibold text-foreground leading-snug mb-1.5">
-                            {task.student}
-                          </div>
-                          <CloudButton
-                            type="button"
-                            variant="brand"
-                            size="pill"
-                            className="shrink-0"
-                            disabled={task.count <= 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenTask(task);
-                            }}
-                          >
-                            {t("practice.start_review")}
-                          </CloudButton>
+                        <div className="text-[15px] font-semibold text-foreground leading-snug mb-1.5">
+                          {task.student}
                         </div>
 
                         <button
@@ -325,6 +310,20 @@ export default function AntiForgetting() {
                             {t("anti_forgetting.training_at", { time: task.trainingAt })}
                           </p>
                         </button>
+
+                        <CloudButton
+                          type="button"
+                          variant="brand"
+                          size="pill"
+                          className="absolute right-0 top-1/2 -translate-y-1/2 shrink-0 transition-all hover:brightness-95 active:scale-95 active:brightness-85"
+                          disabled={task.count <= 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenTask(task);
+                          }}
+                        >
+                          {t("practice.start_review")}
+                        </CloudButton>
                       </div>
                     </div>
                     );
