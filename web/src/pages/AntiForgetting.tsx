@@ -262,7 +262,7 @@ export default function AntiForgetting() {
                     return (
                     <div
                       key={task.id}
-                      className={`relative flex gap-3 sm:gap-4 ${hasNextTask ? "border-b border-border/50 pb-5" : "pb-6 last:pb-0"}`}
+                      className={`relative flex gap-3 sm:gap-4 ${hasNextTask ? "border-b-2 border-border pb-5" : "pb-6 last:pb-0"}`}
                     >
                       <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-center items-center">
                         {idx === 0 ? (
