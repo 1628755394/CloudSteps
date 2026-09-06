@@ -278,8 +278,23 @@ export default function AntiForgetting() {
                           aria-hidden
                         />
 
-                        <div className="text-[15px] font-semibold text-foreground leading-snug mb-1.5">
-                          {task.student}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-[15px] font-semibold text-foreground leading-snug mb-1.5">
+                            {task.student}
+                          </div>
+                          <CloudButton
+                            type="button"
+                            variant="brand"
+                            size="pill"
+                            className="shrink-0"
+                            disabled={task.count <= 0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenTask(task);
+                            }}
+                          >
+                            {t("practice.start_review")}
+                          </CloudButton>
                         </div>
 
                         <button
