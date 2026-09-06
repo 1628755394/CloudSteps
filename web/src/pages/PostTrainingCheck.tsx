@@ -169,14 +169,9 @@ export default function PostTrainingCheck() {
     setSpellResult(null);
   };
 
-  const toggleSpellRevealed = (id: number, e: React.MouseEvent) => {
+  const openSpellFromBlock = (word: CheckWord, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSpellRevealed((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    if (!spellRevealed.has(word.id)) openSpellDialog(word);
   };
 
   const closeSpellDialog = () => {
@@ -257,7 +252,16 @@ export default function PostTrainingCheck() {
 
   const handleWordClick = (word: CheckWord) => {
     if (spellMode) {
-      openSpellDialog(word);
+      setWords((prev) =>
+        prev.map((w) =>
+          w.id === word.id
+            ? { ...w, showTranslation: !w.showTranslation, heard: false }
+            : { ...w, showTranslation: false, heard: false }
+        )
+      );
+      setDetailWord(
+        detailMode && !word.showTranslation ? { id: word.id, word: word.word } : null
+      );
       return;
     }
     const next = nextWordTapState({
@@ -581,7 +585,7 @@ export default function PostTrainingCheck() {
                     {spellMode ? (
                       <span
                         className="inline-block"
-                        onClick={(e) => toggleSpellRevealed(word.id, e)}
+                        onClick={(e) => openSpellFromBlock(word, e)}
                       >
                         {spellRevealed.has(word.id) ? (
                           <span className={`${PRACTICE_WORD_CLASS} hover:text-[#4ECDC4] transition-colors`}>
