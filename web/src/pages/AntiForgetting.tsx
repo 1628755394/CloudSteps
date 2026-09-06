@@ -242,15 +242,15 @@ export default function AntiForgetting() {
           <CloudEmpty description={t("anti_forgetting.empty")} />
         </CloudCard>
       ) : (
-        <CloudCard className="overflow-hidden border border-border/80">
-          <div className="flex items-center gap-1.5 px-4 py-2.5 bg-muted/45 border-b border-border/80 text-sm text-muted-foreground">
+        <CloudCard className="overflow-hidden border border-primary/20">
+          <div className="flex items-center gap-1.5 px-4 py-2.5 bg-primary-soft/35 border-b border-primary/20 text-sm text-muted-foreground">
             <span className="font-medium text-foreground/80 tabular-nums">{selectedDate}</span>
             <ChevronDown size={14} className="opacity-50" />
           </div>
 
           <div className="relative px-3 py-4 sm:px-5 sm:py-5">
             <div
-              className="absolute left-[4.35rem] sm:left-[4.85rem] top-4 bottom-4 w-px bg-border/90"
+              className="absolute left-[4.35rem] sm:left-[4.85rem] top-4 bottom-4 w-px bg-primary/25"
               aria-hidden
             />
 
@@ -262,11 +262,11 @@ export default function AntiForgetting() {
                     return (
                     <div
                       key={task.id}
-                      className={`group relative flex gap-3 sm:gap-4 transition-colors hover:bg-primary/[0.035] ${hasNextTask ? "-mx-3 sm:-mx-5 border-b-2 border-border px-3 sm:px-5 pb-5" : "pb-6 last:pb-0"}`}
+                      className={`group relative flex gap-3 sm:gap-4 py-3 transition-colors hover:bg-primary/[0.05] ${hasNextTask ? "-mx-3 sm:-mx-5 border-b border-primary/25 px-3 sm:px-5" : ""}`}
                     >
                       <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-center items-center">
                         {idx === 0 ? (
-                          <div className="relative z-[1] flex w-12 min-w-0 translate-x-1/2 justify-center px-1.5 py-2 rounded-md border border-border bg-card text-center text-xs font-medium text-foreground tabular-nums shadow-sm">
+                          <div className="relative z-[1] flex w-12 min-w-0 translate-x-1/2 justify-center px-1.5 py-2 rounded-md border border-primary/30 bg-primary-soft text-center text-xs font-medium text-primary tabular-nums shadow-sm">
                             {group.timeSlot}
                           </div>
                         ) : (
@@ -276,7 +276,7 @@ export default function AntiForgetting() {
 
                       <div className="relative flex-1 min-w-0 pt-0.5 pl-1 pr-24 sm:pr-28">
                         <div
-                          className="absolute -left-[1.15rem] sm:-left-[1.35rem] top-[0.85rem] w-2.5 h-px bg-border"
+                          className="absolute -left-[1.15rem] sm:-left-[1.35rem] top-[0.85rem] w-2.5 h-px bg-primary/35"
                           aria-hidden
                         />
 
