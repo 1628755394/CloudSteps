@@ -255,12 +255,14 @@ export default function AntiForgetting() {
             />
 
             <div className="space-y-0">
-              {timelineGroups.map((group) => (
+              {timelineGroups.map((group, groupIdx) => (
                 <div key={group.timeSlot} className="relative">
-                  {group.tasks.map((task, idx) => (
+                  {group.tasks.map((task, idx) => {
+                    const hasNextTask = idx < group.tasks.length - 1 || groupIdx < timelineGroups.length - 1;
+                    return (
                     <div
                       key={task.id}
-                      className={`relative flex gap-3 sm:gap-4 ${idx < group.tasks.length - 1 ? "pb-5" : "pb-6 last:pb-0"}`}
+                      className={`relative flex gap-3 sm:gap-4 ${hasNextTask ? "border-b border-border/50 pb-5" : "pb-6 last:pb-0"}`}
                     >
                       <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-center items-center">
                         {idx === 0 ? (
@@ -325,7 +327,8 @@ export default function AntiForgetting() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ))}
             </div>
