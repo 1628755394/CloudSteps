@@ -696,13 +696,15 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       const { startSection, endSection } = timeToSections(s.startTime, s.endTime, sections);
       const past = isSchedulePast(s, nowTs);
       const statusColor =
-        past || s.status === "completed"
-          ? "#7A8A99"
-          : s.status === "in_progress"
-            ? "#55A3FF"
-            : s.status === "cancelled"
-              ? "#E85555"
-              : "#4ECDC4";
+        s.status === "completed"
+          ? "#F59E0B"
+          : past
+            ? "#A78BFA"
+            : s.status === "in_progress"
+              ? "#55A3FF"
+              : s.status === "cancelled"
+                ? "#E85555"
+                : "#4ECDC4";
       const { title, subtitle } = lessonDisplay(t, s);
       items.push({
         key: `co-${s.id}`,
@@ -738,16 +740,42 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
       });
     }
 
-    return items.map((item) => ({
-      ...item,
-      conflict: items.some(
-        (other) =>
-          other.key !== item.key &&
-          other.weekDay === item.weekDay &&
-          other.startSection <= item.endSection &&
-          other.endSection >= item.startSection,
-      ),
-    }));
+    const byDay = new Map<number, GridItem[]>();
+    for (const item of items) {
+      const dayItems = byDay.get(item.weekDay) || [];
+      dayItems.push(item);
+      byDay.set(item.weekDay, dayItems);
+    }
+
+    return Array.from(byDay.values()).flatMap((dayItems) => {
+      const sorted = [...dayItems].sort(
+        (a, b) => a.startSection - b.startSection || b.endSection - a.endSection,
+      );
+      const laneEnds: number[] = [];
+      const assigned = sorted.map((item) => {
+        let lane = laneEnds.findIndex((end) => end < item.startSection);
+        if (lane < 0) {
+          lane = laneEnds.length;
+          laneEnds.push(item.endSection);
+        } else {
+          laneEnds[lane] = item.endSection;
+        }
+        return { item, lane };
+      });
+      const laneCount = Math.max(1, laneEnds.length);
+
+      return assigned.map(({ item, lane }) => ({
+        ...item,
+        lane,
+        laneCount,
+        conflict: laneCount > 1 && dayItems.some(
+          (other) =>
+            other.key !== item.key &&
+            other.startSection <= item.endSection &&
+            other.endSection >= item.startSection,
+        ),
+      }));
+    });
   }, [schedules, ttCourses, ttConfig.sections, weekDays, t, nowTs]);
 
   function openCourseEditor(course: Course | null, preset: { weekDay: number; startSection: number } | null) {
@@ -1106,6 +1134,8 @@ type GridItem = {
   typeLabel: string;
   statusLabel?: string;
   conflict?: boolean;
+  lane?: number;
+  laneCount?: number;
   schedule?: CoachingWeekSchedule;
   course?: Course;
 };
@@ -1244,13 +1274,16 @@ function SectionGrid({
               e.stopPropagation();
               onItemClick(item);
             }}
-            className={`group relative m-0.5 flex flex-col overflow-hidden text-left shadow-sm transition-[transform,box-shadow] hover:z-10 hover:scale-[1.015] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${isMobile ? "rounded-[4px] p-0.5" : "rounded-md p-2"} ${item.conflict ? "border-2" : "border"}`}
+            className={`group relative flex flex-col overflow-hidden text-left shadow-sm transition-[transform,box-shadow] hover:z-10 hover:scale-[1.015] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${isMobile ? "rounded-[4px] p-0.5" : "rounded-md p-2"} ${item.conflict ? "border-2" : "border"}`}
             style={{
               gridColumn: col,
               gridRow: `${rowStart} / ${rowEnd}`,
+              width: `calc(${100 / (item.laneCount || 1)}% - 4px)`,
+              marginLeft: `calc(${((item.lane || 0) * 100) / (item.laneCount || 1)}% + 2px)`,
+              marginRight: 2,
               color: "#2D3748",
-              backgroundColor: hexToRgba(item.color, 0.14),
-              borderColor: item.conflict ? "#EF4444" : hexToRgba(item.color, 0.55),
+              backgroundColor: hexToRgba(item.color, 0.18),
+              borderColor: item.conflict ? "#EF4444" : hexToRgba(item.color, 0.65),
               boxShadow: item.conflict ? "0 0 0 1px rgba(239,68,68,0.12)" : undefined,
             }}
             title={`${item.title}${item.subtitle ? " " + item.subtitle : ""}${item.meta ? " · " + item.meta : ""}`}
