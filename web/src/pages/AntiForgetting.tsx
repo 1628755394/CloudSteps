@@ -264,7 +264,7 @@ export default function AntiForgetting() {
                     >
                       <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-center items-center">
                         {idx === 0 ? (
-                          <div className="relative z-[1] flex w-12 min-w-0 justify-center px-1.5 py-2 rounded-md border border-border bg-card text-center text-xs font-medium text-foreground tabular-nums shadow-sm">
+                          <div className="relative z-[1] flex w-12 min-w-0 translate-x-1/2 justify-center px-1.5 py-2 rounded-md border border-border bg-card text-center text-xs font-medium text-foreground tabular-nums shadow-sm">
                             {group.timeSlot}
                           </div>
                         ) : (
