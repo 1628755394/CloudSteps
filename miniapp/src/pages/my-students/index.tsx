@@ -4,7 +4,7 @@
  * 移动端布局:
  *  1. 顶部导航:返回 + "我的学生" + 新建按钮
  *  2. 搜索框
- *  3. 学员卡片列表:头像 + 姓名 + 剩余时长(低于30分钟红色) + 账号 + 统计(测评/陪练/训练)
+ *  3. 学员卡片列表:头像 + 姓名 + 剩余课时(低于1节红色) + 账号 + 统计(测评/陪练/训练)
  *  4. 密码设置:点击弹出 modal 设置密码
  *  5. 触底加载更多(游标分页)
  */
@@ -42,9 +42,9 @@ function loginAccount(row: TeacherCoachingQuotaRow) {
   return row.student?.username || row.student?.email || ''
 }
 
-function minsLabel(n: number) {
+function lessonsLabel(n: number) {
   if (!Number.isFinite(n)) return '—'
-  return `${Math.max(0, Math.round(n))}分钟`
+  return `剩${Math.max(0, Math.round(n))}节`
 }
 
 export default function MyStudents() {
@@ -222,7 +222,7 @@ export default function MyStudents() {
         ) : (
           <View className="students__list">
             {rows.map((r) => {
-              const low = (r.remainingMinutes || 0) < 30
+              const low = (r.remainingLessons || 0) < 1
               const account = loginAccount(r)
               const avatar = studentAvatarUrl(r)
               return (
@@ -247,7 +247,7 @@ export default function MyStudents() {
                             className="students__mins-text"
                             style={{ color: low ? color.destructive : color.primary }}
                           >
-                            {minsLabel(r.remainingMinutes || 0)}
+                            {lessonsLabel(r.remainingLessons || 0)}
                           </Text>
                         </View>
                       </View>

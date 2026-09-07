@@ -23,6 +23,7 @@ export type CoachingWeekSchedule = {
     actualMinutes?: number
     billedMinutes?: number
     teacherCreditedMinutes?: number
+    studentLessonsBilled?: number
   }
 }
 
@@ -34,7 +35,9 @@ export type TeacherCoachingQuotaRow = {
   id: number
   teacherId: number
   studentId: number
-  remainingMinutes: number
+  remainingLessons: number
+  totalAllocatedLessons?: number
+  remainingMinutes?: number
   totalAllocatedMinutes?: number
   reviewTimes?: number
   accent?: string
@@ -117,6 +120,7 @@ export type CoachingSessionRecordDTO = {
   actualMinutes: number
   billedMinutes: number
   teacherCreditedMinutes: number
+  studentLessonsBilled?: number
   status: string
   appointment?: {
     title?: string
@@ -202,7 +206,7 @@ export function searchCoachingStudents(q: string): Promise<ApiResponse<CoachingS
 
 export function addTeacherCoachingStudent(body: {
   studentId: number
-  remainingMinutes: number
+  remainingLessons: number
 }): Promise<ApiResponse<TeacherCoachingQuotaRow>> {
   return post<TeacherCoachingQuotaRow>('/teacher/coaching/quotas', body)
 }

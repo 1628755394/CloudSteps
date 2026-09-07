@@ -13,6 +13,7 @@ export type CoachingSession = {
   actualMinutes?: number
   billedMinutes?: number
   teacherCreditedMinutes?: number
+  studentLessonsBilled?: number
 }
 
 export type CoachingAppointment = {

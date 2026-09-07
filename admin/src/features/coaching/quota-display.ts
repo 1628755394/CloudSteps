@@ -16,6 +16,11 @@ export function personLabel(
   return '—'
 }
 
+export function formatLessons(n: number): string {
+  if (!Number.isFinite(n)) return '—'
+  return `${Math.max(0, Math.round(n))} 节`
+}
+
 export function formatMinutes(mins: number): string {
   if (!Number.isFinite(mins)) return '—'
   return `${Math.max(0, Math.round(mins))} 分钟`
@@ -35,8 +40,8 @@ export type StudentQuotaRow = {
   id: number
   teacherId: number
   studentId: number
-  remainingMinutes: number
-  totalAllocatedMinutes: number
+  remainingLessons: number
+  totalAllocatedLessons: number
   teacher?: CoachingPerson
   student?: CoachingPerson
 }

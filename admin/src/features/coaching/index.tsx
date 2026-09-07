@@ -11,7 +11,7 @@ export function CoachingPage() {
       <Tabs defaultValue='appointments' className='w-full'>
         <TabsList className='mb-4 h-auto flex-wrap'>
           <TabsTrigger value='appointments'>排课记录</TabsTrigger>
-          <TabsTrigger value='student-quotas'>学员学时</TabsTrigger>
+          <TabsTrigger value='student-quotas'>学员课时</TabsTrigger>
           <TabsTrigger value='teacher-pool'>老师授课池</TabsTrigger>
           <TabsTrigger value='teacher-usage'>月度统计</TabsTrigger>
         </TabsList>

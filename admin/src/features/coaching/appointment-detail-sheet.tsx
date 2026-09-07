@@ -116,15 +116,17 @@ export function AppointmentDetailSheet({
                     </span>
                   </div>
                   <div className='flex justify-between text-sm'>
-                    <span>学员扣减</span>
+                    <span>学员课时</span>
                     <span className='tabular-nums'>
-                      {minutes(session.billedMinutes)}
+                      {session.studentLessonsBilled ?? 0} 节
                     </span>
                   </div>
                   <div className='flex justify-between text-sm'>
                     <span>计入老师</span>
                     <span className='tabular-nums'>
-                      {minutes(session.teacherCreditedMinutes)}
+                      {minutes(
+                        session.teacherCreditedMinutes ?? session.billedMinutes
+                      )}
                     </span>
                   </div>
                   <div className='flex justify-between border-t pt-2 text-xs text-muted-foreground'>
