@@ -14,8 +14,8 @@ type ReviewTask = {
   student: string;
   vocabularyPack: string;
   level: string;
-  wordBookId: number;
-  sessionId: number;
+  wordBookId: string;
+  sessionId: string;
   count: number;
   timeSlot: string;
   timeSort: number;
@@ -111,15 +111,17 @@ export default function AntiForgetting() {
   const reviewTasks = useMemo<ReviewTask[]>(() => {
     return bookStats.map((b) => {
       const studentId = normalizeSnowflakeId(b.studentId) || "self";
+      const wordBookId = normalizeSnowflakeId(b.wordBookId);
+      const sessionId = normalizeSnowflakeId(b.sessionId);
       const clock = clockParts(b.practiceStartedAt, timeZone);
       return {
-        id: `${studentId}-${b.wordBookId}-${b.sessionId ?? 0}`,
+        id: `${studentId}-${wordBookId}-${sessionId || "0"}`,
         studentId,
         student: studentDisplayName(b),
         vocabularyPack: b.name,
         level: String(b.level || "").trim(),
-        wordBookId: b.wordBookId,
-        sessionId: b.sessionId ?? 0,
+        wordBookId,
+        sessionId,
         count: b.cnt,
         timeSlot: clock?.slot || "—",
         timeSort: clock?.sort ?? 9999,
@@ -157,8 +159,8 @@ export default function AntiForgetting() {
   const isToday = selectedDate === toDateInputValue(new Date());
 
   const handleOpenTask = (task: ReviewTask) => {
-    if (task.count <= 0) return;
-    sessionStorage.setItem("lb_review_wordbook_id", String(task.wordBookId));
+    if (task.count <= 0 || !task.wordBookId) return;
+    sessionStorage.setItem("lb_review_wordbook_id", task.wordBookId);
     sessionStorage.setItem("lb_review_wordbook_name", task.vocabularyPack);
     sessionStorage.setItem("lb_review_date", selectedDate);
     sessionStorage.setItem("lb_review_return", "/anti-forgetting");
@@ -167,8 +169,8 @@ export default function AntiForgetting() {
     } else {
       sessionStorage.removeItem("lb_review_student_id");
     }
-    if (task.sessionId > 0) {
-      sessionStorage.setItem("lb_review_study_session_id", String(task.sessionId));
+    if (task.sessionId) {
+      sessionStorage.setItem("lb_review_study_session_id", task.sessionId);
     } else {
       sessionStorage.removeItem("lb_review_study_session_id");
     }
@@ -176,18 +178,17 @@ export default function AntiForgetting() {
       task.studentId && task.studentId !== "self"
         ? `&studentId=${encodeURIComponent(task.studentId)}`
         : "";
+    const sessionQ = task.sessionId
+      ? `&studySessionId=${encodeURIComponent(task.sessionId)}`
+      : "";
     if (isToday) {
       sessionStorage.setItem("lb_mode", "review");
-      const sessionQ =
-        task.sessionId > 0 ? `&studySessionId=${encodeURIComponent(String(task.sessionId))}` : "";
       navigate(
         `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}${sessionQ}${studentQ}`
       );
       return;
     }
     sessionStorage.removeItem("lb_mode");
-    const sessionQ =
-      task.sessionId > 0 ? `&studySessionId=${encodeURIComponent(String(task.sessionId))}` : "";
     navigate(
       `/review-word-list?wordBookId=${task.wordBookId}&date=${encodeURIComponent(selectedDate)}&view=1${sessionQ}${studentQ}`
     );

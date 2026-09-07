@@ -113,9 +113,9 @@ export default function ReviewWordList() {
 
   const studySessionId = useMemo(() => {
     const url = new URL(window.location.href);
-    const qp = Number(url.searchParams.get("studySessionId") || 0);
-    if (qp > 0) return qp;
-    return Number(sessionStorage.getItem("lb_review_study_session_id") || 0);
+    const qp = normalizeSnowflakeId(url.searchParams.get("studySessionId"));
+    if (qp) return qp;
+    return normalizeSnowflakeId(sessionStorage.getItem("lb_review_study_session_id"));
   }, []);
 
   const reviewStudentId = useMemo(() => {
@@ -158,7 +158,7 @@ export default function ReviewWordList() {
           : await getReviewToday(wordBookId, {
               date: reviewDate || undefined,
               limit: 200,
-              studySessionId: studySessionId > 0 ? studySessionId : undefined,
+              studySessionId: studySessionId || undefined,
               all: reviewAll || undefined,
               ...(reviewStudentId ? { studentId: reviewStudentId } : {}),
             });
@@ -290,7 +290,7 @@ export default function ReviewWordList() {
           wordIds,
           ...(reviewStudentId ? { studentId: reviewStudentId } : {}),
         });
-        const sid = Number(startRes.data?.sessionId || 0);
+        const sid = normalizeSnowflakeId(startRes.data?.sessionId);
         if (!sid) {
           setHint(t("practice.no_review_return"));
           setSubmitting(false);

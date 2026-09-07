@@ -43,27 +43,10 @@ const reviewSessionJoin = `
 		END
 	`
 
-// 抗遗忘展示用学员 ID：优先识记课次上的 student_id，其次按开课时间匹配陪练课次，最后回退 queue 归属用户。
-const reviewQueueStudentIDSQL = `COALESCE(
-		NULLIF(ss.student_id, 0),
-		(
-			SELECT csr.student_id FROM coaching_session_records csr
-			WHERE csr.teacher_id = rq.user_id
-				AND ss.id IS NOT NULL
-				AND ss.started_at >= csr.started_at AND ss.started_at <= csr.ended_at
-			ORDER BY csr.started_at DESC LIMIT 1
-		),
-		(
-			SELECT ca.student_id FROM coaching_appointments ca
-			WHERE ca.teacher_id = rq.user_id
-				AND ca.status = 'in_progress'
-				AND ca.actual_started_at IS NOT NULL
-				AND ss.id IS NOT NULL
-				AND ss.started_at >= ca.actual_started_at
-			ORDER BY ca.actual_started_at DESC LIMIT 1
-		),
-		rq.user_id
-	)`
+// 抗遗忘列表的「复习对象」必须是 review_queue.user_id（队列真正归属）。
+// 不能用 study_sessions.student_id：代练课次上的 student_id 只表示「给谁上课」，
+// 若历史数据把词写进了老师队列，按 student_id 挂名会导致列表有词、/today?studentId=学员 → 0 词。
+const reviewQueueStudentIDSQL = `rq.user_id`
 
 func coachingStudentIDsForTeacher(db *gorm.DB, teacherID uint) ([]uint, error) {
 	var ids []uint
@@ -324,7 +307,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 	dayEnd := dayStart.Add(24 * time.Hour)
 	isSelectedToday := dayStart.Equal(todayStart)
 
-	studySessionID, _ := strconv.Atoi(c.Query("studySessionId"))
+	studySessionID := parseQueryUintID(c.Query("studySessionId"))
 
 	q := db.Model(&models.ReviewQueue{}).
 		Where("user_id = ? AND status = ?", targetUser.ID, "pending")
@@ -334,7 +317,7 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 	if studySessionID > 0 {
 		q = q.Where(
 			"source_session_id = ? OR (source_session_id = 0 AND word_id IN (SELECT word_id FROM session_words WHERE session_id = ? AND remembered = 1))",
-			uint(studySessionID), uint(studySessionID),
+			studySessionID, studySessionID,
 		)
 	}
 	if !allMode && isSelectedToday {

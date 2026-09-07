@@ -16,7 +16,7 @@ export interface StartReviewSessionRequest {
 }
 
 export interface StartReviewSessionResponse {
-  sessionId?: number
+  sessionId?: string | number
   words?: any[]
   /** 无到期复习词时为 true */
   finished?: boolean
@@ -29,20 +29,32 @@ export interface CompleteReviewResult {
 
 export const getReviewToday = async (
   wordBookId: string | number,
-  opts?: { date?: string; timeZone?: string; limit?: number; studySessionId?: number; all?: boolean; studentId?: string | number }
+  opts?: {
+    date?: string
+    timeZone?: string
+    limit?: number
+    /** Snowflake-safe string; never coerce with Number() */
+    studySessionId?: string | number
+    all?: boolean
+    studentId?: string | number
+  }
 ): Promise<ApiResponse<ReviewTodayResponse>> => {
   const id = String(wordBookId).trim()
   if (!id || id === '0') {
     return { code: 400, msg: 'wordBookId required', data: { words: [] } } as ApiResponse<ReviewTodayResponse>
   }
   const tz = opts?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
+  const studySessionId =
+    opts?.studySessionId != null && String(opts.studySessionId).trim() !== '' && String(opts.studySessionId) !== '0'
+      ? String(opts.studySessionId).trim()
+      : undefined
   return get<ReviewTodayResponse>('/review/today', {
     params: {
       wordBookId: id,
       ...(opts?.date ? { date: opts.date } : {}),
       timeZone: tz,
       ...(opts?.limit ? { limit: opts.limit } : {}),
-      ...(opts?.studySessionId ? { studySessionId: opts.studySessionId } : {}),
+      ...(studySessionId ? { studySessionId } : {}),
       ...(opts?.all ? { all: 'true' } : {}),
       ...(opts?.studentId ? { studentId: String(opts.studentId) } : {}),
     },
@@ -52,11 +64,11 @@ export const getReviewToday = async (
 export type ReviewBookStatRow = {
   studentId?: string | number
   studentName?: string
-  wordBookId: number
+  wordBookId: string | number
   cnt: number
   name: string
   level: string
-  sessionId?: number
+  sessionId?: string | number
   practiceStartedAt?: string
   practiceEndedAt?: string | null
 }
