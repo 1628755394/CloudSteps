@@ -3,8 +3,8 @@ import { CoachingSchedulePanel } from "../components/CoachingSchedulePanel";
 import { useAuthStore } from "../stores/authStore";
 
 /**
- * 备课页 `/lesson-prep` — 周课表（点天排课 + 时间轴展示）。
- * 教练可排课/上下课；学员只读自己的课表。
+ * 备课页 `/lesson-prep` — 周课表（节次网格展示 + 排课/上下课 + 自定义课程）。
+ * 教练可排课/上下课/删除排课，并可新增自定义课程；学员只读自己的课表。
  */
 export default function Home() {
   const user = useAuthStore((s) => s.user);

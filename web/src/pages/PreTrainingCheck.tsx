@@ -52,7 +52,7 @@ export default function PreTrainingCheck() {
   const role = useAuthStore((s) => s.user?.role) || "user";
   const isCoach = role === "user" || role === "admin" || role === "teacher";
   const [words, setWords] = useState<WordItem[]>([]);
-  const [selectedCount, setSelectedCount] = useState(0);
+  const wrongCount = useMemo(() => words.filter((w) => w.status === "wrong").length, [words]);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -235,16 +235,7 @@ export default function PreTrainingCheck() {
     setWords((prev) =>
       prev.map((word) => {
         if (word.id === id) {
-          const wasSelected = word.status !== null;
           const nextStatus = word.status === newStatus ? null : newStatus;
-          const isNowSelected = nextStatus !== null;
-
-          if (!wasSelected && isNowSelected) {
-            setSelectedCount((s) => s + 1);
-          } else if (wasSelected && !isNowSelected) {
-            setSelectedCount((s) => s - 1);
-          }
-
           return { ...word, status: nextStatus };
         }
         return word;
@@ -287,7 +278,6 @@ export default function PreTrainingCheck() {
     shuffleModeRef.current = true;
     shuffleSeedRef.current = seed;
     setShuffleMode(true);
-    setSelectedCount(0);
     setCardIndex(0);
     pageRef.current = 1;
     hasMoreRef.current = true;
@@ -303,7 +293,6 @@ export default function PreTrainingCheck() {
     shuffleModeRef.current = false;
     shuffleSeedRef.current = 0;
     setShuffleMode(false);
-    setSelectedCount(0);
     setCardIndex(0);
     pageRef.current = 1;
     hasMoreRef.current = true;
@@ -317,10 +306,8 @@ export default function PreTrainingCheck() {
     setWords((prev) => {
       const allSelected = prev.every((word) => word.status !== null);
       if (allSelected) {
-        setSelectedCount(0);
         return prev.map((word) => ({ ...word, status: null as WordItem["status"] }));
       }
-      setSelectedCount(prev.length);
       return prev.map((word) => ({ ...word, status: "wrong" as WordItem["status"] }));
     });
   }, []);
@@ -329,14 +316,12 @@ export default function PreTrainingCheck() {
     setWords((prev) => {
       const unselected = prev.filter((word) => word.status === null);
       const toSelect = unselected.slice(0, 5);
-      const newWords = prev.map((word) => {
+      return prev.map((word) => {
         if (toSelect.find((w) => w.id === word.id)) {
           return { ...word, status: "wrong" as WordItem["status"] };
         }
         return word;
       });
-      setSelectedCount(newWords.filter((w) => w.status !== null).length);
-      return newWords;
     });
   }, []);
 
@@ -503,7 +488,7 @@ export default function PreTrainingCheck() {
   );
 
   return (
-    <FlowPageShell>
+    <FlowPageShell className="min-h-screen bg-gray-50 pb-20 sm:pb-24">
       <TopBar
         title={t("pre_training_check.title")}
         onBack={handleBack}
@@ -511,7 +496,7 @@ export default function PreTrainingCheck() {
           <PracticeFlowToolbar
             annotationOpen={annotationOpen}
             onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
-            wordCount={selectedCount}
+            wordCount={wrongCount}
             onWordPatched={(view) => setWords((prev) => applyUserWordView(prev, view))}
           />
         }
@@ -693,17 +678,17 @@ export default function PreTrainingCheck() {
             size="pill"
             className="shrink-0 max-sm:px-2.5 max-sm:text-xs tabular-nums"
             onClick={handleStartLearning}
-            disabled={selectedCount === 0}
+            disabled={wrongCount === 0}
             loading={starting}
             loadingText={t("practice.starting")}
             aria-label={
-              selectedCount > 0
-                ? t("practice.start_learning_count", { count: selectedCount })
+              wrongCount > 0
+                ? t("practice.start_learning_count", { count: wrongCount })
                 : t("practice.start_learning")
             }
           >
-            {selectedCount > 0
-              ? t("practice.start_learning_count", { count: selectedCount })
+            {wrongCount > 0
+              ? t("practice.start_learning_count", { count: wrongCount })
               : t("practice.start_learning")}
           </CloudButton>
         </div>

@@ -4,8 +4,6 @@ import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudDatePicker, CloudEmpty, CloudSpin } from "../components/cloudsteps/arco";
 import { listReviewBooksByDate, type ReviewBookStatRow } from "../api/review";
-import { useAuthStore } from "../stores/authStore";
-import { reviewCurveLabel } from "../utils/reviewCurve";
 import { normalizeSnowflakeId } from "../utils/json-snowflake";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
@@ -84,7 +82,6 @@ export default function AntiForgetting() {
   const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
   const navigate = useNavigate();
-  const reviewCurvePreset = useAuthStore((s) => s.user?.reviewCurvePreset) || "times5";
 
   const [bookStats, setBookStats] = useState<ReviewBookStatRow[]>([]);
   const [loadingBooks, setLoadingBooks] = useState(true);
@@ -198,10 +195,6 @@ export default function AntiForgetting() {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground px-1">
-        {t("anti_forgetting.curve", { label: reviewCurveLabel(reviewCurvePreset) })}
-      </p>
-
       <CloudCard className="p-4 sm:p-5">
         <div className="flex items-center gap-2 sm:gap-4">
           <CloudButton
@@ -242,29 +235,31 @@ export default function AntiForgetting() {
           <CloudEmpty description={t("anti_forgetting.empty")} />
         </CloudCard>
       ) : (
-        <CloudCard className="overflow-hidden border border-border/80">
-          <div className="flex items-center gap-1.5 px-4 py-2.5 bg-muted/45 border-b border-border/80 text-sm text-muted-foreground">
+        <CloudCard className="overflow-hidden border border-primary/20">
+          <div className="flex items-center gap-1.5 px-4 py-2.5 bg-primary-soft/35 border-b border-primary/20 text-sm text-muted-foreground">
             <span className="font-medium text-foreground/80 tabular-nums">{selectedDate}</span>
             <ChevronDown size={14} className="opacity-50" />
           </div>
 
           <div className="relative px-3 py-4 sm:px-5 sm:py-5">
             <div
-              className="absolute left-[4.35rem] sm:left-[4.85rem] top-4 bottom-4 w-px bg-border/90"
+              className="absolute left-[4.35rem] sm:left-[4.85rem] top-4 bottom-4 w-px bg-primary/25"
               aria-hidden
             />
 
             <div className="space-y-0">
-              {timelineGroups.map((group) => (
+              {timelineGroups.map((group, groupIdx) => (
                 <div key={group.timeSlot} className="relative">
-                  {group.tasks.map((task, idx) => (
+                  {group.tasks.map((task, idx) => {
+                    const hasNextTask = idx < group.tasks.length - 1 || groupIdx < timelineGroups.length - 1;
+                    return (
                     <div
                       key={task.id}
-                      className={`relative flex gap-3 sm:gap-4 ${idx < group.tasks.length - 1 ? "pb-5" : "pb-6 last:pb-0"}`}
+                      className={`group relative flex gap-3 sm:gap-4 py-3 transition-colors hover:bg-primary/[0.05] ${hasNextTask ? "-mx-3 sm:-mx-5 border-b border-primary/25 px-3 sm:px-5" : ""}`}
                     >
-                      <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-end pt-1">
+                      <div className="w-[3.25rem] sm:w-[3.75rem] shrink-0 flex justify-center items-center">
                         {idx === 0 ? (
-                          <div className="relative z-[1] min-w-[3rem] px-1.5 py-2 rounded-md border border-border bg-card text-center text-xs font-medium text-foreground tabular-nums shadow-sm">
+                          <div className="relative z-[1] flex w-12 min-w-0 translate-x-1/2 justify-center px-1.5 py-2 rounded-md border border-primary/30 bg-primary-soft text-center text-xs font-medium text-primary tabular-nums shadow-sm">
                             {group.timeSlot}
                           </div>
                         ) : (
@@ -272,9 +267,9 @@ export default function AntiForgetting() {
                         )}
                       </div>
 
-                      <div className="relative flex-1 min-w-0 pt-0.5 pl-1">
+                      <div className="relative flex-1 min-w-0 pt-0.5 pl-1 pr-24 sm:pr-28">
                         <div
-                          className="absolute -left-[1.15rem] sm:-left-[1.35rem] top-[0.85rem] w-2.5 h-px bg-border"
+                          className="absolute -left-[1.15rem] sm:-left-[1.35rem] top-[0.85rem] w-2.5 h-px bg-primary/35"
                           aria-hidden
                         />
 
@@ -308,9 +303,24 @@ export default function AntiForgetting() {
                             {t("anti_forgetting.training_at", { time: task.trainingAt })}
                           </p>
                         </button>
+
+                        <CloudButton
+                          type="button"
+                          variant="brand"
+                          size="pill"
+                          className="absolute right-0 top-1/2 -translate-y-1/2 shrink-0 transition-all hover:brightness-95 active:scale-95 active:brightness-85"
+                          disabled={task.count <= 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenTask(task);
+                          }}
+                        >
+                          {t("practice.start_review")}
+                        </CloudButton>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ))}
             </div>
