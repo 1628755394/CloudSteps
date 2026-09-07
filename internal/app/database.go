@@ -98,7 +98,39 @@ func PostMigrate(db *gorm.DB) error {
 	if err := dropUsersUsernameUniqueIndex(db); err != nil {
 		return err
 	}
+	if err := migrateStudentQuotaMinutesToLessons(db); err != nil {
+		return err
+	}
 	return fixScenarioDialogueCharset(db)
+}
+
+// migrateStudentQuotaMinutesToLessons 将历史剩余分钟一次性换算为课时（÷60 向下取整）。
+// 仅当 remaining_lessons/total_allocated_lessons 仍为 0 且对应分钟字段 >0 时写入，可重复执行。
+func migrateStudentQuotaMinutesToLessons(db *gorm.DB) error {
+	driver := configs.Global.Database.Driver
+	if driver != "mysql" && driver != "sqlite" {
+		return nil
+	}
+	res := db.Exec(`
+		UPDATE student_teacher_coaching_quotas
+		SET remaining_lessons = remaining_minutes / 60,
+		    total_allocated_lessons = total_allocated_minutes / 60
+		WHERE remaining_lessons = 0 AND total_allocated_lessons = 0
+		  AND (remaining_minutes > 0 OR total_allocated_minutes > 0)
+	`)
+	if res.Error != nil {
+		// 列尚未存在时 AutoMigrate 刚跑完一般已有；仍失败则告警不阻断启动
+		if strings.Contains(res.Error.Error(), "no such column") ||
+			strings.Contains(res.Error.Error(), "Unknown column") {
+			logger.Warn("migrate student quota minutes→lessons skipped (columns missing)", zap.Error(res.Error))
+			return nil
+		}
+		return res.Error
+	}
+	if res.RowsAffected > 0 {
+		logger.Info("migrated student coaching quota minutes to lessons", zap.Int64("rows", res.RowsAffected))
+	}
+	return nil
 }
 
 // ensureUsersEmailColumn 确保 users 表有 email 列（GORM AutoMigrate 对已有表加带索引的列时可能不生效，这里做兜底）。

@@ -63,7 +63,8 @@ func (h *Handlers) registerCoachingRoutes(r *humax.Group) {
 		t.DELETE("/students/:studentId/wordbooks/:wordBookId", h.coachingTeacherRemoveStudentWordBook)
 		t.POST("/appointments/:id/start", h.coachingTeacherStart)
 		t.POST("/appointments/:id/end", h.coachingTeacherEnd)
-		// 无排课练习：按所选学员开课计时并扣额度
+		t.POST("/appointments/:id/consume-lesson", h.coachingTeacherConsumeLesson)
+		// 无排课练习：按所选学员开课计时；下课只扣老师时长，不扣学员课时
 		t.POST("/practice/start", h.coachingTeacherStartPractice)
 	}
 
@@ -109,7 +110,7 @@ func coachingGetQuota(db *gorm.DB, teacherID, studentID uint) (models.StudentTea
 	var q models.StudentTeacherCoachingQuota
 	err := db.Where("teacher_id = ? AND student_id = ?", teacherID, studentID).First(&q).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return models.StudentTeacherCoachingQuota{TeacherID: teacherID, StudentID: studentID, RemainingMinutes: 60}, gorm.ErrRecordNotFound
+		return models.StudentTeacherCoachingQuota{TeacherID: teacherID, StudentID: studentID, RemainingLessons: 1}, gorm.ErrRecordNotFound
 	}
 	return q, err
 }
@@ -438,7 +439,7 @@ func (h *Handlers) coachingAdminListQuotas(c *gin.Context) {
 type coachingQuotaBody struct {
 	TeacherID        uint `json:"teacherId" binding:"required"`
 	StudentID        uint `json:"studentId" binding:"required"`
-	RemainingMinutes int  `json:"remainingMinutes"` // 允许 0
+	RemainingLessons int  `json:"remainingLessons"`
 }
 
 func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
@@ -448,7 +449,7 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
-	if body.RemainingMinutes < 0 {
+	if body.RemainingLessons < 0 {
 		response.FailI18n(c, "coaching.quota_negative", nil)
 		return
 	}
@@ -466,14 +467,14 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		q = models.StudentTeacherCoachingQuota{
 			TeacherID: body.TeacherID, StudentID: body.StudentID,
-			RemainingMinutes: body.RemainingMinutes, TotalAllocatedMinutes: body.RemainingMinutes, Version: 0,
+			RemainingLessons: body.RemainingLessons, TotalAllocatedLessons: body.RemainingLessons, Version: 0,
 		}
 		if err := db.Create(&q).Error; err != nil {
 			response.FailI18n(c, "common.operation_failed", err.Error())
 			return
 		}
 		coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "新建师生额度", map[string]any{
-			"teacherId": body.TeacherID, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
+			"teacherId": body.TeacherID, "studentId": body.StudentID, "remainingLessons": body.RemainingLessons,
 		})
 		response.SuccessI18n(c, "common.ok", q)
 		return
@@ -486,16 +487,16 @@ func (h *Handlers) coachingAdminUpsertQuota(c *gin.Context) {
 	if q.DeletedAt.Valid {
 		q.Restore("")
 	}
-	if body.RemainingMinutes > q.RemainingMinutes {
-		q.TotalAllocatedMinutes += body.RemainingMinutes - q.RemainingMinutes
+	if body.RemainingLessons > q.RemainingLessons {
+		q.TotalAllocatedLessons += body.RemainingLessons - q.RemainingLessons
 	}
-	q.RemainingMinutes = body.RemainingMinutes
+	q.RemainingLessons = body.RemainingLessons
 	if err := db.Save(&q).Error; err != nil {
 		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "更新师生额度", map[string]any{
-		"teacherId": body.TeacherID, "studentId": body.StudentID, "remainingMinutes": body.RemainingMinutes,
+		"teacherId": body.TeacherID, "studentId": body.StudentID, "remainingLessons": body.RemainingLessons,
 	})
 	response.SuccessI18n(c, "common.ok", q)
 }
@@ -891,6 +892,7 @@ func coachingToWeekDTO(list []models.CoachingAppointment) []coachingWeekSchedule
 				"actualMinutes":          a.Session.ActualMinutes,
 				"billedMinutes":          a.Session.BilledMinutes,
 				"teacherCreditedMinutes": a.Session.TeacherCreditedMinutes,
+				"studentLessonsBilled":   a.Session.StudentLessonsBilled,
 			}
 		} else if a.Status == models.CoachingStatusInProgress && a.ActualStartedAt != nil {
 			loc := time.Local
@@ -945,7 +947,7 @@ type coachingTeacherApptBody struct {
 
 type coachingTeacherQuotaBody struct {
 	StudentID        utils.JSONUint `json:"studentId" binding:"required"`
-	RemainingMinutes int            `json:"remainingMinutes"`
+	RemainingLessons int            `json:"remainingLessons"`
 }
 
 const coachingDefaultStudentPassword = "student123"
@@ -953,7 +955,7 @@ const coachingDefaultStudentPassword = "student123"
 type coachingTeacherCreateStudentBody struct {
 	DisplayName string `json:"displayName" binding:"required"`
 	Password    string `json:"password"`   // 可选；默认 student123
-	StudyHours  int    `json:"studyHours"` // 学时 → 转成分钟额度
+	StudyHours  int    `json:"studyHours"` // 学时 = 课时数
 }
 
 type coachingTeacherSetStudentPasswordBody struct {
@@ -1015,7 +1017,7 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 		return
 	}
 
-	remaining := body.StudyHours * 60
+	remaining := body.StudyHours
 	username, err := coachingUsernameFromDisplayName(db, name)
 	if err != nil {
 		response.FailI18n(c, "auth.generate_account_failed", nil)
@@ -1053,8 +1055,8 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 		quota = models.StudentTeacherCoachingQuota{
 			TeacherID:             tid,
 			StudentID:             student.ID,
-			RemainingMinutes:      remaining,
-			TotalAllocatedMinutes: remaining,
+			RemainingLessons:      remaining,
+			TotalAllocatedLessons: remaining,
 		}
 		return tx.Create(&quota).Error
 	})
@@ -1065,7 +1067,7 @@ func (h *Handlers) coachingTeacherCreateStudent(c *gin.Context) {
 	_ = db.Preload("Student").First(&quota, quota.ID).Error
 	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", quota.ID, 0, "老师新建学员", map[string]any{
 		"teacherId": tid, "studentId": student.ID, "displayName": name,
-		"remainingMinutes": remaining, "username": username,
+		"remainingLessons": remaining, "username": username,
 	})
 	response.SuccessI18n(c, "common.ok", gin.H{
 		"quota":           quota,
@@ -1332,7 +1334,7 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 		response.FailI18n(c, "common.invalid_params", nil)
 		return
 	}
-	if body.RemainingMinutes < 0 {
+	if body.RemainingLessons < 0 {
 		response.FailI18n(c, "coaching.quota_negative", nil)
 		return
 	}
@@ -1351,7 +1353,7 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		q = models.StudentTeacherCoachingQuota{
 			TeacherID: tid, StudentID: studentID,
-			RemainingMinutes: body.RemainingMinutes, TotalAllocatedMinutes: body.RemainingMinutes, Version: 0,
+			RemainingLessons: body.RemainingLessons, TotalAllocatedLessons: body.RemainingLessons, Version: 0,
 		}
 		if err := db.Create(&q).Error; err != nil {
 			response.FailI18n(c, "common.operation_failed", err.Error())
@@ -1359,7 +1361,7 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 		}
 		_ = db.Preload("Student").First(&q, q.ID).Error
 		coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "老师添加学员", map[string]any{
-			"teacherId": tid, "studentId": studentID, "remainingMinutes": body.RemainingMinutes,
+			"teacherId": tid, "studentId": studentID, "remainingLessons": body.RemainingLessons,
 		})
 		response.SuccessI18n(c, "common.ok", q)
 		return
@@ -1372,17 +1374,17 @@ func (h *Handlers) coachingTeacherUpsertQuota(c *gin.Context) {
 	if q.DeletedAt.Valid {
 		q.Restore("")
 	}
-	if body.RemainingMinutes > q.RemainingMinutes {
-		q.TotalAllocatedMinutes += body.RemainingMinutes - q.RemainingMinutes
+	if body.RemainingLessons > q.RemainingLessons {
+		q.TotalAllocatedLessons += body.RemainingLessons - q.RemainingLessons
 	}
-	q.RemainingMinutes = body.RemainingMinutes
+	q.RemainingLessons = body.RemainingLessons
 	if err := db.Save(&q).Error; err != nil {
 		response.FailI18n(c, "common.operation_failed", err.Error())
 		return
 	}
 	_ = db.Preload("Student").First(&q, q.ID).Error
-	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "老师更新学员额度", map[string]any{
-		"teacherId": tid, "studentId": studentID, "remainingMinutes": body.RemainingMinutes,
+	coachingWriteCoachingAudit(db, c, coachingAuditQuotaUpsert, "quota", q.ID, 0, "老师更新学员课时", map[string]any{
+		"teacherId": tid, "studentId": studentID, "remainingLessons": body.RemainingLessons,
 	})
 	response.SuccessI18n(c, "common.ok", q)
 }
@@ -1557,7 +1559,7 @@ func (h *Handlers) coachingTeacherStart(c *gin.Context) {
 		return
 	}
 	q, err := coachingGetQuota(db, ap.TeacherID, ap.StudentID)
-	if errors.Is(err, gorm.ErrRecordNotFound) || q.RemainingMinutes <= 0 {
+	if errors.Is(err, gorm.ErrRecordNotFound) || q.RemainingLessons <= 0 {
 		response.FailI18n(c, "coaching.quota_insufficient", nil)
 		return
 	}
@@ -1621,6 +1623,42 @@ func (h *Handlers) coachingTeacherEnd(c *gin.Context) {
 	response.SuccessI18n(c, "common.ok", gin.H{"session": rec, "appointment": apCompleted})
 }
 
+func (h *Handlers) coachingTeacherConsumeLesson(c *gin.Context) {
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
+	id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id64 == 0 {
+		response.FailI18n(c, "coaching.not_found", nil)
+		return
+	}
+	id := uint(id64)
+
+	var ap models.CoachingAppointment
+	if err := db.Where("id = ?", id).First(&ap).Error; err != nil {
+		response.FailI18n(c, "coaching.not_found", nil)
+		return
+	}
+	if coachingIsTeacherRole(user) && !user.IsAdmin() && ap.TeacherID != user.ID {
+		response.FailI18n(c, "coaching.no_appointment_access", nil)
+		return
+	}
+
+	updated, err := coachingConsumeStudentLesson(db, id, c)
+	if err != nil {
+		if errors.Is(err, errCoachingLessonNotEligible) {
+			response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
+			return
+		}
+		if errors.Is(err, errCoachingLessonNoQuota) {
+			response.FailI18n(c, "coaching.quota_insufficient", nil)
+			return
+		}
+		response.AbortWithStatusJSON(c, http.StatusBadRequest, err)
+		return
+	}
+	response.SuccessI18n(c, "common.ok", gin.H{"appointment": updated})
+}
+
 type coachingPracticeStartBody struct {
 	StudentID      utils.JSONUint `json:"studentId" binding:"required"`
 	PlannedMinutes int            `json:"plannedMinutes"` // 计划练习分钟，默认 45，范围 1–180
@@ -1656,15 +1694,7 @@ func (h *Handlers) coachingTeacherStartPractice(c *gin.Context) {
 		response.FailI18n(c, "coaching.add_student_first", nil)
 		return
 	}
-	q, err := coachingGetQuota(db, tid, studentID)
-	if errors.Is(err, gorm.ErrRecordNotFound) || q.RemainingMinutes <= 0 {
-		response.FailI18n(c, "coaching.quota_insufficient", nil)
-		return
-	}
-	if err != nil {
-		response.FailI18n(c, "coaching.query_quota_failed", err.Error())
-		return
-	}
+	// 首页练习不扣学员课时，开课只校验老师教学池
 
 	now := time.Now().In(time.Local)
 	if err := coachingTeacherPoolAllowsStart(db, tid); err != nil {

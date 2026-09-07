@@ -40,7 +40,7 @@ type studySessionReportDTO struct {
 	WordBookWordCount    int64    `json:"wordBookWordCount"`
 	LearnedCount         int64    `json:"learnedCount"`
 	LessonCount          int64    `json:"lessonCount"`
-	RemainingMinutes     int      `json:"remainingMinutes"`
+	RemainingLessons     int      `json:"remainingLessons"`
 	ForgotWords          []string `json:"forgotWords,omitempty"`
 	StudiedWords         []string `json:"studiedWords,omitempty"`
 	ReportSummary        string   `json:"reportSummary,omitempty"`
@@ -168,12 +168,12 @@ func buildStudySessionReport(db *gorm.DB, session *models.StudySession) studySes
 		Where("user_id = ? AND session_type = ? AND status = ?", ownerID, "learn", "completed").
 		Count(&lessonCount).Error
 
-	remainingMinutes := 0
+	remainingLessons := 0
 	studentID := session.StudentID
 	teacherID := session.UserID
 	if studentID > 0 && teacherID > 0 && studentID != teacherID {
 		if q, err := coachingGetQuota(db, teacherID, studentID); err == nil {
-			remainingMinutes = q.RemainingMinutes
+			remainingLessons = q.RemainingLessons
 		}
 	}
 
@@ -202,7 +202,7 @@ func buildStudySessionReport(db *gorm.DB, session *models.StudySession) studySes
 		WordBookWordCount:    wordBookWordCount,
 		LearnedCount:         learnedCount,
 		LessonCount:          lessonCount,
-		RemainingMinutes:     remainingMinutes,
+		RemainingLessons:     remainingLessons,
 		ForgotWords:          forgotWords,
 		StudiedWords:         studiedWords,
 		ReportSummary:        strings.TrimSpace(session.ReportSummary),

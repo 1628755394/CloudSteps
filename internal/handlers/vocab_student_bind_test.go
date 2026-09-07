@@ -93,7 +93,7 @@ func mustCreateQuotaPair(t *testing.T, db *gorm.DB, teacherID, studentID uint) {
 	q := models.StudentTeacherCoachingQuota{
 		TeacherID:        teacherID,
 		StudentID:        studentID,
-		RemainingMinutes: 60,
+		RemainingLessons: 1,
 	}
 	if err := db.Create(&q).Error; err != nil {
 		t.Fatal(err)

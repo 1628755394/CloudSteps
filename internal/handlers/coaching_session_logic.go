@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/LingByte/CloudStepsGo/internal/models"
@@ -10,7 +11,91 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// coachingCompleteAppointment 完课：扣学员额度、计老师用量、写入 session（幂等：已有 session 则返回）
+var (
+	errCoachingLessonNotEligible = errors.New("仅排课上课可扣除学员课时")
+	errCoachingLessonNoQuota     = errors.New("学员课时不足")
+)
+
+// coachingAppointmentIsPractice 首页无排课练习（notes=practice）不扣学员课时。
+func coachingAppointmentIsPractice(ap *models.CoachingAppointment) bool {
+	if ap == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(ap.Notes), "practice")
+}
+
+// coachingConsumeStudentLesson 排课课次完成训后检测时扣 1 学员课时（幂等）。
+// practice 课次直接返回 already billed / not eligible，不扣减。
+func coachingConsumeStudentLesson(db *gorm.DB, appointmentID uint, auditC *gin.Context) (*models.CoachingAppointment, error) {
+	var ap models.CoachingAppointment
+	if err := db.Where("id = ?", appointmentID).First(&ap).Error; err != nil {
+		return nil, err
+	}
+	if coachingAppointmentIsPractice(&ap) {
+		return &ap, errCoachingLessonNotEligible
+	}
+	if ap.Status != models.CoachingStatusInProgress && ap.Status != models.CoachingStatusCompleted {
+		return nil, errors.New("课次未开始或状态不可扣课时")
+	}
+	if ap.StudentLessonsBilled > 0 {
+		return &ap, nil // 幂等成功
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var locked models.CoachingAppointment
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ?", appointmentID).First(&locked).Error; err != nil {
+			return err
+		}
+		if locked.StudentLessonsBilled > 0 {
+			ap = locked
+			return nil
+		}
+		var q models.StudentTeacherCoachingQuota
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("teacher_id = ? AND student_id = ?", locked.TeacherID, locked.StudentID).
+			First(&q).Error; err != nil {
+			return err
+		}
+		if q.RemainingLessons < 1 {
+			return errCoachingLessonNoQuota
+		}
+		res := tx.Model(&models.StudentTeacherCoachingQuota{}).
+			Where("id = ? AND version = ? AND remaining_lessons >= 1", q.ID, q.Version).
+			Updates(map[string]any{
+				"remaining_lessons": q.RemainingLessons - 1,
+				"version":           q.Version + 1,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errors.New("课时更新冲突，请重试")
+		}
+		if err := tx.Model(&locked).Update("student_lessons_billed", 1).Error; err != nil {
+			return err
+		}
+		locked.StudentLessonsBilled = 1
+		// 若已完课，同步 session 快照（训后检测可能在下课之后）
+		_ = tx.Model(&models.CoachingSessionRecord{}).
+			Where("appointment_id = ?", appointmentID).
+			Update("student_lessons_billed", 1).Error
+		ap = locked
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if auditC != nil {
+		coachingWriteCoachingAudit(db, auditC, coachingAuditQuotaUpsert, "appointment", appointmentID, appointmentID, "训后检测扣除学员课时", map[string]any{
+			"teacherId": ap.TeacherID, "studentId": ap.StudentID, "lessons": 1,
+		})
+	}
+	return &ap, nil
+}
+
+// coachingCompleteAppointment 完课：只扣老师教学池分钟并写入 session（幂等：已有 session 则返回）。
+// 学员课时不在此处扣除（见 coachingConsumeStudentLesson）。
 func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.Time, auditC *gin.Context, autoEnd bool) (*models.CoachingSessionRecord, *models.CoachingAppointment, error) {
 	var existing models.CoachingSessionRecord
 	if err := db.Where("appointment_id = ?", appointmentID).First(&existing).Error; err == nil {
@@ -36,28 +121,16 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 
 	var rec models.CoachingSessionRecord
 	err := db.Transaction(func(tx *gorm.DB) error {
-		var q models.StudentTeacherCoachingQuota
+		var lockedAp models.CoachingAppointment
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("teacher_id = ? AND student_id = ?", ap.TeacherID, ap.StudentID).
-			First(&q).Error; err != nil {
+			Where("id = ?", appointmentID).First(&lockedAp).Error; err != nil {
 			return err
 		}
-		billedStudent := actual
-		if q.RemainingMinutes < billedStudent {
-			billedStudent = q.RemainingMinutes
+		if lockedAp.Status != models.CoachingStatusInProgress {
+			return errors.New("只有上课中的排课可以下课")
 		}
-		res := tx.Model(&models.StudentTeacherCoachingQuota{}).
-			Where("id = ? AND version = ?", q.ID, q.Version).
-			Updates(map[string]any{
-				"remaining_minutes": q.RemainingMinutes - billedStudent,
-				"version":           q.Version + 1,
-			})
-		if res.Error != nil {
-			return res.Error
-		}
-		if res.RowsAffected == 0 {
-			return errors.New("额度更新冲突，请重试")
-		}
+		ap = lockedAp
+
 		period, err := coachingGetOrCreateUsagePeriod(tx, ap.TeacherID, endedAt)
 		if err != nil {
 			return err
@@ -73,7 +146,7 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 			First(&pool).Error; err != nil {
 			return err
 		}
-		teacherCred := billedStudent
+		teacherCred := actual
 		if pool.RemainingMinutes < teacherCred {
 			teacherCred = pool.RemainingMinutes
 		}
@@ -97,8 +170,9 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 		rec = models.CoachingSessionRecord{
 			AppointmentID: appointmentID, TeacherID: ap.TeacherID, StudentID: ap.StudentID,
 			StartedAt: *ap.ActualStartedAt, EndedAt: endedAt,
-			ActualMinutes: actual, BilledMinutes: billedStudent, TeacherCreditedMinutes: teacherCred,
-			Status: models.CoachingSessionStatusCompleted,
+			ActualMinutes: actual, BilledMinutes: teacherCred, TeacherCreditedMinutes: teacherCred,
+			StudentLessonsBilled: ap.StudentLessonsBilled,
+			Status:               models.CoachingSessionStatusCompleted,
 		}
 		if err := tx.Create(&rec).Error; err != nil {
 			return err
@@ -123,7 +197,9 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 		coachingWriteCoachingAudit(db, auditC, action, "session", rec.ID, appointmentID, summary, map[string]any{
 			"teacherId": rec.TeacherID, "studentId": rec.StudentID,
 			"actualMinutes": rec.ActualMinutes, "billedMinutes": rec.BilledMinutes,
-			"teacherCreditedMinutes": rec.TeacherCreditedMinutes, "autoEnd": autoEnd,
+			"teacherCreditedMinutes": rec.TeacherCreditedMinutes,
+			"studentLessonsBilled":   rec.StudentLessonsBilled,
+			"autoEnd":                autoEnd,
 		})
 	} else {
 		coachingWriteCoachingAuditSystem(db, coachingAuditSessionAutoEnd, "session", rec.ID, appointmentID, "排课结束自动下课", map[string]any{

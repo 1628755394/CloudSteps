@@ -29,13 +29,16 @@ const (
 	SignupTeachingPoolMinutes = 180
 )
 
-// StudentTeacherCoachingQuota 学员在某老师名下的陪练剩余时长（分钟）
+// StudentTeacherCoachingQuota 学员在某老师名下的陪练剩余课时（节）
 type StudentTeacherCoachingQuota struct {
 	common.BaseModel
 	TeacherID             uint  `json:"teacherId" gorm:"uniqueIndex:idx_coach_quota_pair;not null;index"`
 	StudentID             uint  `json:"studentId" gorm:"uniqueIndex:idx_coach_quota_pair;not null;index"`
-	RemainingMinutes      int   `json:"remainingMinutes" gorm:"not null;default:0"`
-	TotalAllocatedMinutes int   `json:"totalAllocatedMinutes" gorm:"not null;default:0"`
+	RemainingLessons      int   `json:"remainingLessons" gorm:"not null;default:0"`
+	TotalAllocatedLessons int   `json:"totalAllocatedLessons" gorm:"not null;default:0"`
+	// RemainingMinutes / TotalAllocatedMinutes 仅保留供启动迁移读取，新逻辑不再写入。
+	RemainingMinutes      int   `json:"-" gorm:"not null;default:0"`
+	TotalAllocatedMinutes int   `json:"-" gorm:"not null;default:0"`
 	Version               int   `json:"version" gorm:"not null;default:0"`
 	Teacher               *User `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
 	Student               *User `json:"student,omitempty" gorm:"foreignKey:StudentID"`
@@ -61,9 +64,11 @@ func clearCoachingBalancesInTx(tx *gorm.DB, userID uint, operator string) error 
 		return nil
 	}
 	quotaZero := map[string]any{
-		"remaining_minutes":       0,
-		"total_allocated_minutes": 0,
-		"update_by":               operator,
+		"remaining_lessons":        0,
+		"total_allocated_lessons":  0,
+		"remaining_minutes":        0,
+		"total_allocated_minutes":  0,
+		"update_by":                operator,
 	}
 	if err := tx.Model(&StudentTeacherCoachingQuota{}).
 		Where("(teacher_id = ? OR student_id = ?)", userID, userID).
@@ -186,19 +191,20 @@ type CoachingAppointment struct {
 	ScheduledDate   time.Time              `json:"scheduledDate" gorm:"index;not null;type:date"`
 	StartTime       string                 `json:"startTime" gorm:"size:8;not null"` // HH:MM
 	EndTime         string                 `json:"endTime" gorm:"size:8;not null"`
-	DurationMinutes int                    `json:"durationMinutes" gorm:"not null;default:0"`
-	Status          string                 `json:"status" gorm:"size:32;not null;index;default:'scheduled'"`
-	Title           string                 `json:"title" gorm:"size:256"`
-	Notes           string                 `json:"notes" gorm:"type:text"`
-	ActualStartedAt *time.Time             `json:"actualStartedAt,omitempty"` // 老师点击「开始上课」
-	Teacher         *User                  `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
-	Student         *User                  `json:"student,omitempty" gorm:"foreignKey:StudentID"`
-	Session         *CoachingSessionRecord `json:"session,omitempty" gorm:"foreignKey:AppointmentID"`
+	DurationMinutes      int                    `json:"durationMinutes" gorm:"not null;default:0"`
+	Status               string                 `json:"status" gorm:"size:32;not null;index;default:'scheduled'"`
+	Title                string                 `json:"title" gorm:"size:256"`
+	Notes                string                 `json:"notes" gorm:"type:text"`
+	ActualStartedAt      *time.Time             `json:"actualStartedAt,omitempty"` // 老师点击「开始上课」
+	StudentLessonsBilled int                    `json:"studentLessonsBilled" gorm:"not null;default:0;comment:本课次已扣学员课时数（0/1）"`
+	Teacher              *User                  `json:"teacher,omitempty" gorm:"foreignKey:TeacherID"`
+	Student              *User                  `json:"student,omitempty" gorm:"foreignKey:StudentID"`
+	Session              *CoachingSessionRecord `json:"session,omitempty" gorm:"foreignKey:AppointmentID"`
 }
 
 func (CoachingAppointment) TableName() string { return constants.TABLE_COACHING_APPOINTMENTS }
 
-// CoachingSessionRecord 完课记录（actual / billed 分钟）
+// CoachingSessionRecord 完课记录（老师按时长；学员按课时在 appointment 上扣）
 type CoachingSessionRecord struct {
 	common.BaseModel
 	AppointmentID          uint                 `json:"appointmentId" gorm:"uniqueIndex;not null"`
@@ -207,8 +213,9 @@ type CoachingSessionRecord struct {
 	StartedAt              time.Time            `json:"startedAt" gorm:"not null"`
 	EndedAt                time.Time            `json:"endedAt" gorm:"not null"`
 	ActualMinutes          int                  `json:"actualMinutes" gorm:"not null"`
-	BilledMinutes          int                  `json:"billedMinutes" gorm:"not null"`                    // 从学员剩余中扣减的分钟
-	TeacherCreditedMinutes int                  `json:"teacherCreditedMinutes" gorm:"not null;default:0"` // 计入老师周期用量的分钟（受 cap 截断时可能 < BilledMinutes）
+	BilledMinutes          int                  `json:"billedMinutes" gorm:"not null"`                    // 历史字段：现与 TeacherCreditedMinutes 对齐（老师侧分钟）
+	TeacherCreditedMinutes int                  `json:"teacherCreditedMinutes" gorm:"not null;default:0"` // 计入老师教学池/周期用量的分钟
+	StudentLessonsBilled   int                  `json:"studentLessonsBilled" gorm:"not null;default:0"`   // 本课次扣学员课时数快照
 	Status                 string               `json:"status" gorm:"size:32;not null;default:'completed'"`
 	Appointment            *CoachingAppointment `json:"appointment,omitempty" gorm:"foreignKey:AppointmentID"`
 }

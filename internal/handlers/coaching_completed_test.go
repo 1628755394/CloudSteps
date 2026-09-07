@@ -155,8 +155,8 @@ func TestCoachingTeacherListQuotas_excludesSelfPair(t *testing.T) {
 	legacy := models.StudentTeacherCoachingQuota{
 		TeacherID:             teacher.ID,
 		StudentID:             teacher.ID,
-		RemainingMinutes:      1000,
-		TotalAllocatedMinutes: 1000,
+		RemainingLessons:      16,
+		TotalAllocatedLessons: 16,
 	}
 	if err := db.Create(&legacy).Error; err != nil {
 		t.Fatal(err)
@@ -164,8 +164,8 @@ func TestCoachingTeacherListQuotas_excludesSelfPair(t *testing.T) {
 	real := models.StudentTeacherCoachingQuota{
 		TeacherID:             teacher.ID,
 		StudentID:             student.ID,
-		RemainingMinutes:      120,
-		TotalAllocatedMinutes: 120,
+		RemainingLessons:      2,
+		TotalAllocatedLessons: 2,
 	}
 	if err := db.Create(&real).Error; err != nil {
 		t.Fatal(err)

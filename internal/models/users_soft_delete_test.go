@@ -88,9 +88,9 @@ func TestSoftDeleteTeacherWithStudents(t *testing.T) {
 		}
 	}
 	quotas := []StudentTeacherCoachingQuota{
-		{TeacherID: teacher.ID, StudentID: student1.ID, RemainingMinutes: 10},
-		{TeacherID: teacher.ID, StudentID: student2.ID, RemainingMinutes: 20},
-		{TeacherID: otherTeacher.ID, StudentID: student2.ID, RemainingMinutes: 30},
+		{TeacherID: teacher.ID, StudentID: student1.ID, RemainingLessons: 10},
+		{TeacherID: teacher.ID, StudentID: student2.ID, RemainingLessons: 20},
+		{TeacherID: otherTeacher.ID, StudentID: student2.ID, RemainingLessons: 30},
 	}
 	for i := range quotas {
 		if err := db.Create(&quotas[i]).Error; err != nil {
@@ -148,8 +148,8 @@ func TestSoftDeleteUser_clearsCoachingBalances(t *testing.T) {
 	quota := StudentTeacherCoachingQuota{
 		TeacherID:             teacher.ID,
 		StudentID:             student.ID,
-		RemainingMinutes:      120,
-		TotalAllocatedMinutes: 200,
+		RemainingLessons:      2,
+		TotalAllocatedLessons: 3,
 	}
 	if err := db.Create(&quota).Error; err != nil {
 		t.Fatal(err)
@@ -169,7 +169,7 @@ func TestSoftDeleteUser_clearsCoachingBalances(t *testing.T) {
 	if err := db.Unscoped().First(&quota, quota.ID).Error; err != nil {
 		t.Fatal(err)
 	}
-	if quota.RemainingMinutes != 0 || quota.TotalAllocatedMinutes != 0 {
+	if quota.RemainingLessons != 0 || quota.TotalAllocatedLessons != 0 {
 		t.Fatalf("quota not cleared: %+v", quota)
 	}
 	if !quota.DeletedAt.Valid {
