@@ -10,7 +10,6 @@ import {
 } from "../api/coaching";
 import { normalizeSnowflakeId } from "../utils/json-snowflake";
 import { showToast } from "../utils/toast";
-import { lessonsToMinutes } from "../utils/formatMinutes";
 
 type Props = {
   open: boolean;
@@ -25,7 +24,7 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<CoachingStudentSearchResult[]>([]);
   const [picked, setPicked] = useState<CoachingStudentSearchResult | null>(null);
-  const [quotaMinutes, setQuotaMinutes] = useState("2");
+  const [quotaMinutes, setQuotaMinutes] = useState("120");
   const [adding, setAdding] = useState(false);
 
   if (!open) return null;
@@ -54,12 +53,11 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
       showToast.warning(t("coaching.select_student_first"));
       return;
     }
-    const lessons = Number(quotaMinutes);
-    if (Number.isNaN(lessons) || lessons < 0) {
-      showToast.warning(t("coaching.invalid_lessons"));
+    const mins = Number(quotaMinutes);
+    if (Number.isNaN(mins) || mins < 0) {
+      showToast.warning(t("coaching.invalid_minutes"));
       return;
     }
-    const mins = lessonsToMinutes(lessons);
     setAdding(true);
     try {
       const res = await addTeacherCoachingStudent({

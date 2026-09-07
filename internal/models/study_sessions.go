@@ -21,7 +21,6 @@ type StudySession struct {
 	ScreenedKnownCount   int        `json:"screenedKnownCount" gorm:"default:0;comment:本课筛词熟词数"`
 	ScreenedUnknownCount int        `json:"screenedUnknownCount" gorm:"default:0;comment:本课筛词生词/新词数"`
 	ReportSummary        string     `json:"reportSummary,omitempty" gorm:"type:text;comment:课堂报告 AI 摘要缓存"`
-	BilledMinutes        int        `json:"billedMinutes" gorm:"default:0;comment:本节已扣减的课时分钟数（0=未扣，60=已扣1课时）"`
 }
 
 func (StudySession) TableName() string { return constants.TABLE_STUDY_SESSIONS }
