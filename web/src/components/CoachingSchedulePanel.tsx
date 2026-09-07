@@ -82,25 +82,29 @@ const EVENT_MIN_H = 32;
 /** 时间轴相对可视区再拉高约 1/3，课块更易读 */
 const AXIS_HEIGHT_SCALE = 4 / 3;
 
-const STATUS_SOFT: Record<string, { bg: string; text: string; bar: string }> = {
+const STATUS_SOFT: Record<string, { bg: string; text: string; border: string; bar: string }> = {
   scheduled: {
     bg: "bg-primary/15",
     text: "text-primary",
+    border: "border-primary/60",
     bar: "bg-primary",
   },
   in_progress: {
     bg: "bg-sky-100",
     text: "text-sky-700",
+    border: "border-sky-500/60",
     bar: "bg-sky-500",
   },
   completed: {
     bg: "bg-muted",
     text: "text-muted-foreground",
+    border: "border-muted-foreground/50",
     bar: "bg-muted-foreground/40",
   },
   cancelled: {
     bg: "bg-red-50",
     text: "text-red-600",
+    border: "border-red-500/60",
     bar: "bg-red-500",
   },
 };
@@ -108,6 +112,7 @@ const STATUS_SOFT: Record<string, { bg: string; text: string; bar: string }> = {
 const PAST_SOFT = {
   bg: "bg-muted",
   text: "text-muted-foreground",
+  border: "border-muted-foreground/50",
   bar: "bg-muted-foreground/40",
 };
 
@@ -297,7 +302,7 @@ function TimetableBlock({
         e.stopPropagation();
         onClick();
       }}
-      className={`absolute overflow-hidden rounded-lg border-0 ${soft.bg} text-left px-1 py-1 shadow-sm active:scale-[0.98] touch-manipulation ${
+      className={`absolute overflow-hidden rounded-2xl border ${soft.border} ${soft.bg} text-left px-1 py-1 shadow-sm active:scale-[0.98] touch-manipulation ${
         past ? "opacity-90" : ""
       }`}
       style={{
