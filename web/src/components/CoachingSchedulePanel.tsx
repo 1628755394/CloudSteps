@@ -84,36 +84,36 @@ const AXIS_HEIGHT_SCALE = 4 / 3;
 
 const STATUS_SOFT: Record<string, { bg: string; text: string; border: string; bar: string }> = {
   scheduled: {
-    bg: "bg-primary/15",
-    text: "text-primary",
+    bg: "bg-primary",
+    text: "text-black",
     border: "border-primary",
     bar: "bg-primary",
   },
   in_progress: {
-    bg: "bg-sky-100",
-    text: "text-sky-700",
+    bg: "bg-sky-500",
+    text: "text-black",
     border: "border-sky-500",
     bar: "bg-sky-500",
   },
   completed: {
-    bg: "bg-primary/10",
-    text: "text-primary/70",
-    border: "border-primary/40",
-    bar: "bg-primary/40",
+    bg: "bg-primary",
+    text: "text-black",
+    border: "border-primary",
+    bar: "bg-primary",
   },
   cancelled: {
-    bg: "bg-red-50",
-    text: "text-red-600",
+    bg: "bg-red-500",
+    text: "text-black",
     border: "border-red-500",
     bar: "bg-red-500",
   },
 };
 
 const PAST_SOFT = {
-  bg: "bg-primary/10",
-  text: "text-primary/70",
-  border: "border-primary/40",
-  bar: "bg-primary/40",
+  bg: "bg-primary",
+  text: "text-black",
+  border: "border-primary",
+  bar: "bg-primary",
 };
 
 /** 计划时段已结束（不含进行中） */
@@ -320,16 +320,14 @@ function TimetableBlock({
         </div>
         {showDetail ? (
           <div
-            className={`text-[11px] font-medium leading-snug line-clamp-2 mt-0.5 ${
-              past ? "text-muted-foreground" : "text-foreground"
-            }`}
+            className={`text-[11px] font-medium leading-snug line-clamp-2 mt-0.5 text-black`}
           >
             {title}
           </div>
         ) : null}
       </div>
       {overlapCount > 1 && !overlapExpanded && overlapIndex === overlapCount - 1 ? (
-        <span className="absolute right-1 top-1 rounded-full bg-foreground/10 px-1 text-[9px] font-semibold text-foreground/70">
+        <span className="absolute right-1 top-1 rounded-full bg-black/10 px-1 text-[9px] font-semibold text-black">
           +{overlapCount - 1}
         </span>
       ) : null}
