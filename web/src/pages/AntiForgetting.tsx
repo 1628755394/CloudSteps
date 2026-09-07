@@ -4,8 +4,6 @@ import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudDatePicker, CloudEmpty, CloudSpin } from "../components/cloudsteps/arco";
 import { listReviewBooksByDate, type ReviewBookStatRow } from "../api/review";
-import { useAuthStore } from "../stores/authStore";
-import { reviewCurveLabel } from "../utils/reviewCurve";
 import { normalizeSnowflakeId } from "../utils/json-snowflake";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
@@ -84,7 +82,6 @@ export default function AntiForgetting() {
   const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
   const navigate = useNavigate();
-  const reviewCurvePreset = useAuthStore((s) => s.user?.reviewCurvePreset) || "times5";
 
   const [bookStats, setBookStats] = useState<ReviewBookStatRow[]>([]);
   const [loadingBooks, setLoadingBooks] = useState(true);
@@ -198,10 +195,6 @@ export default function AntiForgetting() {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground px-1">
-        {t("anti_forgetting.curve", { label: reviewCurveLabel(reviewCurvePreset) })}
-      </p>
-
       <CloudCard className="p-4 sm:p-5">
         <div className="flex items-center gap-2 sm:gap-4">
           <CloudButton
