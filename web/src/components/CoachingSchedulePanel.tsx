@@ -398,11 +398,11 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
   );
 
   const axisSpan = axisRange ? Math.max(1, axisRange.endMin - axisRange.startMin) : 1;
-  /** H5：列宽适中，周六日可右滑 */
-  const dayColPx = isMobile ? 88 : 64;
-  const timeGutterPx = 40;
-  const weekGridMinW = timeGutterPx + dayColPx * 7;
-  const emptyGridMinW = dayColPx * 7;
+  /** H5：七天始终收进同一屏，桌面端保持舒适列宽 */
+  const dayColPx = 64;
+  const timeGutterPx = isMobile ? 32 : 40;
+  const weekGridMinW = isMobile ? 0 : timeGutterPx + dayColPx * 7;
+  const emptyGridMinW = isMobile ? 0 : dayColPx * 7;
 
   const activeCount = useMemo(
     () =>
@@ -736,16 +736,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
             <CloudSpin tip={t("coaching.loading_schedule")} />
           </div>
         ) : (
-          <div className="h-full min-h-0 overflow-x-auto overflow-y-auto overscroll-contain">
+          <div className="h-full min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain">
             {!axisRange ? (
               <div
                 className="grid h-full min-h-0"
                 style={{
-                  width: isMobile ? emptyGridMinW : "100%",
+                  width: "100%",
                   minWidth: emptyGridMinW,
-                  gridTemplateColumns: isMobile
-                    ? `repeat(7, ${dayColPx}px)`
-                    : `repeat(7, minmax(${dayColPx}px, 1fr))`,
+                  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
                   gridTemplateRows: `${DAY_HEADER_H}px minmax(0, 1fr)`,
                 }}
               >
@@ -823,11 +821,9 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
               <div
                 className="grid"
                 style={{
-                  width: isMobile ? weekGridMinW : "100%",
+                  width: "100%",
                   minWidth: weekGridMinW,
-                  gridTemplateColumns: isMobile
-                    ? `${timeGutterPx}px repeat(7, ${dayColPx}px)`
-                    : `${timeGutterPx}px repeat(7, minmax(${dayColPx}px, 1fr))`,
+                  gridTemplateColumns: `${timeGutterPx}px repeat(7, minmax(0, 1fr))`,
                   gridTemplateRows: `${DAY_HEADER_H}px ${axisHeightPx}px`,
                 }}
               >
