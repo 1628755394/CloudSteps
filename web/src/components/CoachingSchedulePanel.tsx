@@ -84,36 +84,36 @@ const AXIS_HEIGHT_SCALE = 4 / 3;
 
 const STATUS_SOFT: Record<string, { bg: string; text: string; border: string; bar: string }> = {
   scheduled: {
-    bg: "bg-primary",
+    bg: "bg-gray-200",
     text: "text-black",
-    border: "border-primary",
-    bar: "bg-primary",
+    border: "border-black",
+    bar: "bg-black",
   },
   in_progress: {
-    bg: "bg-sky-500",
+    bg: "bg-gray-200",
     text: "text-black",
-    border: "border-sky-500",
-    bar: "bg-sky-500",
+    border: "border-black",
+    bar: "bg-black",
   },
   completed: {
-    bg: "bg-primary",
+    bg: "bg-gray-200",
     text: "text-black",
-    border: "border-primary",
-    bar: "bg-primary",
+    border: "border-black",
+    bar: "bg-black",
   },
   cancelled: {
-    bg: "bg-red-500",
+    bg: "bg-gray-200",
     text: "text-black",
-    border: "border-red-500",
-    bar: "bg-red-500",
+    border: "border-black",
+    bar: "bg-black",
   },
 };
 
 const PAST_SOFT = {
-  bg: "bg-primary",
+  bg: "bg-gray-200",
   text: "text-black",
-  border: "border-primary",
-  bar: "bg-primary",
+  border: "border-black",
+  bar: "bg-black",
 };
 
 /** 计划时段已结束（不含进行中） */
@@ -289,7 +289,8 @@ function TimetableBlock({
   const soft = past
     ? PAST_SOFT
     : STATUS_SOFT[schedule.status] || STATUS_SOFT.scheduled;
-  const { title } = lessonDisplay(t, schedule);
+  const { title, subtitle } = lessonDisplay(t, schedule);
+  const studentName = subtitle || (schedule.students?.[0]?.trim() ?? "");
   const start = schedule.startTime?.slice(0, 5) || "";
   const end = schedule.endTime?.slice(0, 5) || "";
   const widthPct = 100 / colCount;
@@ -319,11 +320,16 @@ function TimetableBlock({
           {start}{showDetail ? `–${end}` : ""}
         </div>
         {showDetail ? (
-          <div
-            className={`text-[11px] font-medium leading-snug line-clamp-2 mt-0.5 text-black`}
-          >
-            {title}
-          </div>
+          <>
+            {studentName ? (
+              <div className="text-[11px] font-medium leading-snug line-clamp-1 mt-0.5 text-black">
+                {studentName}
+              </div>
+            ) : null}
+            <div className="text-[11px] font-medium leading-snug line-clamp-2 mt-0.5 text-black">
+              {title}
+            </div>
+          </>
         ) : null}
       </div>
       {overlapCount > 1 && !overlapExpanded && overlapIndex === overlapCount - 1 ? (
