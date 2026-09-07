@@ -86,34 +86,34 @@ const STATUS_SOFT: Record<string, { bg: string; text: string; border: string; ba
   scheduled: {
     bg: "bg-primary/15",
     text: "text-primary",
-    border: "border-primary/60",
+    border: "border-primary",
     bar: "bg-primary",
   },
   in_progress: {
     bg: "bg-sky-100",
     text: "text-sky-700",
-    border: "border-sky-500/60",
+    border: "border-sky-500",
     bar: "bg-sky-500",
   },
   completed: {
-    bg: "bg-muted",
-    text: "text-muted-foreground",
-    border: "border-muted-foreground/50",
-    bar: "bg-muted-foreground/40",
+    bg: "bg-primary/10",
+    text: "text-primary/70",
+    border: "border-primary/40",
+    bar: "bg-primary/40",
   },
   cancelled: {
     bg: "bg-red-50",
     text: "text-red-600",
-    border: "border-red-500/60",
+    border: "border-red-500",
     bar: "bg-red-500",
   },
 };
 
 const PAST_SOFT = {
-  bg: "bg-muted",
-  text: "text-muted-foreground",
-  border: "border-muted-foreground/50",
-  bar: "bg-muted-foreground/40",
+  bg: "bg-primary/10",
+  text: "text-primary/70",
+  border: "border-primary/40",
+  bar: "bg-primary/40",
 };
 
 /** 计划时段已结束（不含进行中） */
@@ -314,8 +314,7 @@ function TimetableBlock({
         maxWidth: "min(100%, 280px)",
       }}
     >
-      <span className={`absolute left-0 top-0 bottom-0 w-[3px] ${soft.bar}`} aria-hidden />
-      <div className="pl-1.5 min-w-0 h-full flex flex-col justify-center">
+      <div className="min-w-0 h-full flex flex-col justify-center">
         <div className={`text-[10px] font-semibold tabular-nums leading-tight ${soft.text}`}>
           {start}{showDetail ? `–${end}` : ""}
         </div>
