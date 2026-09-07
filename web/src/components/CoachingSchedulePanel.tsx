@@ -270,6 +270,9 @@ function TimetableBlock({
   col: number;
   colCount: number;
   zIndex: number;
+  overlapCount: number;
+  overlapIndex: number;
+  overlapExpanded: boolean;
   nowTs: number;
   onClick: () => void;
   t: TFunction;
@@ -300,6 +303,7 @@ function TimetableBlock({
         zIndex,
         left: `calc(${leftPct}% + 2px)`,
         width: `calc(${widthPct}% - 4px)`,
+        maxWidth: "min(100%, 280px)",
       }}
     >
       <span className={`absolute left-0 top-0 bottom-0 w-[3px] ${soft.bar}`} aria-hidden />
@@ -317,6 +321,11 @@ function TimetableBlock({
           </div>
         ) : null}
       </div>
+      {overlapCount > 1 && !overlapExpanded && overlapIndex === overlapCount - 1 ? (
+        <span className="absolute right-1 top-1 rounded-full bg-foreground/10 px-1 text-[9px] font-semibold text-foreground/70">
+          +{overlapCount - 1}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -987,6 +996,9 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           col={ev.col}
                           colCount={ev.colCount}
                           zIndex={ev.zIndex}
+                          overlapCount={ev.overlapCount}
+                          overlapIndex={ev.overlapIndex}
+                          overlapExpanded={expandedOverlapGroup === ev.overlapGroupKey}
                           nowTs={nowTs}
                           onClick={() => {
                             if (ev.overlapCount > 1 && expandedOverlapGroup !== ev.overlapGroupKey) {
