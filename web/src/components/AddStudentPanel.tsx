@@ -24,7 +24,7 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<CoachingStudentSearchResult[]>([]);
   const [picked, setPicked] = useState<CoachingStudentSearchResult | null>(null);
-  const [quotaMinutes, setQuotaMinutes] = useState("120");
+  const [quotaLessons, setQuotaLessons] = useState("2");
   const [adding, setAdding] = useState(false);
 
   if (!open) return null;
@@ -53,16 +53,16 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
       showToast.warning(t("coaching.select_student_first"));
       return;
     }
-    const mins = Number(quotaMinutes);
-    if (Number.isNaN(mins) || mins < 0) {
-      showToast.warning(t("coaching.invalid_minutes"));
+    const lessons = Number(quotaLessons);
+    if (Number.isNaN(lessons) || lessons < 0 || !Number.isInteger(lessons)) {
+      showToast.warning(t("coaching.invalid_lessons"));
       return;
     }
     setAdding(true);
     try {
       const res = await addTeacherCoachingStudent({
         studentId: normalizeSnowflakeId(picked.id),
-        remainingMinutes: mins,
+        remainingLessons: lessons,
       });
       if (res.code !== 200) {
         showToast.error(res.msg || t("coaching.add_failed"));
@@ -139,9 +139,9 @@ export function AddStudentPanel({ open, onClose, onAdded }: Props) {
       {picked && (
         <>
           <CloudInput
-            label={t("coaching.initial_quota")}
-            value={quotaMinutes}
-            onChange={setQuotaMinutes}
+            label={t("coaching.initial_lessons")}
+            value={quotaLessons}
+            onChange={setQuotaLessons}
             inputMode="numeric"
           />
           <CloudButton

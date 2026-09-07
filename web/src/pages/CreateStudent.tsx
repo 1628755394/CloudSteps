@@ -21,7 +21,7 @@ import { formatApiMessage } from "../utils/apiMessage";
 const DEFAULT_PASSWORD = "student123";
 
 /**
- * 新建学生 — 姓名 + 学时；账号由后端按姓名+随机数生成，默认密码 student123
+ * 新建学生 — 姓名 + 课时；账号由后端按姓名+随机数生成，默认密码 student123
  */
 export default function CreateStudent() {
   const { t } = useTranslation();

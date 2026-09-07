@@ -159,12 +159,13 @@ export default function CoachCompletedSessions() {
                           </span>
                         )}
                       </div>
-                      {s.session?.billedMinutes != null && (
+                      {s.session?.actualMinutes != null && (
                         <p className="text-xs text-muted-soft mt-1.5 leading-relaxed">
-{t("coach_sessions.actual_billed", { actual: s.session.actualMinutes ?? "-", billed: s.session.billedMinutes })}
-                          {s.session.teacherCreditedMinutes != null && (
-                            <>{t("coach_sessions.teacher_credited", { minutes: s.session.teacherCreditedMinutes })}</>
-                          )}
+{t("coach_sessions.actual_billed", {
+                            actual: s.session.actualMinutes ?? "-",
+                            lessons: s.session.studentLessonsBilled ?? 0,
+                            teacher: s.session.teacherCreditedMinutes ?? s.session.billedMinutes ?? "-",
+                          })}
                         </p>
                       )}
                     </div>
@@ -262,12 +263,21 @@ export default function CoachCompletedSessions() {
                 </div>
                 <div className="flex justify-between text-charcoal">
                   <span>{t("coach_sessions.student_deduct")}</span>
-                  <span className="tabular-nums">{t("create_appointment.duration_min", { n: detail.session?.billedMinutes ?? "-" })}</span>
+                  <span className="tabular-nums">
+                    {t("coach_sessions.lessons_unit", {
+                      n: detail.session?.studentLessonsBilled ?? 0,
+                    })}
+                  </span>
                 </div>
                 <div className="flex justify-between text-charcoal">
                   <span>{t("coach_sessions.teacher_credit")}</span>
                   <span className="tabular-nums">
-                    {t("create_appointment.duration_min", { n: detail.session?.teacherCreditedMinutes ?? "-" })}
+                    {t("create_appointment.duration_min", {
+                      n:
+                        detail.session?.teacherCreditedMinutes ??
+                        detail.session?.billedMinutes ??
+                        "-",
+                    })}
                   </span>
                 </div>
                 <div className="pt-1.5 border-t border-border flex justify-between text-xs text-muted-foreground">

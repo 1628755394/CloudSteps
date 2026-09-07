@@ -251,7 +251,8 @@ export interface StudySessionReport {
   wordBookWordCount?: number
   learnedCount?: number
   lessonCount?: number
-  remainingMinutes?: number
+  remainingLessons?: number
+  remainingMinutes?: number // legacy
   forgotWords?: string[]
   studiedWords?: string[]
   reportSummary?: string

@@ -25,7 +25,7 @@ const sample: StudySessionReport = {
   wordBookWordCount: 1969,
   learnedCount: 295,
   lessonCount: 23,
-  remainingMinutes: 420,
+  remainingLessons: 7,
   forgotWords: ["elevator  n. 电梯，升降机", "tower  n. 塔"],
   studiedWords: ["apple  n. 苹果", "book  n. 书"],
   aiAvailable: false,

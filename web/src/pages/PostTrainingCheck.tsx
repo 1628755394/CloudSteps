@@ -27,7 +27,7 @@ import { completeReviewSession } from "../api/review";
 import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
-import { stampLessonPracticeWindow, finishPracticeBilling } from "../utils/practiceBilling";
+import { stampLessonPracticeWindow, finishPracticeBilling, consumeScheduledStudentLesson } from "../utils/practiceBilling";
 import { allowPracticeLeaveOnce, requestPracticePauseMenu } from "../utils/practiceFlowLock";
 import { normalizeSnowflakeId } from "../utils/json-snowflake";
 import {
@@ -346,6 +346,8 @@ export default function PostTrainingCheck() {
 
   /** 训后检测全部完成：先弹窗，再决定继续筛词或结束出报告 */
   const openFinishChoice = (reportSessionId?: string) => {
+    // 排课课次：完成训后检测即扣 1 学员课时（幂等）；首页 practice 不扣
+    void consumeScheduledStudentLesson();
     setFinishedSessionId(reportSessionId || sessionId || "");
     setFinishChoiceOpen(true);
   };

@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { endCoachingAppointment, startPracticeSession } from "../api/coaching";
+import {
+  consumeCoachingLesson,
+  endCoachingAppointment,
+  startPracticeSession,
+} from "../api/coaching";
 import i18n from "../i18n";
 import { getTrainingStudent } from "./trainingStudent";
 import { formatApiMessage } from "./apiMessage";
@@ -12,7 +16,10 @@ import { isCoachRole } from "./coachOnboarding";
 export type PracticeBillingLink = {
   /** 雪花 ID，必须用字符串，禁止 Number() */
   appointmentId: string;
-  /** 是否由练习流程创建且结束时应下课结账 */
+  /**
+   * owned=true：首页练习创建的 practice 课次，结束时只扣老师时长。
+   * owned=false：挂接正式排课，训后检测时扣学员 1 课时，下课由 lesson-prep 结束。
+   */
   owned: boolean;
   studentId: string;
   studentName: string;
@@ -179,7 +186,7 @@ export async function beginPracticeBilling(
   return ensurePracticeBillingActive(durationMin);
 }
 
-/** 结束练习课次并扣额度；复用原排课的不在此下课 */
+/** 结束练习课次并扣老师时长；复用原排课的不在此下课（学员课时见 consumeScheduledStudentLesson） */
 let finishInFlight: Promise<void> | null = null;
 
 export async function finishPracticeBilling(
@@ -207,7 +214,10 @@ export async function finishPracticeBilling(
         return;
       }
       showToast.success(
-        i18n.t("practice_billing.settled", { name: active.studentName })
+        i18n.t("practice_billing.settled_teacher_only", {
+          name: active.studentName,
+          defaultValue: i18n.t("practice_billing.settled", { name: active.studentName }),
+        })
       );
       usePracticeBillingStore.getState().clear();
     } catch (e: unknown) {
@@ -224,6 +234,32 @@ export async function finishPracticeBilling(
     finishInFlight = null;
   });
   return finishInFlight;
+}
+
+/**
+ * 排课课次（owned=false）在训后检测完成后扣 1 学员课时。
+ * 首页 practice（owned=true）不调用。服务端幂等。
+ */
+export async function consumeScheduledStudentLesson(
+  link?: PracticeBillingLink | null
+): Promise<void> {
+  const active = link ?? usePracticeBillingStore.getState().link;
+  if (!active?.appointmentId || active.owned) return;
+  try {
+    const res = await consumeCoachingLesson(active.appointmentId);
+    if (res.code !== 200) {
+      // 课时不足等：提示但不阻断出报告
+      showToast.warning(formatApiMessage(res.msg, "practice_billing.lesson_consume_failed"));
+    }
+  } catch (e: unknown) {
+    const msg =
+      e && typeof e === "object" && "msg" in e
+        ? formatApiMessage(String((e as { msg: string }).msg), "practice_billing.lesson_consume_failed")
+        : i18n.t("practice_billing.lesson_consume_failed", {
+            defaultValue: "学员课时扣减失败",
+          });
+    showToast.warning(msg);
+  }
 }
 
 export function getPracticeBilling(): PracticeBillingLink | null {

@@ -39,6 +39,7 @@ export type CoachingWeekSchedule = {
     actualMinutes?: number
     billedMinutes?: number
     teacherCreditedMinutes?: number
+    studentLessonsBilled?: number
   }
 }
 
@@ -52,7 +53,10 @@ export type TeacherCoachingQuotaRow = {
   id: number
   teacherId: number
   studentId: SnowflakeId
-  remainingMinutes: number
+  remainingLessons: number
+  totalAllocatedLessons?: number
+  /** @deprecated use remainingLessons */
+  remainingMinutes?: number
   totalAllocatedMinutes?: number
   version?: number
   reviewTimes?: number
@@ -81,7 +85,7 @@ export type TeacherCoachingQuotaRow = {
   }
 }
 
-/** 当前老师名下学员与陪练剩余分钟（游标分页） */
+/** 当前老师名下学员与陪练剩余课时（游标分页） */
 export const getTeacherCoachingQuotas = async (params?: {
   cursor?: string
   limit?: number
@@ -170,6 +174,7 @@ export type CoachingSessionRecordDTO = {
   actualMinutes: number
   billedMinutes: number
   teacherCreditedMinutes: number
+  studentLessonsBilled?: number
   status: string
   appointment?: {
     title?: string
@@ -287,7 +292,14 @@ export const endCoachingAppointment = async (
   return post(`/teacher/coaching/appointments/${normalizeSnowflakeId(id)}/end`)
 }
 
-/** 无排课练习：按学员立即开课计时（结束仍走 appointments/:id/end） */
+/** 排课课次：训后检测完成后扣 1 学员课时（幂等；practice 课次会拒绝） */
+export const consumeCoachingLesson = async (
+  id: string | number
+): Promise<ApiResponse<{ appointment?: CoachingWeekSchedule }>> => {
+  return post(`/teacher/coaching/appointments/${normalizeSnowflakeId(id)}/consume-lesson`)
+}
+
+/** 无排课练习：按学员立即开课计时（结束仍走 appointments/:id/end，只扣老师时长） */
 export const startPracticeSession = async (body: {
   studentId: string | number
   plannedMinutes?: number
@@ -319,7 +331,7 @@ export const searchCoachingStudents = async (
 
 export const addTeacherCoachingStudent = async (body: {
   studentId: SnowflakeId
-  remainingMinutes: number
+  remainingLessons: number
 }): Promise<ApiResponse<TeacherCoachingQuotaRow>> => {
   return post<TeacherCoachingQuotaRow>('/teacher/coaching/quotas', body)
 }
