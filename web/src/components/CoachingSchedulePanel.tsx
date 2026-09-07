@@ -167,6 +167,8 @@ function layoutDayEvents(
   axisStart: number,
   axisEnd: number,
   axisHeightPx: number,
+  expandedGroupKey: string | null,
+  raisedId: number | null,
 ): Array<{
   schedule: CoachingWeekSchedule;
   topPx: number;
@@ -174,6 +176,10 @@ function layoutDayEvents(
   showDetail: boolean;
   col: number;
   colCount: number;
+  overlapGroupKey: string;
+  overlapIndex: number;
+  overlapCount: number;
+  zIndex: number;
 }> {
   const span = Math.max(1, axisEnd - axisStart);
   const raw = items.map((schedule) => {
@@ -184,42 +190,62 @@ function layoutDayEvents(
     e = Math.max(s + 15, Math.min(e, axisEnd));
     return { schedule, start: s, end: e };
   });
-
   const sorted = [...raw].sort((a, b) => a.start - b.start || b.end - a.end);
-  const cols = new Array(sorted.length).fill(0);
-  for (let i = 0; i < sorted.length; i++) {
-    const used = new Set<number>();
-    for (let j = 0; j < i; j++) {
-      if (sorted[j].end > sorted[i].start && sorted[j].start < sorted[i].end) {
-        used.add(cols[j]);
+  const groups: Array<typeof sorted> = [];
+
+  for (const event of sorted) {
+    const matching = groups.filter((group) =>
+      group.some((other) => other.end > event.start && other.start < event.end),
+    );
+    if (matching.length === 0) {
+      groups.push([event]);
+    } else {
+      const target = matching[0];
+      target.push(event);
+      for (const group of matching.slice(1)) {
+        target.push(...group);
+        groups.splice(groups.indexOf(group), 1);
       }
     }
-    let c = 0;
-    while (used.has(c)) c++;
-    cols[i] = c;
   }
 
-  const colCounts = new Array(sorted.length).fill(1);
-  for (let i = 0; i < sorted.length; i++) {
-    let max = cols[i];
-    for (let j = 0; j < sorted.length; j++) {
-      if (sorted[j].end > sorted[i].start && sorted[j].start < sorted[i].end) {
-        max = Math.max(max, cols[j]);
-      }
-    }
-    colCounts[i] = max + 1;
+  const groupById = new Map<number, { key: string; index: number; count: number }>();
+  for (const group of groups) {
+    const ordered = [...group].sort((a, b) => a.start - b.start || b.end - a.end);
+    const key = ordered.map((event) => event.schedule.id).sort((a, b) => a - b).join("-");
+    ordered.forEach((event, index) => {
+      groupById.set(event.schedule.id, { key, index, count: ordered.length });
+    });
   }
 
-  return sorted.map((ev, i) => {
+  return sorted.map((ev) => {
     const topPx = ((ev.start - axisStart) / span) * axisHeightPx;
-    const heightPx = Math.max(EVENT_MIN_H, ((ev.end - ev.start) / span) * axisHeightPx);
+    const normalHeightPx = Math.max(EVENT_MIN_H, ((ev.end - ev.start) / span) * axisHeightPx);
+    const group = groupById.get(ev.schedule.id) || { key: String(ev.schedule.id), index: 0, count: 1 };
+    const expanded = group.count > 1 && group.key === expandedGroupKey;
+    const collapsedHeightPx = Math.max(EVENT_MIN_H, Math.min(normalHeightPx, 64));
+    const heightPx = group.count === 1
+      ? normalHeightPx
+      : expanded
+        ? Math.max(52, Math.min(normalHeightPx, 88))
+        : collapsedHeightPx;
+    const offsetPx = group.count === 1
+      ? 0
+      : expanded
+        ? group.index * Math.min(48, Math.max(32, heightPx * 0.55))
+        : group.index * 8;
+
     return {
       schedule: ev.schedule,
-      topPx,
+      topPx: topPx + offsetPx,
       heightPx,
-      showDetail: heightPx >= 40,
-      col: cols[i],
-      colCount: colCounts[i],
+      showDetail: group.count === 1 ? normalHeightPx >= 40 : expanded,
+      col: 0,
+      colCount: 1,
+      overlapGroupKey: group.key,
+      overlapIndex: group.index,
+      overlapCount: group.count,
+      zIndex: raisedId === ev.schedule.id ? 30 : 10 + group.index,
     };
   });
 }
@@ -232,6 +258,7 @@ function TimetableBlock({
   showDetail,
   col,
   colCount,
+  zIndex,
   nowTs,
   onClick,
   t,
@@ -242,6 +269,7 @@ function TimetableBlock({
   showDetail: boolean;
   col: number;
   colCount: number;
+  zIndex: number;
   nowTs: number;
   onClick: () => void;
   t: TFunction;
@@ -263,12 +291,13 @@ function TimetableBlock({
         e.stopPropagation();
         onClick();
       }}
-      className={`absolute z-[1] overflow-hidden rounded-lg ${soft.bg} text-left px-1 py-1 shadow-sm active:scale-[0.98] touch-manipulation ${
+      className={`absolute overflow-hidden rounded-lg ${soft.bg} text-left px-1 py-1 shadow-sm active:scale-[0.98] touch-manipulation ${
         past ? "opacity-90" : ""
       }`}
       style={{
         top: topPx,
         height: heightPx,
+        zIndex,
         left: `calc(${leftPct}% + 2px)`,
         width: `calc(${widthPct}% - 4px)`,
       }}
@@ -339,6 +368,8 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
     Record<number, "start" | "end" | null>
   >({});
   const [selected, setSelected] = useState<CoachingWeekSchedule | null>(null);
+  const [expandedOverlapGroup, setExpandedOverlapGroup] = useState<string | null>(null);
+  const [raisedOverlapId, setRaisedOverlapId] = useState<number | null>(null);
   const [showCellTip, setShowCellTip] = useState(false);
   const [tipHole, setTipHole] = useState<CoachTargetRect | null>(null);
   const [tipReady, setTipReady] = useState(false);
@@ -893,6 +924,8 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                     axisRange.startMin,
                     axisRange.endMin,
                     axisHeightPx,
+                    expandedOverlapGroup,
+                    raisedOverlapId,
                   );
                   const nowLocalM = new Date(nowTs).getHours() * 60 + new Date(nowTs).getMinutes();
                   const todayPastHeightPx =
@@ -953,8 +986,17 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           showDetail={ev.showDetail}
                           col={ev.col}
                           colCount={ev.colCount}
+                          zIndex={ev.zIndex}
                           nowTs={nowTs}
-                          onClick={() => setSelected(ev.schedule)}
+                          onClick={() => {
+                            if (ev.overlapCount > 1 && expandedOverlapGroup !== ev.overlapGroupKey) {
+                              setExpandedOverlapGroup(ev.overlapGroupKey);
+                              setRaisedOverlapId(ev.schedule.id);
+                              return;
+                            }
+                            if (ev.overlapCount > 1) setRaisedOverlapId(ev.schedule.id);
+                            setSelected(ev.schedule);
+                          }}
                           t={t}
                         />
                       ))}
