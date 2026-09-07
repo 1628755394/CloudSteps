@@ -166,11 +166,8 @@ export default function CreateAntiForgetting() {
 
       <div className="px-4 mt-5 space-y-4 max-w-lg mx-auto pb-8">
         <div className="rounded-xl bg-primary-soft px-4 py-3">
-          <p className="text-sm text-charcoal leading-relaxed">
-            {t("create_anti_forgetting.intro")}
-          </p>
           {trainingStudent?.name ? (
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="text-xs text-muted-foreground">
               {t("create_anti_forgetting.student", { name: trainingStudent.name })}
             </p>
           ) : null}
