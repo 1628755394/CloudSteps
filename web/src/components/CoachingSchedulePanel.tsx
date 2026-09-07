@@ -128,6 +128,23 @@ function isSchedulePast(schedule: CoachingWeekSchedule, nowTs: number): boolean 
   return end.getTime() <= nowTs;
 }
 
+/**
+ * 排课显示的结束时间标签：
+ * - scheduled：计划 endTime
+ * - in_progress：空字符串（只显示「21:00-」）
+ * - completed：session.endedAt 的实际 HH:MM，回退到计划 endTime
+ */
+function displayEndLabel(schedule: CoachingWeekSchedule): string {
+  if (schedule.status === "in_progress") return "";
+  if (schedule.status === "completed" && schedule.session?.endedAt) {
+    const d = new Date(schedule.session.endedAt);
+    if (!Number.isNaN(d.getTime())) {
+      return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    }
+  }
+  return schedule.endTime?.slice(0, 5) || "";
+}
+
 function parseHmToMinutes(t: string): number {
   const raw = (t || "").trim().slice(0, 5);
   const m = /^(\d{1,2}):(\d{2})$/.exec(raw);
@@ -261,7 +278,7 @@ function TimetableBlock({
     : STATUS_SOFT[schedule.status] || STATUS_SOFT.scheduled;
   const { title } = lessonDisplay(t, schedule);
   const start = schedule.startTime?.slice(0, 5) || "";
-  const end = schedule.endTime?.slice(0, 5) || "";
+  const end = displayEndLabel(schedule);
   const widthPct = 100 / colCount;
   const leftPct = col * widthPct;
 
@@ -715,7 +732,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
         color: statusColor,
         title,
         subtitle,
-        meta: `${s.startTime?.slice(0, 5)}-${s.endTime?.slice(0, 5)}`,
+        meta: `${s.startTime?.slice(0, 5)}-${displayEndLabel(s)}`,
         typeLabel: t("coaching.schedule_type"),
         statusLabel: t(`coaching.status.${s.status}`, { defaultValue: s.status }),
         schedule: s,
@@ -934,7 +951,7 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
                       {selected.scheduledDate?.slice?.(0, 10) || selected.scheduledDate} ·{" "}
-                      {selected.startTime}–{selected.endTime}
+                      {selected.startTime}–{displayEndLabel(selected)}
                     </p>
                   </div>
                   <button
