@@ -36,28 +36,7 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 
 	var rec models.CoachingSessionRecord
 	err := db.Transaction(func(tx *gorm.DB) error {
-		var q models.StudentTeacherCoachingQuota
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("teacher_id = ? AND student_id = ?", ap.TeacherID, ap.StudentID).
-			First(&q).Error; err != nil {
-			return err
-		}
-		billedStudent := actual
-		if q.RemainingMinutes < billedStudent {
-			billedStudent = q.RemainingMinutes
-		}
-		res := tx.Model(&models.StudentTeacherCoachingQuota{}).
-			Where("id = ? AND version = ?", q.ID, q.Version).
-			Updates(map[string]any{
-				"remaining_minutes": q.RemainingMinutes - billedStudent,
-				"version":           q.Version + 1,
-			})
-		if res.Error != nil {
-			return res.Error
-		}
-		if res.RowsAffected == 0 {
-			return errors.New("额度更新冲突，请重试")
-		}
+		// 学员额度改为在完成训后检测时扣减（1 课时=60 分钟），下课不再扣学员
 		period, err := coachingGetOrCreateUsagePeriod(tx, ap.TeacherID, endedAt)
 		if err != nil {
 			return err
@@ -73,7 +52,7 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 			First(&pool).Error; err != nil {
 			return err
 		}
-		teacherCred := billedStudent
+		teacherCred := actual
 		if pool.RemainingMinutes < teacherCred {
 			teacherCred = pool.RemainingMinutes
 		}
@@ -97,7 +76,7 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 		rec = models.CoachingSessionRecord{
 			AppointmentID: appointmentID, TeacherID: ap.TeacherID, StudentID: ap.StudentID,
 			StartedAt: *ap.ActualStartedAt, EndedAt: endedAt,
-			ActualMinutes: actual, BilledMinutes: billedStudent, TeacherCreditedMinutes: teacherCred,
+			ActualMinutes: actual, BilledMinutes: 0, TeacherCreditedMinutes: teacherCred,
 			Status: models.CoachingSessionStatusCompleted,
 		}
 		if err := tx.Create(&rec).Error; err != nil {

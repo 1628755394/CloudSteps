@@ -18,7 +18,9 @@ export function personLabel(
 
 export function formatMinutes(mins: number): string {
   if (!Number.isFinite(mins)) return '—'
-  return `${Math.max(0, Math.round(mins))} 分钟`
+  const lessons = Math.max(0, Math.round(mins)) / 60
+  const n = Math.round(lessons * 10) / 10
+  return `${n} 课时`
 }
 
 export function capLabel(cap: number): string {

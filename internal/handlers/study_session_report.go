@@ -162,15 +162,7 @@ func loadSessionForgotWordLabels(db *gorm.DB, session *models.StudySession) []st
 		if !ok || strings.TrimSpace(w.Word) == "" {
 			continue
 		}
-		gloss := strings.TrimSpace(w.TranslationShort)
-		if gloss == "" {
-			gloss = models.FormatTranslationShort(w.Translation)
-		}
-		if gloss != "" {
-			out = append(out, fmt.Sprintf("%s（%s）", w.Word, gloss))
-		} else {
-			out = append(out, w.Word)
-		}
+		out = append(out, w.Word)
 		if len(out) >= 12 {
 			break
 		}
@@ -179,29 +171,24 @@ func loadSessionForgotWordLabels(db *gorm.DB, session *models.StudySession) []st
 }
 
 func studySessionReportPrompts(report studySessionReportDTO) (systemPrompt, userPrompt string) {
-	systemPrompt = "你是英语陪练老师的课堂助教，根据本节课数据写一段简短「教练点评」。" +
-		"硬性要求：中文；严格 2-3 句；总长不超过 100 字；语气克制，像老师随手记的教学笔记；" +
-		"禁止使用 emoji；禁止 Markdown；禁止复述用时、正确率、筛词数、识记数、剩余待学等界面已有量化数据；" +
-		"只写表现判断与下一步建议；不要编造未提供的信息。"
+	systemPrompt = "你是英语陪练老师，写一段简短的课堂评价。" +
+		"硬性要求：中文；只写 2-3 句自然连贯的话；总长不超过 80 字；" +
+		"只聚焦本节正确率、课堂状态和表现是否有进步；表现好就直接表扬，表现下降或正确率偏低就简短鼓励并说下次加油；" +
+		"禁止使用序号、列表、括号、Markdown、emoji；禁止写下节课安排、学习计划、下一步建议或扩展分析；" +
+		"不要编造没有提供的课堂表现或进步信息；若没有历史对比，不要虚构具体进步幅度；" +
+		"如需出现单词，只能从“未记住单词”中选择，禁止出现其他学过的单词。"
 	forgotLine := "无"
 	if len(report.ForgotWords) > 0 {
 		forgotLine = strings.Join(report.ForgotWords, "、")
 	}
-	screenTotal := report.ScreenedKnownCount + report.ScreenedUnknownCount
 	name := fallbackDash(report.StudentName)
 	userPrompt = fmt.Sprintf(
-		"学员：%s\n词库：%s\n用时：约 %d 分钟\n筛词：合计 %d（认识 %d / 新学 %d）\n本课识记：%d\n训后记住：%d / 未记住：%d\n正确率：%.0f%%\n词书剩余待学：%d\n需巩固词：%s\n请只输出教练点评正文。",
+		"学员：%s\n本节识记：%d\n记住：%d\n未记住：%d\n正确率：%.0f%%\n未记住单词：%s\n请只输出课堂评价正文，不要加标题、序号或括号。",
 		name,
-		fallbackDash(report.WordBookName),
-		report.DurationMinutes,
-		screenTotal,
-		report.ScreenedKnownCount,
-		report.ScreenedUnknownCount,
 		report.WordCount,
 		report.CorrectCount,
 		report.ForgotCount,
 		report.AccuracyPercent,
-		report.RemainPending,
 		forgotLine,
 	)
 	return systemPrompt, userPrompt
@@ -231,7 +218,19 @@ func isCurrentSessionReportFormat(text string) bool {
 		strings.Contains(trimmed, "全程用时") ||
 		strings.Contains(trimmed, "系统记录") ||
 		strings.Contains(trimmed, "未触发熟词") ||
-		(strings.Contains(trimmed, "正确率") && strings.Contains(trimmed, "剩余")) {
+		strings.Contains(trimmed, "下节课") ||
+		strings.Contains(trimmed, "下一节") ||
+		strings.Contains(trimmed, "学习计划") ||
+		strings.Contains(trimmed, "建议") ||
+		strings.Contains(trimmed, "（") ||
+		strings.Contains(trimmed, "）") ||
+		strings.Contains(trimmed, "(") ||
+		strings.Contains(trimmed, ")") ||
+		(strings.Contains(trimmed, "正确率") && strings.Contains(trimmed, "剩余")) ||
+		strings.Contains(trimmed, "1、") || strings.Contains(trimmed, "2、") ||
+		strings.Contains(trimmed, "3、") || strings.Contains(trimmed, "4、") ||
+		strings.Contains(trimmed, "1.") || strings.Contains(trimmed, "2.") ||
+		strings.Contains(trimmed, "3.") || strings.Contains(trimmed, "4.") {
 		return false
 	}
 	return true

@@ -68,7 +68,7 @@ export function StudentQuotasPanel() {
       mode: 'create',
       teacherId: teacherFilter.trim(),
       studentId: studentFilter.trim(),
-      remainingMinutes: '60',
+      remainingMinutes: '1',
     })
   }
 
@@ -77,7 +77,7 @@ export function StudentQuotasPanel() {
       mode: 'edit',
       teacherId: String(row.teacherId),
       studentId: String(row.studentId),
-      remainingMinutes: String(row.remainingMinutes),
+      remainingMinutes: String(row.remainingMinutes / 60),
     })
   }
 
@@ -85,15 +85,16 @@ export function StudentQuotasPanel() {
     if (!edit) return
     const teacherId = Number(edit.teacherId)
     const studentId = Number(edit.studentId)
-    const remainingMinutes = Number(edit.remainingMinutes)
+    const lessons = Number(edit.remainingMinutes)
     if (!teacherId || !studentId) {
       toast.error('请填写老师 ID 与学员 ID')
       return
     }
-    if (!Number.isFinite(remainingMinutes) || remainingMinutes < 0) {
-      toast.error('剩余分钟不能为负')
+    if (!Number.isFinite(lessons) || lessons < 0) {
+      toast.error('剩余课时不能为负')
       return
     }
+    const remainingMinutes = Math.round(lessons * 60)
     setSaving(true)
     try {
       await put('/coaching/quotas', {
@@ -114,7 +115,7 @@ export function StudentQuotasPanel() {
   return (
     <div className='space-y-4'>
       <p className='text-sm text-muted-foreground'>
-        学员在某老师名下的陪练剩余时长。开始上课时会从学员剩余分钟中扣减。
+        学员在某老师名下的陪练剩余课时。完成训后检测时消耗 1 课时。
       </p>
       <div className='flex flex-wrap items-end gap-3'>
         <div className='grid gap-1.5'>
@@ -161,7 +162,7 @@ export function StudentQuotasPanel() {
             <TableRow>
               <TableHead>老师</TableHead>
               <TableHead>学员</TableHead>
-              <TableHead>剩余</TableHead>
+              <TableHead>剩余课时</TableHead>
               <TableHead>累计分配</TableHead>
               <TableHead className='w-20'>操作</TableHead>
             </TableRow>
@@ -221,7 +222,7 @@ export function StudentQuotasPanel() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {edit?.mode === 'create' ? '新建师生额度' : '调整学员剩余时长'}
+              {edit?.mode === 'create' ? '新建师生额度' : '调整学员剩余课时'}
             </DialogTitle>
           </DialogHeader>
           {edit && (
@@ -247,7 +248,7 @@ export function StudentQuotasPanel() {
                 />
               </div>
               <div className='grid gap-1.5'>
-                <Label>剩余分钟</Label>
+                <Label>剩余课时</Label>
                 <Input
                   type='number'
                   min={0}

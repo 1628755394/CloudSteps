@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+
 	auth "github.com/LingByte/CloudStepsGo/pkg/middlewares"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
 
@@ -485,6 +487,37 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 	correctCount := len(rememberedIDs)
 	_ = db.Model(&session).Updates(map[string]any{"status": "completed", "completed_at": &now, "correct_count": correctCount}).Error
 	invalidateLighthouseCacheForUser(user.ID)
+
+	// 课时扣减：完成训后检测时扣 1 课时（60 分钟），仅限老师代练的 learn 课且未扣过
+	billedMinutes := 0
+	if session.SessionType == "learn" && session.StudentID > 0 && session.BilledMinutes == 0 {
+		billedMinutes = 60
+		_ = db.Transaction(func(tx *gorm.DB) error {
+			var q models.StudentTeacherCoachingQuota
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("teacher_id = ? AND student_id = ?", user.ID, session.StudentID).
+				First(&q).Error; err != nil {
+				return err
+			}
+			deduct := billedMinutes
+			if q.RemainingMinutes < deduct {
+				deduct = q.RemainingMinutes
+			}
+			res := tx.Model(&models.StudentTeacherCoachingQuota{}).
+				Where("id = ? AND version = ?", q.ID, q.Version).
+				Updates(map[string]any{
+					"remaining_minutes": q.RemainingMinutes - deduct,
+					"version":           q.Version + 1,
+				})
+			if res.Error != nil {
+				return res.Error
+			}
+			if res.RowsAffected == 0 {
+				return errors.New("额度更新冲突，请重试")
+			}
+			return tx.Model(&session).Update("billed_minutes", billedMinutes).Error
+		})
+	}
 
 	var remainCount int64
 	_ = db.Model(&models.UserWordState{}).
@@ -1196,7 +1229,7 @@ func (h *Handlers) handleStudySessionsPracticeTime(c *gin.Context) {
 	}
 
 	response.SuccessI18n(c, "common.success", gin.H{
-		"updated": res.RowsAffected,
+		"updated":    res.RowsAffected,
 		"sessionIds": ids,
 	})
 }

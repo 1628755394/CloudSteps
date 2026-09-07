@@ -30,7 +30,7 @@ import { resolveMediaUrl } from "../utils/mediaUrl";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import { formatApiMessage } from "../utils/apiMessage";
-import { formatTeachingMinutes } from "../utils/formatMinutes";
+import { formatLessons } from "../utils/formatMinutes";
 
 const DEFAULT_PASSWORD = "student123";
 const PAGE_LIMIT = 20;
@@ -314,7 +314,7 @@ export default function MyStudents() {
           </CloudCard>
         ) : (
           rows.map((r) => {
-            const low = (r.remainingMinutes || 0) < 30;
+            const low = (r.remainingMinutes || 0) < 60;
             const account = loginAccount(r);
             const avatar = studentAvatarUrl(r);
             return (
@@ -348,7 +348,7 @@ export default function MyStudents() {
                           }`}
                         >
                           <Clock size={10} />
-                          {formatTeachingMinutes(r.remainingMinutes || 0)}
+                          {formatLessons(r.remainingMinutes || 0)}
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 truncate">

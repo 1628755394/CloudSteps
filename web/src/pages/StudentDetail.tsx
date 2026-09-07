@@ -49,7 +49,7 @@ import {
   normalizeReviewCurvePreset,
   reviewCurveLabel,
 } from "../utils/reviewCurve";
-import { formatTeachingMinutes } from "../utils/formatMinutes";
+import { formatLessons, lessonsToMinutes, minutesToLessons } from "../utils/formatMinutes";
 import { isValidSnowflakeId, normalizeSnowflakeId, sameSnowflakeId } from "../utils/json-snowflake";
 
 const DEFAULT_PASSWORD = "student123";
@@ -193,11 +193,11 @@ export default function StudentDetail() {
     if (!quota) return;
     const n = Number(quotaInput);
     if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
-      showToast.error(t("student_detail.invalid_minutes"));
+      showToast.error(t("student_detail.invalid_lessons"));
       return;
     }
     const nextRemaining =
-      quotaMode === "add" ? Math.max(0, remaining) + n : n;
+      quotaMode === "add" ? Math.max(0, remaining) + lessonsToMinutes(n) : lessonsToMinutes(n);
     setQuotaSaving(true);
     try {
       const res = await addTeacherCoachingStudent({
@@ -219,10 +219,10 @@ export default function StudentDetail() {
       );
       showToast.success(
         quotaMode === "add"
-          ? t("student_detail.added_minutes", { n, remaining: formatTeachingMinutes(nextRemaining) })
-          : t("student_detail.set_minutes", { remaining: formatTeachingMinutes(nextRemaining) })
+          ? t("student_detail.added_lessons", { n, remaining: formatLessons(nextRemaining) })
+          : t("student_detail.set_lessons", { remaining: formatLessons(nextRemaining) })
       );
-      setQuotaInput(quotaMode === "add" ? "60" : String(nextRemaining));
+      setQuotaInput(quotaMode === "add" ? "1" : String(minutesToLessons(nextRemaining)));
       setQuotaEditOpen(false);
     } catch (e: unknown) {
       const msg =
@@ -460,7 +460,7 @@ export default function StudentDetail() {
   const avatar = resolveMediaUrl(quota?.student?.avatar);
   const remaining = quota?.remainingMinutes ?? 0;
   const total = quota?.totalAllocatedMinutes ?? 0;
-  const low = remaining < 30;
+  const low = remaining < 60;
 
   if (!isValidSnowflakeId(studentId)) {
     return (
@@ -550,13 +550,13 @@ export default function StudentDetail() {
                         low ? "text-destructive" : "text-foreground"
                       }`}
                     >
-                      {formatTeachingMinutes(remaining)}
+                      {formatLessons(remaining)}
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-1">
                       <div className="text-[11px] text-muted-soft min-w-0">
                         {t("student_detail.allocated_summary", {
-                          total: formatTeachingMinutes(total),
-                          remaining: formatTeachingMinutes(remaining),
+                          total: formatLessons(total),
+                          remaining: formatLessons(remaining),
                         })}
                       </div>
                       <CloudButton
@@ -566,7 +566,7 @@ export default function StudentDetail() {
                         className="shrink-0 h-7 px-2 text-muted-foreground hover:text-foreground"
                         onClick={() => {
                           setQuotaMode("add");
-                          setQuotaInput("60");
+                          setQuotaInput("1");
                           setQuotaEditOpen(true);
                         }}
                         aria-label={t("student_detail.edit_quota")}
@@ -785,8 +785,8 @@ export default function StudentDetail() {
             <DialogTitle>{t("student_detail.edit_quota")}</DialogTitle>
             <DialogDescription>
               {t("student_detail.allocated_summary", {
-                total: formatTeachingMinutes(total),
-                remaining: formatTeachingMinutes(remaining),
+                total: formatLessons(total),
+                remaining: formatLessons(remaining),
               })}
             </DialogDescription>
           </DialogHeader>
@@ -798,10 +798,10 @@ export default function StudentDetail() {
                 variant={quotaMode === "add" ? "brand" : "outline"}
                 onClick={() => {
                   setQuotaMode("add");
-                  setQuotaInput("60");
+                  setQuotaInput("1");
                 }}
               >
-                {t("student_detail.add_minutes")}
+                {t("student_detail.add_lessons")}
               </CloudButton>
               <CloudButton
                 type="button"
@@ -809,7 +809,7 @@ export default function StudentDetail() {
                 variant={quotaMode === "set" ? "brand" : "outline"}
                 onClick={() => {
                   setQuotaMode("set");
-                  setQuotaInput(String(Math.max(0, remaining)));
+                  setQuotaInput(String(minutesToLessons(Math.max(0, remaining))));
                 }}
               >
                 {t("student_detail.set_remaining")}
@@ -818,8 +818,8 @@ export default function StudentDetail() {
             <CloudInput
               label={
                 quotaMode === "add"
-                  ? t("student_detail.add_minutes_label")
-                  : t("student_detail.remaining_minutes_label")
+                  ? t("student_detail.add_lessons_label")
+                  : t("student_detail.remaining_lessons_label")
               }
               type="number"
               min={0}
@@ -829,7 +829,7 @@ export default function StudentDetail() {
               inputMode="numeric"
             />
             <div className="flex flex-wrap gap-2">
-              {(quotaMode === "add" ? [30, 60, 120, 180] : [0, 60, 120, 240]).map((n) => (
+              {(quotaMode === "add" ? [1, 2, 3, 5] : [0, 1, 2, 4]).map((n) => (
                 <CloudButton
                   key={n}
                   type="button"
@@ -837,7 +837,7 @@ export default function StudentDetail() {
                   variant="outline"
                   onClick={() => setQuotaInput(String(n))}
                 >
-                  {quotaMode === "add" ? `+${n}` : t("create_appointment.duration_min", { n })}
+                  {quotaMode === "add" ? `+${n}` : t("ui.lessons", { count: n })}
                 </CloudButton>
               ))}
             </div>

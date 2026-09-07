@@ -161,7 +161,7 @@ export default function CoachCompletedSessions() {
                       </div>
                       {s.session?.billedMinutes != null && (
                         <p className="text-xs text-muted-soft mt-1.5 leading-relaxed">
-{t("coach_sessions.actual_billed", { actual: s.session.actualMinutes ?? "-", billed: s.session.billedMinutes })}
+{t("coach_sessions.actual_billed", { actual: s.session.actualMinutes ?? "-", billed: Math.round((s.session.billedMinutes ?? 0) / 60) })}
                           {s.session.teacherCreditedMinutes != null && (
                             <>{t("coach_sessions.teacher_credited", { minutes: s.session.teacherCreditedMinutes })}</>
                           )}
@@ -262,7 +262,7 @@ export default function CoachCompletedSessions() {
                 </div>
                 <div className="flex justify-between text-charcoal">
                   <span>{t("coach_sessions.student_deduct")}</span>
-                  <span className="tabular-nums">{t("create_appointment.duration_min", { n: detail.session?.billedMinutes ?? "-" })}</span>
+                  <span className="tabular-nums">{t("ui.lessons", { count: Math.round((detail.session?.billedMinutes ?? 0) / 60) })}</span>
                 </div>
                 <div className="flex justify-between text-charcoal">
                   <span>{t("coach_sessions.teacher_credit")}</span>
