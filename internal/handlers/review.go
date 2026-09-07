@@ -276,7 +276,6 @@ func reviewBooksByDateForUsers(db *gorm.DB, userIDs []uint, dayStart, dayEnd tim
 	return stats, nil
 }
 
-
 // handleReviewToday GET /review/today?wordBookId=1&date=YYYY-MM-DD&timeZone=Asia/Shanghai&all=true
 // 取词口径与 /review/books-by-date 对齐：今日含逾期至本地明日 0 点前；其它日仅该日 due。
 // all=true 时忽略日期，返回所有已学待复习单词（不限 due_at）。
@@ -371,11 +370,44 @@ func (h *Handlers) handleReviewToday(c *gin.Context) {
 		for _, r := range learned {
 			learnedMap[r.WordID] = r.FirstLearnedAt
 		}
+
+		// 与 /review/books-by-date 的 anchor 口径保持一致：
+		// first_learned_at → practiceStartedAt（识记课次开始时间）→ dueAt
+		type practiceAtRow struct {
+			WordID            uint       `gorm:"column:word_id"`
+			PracticeStartedAt *time.Time `gorm:"column:practice_started_at"`
+		}
+		var practiceRows []practiceAtRow
+		if len(wordIDsAll) > 0 {
+			practiceSQL := `
+				SELECT rq.word_id, ss.started_at AS practice_started_at
+				FROM review_queue rq
+				LEFT JOIN study_sessions ss ON ss.id = CASE
+					WHEN rq.source_session_id > 0 THEN rq.source_session_id
+					ELSE (
+						SELECT ss2.id FROM study_sessions ss2
+						INNER JOIN session_words sw2 ON sw2.session_id = ss2.id AND sw2.word_id = rq.word_id AND sw2.remembered = 1
+						WHERE ss2.user_id = rq.user_id AND ss2.word_book_id = rq.word_book_id
+						ORDER BY COALESCE(ss2.completed_at, ss2.started_at) DESC, ss2.id DESC
+						LIMIT 1
+					)
+				END
+				WHERE rq.user_id = ? AND rq.word_id IN ?
+			`
+			_ = db.Raw(practiceSQL, targetUser.ID, wordIDsAll).Scan(&practiceRows).Error
+		}
+		practiceMap := map[uint]*time.Time{}
+		for _, r := range practiceRows {
+			practiceMap[r.WordID] = r.PracticeStartedAt
+		}
+
 		filtered := make([]models.ReviewQueue, 0, len(items))
 		for _, it := range items {
 			anchor := it.DueAt
 			if t := learnedMap[it.WordID]; t != nil && !t.IsZero() {
 				anchor = *t
+			} else if p := practiceMap[it.WordID]; p != nil && !p.IsZero() {
+				anchor = *p
 			}
 			if models.ReviewRemainingDueFallsOnDay(anchor, it.Stage, preset, dayStart, loc) {
 				filtered = append(filtered, it)
