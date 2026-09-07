@@ -303,9 +303,7 @@ function TimetableBlock({
         e.stopPropagation();
         onClick();
       }}
-      className={`absolute overflow-hidden rounded-2xl border ${soft.border} ${soft.bg} text-left px-1 py-1 shadow-sm active:scale-[0.98] touch-manipulation ${
-        past ? "opacity-90" : ""
-      }`}
+      className={`absolute overflow-hidden rounded-2xl border ${soft.border} ${soft.bg} text-left px-1 py-1 shadow-sm active:scale-[0.98] touch-manipulation`}
       style={{
         top: topPx,
         height: heightPx,
