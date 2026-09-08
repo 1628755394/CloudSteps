@@ -84,19 +84,19 @@ const AXIS_HEIGHT_SCALE = 4 / 3;
 
 const STATUS_SOFT: Record<string, { bg: string; text: string; border: string; bar: string }> = {
   scheduled: {
-    bg: "bg-gradient-to-br from-accent to-background",
+    bg: "bg-gradient-to-br from-primary/15 to-primary/5",
     text: "text-primary",
     border: "border-primary",
     bar: "bg-primary",
   },
   in_progress: {
-    bg: "bg-gradient-to-br from-secondary to-background",
+    bg: "bg-gradient-to-br from-sky-100 to-sky-50",
     text: "text-sky-700",
     border: "border-sky-500",
     bar: "bg-sky-500",
   },
   completed: {
-    bg: "bg-gradient-to-br from-accent to-background",
+    bg: "bg-gradient-to-br from-primary/10 to-primary/5",
     text: "text-primary/70",
     border: "border-primary/50",
     bar: "bg-primary/40",
@@ -110,7 +110,7 @@ const STATUS_SOFT: Record<string, { bg: string; text: string; border: string; ba
 };
 
 const PAST_SOFT = {
-  bg: "bg-gradient-to-br from-accent to-background",
+  bg: "bg-gradient-to-br from-primary/10 to-primary/5",
   text: "text-primary/70",
   border: "border-primary/50",
   bar: "bg-primary/40",
@@ -228,7 +228,7 @@ function layoutDayEvents(
     const normalHeightPx = Math.max(EVENT_MIN_H, ((ev.end - ev.start) / span) * axisHeightPx);
     const group = groupById.get(ev.schedule.id) || { key: String(ev.schedule.id), index: 0, count: 1 };
     const expanded = group.count > 1 && group.key === expandedGroupKey;
-    const collapsedHeightPx = Math.max(EVENT_MIN_H, Math.min(normalHeightPx, 64));
+    const collapsedHeightPx = Math.max(EVENT_MIN_H, Math.min(normalHeightPx, 72));
     const heightPx = group.count === 1
       ? normalHeightPx
       : expanded
@@ -238,7 +238,7 @@ function layoutDayEvents(
       ? 0
       : expanded
         ? group.index * Math.min(48, Math.max(32, heightPx * 0.55))
-        : group.index * 8;
+        : group.index * Math.max(48, collapsedHeightPx - 8);
 
     return {
       schedule: ev.schedule,
@@ -250,7 +250,7 @@ function layoutDayEvents(
       overlapGroupKey: group.key,
       overlapIndex: group.index,
       overlapCount: group.count,
-      zIndex: raisedId === ev.schedule.id ? 30 : 10 + group.count - group.index,
+      zIndex: raisedId === ev.schedule.id ? 30 : 10 + (group.count - group.index),
     };
   });
 }
@@ -303,7 +303,7 @@ function TimetableBlock({
         e.stopPropagation();
         onClick();
       }}
-      className={`absolute overflow-hidden rounded-2xl border ${soft.border} ${soft.bg} text-left px-1 py-1 shadow-sm active:scale-[0.98] touch-manipulation`}
+      className={`absolute overflow-hidden rounded-2xl border ${soft.border} bg-background ${soft.bg} text-left px-1 py-1 shadow-sm active:scale-[0.98] touch-manipulation`}
       style={{
         top: topPx,
         height: heightPx,
