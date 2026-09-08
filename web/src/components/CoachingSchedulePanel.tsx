@@ -964,6 +964,12 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                         dIdx < 6 ? "border-r border-border/30" : ""
                       }`}
                       style={{ height: axisHeightPx }}
+                      onClick={() => {
+                        if (expandedOverlapGroup) {
+                          setExpandedOverlapGroup(null);
+                          setRaisedOverlapId(null);
+                        }
+                      }}
                     >
                       {isPastDay ? (
                         <div
@@ -993,6 +999,11 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                           className="absolute inset-0 z-0 touch-manipulation"
                           onClick={() => {
                             dismissCellTip();
+                            if (expandedOverlapGroup) {
+                              setExpandedOverlapGroup(null);
+                              setRaisedOverlapId(null);
+                              return;
+                            }
                             openScheduleForDay(d);
                           }}
                         />
