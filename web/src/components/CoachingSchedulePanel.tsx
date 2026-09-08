@@ -302,6 +302,7 @@ function TimetableBlock({
   return (
     <button
       type="button"
+      data-timetable-block
       onClick={(e) => {
         e.stopPropagation();
         onClick();
@@ -397,6 +398,18 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
 
   const timetableHostRef = useRef<HTMLDivElement>(null);
   const [axisHeightPx, setAxisHeightPx] = useState(280);
+
+  useEffect(() => {
+    if (!expandedOverlapGroup) return;
+    const collapseOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-timetable-block]")) return;
+      setExpandedOverlapGroup(null);
+      setRaisedOverlapId(null);
+    };
+    document.addEventListener("pointerdown", collapseOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", collapseOnOutsidePointer);
+  }, [expandedOverlapGroup]);
 
   const weekMon = useMemo(() => weekMonday(weekAnchor), [weekAnchor]);
   const weekDays = useMemo(
