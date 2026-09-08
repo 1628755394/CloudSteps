@@ -228,7 +228,7 @@ function layoutDayEvents(
     const normalHeightPx = Math.max(EVENT_MIN_H, ((ev.end - ev.start) / span) * axisHeightPx);
     const group = groupById.get(ev.schedule.id) || { key: String(ev.schedule.id), index: 0, count: 1 };
     const expanded = group.count > 1 && group.key === expandedGroupKey;
-    const collapsedHeightPx = Math.max(EVENT_MIN_H, Math.min(normalHeightPx, 64));
+    const collapsedHeightPx = Math.max(EVENT_MIN_H, Math.min(normalHeightPx, 72));
     const heightPx = group.count === 1
       ? normalHeightPx
       : expanded
@@ -238,13 +238,13 @@ function layoutDayEvents(
       ? 0
       : expanded
         ? group.index * Math.min(48, Math.max(32, heightPx * 0.55))
-        : group.index * 8;
+        : group.index * Math.max(48, collapsedHeightPx - 8);
 
     return {
       schedule: ev.schedule,
       topPx: topPx + offsetPx,
       heightPx,
-      showDetail: group.count === 1 ? normalHeightPx >= 40 : expanded,
+      showDetail: group.count === 1 ? normalHeightPx >= 40 : true,
       col: 0,
       colCount: 1,
       overlapGroupKey: group.key,
