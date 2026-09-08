@@ -177,9 +177,20 @@ func coachingCompleteAppointment(db *gorm.DB, appointmentID uint, endedAt time.T
 		if err := tx.Create(&rec).Error; err != nil {
 			return err
 		}
-		return tx.Model(&ap).Updates(map[string]any{
+		updates := map[string]any{
 			"status": models.CoachingStatusCompleted,
-		}).Error
+		}
+		// 首页单词练习：计划窗常为 180 分钟，完课后改写为实际练习起止，避免课表显示「预设三小时」
+		if coachingAppointmentIsPractice(&ap) && ap.ActualStartedAt != nil {
+			startLocal := ap.ActualStartedAt.In(loc)
+			endLocal := endedAt.In(loc)
+			updates["start_time"] = startLocal.Format("15:04")
+			updates["end_time"] = endLocal.Format("15:04")
+			if actual > 0 {
+				updates["duration_minutes"] = actual
+			}
+		}
+		return tx.Model(&ap).Updates(updates).Error
 	})
 	if err != nil {
 		return nil, nil, err
