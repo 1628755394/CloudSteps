@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import { getStudyWords, startStudySession } from "../api/study";
+import { appendStudyRoundSessionId } from "../utils/studyRoundSessions";
 import { getTrainingStudent } from "../utils/trainingStudent";
 import { AnnotationLayer } from "../components/AnnotationLayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
@@ -357,6 +358,7 @@ export default function PreTrainingCheck() {
       }
       if (sessionId) {
         sessionStorage.setItem("lb_study_session_id", String(sessionId));
+        appendStudyRoundSessionId(sessionId);
       }
       if (Array.isArray(sessionWords)) {
         sessionStorage.setItem("lb_study_words", JSON.stringify(sessionWords));
