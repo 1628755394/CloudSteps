@@ -164,7 +164,6 @@ export default function CreateAntiForgetting() {
         </div>
 
         <div className="space-y-3">
-          <p className="text-sm font-medium text-foreground">{t("create_anti_forgetting.time_label")}</p>
           <label className="block space-y-1">
             <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.start_time")}</span>
             <input
@@ -176,13 +175,9 @@ export default function CreateAntiForgetting() {
           </label>
           {loadingSessions ? (
             <p className="text-xs text-muted-foreground">{t("create_anti_forgetting.loading_sessions")}</p>
-          ) : sessionIds.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              {t("create_anti_forgetting.sessions_count", { count: sessionIds.length })}
-            </p>
-          ) : (
+          ) : sessionIds.length === 0 ? (
             <p className="text-xs text-amber-700">{t("create_anti_forgetting.no_sessions_hint")}</p>
-          )}
+          ) : null}
         </div>
 
         <p className="text-[11px] text-muted-foreground leading-relaxed">

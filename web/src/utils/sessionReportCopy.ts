@@ -14,35 +14,39 @@ export function formatChineseDate(iso?: string): string {
   return `${d.getFullYear()}年${pad2(d.getMonth() + 1)}月${pad2(d.getDate())}日`;
 }
 
-/** 周五14：00~15：05（65min） */
+/** 周五14：00~15：05 */
 export function formatLessonTimeRange(
   startedAt?: string,
   completedAt?: string,
-  durationMinutes?: number
+  _durationMinutes?: number
 ): string {
   if (!startedAt) return "";
   const start = new Date(startedAt);
   if (Number.isNaN(start.getTime())) return "";
   const end = completedAt ? new Date(completedAt) : null;
   const endValid = end && !Number.isNaN(end.getTime()) ? end : null;
-  const mins =
-    typeof durationMinutes === "number" && durationMinutes >= 0
-      ? durationMinutes
-      : endValid
-        ? Math.max(0, Math.round((endValid.getTime() - start.getTime()) / 60000))
-        : 0;
   const weekday = `周${WEEKDAY_ZH[start.getDay()]}`;
   const startHm = `${pad2(start.getHours())}：${pad2(start.getMinutes())}`;
   const endHm = endValid
     ? `${pad2(endValid.getHours())}：${pad2(endValid.getMinutes())}`
     : "";
-  const range = endHm ? `${weekday}${startHm}~${endHm}` : `${weekday}${startHm}`;
-  return mins > 0 ? `${range}（${mins}min）` : range;
+  return endHm ? `${weekday}${startHm}~${endHm}` : `${weekday}${startHm}`;
+}
+
+/** 巩固词：只保留「单词 + 释义」，去掉词性与 ✅ */
+export function formatConsolidateWord(raw: string): string {
+  const text = raw.trim();
+  if (!text) return "";
+  const m = text.match(/^(\S+)\s+(?:[a-z]+\.\s+)?(.+)$/i);
+  if (!m) return text;
+  const word = m[1];
+  const gloss = m[2].trim();
+  return gloss ? `${word}  ${gloss}` : word;
 }
 
 /**
  * Parent / WeChat-style classroom feedback copy.
- * Keeps emoji section markers (✅⭐📌📅) matching teacher handoff format.
+ * 词库与学习进度单独列出；不罗列本课学过词条；仅训后遗忘词用 ⭐ 标出。
  */
 export function buildSessionReportCopyText(
   report: StudySessionReport,
@@ -56,6 +60,7 @@ export function buildSessionReportCopyText(
   const timeLine = formatLessonTimeRange(report.startedAt, report.completedAt, report.durationMinutes);
   const accuracy = Math.round(report.accuracyPercent);
   const totalWords = Math.max(0, Number(report.wordBookWordCount) || 0);
+  const learned = Math.max(0, Number(report.learnedCount) || 0);
   const newWords = Math.max(report.screenedUnknownCount, report.wordCount);
   const coachNote = (note || report.reportSummary || "").trim();
 
@@ -70,6 +75,7 @@ export function buildSessionReportCopyText(
   if (timeLine) {
     lines.push(t("session_report.copy_time_line", { time: timeLine }));
   }
+  lines.push(t("session_report.copy_book_line", { book }));
   lines.push(t("session_report.copy_content_line", { book }));
   lines.push("");
   lines.push(t("session_report.copy_perf_title"));
@@ -77,19 +83,14 @@ export function buildSessionReportCopyText(
     lines.push(t("session_report.copy_perf_total", { total: totalWords }));
   }
   lines.push(
-    t("session_report.copy_perf_new", {
-      newWords,
-      studied: report.wordCount,
+    t("session_report.copy_perf_progress", {
+      from: learned > 0 ? 1 : 0,
+      to: learned,
     })
   );
+  lines.push(t("session_report.copy_perf_new", { newWords }));
 
-  const studied = (report.studiedWords || []).filter(Boolean);
-  if (studied.length > 0) {
-    for (const w of studied) {
-      lines.push(`✅${w}`);
-    }
-  }
-
+  const forgot = (report.forgotWords || []).filter(Boolean);
   lines.push(
     t("session_report.copy_perf_check", {
       remembered: report.correctCount,
@@ -97,12 +98,9 @@ export function buildSessionReportCopyText(
       accuracy,
     })
   );
-
-  const forgot = (report.forgotWords || []).filter(Boolean);
-  if (forgot.length > 0) {
-    for (const w of forgot) {
-      lines.push(`⭐${w}`);
-    }
+  for (const w of forgot) {
+    const label = formatConsolidateWord(w);
+    if (label) lines.push(`⭐${label}`);
   }
 
   lines.push("");

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSessionReportCopyText,
   formatChineseDate,
+  formatConsolidateWord,
   formatLessonTimeRange,
 } from "./sessionReportCopy";
 import type { StudySessionReport } from "../api/study";
@@ -39,11 +40,13 @@ const t = (key: string, opts?: Record<string, unknown>) => {
     "session_report.copy_date_fallback": "",
     "session_report.copy_name_line": `姓名：${opts?.name}`,
     "session_report.copy_time_line": `上课时间：${opts?.time}`,
+    "session_report.copy_book_line": `词库：${opts?.book}`,
     "session_report.copy_content_line": `课程内容：训前筛词、${opts?.book}生词识记背诵、训后检测`,
     "session_report.copy_perf_title": "【课堂表现】",
     "session_report.copy_perf_total": `✅1、总词汇量：${opts?.total}`,
-    "session_report.copy_perf_new": `✅2、学新词量：${opts?.newWords}（本节识记${opts?.studied}），本课词条：`,
-    "session_report.copy_perf_check": `✅3、训后检测：记住${opts?.remembered}，遗忘${opts?.forgot}词，正确率${opts?.accuracy}%，需巩固：`,
+    "session_report.copy_perf_progress": `✅2、学习进度：${opts?.from}~${opts?.to}`,
+    "session_report.copy_perf_new": `✅3、学新词量：${opts?.newWords}`,
+    "session_report.copy_perf_check": `✅4、训后检测：记住${opts?.remembered}，遗忘${opts?.forgot}词，正确率${opts?.accuracy}%，需巩固：`,
     "session_report.copy_eval_title": "【课堂评价】",
     "session_report.copy_eval_fallback": "fallback",
   };
@@ -51,7 +54,7 @@ const t = (key: string, opts?: Record<string, unknown>) => {
 };
 
 describe("sessionReportCopy", () => {
-  it("formats chinese date and time range", () => {
+  it("formats chinese date and time range without duration suffix", () => {
     expect(formatChineseDate("2026-08-28T14:00:00+08:00")).toBe("2026年08月28日");
     expect(
       formatLessonTimeRange(
@@ -59,24 +62,29 @@ describe("sessionReportCopy", () => {
         "2026-08-28T15:05:00+08:00",
         65
       )
-    ).toBe("周五14：00~15：05（65min）");
+    ).toBe("周五14：00~15：05");
   });
 
-  it("builds parent-style feedback with emoji markers", () => {
+  it("strips POS from consolidate word labels", () => {
+    expect(formatConsolidateWord("elevator  n. 电梯，升降机")).toBe("elevator  电梯，升降机");
+    expect(formatConsolidateWord("one")).toBe("one");
+  });
+
+  it("builds parent-style feedback with book, progress, and forgot-only words", () => {
     const text = buildSessionReportCopyText(sample, "本节课整体专注，继续保持。", t);
     expect(text).toContain("2026年08月28日 James同学英语课反馈，请注意查收：");
-    expect(text).not.toContain("课时：");
+    expect(text).toContain("词库：小学考纲");
     expect(text).toContain("【课堂表现】");
     expect(text).toContain("✅1、总词汇量：1969");
-    expect(text).not.toContain("所学进度");
-    expect(text).not.toContain("筛词熟");
-    expect(text).toContain("✅2、学新词量：");
-    expect(text).toContain("✅3、训后检测：记住15，遗忘9词，正确率63%，需巩固：");
-    expect(text).toContain("✅apple  n. 苹果");
-    expect(text).toContain("⭐elevator  n. 电梯，升降机");
+    expect(text).toContain("✅2、学习进度：1~295");
+    expect(text).toContain("✅3、学新词量：24");
+    expect(text).toContain("✅4、训后检测：记住15，遗忘9词，正确率63%，需巩固：");
+    expect(text).not.toContain("本课词条");
+    expect(text).not.toContain("✅apple");
+    expect(text).not.toContain("✅book");
+    expect(text).toContain("⭐elevator  电梯，升降机");
+    expect(text).toContain("⭐tower  塔");
     expect(text).toContain("【课堂评价】");
     expect(text).toContain("本节课整体专注，继续保持。");
-    expect(text).not.toContain("📌");
-    expect(text).not.toContain("📅");
   });
 });
