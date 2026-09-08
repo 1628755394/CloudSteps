@@ -215,9 +215,11 @@ function layoutDayEvents(
   }
 
   const groupById = new Map<number, { key: string; index: number; count: number }>();
+  const groupStartByKey = new Map<string, number>();
   for (const group of groups) {
     const ordered = [...group].sort((a, b) => a.start - b.start || b.end - a.end);
     const key = ordered.map((event) => event.schedule.id).sort((a, b) => a - b).join("-");
+    groupStartByKey.set(key, ordered[0].start);
     ordered.forEach((event, index) => {
       groupById.set(event.schedule.id, { key, index, count: ordered.length });
     });
@@ -238,13 +240,14 @@ function layoutDayEvents(
       ? 0
       : expanded
         ? group.index * Math.min(48, Math.max(32, heightPx * 0.55))
-        : group.index * Math.max(48, collapsedHeightPx - 8);
+        : group.index * 8;
+    const collapsedTopPx = ((groupStartByKey.get(group.key) ?? ev.start) - axisStart) / span * axisHeightPx;
 
     return {
       schedule: ev.schedule,
-      topPx: topPx + offsetPx,
+      topPx: (!expanded && group.count > 1 ? collapsedTopPx : topPx) + offsetPx,
       heightPx,
-      showDetail: group.count === 1 ? normalHeightPx >= 40 : true,
+      showDetail: group.count === 1 ? normalHeightPx >= 40 : expanded || group.index === 0,
       col: 0,
       colCount: 1,
       overlapGroupKey: group.key,
@@ -330,7 +333,7 @@ function TimetableBlock({
           </>
         ) : null}
       </div>
-      {overlapCount > 1 && !overlapExpanded && overlapIndex === overlapCount - 1 ? (
+      {overlapCount > 1 && !overlapExpanded && overlapIndex === 0 ? (
         <span className="absolute right-1 top-1 rounded-full bg-foreground/10 px-1 text-[9px] font-semibold text-foreground/70">
           +{overlapCount - 1}
         </span>
