@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { listStudySessions, updateStudySessionsPracticeTime } from "../api/study";
 import { showToast } from "../utils/toast";
 import { formatApiMessage } from "../utils/apiMessage";
-import { formatPracticeTimeRange } from "../utils/reviewPracticeTime";
 import { getTrainingStudent } from "../utils/trainingStudent";
 import { isValidSnowflakeId, normalizeSnowflakeId } from "../utils/json-snowflake";
 
@@ -22,36 +21,26 @@ function formatHmFromTs(ts: number) {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+function addDaysYmd(ymd: string, days: number) {
+  const [y, m, d] = ymd.split("-").map((x) => Number(x));
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  dt.setDate(dt.getDate() + days);
+  return toDateInputValue(dt);
+}
+
 function readLessonDefaults() {
   const now = Date.now();
   const endRaw = Number(sessionStorage.getItem("lb_lesson_practice_end") || now);
   const startRaw = Number(sessionStorage.getItem("lb_lesson_practice_start") || 0);
   const endTs = Number.isFinite(endRaw) && endRaw > 0 ? endRaw : now;
-  const minGapMs = 15 * 60_000;
   const startTs =
-    Number.isFinite(startRaw) && startRaw > 0 && startRaw < endTs
+    Number.isFinite(startRaw) && startRaw > 0 && startRaw <= endTs
       ? startRaw
-      : endTs - minGapMs;
-  // 默认至少间隔 15 分钟（开始/结束落到同一分钟时也会拉开）
-  const safeEndTs = endTs - startTs < minGapMs ? startTs + minGapMs : endTs;
+      : endTs;
   return {
-    date: toDateInputValue(new Date(safeEndTs)),
+    date: toDateInputValue(new Date(startTs)),
     startTime: formatHmFromTs(startTs),
-    endTime: formatHmFromTs(safeEndTs),
   };
-}
-
-function ensureMinGapHm(startHm: string, endHm: string, gapMinutes = 15): string {
-  const [sh, sm] = startHm.split(":").map((x) => Number(x));
-  const [eh, em] = endHm.split(":").map((x) => Number(x));
-  if (![sh, sm, eh, em].every((n) => Number.isFinite(n))) {
-    return endHm;
-  }
-  const startMin = sh * 60 + sm;
-  const endMin = eh * 60 + em;
-  if (endMin - startMin >= gapMinutes) return endHm;
-  const next = (startMin + gapMinutes) % (24 * 60);
-  return `${String(Math.floor(next / 60)).padStart(2, "0")}:${String(next % 60).padStart(2, "0")}`;
 }
 
 export default function CreateAntiForgetting() {
@@ -60,9 +49,8 @@ export default function CreateAntiForgetting() {
   const trainingStudent = useMemo(() => getTrainingStudent(), []);
   const defaults = useMemo(() => readLessonDefaults(), []);
 
-  const [date, setDate] = useState(defaults.date);
+  const [lessonDate, setLessonDate] = useState(defaults.date);
   const [startTime, setStartTime] = useState(defaults.startTime);
-  const [endTime, setEndTime] = useState(defaults.endTime);
   const [sessionIds, setSessionIds] = useState<string[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,22 +80,8 @@ export default function CreateAntiForgetting() {
         if (latest?.startedAt) {
           const start = new Date(latest.startedAt);
           if (!Number.isNaN(start.getTime())) {
-            setDate(toDateInputValue(start));
+            setLessonDate(toDateInputValue(start));
             setStartTime(formatHmFromTs(start.getTime()));
-          }
-        }
-        if (latest?.completedAt) {
-          const end = new Date(latest.completedAt);
-          if (!Number.isNaN(end.getTime())) {
-            const startHm = latest.startedAt
-              ? formatHmFromTs(new Date(latest.startedAt).getTime())
-              : defaults.startTime;
-            setEndTime(ensureMinGapHm(startHm, formatHmFromTs(end.getTime()), 15));
-          }
-        } else if (latest?.startedAt) {
-          const start = new Date(latest.startedAt);
-          if (!Number.isNaN(start.getTime())) {
-            setEndTime(formatHmFromTs(start.getTime() + 15 * 60_000));
           }
         }
       } catch {
@@ -121,13 +95,8 @@ export default function CreateAntiForgetting() {
     };
   }, [defaults.date, trainingStudent?.id]);
 
-  const preview = formatPracticeTimeRange(
-    `${date}T${startTime}:00`,
-    `${date}T${endTime}:00`
-  );
-
   const handleConfirm = async () => {
-    if (!startTime || !endTime || startTime >= endTime) {
+    if (!startTime) {
       showToast.warning(t("create_anti_forgetting.time_invalid"));
       return;
     }
@@ -139,9 +108,8 @@ export default function CreateAntiForgetting() {
     try {
       const studentId = normalizeSnowflakeId(trainingStudent?.id);
       const res = await updateStudySessionsPracticeTime({
-        date,
+        date: lessonDate,
         startTime,
-        endTime,
         ...(studentId ? { studentId } : {}),
         sessionIds,
       });
@@ -152,7 +120,10 @@ export default function CreateAntiForgetting() {
       sessionStorage.removeItem("lb_lesson_practice_start");
       sessionStorage.removeItem("lb_lesson_practice_end");
       showToast.success(t("create_anti_forgetting.saved_toast"));
-      navigate("/anti-forgetting");
+      // 抗遗忘从下一天开始，跳到次日日历
+      navigate(`/anti-forgetting?date=${encodeURIComponent(addDaysYmd(lessonDate, 1))}`, {
+        replace: true,
+      });
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "msg" in e
@@ -195,39 +166,14 @@ export default function CreateAntiForgetting() {
         <div className="space-y-3">
           <p className="text-sm font-medium text-foreground">{t("create_anti_forgetting.time_label")}</p>
           <label className="block space-y-1">
-            <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.date")}</span>
+            <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.start_time")}</span>
             <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
               className="w-full h-11 px-3 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary"
             />
           </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block space-y-1">
-              <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.start_time")}</span>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full h-11 px-3 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary"
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs text-muted-foreground">{t("create_anti_forgetting.end_time")}</span>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full h-11 px-3 rounded-xl border border-border bg-card text-sm outline-none focus:border-primary"
-              />
-            </label>
-          </div>
-          {preview ? (
-            <p className="text-xs text-muted-foreground">
-              {t("create_anti_forgetting.preview", { range: preview })}
-            </p>
-          ) : null}
           {loadingSessions ? (
             <p className="text-xs text-muted-foreground">{t("create_anti_forgetting.loading_sessions")}</p>
           ) : sessionIds.length > 0 ? (
@@ -256,7 +202,9 @@ export default function CreateAntiForgetting() {
           <CloudButton
             variant="outline"
             className="w-full h-11"
-            onClick={() => navigate("/anti-forgetting")}
+            onClick={() =>
+              navigate(`/anti-forgetting?date=${encodeURIComponent(addDaysYmd(toDateInputValue(new Date()), 1))}`)
+            }
           >
             {t("create_anti_forgetting.skip")}
           </CloudButton>

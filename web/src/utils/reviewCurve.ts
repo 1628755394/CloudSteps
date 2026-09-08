@@ -1,12 +1,12 @@
 import type { ReviewCurvePreset } from '../api/auth'
 import i18n from '../i18n'
 
-/** 与打印 PDF 一致：开课日 = 第 1 天 */
+/** 开课日 = 第 1 天；首次复习从第 2 天起 */
 export const REVIEW_SCHEDULE_DAYS: Record<ReviewCurvePreset, number[]> = {
-  times3: [1, 2, 4],
-  times5: [1, 2, 4, 7, 11],
-  times7: [1, 2, 4, 7, 11, 15, 20],
-  times10: [1, 2, 3, 5, 7, 9, 12, 14, 17, 21],
+  times3: [2, 3, 5],
+  times5: [2, 3, 5, 8, 12],
+  times7: [2, 3, 5, 8, 12, 16, 21],
+  times10: [2, 3, 4, 6, 8, 10, 13, 15, 18, 22],
 }
 
 export const REVIEW_CURVE_PRESETS: ReviewCurvePreset[] = [
