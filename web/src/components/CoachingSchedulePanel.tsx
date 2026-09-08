@@ -84,25 +84,25 @@ const AXIS_HEIGHT_SCALE = 4 / 3;
 
 const STATUS_SOFT: Record<string, { bg: string; text: string; border: string; bar: string }> = {
   scheduled: {
-    bg: "bg-primary",
-    text: "text-primary-foreground",
+    bg: "bg-gradient-to-br from-primary/15 to-primary/5",
+    text: "text-primary",
     border: "border-primary",
     bar: "bg-primary",
   },
   in_progress: {
-    bg: "bg-sky-100",
+    bg: "bg-gradient-to-br from-sky-100 to-sky-50",
     text: "text-sky-700",
     border: "border-sky-500",
     bar: "bg-sky-500",
   },
   completed: {
-    bg: "bg-primary",
-    text: "text-primary-foreground",
-    border: "border-primary",
-    bar: "bg-primary",
+    bg: "bg-gradient-to-br from-primary/10 to-primary/5",
+    text: "text-primary/70",
+    border: "border-primary/50",
+    bar: "bg-primary/40",
   },
   cancelled: {
-    bg: "bg-red-50",
+    bg: "bg-gradient-to-br from-red-50 to-red-100",
     text: "text-red-600",
     border: "border-red-500",
     bar: "bg-red-500",
@@ -110,10 +110,10 @@ const STATUS_SOFT: Record<string, { bg: string; text: string; border: string; ba
 };
 
 const PAST_SOFT = {
-  bg: "bg-primary",
-  text: "text-primary-foreground",
-  border: "border-primary",
-  bar: "bg-primary",
+  bg: "bg-gradient-to-br from-primary/10 to-primary/5",
+  text: "text-primary/70",
+  border: "border-primary/50",
+  bar: "bg-primary/40",
 };
 
 /** 计划时段已结束（不含进行中） */
@@ -320,18 +320,18 @@ function TimetableBlock({
         {showDetail ? (
           <>
             {studentName ? (
-              <div className={`text-[11px] font-medium leading-snug line-clamp-1 mt-0.5 ${soft.text}`}>
+              <div className="text-[11px] font-medium leading-snug line-clamp-1 mt-0.5 text-foreground">
                 {studentName}
               </div>
             ) : null}
-            <div className={`text-[11px] font-medium leading-snug line-clamp-2 mt-0.5 ${soft.text}`}>
+            <div className={`text-[11px] font-medium leading-snug line-clamp-2 mt-0.5 ${past ? "text-muted-foreground" : "text-foreground"}`}>
               {title}
             </div>
           </>
         ) : null}
       </div>
       {overlapCount > 1 && !overlapExpanded && overlapIndex === overlapCount - 1 ? (
-        <span className="absolute right-1 top-1 rounded-full bg-primary-foreground/20 px-1 text-[9px] font-semibold text-primary-foreground">
+        <span className="absolute right-1 top-1 rounded-full bg-foreground/10 px-1 text-[9px] font-semibold text-foreground/70">
           +{overlapCount - 1}
         </span>
       ) : null}
