@@ -84,36 +84,36 @@ const AXIS_HEIGHT_SCALE = 4 / 3;
 
 const STATUS_SOFT: Record<string, { bg: string; text: string; border: string; bar: string }> = {
   scheduled: {
-    bg: "bg-gray-200",
-    text: "text-black",
-    border: "border-black",
-    bar: "bg-black",
+    bg: "bg-primary",
+    text: "text-primary-foreground",
+    border: "border-primary",
+    bar: "bg-primary",
   },
   in_progress: {
-    bg: "bg-gray-200",
-    text: "text-black",
-    border: "border-black",
-    bar: "bg-black",
+    bg: "bg-sky-100",
+    text: "text-sky-700",
+    border: "border-sky-500",
+    bar: "bg-sky-500",
   },
   completed: {
-    bg: "bg-gray-200",
-    text: "text-black",
-    border: "border-black",
-    bar: "bg-black",
+    bg: "bg-primary",
+    text: "text-primary-foreground",
+    border: "border-primary",
+    bar: "bg-primary",
   },
   cancelled: {
-    bg: "bg-gray-200",
-    text: "text-black",
-    border: "border-black",
-    bar: "bg-black",
+    bg: "bg-red-50",
+    text: "text-red-600",
+    border: "border-red-500",
+    bar: "bg-red-500",
   },
 };
 
 const PAST_SOFT = {
-  bg: "bg-gray-200",
-  text: "text-black",
-  border: "border-black",
-  bar: "bg-black",
+  bg: "bg-primary",
+  text: "text-primary-foreground",
+  border: "border-primary",
+  bar: "bg-primary",
 };
 
 /** 计划时段已结束（不含进行中） */
@@ -320,18 +320,18 @@ function TimetableBlock({
         {showDetail ? (
           <>
             {studentName ? (
-              <div className="text-[11px] font-medium leading-snug line-clamp-1 mt-0.5 text-black">
+              <div className={`text-[11px] font-medium leading-snug line-clamp-1 mt-0.5 ${soft.text}`}>
                 {studentName}
               </div>
             ) : null}
-            <div className="text-[11px] font-medium leading-snug line-clamp-2 mt-0.5 text-black">
+            <div className={`text-[11px] font-medium leading-snug line-clamp-2 mt-0.5 ${soft.text}`}>
               {title}
             </div>
           </>
         ) : null}
       </div>
       {overlapCount > 1 && !overlapExpanded && overlapIndex === overlapCount - 1 ? (
-        <span className="absolute right-1 top-1 rounded-full bg-black/10 px-1 text-[9px] font-semibold text-black">
+        <span className="absolute right-1 top-1 rounded-full bg-primary-foreground/20 px-1 text-[9px] font-semibold text-primary-foreground">
           +{overlapCount - 1}
         </span>
       ) : null}
