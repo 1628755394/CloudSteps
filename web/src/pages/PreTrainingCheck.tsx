@@ -303,16 +303,6 @@ export default function PreTrainingCheck() {
     void loadWords(1, true);
   }, [loadWords]);
 
-  const handleSelectAll = useCallback(() => {
-    setWords((prev) => {
-      const allSelected = prev.every((word) => word.status !== null);
-      if (allSelected) {
-        return prev.map((word) => ({ ...word, status: null as WordItem["status"] }));
-      }
-      return prev.map((word) => ({ ...word, status: "wrong" as WordItem["status"] }));
-    });
-  }, []);
-
   const handleSelect5 = useCallback((status: "correct" | "wrong") => {
     setWords((prev) => {
       const unselected = prev.filter((word) => word.status === null);
@@ -680,14 +670,6 @@ export default function PreTrainingCheck() {
                 <span className="hidden sm:inline">{t("practice.shuffle")}</span>
               </CloudButton>
             )}
-            <CloudButton
-              variant="outline"
-              size="pill"
-              onClick={handleSelectAll}
-              className="shrink-0 max-sm:px-2 max-sm:text-xs"
-            >
-              {t("practice.select_all")}
-            </CloudButton>
             <CloudButton
               variant="outline"
               size="pill"
