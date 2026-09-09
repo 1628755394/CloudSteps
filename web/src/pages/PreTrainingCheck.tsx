@@ -489,20 +489,30 @@ export default function PreTrainingCheck() {
     </div>
   );
 
+  const noteSplit = note.open && note.isDesktop;
+
   return (
-    <FlowPageShell className="min-h-screen bg-gray-50 pb-20 sm:pb-24">
-      <TopBar
-        title={t("pre_training_check.title")}
-        onBack={handleBack}
-        rightSlot={
-          <PracticeFlowToolbar
-            annotationOpen={annotationOpen}
-            onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
-            wordCount={wrongCount}
-            onWordPatched={(view) => setWords((prev) => applyUserWordView(prev, view))}
-          />
-        }
-      />
+    <FlowPageShell
+      className={
+        noteSplit
+          ? "h-dvh flex flex-col overflow-hidden bg-gray-50"
+          : "min-h-screen bg-gray-50 pb-20 sm:pb-24"
+      }
+    >
+      <div className={noteSplit ? "shrink-0" : undefined}>
+        <TopBar
+          title={t("pre_training_check.title")}
+          onBack={handleBack}
+          rightSlot={
+            <PracticeFlowToolbar
+              annotationOpen={annotationOpen}
+              onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
+              wordCount={wrongCount}
+              onWordPatched={(view) => setWords((prev) => applyUserWordView(prev, view))}
+            />
+          }
+        />
+      </div>
 
       <AnnotationLayer
         storageKey={`pre-training:${wordBookId}`}
@@ -576,7 +586,13 @@ export default function PreTrainingCheck() {
         )}
       </NoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
+      <div
+        className={
+          noteSplit
+            ? "shrink-0 border-t border-[#E2E8F0] bg-white px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg"
+            : "fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg"
+        }
+      >
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center gap-1.5 sm:gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
             <CloudButton
