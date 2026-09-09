@@ -671,19 +671,21 @@ export default function PreTrainingCheck() {
               </CloudButton>
             )}
             <CloudButton
-              variant="outline"
+              variant="mint"
               size="pill"
-              className="shrink-0 max-sm:px-2 max-sm:text-xs"
+              className="h-10 shrink-0 px-4 text-sm font-normal max-sm:px-3"
               onClick={() => handleSelect5("correct")}
             >
+              <Check size={16} />
               {t("practice.mark_correct_5")}
             </CloudButton>
             <CloudButton
-              variant="brandOutline"
+              variant="destructive"
               size="pill"
-              className="shrink-0 max-sm:px-2 max-sm:text-xs"
+              className="h-10 shrink-0 px-4 text-sm font-normal max-sm:px-3"
               onClick={() => handleSelect5("wrong")}
             >
+              <X size={16} />
               {t("practice.mark_wrong_5")}
             </CloudButton>
           </div>
