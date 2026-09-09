@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import {
   BookOpen,
   CalendarDays,
+  Images,
   Sparkles,
   UserPlus,
   Users,
@@ -38,6 +39,8 @@ function StepIcon({ name }: { name: CoachOnboardingIcon }) {
       return <Users className={common} size={22} />;
     case "schedule":
       return <CalendarDays className={common} size={22} />;
+    case "guides":
+      return <Images className={common} size={22} />;
     case "training":
       return <BookOpen className={common} size={22} />;
   }

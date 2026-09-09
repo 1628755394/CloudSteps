@@ -70,6 +70,8 @@ export default function ReviewCheck() {
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
+  /** 拓展简易模式：默认开，只展示部分标签 */
+  const [simpleDetail, setSimpleDetail] = useState(true);
   const [detailWord, setDetailWord] = useState<{ id: string | number; word: string } | null>(null);
 
   useEffect(() => {
@@ -305,6 +307,7 @@ export default function ReviewCheck() {
                 onStatus={handleStatusClick}
                 amplifyDetail={detailMode}
                 onDetailClose={() => setDetailWord(null)}
+                simpleMode={simpleDetail}
                 noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
               />
             ) : (
@@ -376,6 +379,7 @@ export default function ReviewCheck() {
                           wordId={word.id}
                           wordText={word.word}
                           variant="inline"
+                          simpleMode={simpleDetail}
                           onClose={() => setDetailWord(null)}
                         />
                       </div>
@@ -420,6 +424,17 @@ export default function ReviewCheck() {
                   <BookOpen size={15} />
                   <span className="hidden sm:inline">{t("practice.expand")}</span>
                 </CloudButton>
+                {detailMode && (
+                  <CloudButton
+                    variant={simpleDetail ? "brand" : "outline"}
+                    size="pill"
+                    onClick={() => setSimpleDetail((v) => !v)}
+                    title={simpleDetail ? t("practice.simple_tip_on") : t("practice.simple_tip_off")}
+                    className="max-sm:px-2 max-sm:text-xs"
+                  >
+                    {t("practice.simple")}
+                  </CloudButton>
+                )}
               </div>
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <CloudButton variant="outline" size="pill" onClick={handleShuffle} className="max-sm:px-2 max-sm:text-xs">

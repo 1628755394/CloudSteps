@@ -1,5 +1,6 @@
 /**
  * 老师新手引导 — 请与 web/src/utils/coachOnboarding.ts 保持步骤与 key 同步
+ * （web 独有 guides「流程演示」步骤不在此端；storage 仍用 v1）
  */
 import Taro from '@tarojs/taro'
 
