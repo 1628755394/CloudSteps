@@ -263,12 +263,12 @@ function layoutDayEvents(
     const heightPx = group.count === 1
       ? normalHeightPx
       : expanded
-        ? Math.max(52, Math.min(normalHeightPx, 88))
+        ? Math.max(56, Math.min(normalHeightPx, 64))
         : collapsedHeightPx;
     const offsetPx = group.count === 1
       ? 0
       : expanded
-        ? group.index * Math.min(48, Math.max(32, heightPx * 0.55))
+        ? group.index * 44
         : group.index * STACK_OFFSET_PX;
     const collapsedTopPx = ((groupStartByKey.get(group.key) ?? ev.start) - axisStart) / span * axisHeightPx;
 
@@ -276,13 +276,13 @@ function layoutDayEvents(
       schedule: ev.schedule,
       topPx: (!expanded && group.count > 1 ? collapsedTopPx : topPx) + offsetPx,
       heightPx,
-      showDetail: group.count === 1 ? normalHeightPx >= 40 : expanded || group.index === 0,
+      showDetail: group.count === 1 ? normalHeightPx >= 40 : expanded || group.index === group.count - 1,
       col: 0,
       colCount: 1,
       overlapGroupKey: group.key,
       overlapIndex: group.index,
       overlapCount: group.count,
-      zIndex: raisedId === ev.schedule.id ? 30 : 10 + (group.count - group.index),
+      zIndex: raisedId === ev.schedule.id ? 30 : 10 + group.index,
     };
   });
 }
