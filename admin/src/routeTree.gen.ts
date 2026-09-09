@@ -52,7 +52,6 @@ import { Route as AuthenticatedInviteRecordsIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedInboxNotificationsIndexRouteImport } from './routes/_authenticated/inbox-notifications/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedCoachingIndexRouteImport } from './routes/_authenticated/coaching/index'
-import { Route as AuthenticatedCloudUsersIndexRouteImport } from './routes/_authenticated/cloud-users/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as AuthenticatedAnnouncementsIndexRouteImport } from './routes/_authenticated/announcements/index'
@@ -313,12 +312,6 @@ const AuthenticatedCoachingIndexRoute =
     path: '/coaching/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedCloudUsersIndexRoute =
-  AuthenticatedCloudUsersIndexRouteImport.update({
-    id: '/cloud-users/',
-    path: '/cloud-users/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedChatsIndexRoute = AuthenticatedChatsIndexRouteImport.update({
   id: '/chats/',
   path: '/chats/',
@@ -491,7 +484,6 @@ export interface FileRoutesByFullPath {
   '/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
-  '/cloud-users/': typeof AuthenticatedCloudUsersIndexRoute
   '/coaching/': typeof AuthenticatedCoachingIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/inbox-notifications/': typeof AuthenticatedInboxNotificationsIndexRoute
@@ -556,7 +548,6 @@ export interface FileRoutesByTo {
   '/announcements': typeof AuthenticatedAnnouncementsIndexRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
-  '/cloud-users': typeof AuthenticatedCloudUsersIndexRoute
   '/coaching': typeof AuthenticatedCoachingIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/inbox-notifications': typeof AuthenticatedInboxNotificationsIndexRoute
@@ -626,7 +617,6 @@ export interface FileRoutesById {
   '/_authenticated/announcements/': typeof AuthenticatedAnnouncementsIndexRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
-  '/_authenticated/cloud-users/': typeof AuthenticatedCloudUsersIndexRoute
   '/_authenticated/coaching/': typeof AuthenticatedCoachingIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/inbox-notifications/': typeof AuthenticatedInboxNotificationsIndexRoute
@@ -694,7 +684,6 @@ export interface FileRouteTypes {
     | '/announcements/'
     | '/apps/'
     | '/chats/'
-    | '/cloud-users/'
     | '/coaching/'
     | '/help-center/'
     | '/inbox-notifications/'
@@ -759,7 +748,6 @@ export interface FileRouteTypes {
     | '/announcements'
     | '/apps'
     | '/chats'
-    | '/cloud-users'
     | '/coaching'
     | '/help-center'
     | '/inbox-notifications'
@@ -828,7 +816,6 @@ export interface FileRouteTypes {
     | '/_authenticated/announcements/'
     | '/_authenticated/apps/'
     | '/_authenticated/chats/'
-    | '/_authenticated/cloud-users/'
     | '/_authenticated/coaching/'
     | '/_authenticated/help-center/'
     | '/_authenticated/inbox-notifications/'
@@ -1178,13 +1165,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCoachingIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/cloud-users/': {
-      id: '/_authenticated/cloud-users/'
-      path: '/cloud-users'
-      fullPath: '/cloud-users/'
-      preLoaderRoute: typeof AuthenticatedCloudUsersIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/chats/': {
       id: '/_authenticated/chats/'
       path: '/chats'
@@ -1397,7 +1377,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnnouncementsIndexRoute: typeof AuthenticatedAnnouncementsIndexRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
-  AuthenticatedCloudUsersIndexRoute: typeof AuthenticatedCloudUsersIndexRoute
   AuthenticatedCoachingIndexRoute: typeof AuthenticatedCoachingIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedInboxNotificationsIndexRoute: typeof AuthenticatedInboxNotificationsIndexRoute
@@ -1444,7 +1423,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnnouncementsIndexRoute: AuthenticatedAnnouncementsIndexRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
-  AuthenticatedCloudUsersIndexRoute: AuthenticatedCloudUsersIndexRoute,
   AuthenticatedCoachingIndexRoute: AuthenticatedCoachingIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedInboxNotificationsIndexRoute:
