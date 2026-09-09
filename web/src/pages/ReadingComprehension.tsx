@@ -19,6 +19,10 @@ import {
   ReadingKnowledgePanel,
   type ReadingKnowledgeItem,
 } from "../components/reading/ReadingKnowledgePanel";
+import {
+  ReadingStudyPanel,
+  type ReadingStudyItem,
+} from "../components/reading/ReadingStudyPanel";
 import { ReadingParagraphBlocks } from "../components/reading/ReadingParagraphBlocks";
 import { ReadingSessionShell } from "../components/reading/ReadingSessionShell";
 import {
@@ -32,6 +36,7 @@ import {
 } from "../components/reading/ReadingWordsPanel";
 import {
   checkCustomReadingAnswer,
+  getCustomReadingAnalysis,
   getCustomReadingKnowledge,
   getCustomReadingPassage,
   listCustomReadingPassages,
@@ -39,6 +44,7 @@ import {
 } from "../api/customReading";
 import {
   checkReadingAnswer,
+  getReadingAnalysis,
   getReadingKnowledge,
   getReadingPassage,
   listReadingPassages,
@@ -77,6 +83,7 @@ type Phase =
   | "words"
   | "reanswer"
   | "analysis"
+  | "study"
   | "knowledge";
 type SourceTab = "system" | "custom";
 type LevelFilter = "" | "初阶" | "中阶" | "高阶";
@@ -101,6 +108,8 @@ function phaseToStage(phase: Phase): ReadingStageId {
       return "reanswer";
     case "analysis":
       return "analysis";
+    case "study":
+      return "study";
     case "knowledge":
       return "knowledge";
     default:
@@ -161,6 +170,8 @@ export default function ReadingComprehension() {
 
   const [knowledgeItems, setKnowledgeItems] = useState<ReadingKnowledgeItem[]>([]);
   const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [studyItems, setStudyItems] = useState<ReadingStudyItem[]>([]);
+  const [studyLoading, setStudyLoading] = useState(false);
 
   const clearAdvanceTimer = useCallback(() => {
     if (advanceTimerRef.current != null) {
@@ -194,6 +205,7 @@ export default function ReadingComprehension() {
         { id: "words" as const, label: t("reading.stage_words") },
         { id: "reanswer" as const, label: t("reading.stage_reanswer") },
         { id: "analysis" as const, label: t("reading.stage_analysis") },
+        { id: "study" as const, label: t("reading.stage_study") },
         { id: "knowledge" as const, label: t("reading.stage_knowledge") },
         { id: "done" as const, label: t("reading.stage_done") },
       ] satisfies { id: ReadingStageId; label: string }[],
@@ -389,6 +401,7 @@ export default function ReadingComprehension() {
       setQuestionIndex(0);
       setPanelCollapsed(false);
       setKnowledgeItems([]);
+      setStudyItems([]);
       setMaxStageIdx(0);
       startedAtRef.current = Date.now();
       listenStartedAtRef.current = Date.now();
@@ -445,6 +458,74 @@ export default function ReadingComprehension() {
     setPanelCollapsed(false);
     setPhase("analysis");
     advanceMaxStage("analysis");
+  };
+
+  const buildStudy = async () => {
+    if (!passage) return;
+    setStudyLoading(true);
+    setStudyItems([]);
+    setErr(null);
+    const loadOnce = async () => {
+      const res = isCustomPassage
+        ? await getCustomReadingAnalysis(passage.id)
+        : await getReadingAnalysis(passage.id);
+      if (res.code !== 200 || !res.data) {
+        throw { code: res.code, msg: res.msg };
+      }
+      return (res.data.items || [])
+        .filter((p) => (p.sentence || "").trim())
+        .map((p, i) => ({
+          id: `s-${i}`,
+          sentence: (p.sentence || "").trim(),
+          translation: (p.translation || "").trim(),
+          components: (p.components || [])
+            .filter((c) => (c.label || "").trim() && (c.text || "").trim())
+            .map((c) => ({ label: c.label.trim(), text: c.text.trim() })),
+          keyPhrases: (p.keyPhrases || [])
+            .filter((k) => (k.text || "").trim())
+            .map((k) => ({
+              text: k.text.trim(),
+              explanation: (k.explanation || "").trim(),
+            })),
+        }));
+    };
+    try {
+      let items: ReadingStudyItem[];
+      try {
+        items = await loadOnce();
+      } catch (first: unknown) {
+        // Mid-generation timeout may leave partial cache; one retry resumes remaining sentences.
+        const msg =
+          first && typeof first === "object" && "msg" in first
+            ? String((first as { msg: string }).msg)
+            : "";
+        const code =
+          first && typeof first === "object" && "code" in first
+            ? Number((first as { code: number }).code)
+            : 0;
+        const maybeTimeout =
+          code === 408 ||
+          /timeout|超时/i.test(msg) ||
+          (first && typeof first === "object" && "error" in first &&
+            String((first as { error: string }).error) === "request_timeout");
+        if (!maybeTimeout) throw first;
+        items = await loadOnce();
+      }
+      setStudyItems(items);
+    } catch (e: unknown) {
+      const apiMsg =
+        e && typeof e === "object" && "msg" in e ? String((e as { msg: string }).msg) : undefined;
+      setErr(formatApiMessage(apiMsg, "reading.study_failed"));
+    } finally {
+      setStudyLoading(false);
+    }
+  };
+
+  const goToStudy = () => {
+    setPanelCollapsed(false);
+    setPhase("study");
+    advanceMaxStage("study");
+    void buildStudy();
   };
 
   const buildKnowledge = async () => {
@@ -574,6 +655,7 @@ export default function ReadingComprehension() {
     setPreview(null);
     setPickedWords([]);
     setKnowledgeItems([]);
+    setStudyItems([]);
     setMaxStageIdx(0);
     clearReadingSessionSnapshot();
   };
@@ -605,8 +687,12 @@ export default function ReadingComprehension() {
       setPhase("reanswer");
       return;
     }
-    if (phase === "knowledge") {
+    if (phase === "study") {
       setPhase("analysis");
+      return;
+    }
+    if (phase === "knowledge") {
+      setPhase("study");
       return;
     }
     backToList();
@@ -636,6 +722,10 @@ export default function ReadingComprehension() {
     }
     if (id === "analysis" && secondResult) {
       goToAnalysis();
+      return;
+    }
+    if (id === "study" && secondResult) {
+      goToStudy();
       return;
     }
     if (id === "knowledge" && secondResult) {
@@ -777,9 +867,11 @@ export default function ReadingComprehension() {
                 ? t("reading.words_hint")
                 : phase === "analysis"
                   ? t("reading.analysis_hint")
-                  : phase === "knowledge"
-                    ? t("reading.knowledge_hint")
-                    : t("reading.listen_hint")}
+                  : phase === "study"
+                    ? t("reading.study_hint")
+                    : phase === "knowledge"
+                      ? t("reading.knowledge_hint")
+                      : t("reading.listen_hint")}
           </Typography.Text>
         </div>
         <div className="shrink-0 rounded-full bg-[#FFF7ED] border border-[#FED7AA] px-2.5 py-1 text-[11px] font-medium text-[#EA580C]">
@@ -989,7 +1081,9 @@ export default function ReadingComprehension() {
                   ? t("reading.stage_words")
                   : phase === "analysis"
                     ? t("reading.analysis_title", { count: totalQuestions })
-                    : t("reading.knowledge_title", { count: knowledgeItems.length })
+                    : phase === "study"
+                      ? t("reading.study_title")
+                      : t("reading.knowledge_title", { count: knowledgeItems.length })
           }
           subtitle={
             phase === "practice" || phase === "reanswer"
@@ -998,7 +1092,9 @@ export default function ReadingComprehension() {
                 ? t("reading.words_hint")
                 : phase === "analysis"
                   ? t("reading.analysis_sub")
-                  : t("reading.knowledge_sub", { count: knowledgeItems.length })
+                  : phase === "study"
+                    ? t("reading.study_sub", { count: studyItems.length })
+                    : t("reading.knowledge_sub", { count: knowledgeItems.length })
           }
           collapsed={panelCollapsed}
           onToggleCollapse={() => setPanelCollapsed((v) => !v)}
@@ -1134,7 +1230,7 @@ export default function ReadingComprehension() {
               currentIndex={questionIndex}
               onSelectIndex={setQuestionIndex}
               onPrevStep={() => setPhase("reanswer")}
-              onNextStep={goToKnowledge}
+              onNextStep={goToStudy}
               prevStepLabel={t("reading.prev_step")}
               prevQuestionLabel={t("reading.prev_question")}
               nextQuestionLabel={t("reading.next_question")}
@@ -1150,11 +1246,28 @@ export default function ReadingComprehension() {
             />
           )}
 
+          {phase === "study" && (
+            <ReadingStudyPanel
+              items={studyItems}
+              loading={studyLoading}
+              onPrevStep={() => setPhase("analysis")}
+              onNextStep={goToKnowledge}
+              prevLabel={t("reading.prev_step")}
+              nextLabel={t("reading.next_step")}
+              emptyLabel={t("reading.study_empty")}
+              translationLabel={t("reading.study_translation")}
+              componentsLabel={t("reading.study_components")}
+              phrasesLabel={t("reading.study_phrases")}
+              sentenceLabel={(n) => t("reading.study_sentence", { n })}
+              copyLabel={t("reading.copy_word")}
+            />
+          )}
+
           {phase === "knowledge" && (
             <ReadingKnowledgePanel
               items={knowledgeItems}
               loading={knowledgeLoading}
-              onPrevStep={() => setPhase("analysis")}
+              onPrevStep={() => setPhase("study")}
               onFinish={finishSession}
               prevLabel={t("reading.prev_step")}
               finishLabel={t("reading.finish_session")}

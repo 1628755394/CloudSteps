@@ -7,6 +7,7 @@ import {
   Headphones,
   Lightbulb,
   ListChecks,
+  BookMarked,
   RefreshCw,
   Search,
 } from "lucide-react";
@@ -17,16 +18,18 @@ export type ReadingStageId =
   | "words"
   | "reanswer"
   | "analysis"
+  | "study"
   | "knowledge"
   | "done";
 
-/** Active stages (细学 removed). */
+/** Active stages including 细学 (sentence study). */
 export const READING_ACTIVE_STAGES: ReadingStageId[] = [
   "listen",
   "answer",
   "words",
   "reanswer",
   "analysis",
+  "study",
   "knowledge",
   "done",
 ];
@@ -39,6 +42,7 @@ const STAGE_ICONS: Record<ReadingStageId, ReactNode> = {
   words: <Search size={14} />,
   reanswer: <RefreshCw size={14} />,
   analysis: <Eye size={14} />,
+  study: <BookMarked size={14} />,
   knowledge: <Lightbulb size={14} />,
   done: <CheckCircle2 size={14} />,
 };

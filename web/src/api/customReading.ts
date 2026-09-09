@@ -1,5 +1,5 @@
 import { get, post, put, del, ApiResponse } from '../utils/request'
-import type { ReadingCheckResult, ReadingKnowledgePoint, ReadingOption, ReadingPassageDetail, ReadingSubmitResult } from './reading'
+import type { ReadingCheckResult, ReadingKnowledgePoint, ReadingOption, ReadingPassageDetail, ReadingSentenceAnalysis, ReadingSubmitResult } from './reading'
 
 export type CustomReadingPassageListItem = {
   id: number
@@ -81,5 +81,11 @@ export const checkCustomReadingAnswer = (
 export const getCustomReadingKnowledge = (
   id: number
 ): Promise<ApiResponse<{ items: ReadingKnowledgePoint[] }>> => {
-  return get(`/reading/custom/passages/${id}/knowledge`)
+  return get(`/reading/custom/passages/${id}/knowledge`, { timeout: 120_000 })
+}
+
+export const getCustomReadingAnalysis = (
+  id: number
+): Promise<ApiResponse<{ items: ReadingSentenceAnalysis[] }>> => {
+  return get(`/reading/custom/passages/${id}/analysis`, { timeout: 120_000 })
 }

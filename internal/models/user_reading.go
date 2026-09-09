@@ -25,7 +25,9 @@ type UserReadingPassage struct {
 	Content string `json:"content" gorm:"type:text;not null;comment:正文"`
 	Summary string `json:"summary" gorm:"size:512;comment:摘要"`
 	// KnowledgeJSON AI 知识点缓存；空=未生成，"[]"=已生成但无要点，否则为 [{title,body}]。
-	KnowledgeJSON    string `json:"-" gorm:"type:text;comment:AI知识点JSON"`
+	KnowledgeJSON string `json:"-" gorm:"type:text;comment:AI知识点JSON"`
+	// AnalysisJSON AI 逐句解析缓存；空=未生成，"[]"=已生成但无句子，否则为 [{sentence,translation,components,keyPhrases}]。
+	AnalysisJSON     string `json:"-" gorm:"type:text;comment:AI逐句解析JSON"`
 	Status           string `json:"status" gorm:"size:32;index;default:active;comment:状态 active/archived"`
 	Source           string `json:"source" gorm:"size:32;default:manual;comment:来源 manual/text/excel"`
 	WordCount        int    `json:"wordCount" gorm:"default:0;comment:词数"`

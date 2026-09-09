@@ -102,10 +102,33 @@ export type ReadingKnowledgePoint = {
   body: string
 }
 
+export type ReadingSentenceComponent = {
+  label: string
+  text: string
+}
+
+export type ReadingKeyPhrase = {
+  text: string
+  explanation: string
+}
+
+export type ReadingSentenceAnalysis = {
+  sentence: string
+  translation: string
+  components?: ReadingSentenceComponent[]
+  keyPhrases?: ReadingKeyPhrase[]
+}
+
 export const getReadingKnowledge = (
   id: number
 ): Promise<ApiResponse<{ items: ReadingKnowledgePoint[] }>> => {
-  return get(`/reading/passages/${id}/knowledge`)
+  return get(`/reading/passages/${id}/knowledge`, { timeout: 120_000 })
+}
+
+export const getReadingAnalysis = (
+  id: number
+): Promise<ApiResponse<{ items: ReadingSentenceAnalysis[] }>> => {
+  return get(`/reading/passages/${id}/analysis`, { timeout: 120_000 })
 }
 
 export const submitReadingPassage = (
