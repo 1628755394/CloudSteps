@@ -235,7 +235,7 @@ function layoutDayEvents(
 
   for (const event of sorted) {
     const matching = groups.filter((group) =>
-      group.some((other) => other.overlapEnd > event.start && other.start < event.overlapEnd),
+      group.some((other) => other.overlapEnd >= event.start && other.start <= event.overlapEnd),
     );
     if (matching.length === 0) {
       groups.push([event]);
@@ -280,7 +280,7 @@ function layoutDayEvents(
 
     return {
       schedule: ev.schedule,
-      topPx: (!expanded && group.count > 1 ? collapsedTopPx : topPx) + offsetPx,
+      topPx: (group.count > 1 ? collapsedTopPx : topPx) + offsetPx,
       heightPx,
       showDetail: group.count === 1 ? normalHeightPx >= 40 : expanded || group.index === group.count - 1,
       col: 0,
