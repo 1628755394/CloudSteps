@@ -109,6 +109,7 @@ export function Header({
             className="size-9 text-muted-foreground hover:text-primary"
             onClick={() => navigate("/guides")}
             aria-label={t("guides.title")}
+            data-coach="guides"
           >
             <BookOpen size={18} />
           </CloudButton>

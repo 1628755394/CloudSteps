@@ -1938,6 +1938,8 @@
   "coaching.onboarding.picker.body": "在这里切换当前学员，词汇测试与单词训练都会绑定到所选学员。",
   "coaching.onboarding.schedule.title": "备课与排课",
   "coaching.onboarding.schedule.body": "进入「备课」课表后，点击空格子即可排课；点已有课程可开始或下课。",
+  "coaching.onboarding.guides.title": "流程演示",
+  "coaching.onboarding.guides.body": "点右上角书本图标，可左右滑动查看单词训练与学员管理的图文步骤，快速上手系统用法。",
   "coaching.onboarding.training.title": "开始单词训练",
   "coaching.onboarding.training.body": "选好学员后点这里：选词库 → 记忆灯塔 →「继续练习」。",
   "coaching.add_student": "添加学员",

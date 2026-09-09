@@ -1298,6 +1298,8 @@
   "coaching.onboarding.picker.body": "Switch the active student here. Vocabulary tests and word training are recorded for whoever is selected.",
   "coaching.onboarding.schedule.title": "Lesson prep & scheduling",
   "coaching.onboarding.schedule.body": "Open the Lesson Prep timetable, tap an empty slot to schedule, or tap an existing class to start or end it.",
+  "coaching.onboarding.guides.title": "How-to guides",
+  "coaching.onboarding.guides.body": "Tap the book icon at the top right to swipe through word-training and student-management walkthroughs.",
   "coaching.onboarding.training.title": "Start word training",
   "coaching.onboarding.training.body": "After choosing a student, tap here: pick a wordbook → Memory Lighthouse → Continue practice.",
   "coaching.add_student": "Add student",

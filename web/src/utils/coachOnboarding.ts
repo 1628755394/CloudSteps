@@ -1,11 +1,14 @@
-/** 老师新手引导 — 请与 miniapp/src/utils/coachOnboarding.ts 保持步骤与 key 同步 */
+/** 老师新手引导 — 请与 miniapp/src/utils/coachOnboarding.ts 保持步骤与 key 同步
+ * （web 独有：guides 步骤，指向 Header 流程演示入口）
+ */
 
 export type CoachOnboardingIcon =
   | "welcome"
   | "students"
   | "picker"
   | "schedule"
-  | "training";
+  | "training"
+  | "guides";
 
 export type CoachOnboardingStep = {
   id: string;
@@ -36,6 +39,11 @@ export const COACH_ONBOARDING_STEPS: CoachOnboardingStep[] = [
     target: "schedule",
   },
   {
+    id: "guides",
+    icon: "guides",
+    target: "guides",
+  },
+  {
     id: "training",
     icon: "training",
     target: "training",
@@ -52,7 +60,8 @@ function normalizeUserId(userId: number | string | null | undefined): string | n
 }
 
 export function coachOnboardingStorageKey(userId: number | string): string {
-  return `cs_coach_onboarding_v1:${normalizeUserId(userId) ?? userId}`;
+  // v2：新增「流程演示」步骤后升版，让已看过 v1 的老师再看一轮完整引导
+  return `cs_coach_onboarding_v2:${normalizeUserId(userId) ?? userId}`;
 }
 
 export function isCoachOnboardingDone(userId: number | string): boolean {
