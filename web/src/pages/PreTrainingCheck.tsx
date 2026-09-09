@@ -392,7 +392,7 @@ export default function PreTrainingCheck() {
     }
   };
 
-  const renderWordItem = (word: WordItem) => (
+  const renderWordItem = (word: WordItem, seq: number) => (
     <div
       className={`rounded-xl p-3.5 sm:p-4 shadow-sm transition-all cursor-pointer ${markWordCardClass(
         word.status,
@@ -402,7 +402,14 @@ export default function PreTrainingCheck() {
       onClick={() => handleWordClick(word)}
     >
       <div className="flex flex-row items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span
+            className="w-10 shrink-0 text-right text-2xl font-light leading-none tracking-tight text-[#94A3B8]"
+            style={{ fontFamily: 'Georgia, "Times New Roman", "Songti SC", "Noto Serif SC", serif' }}
+            aria-hidden
+          >
+            {seq}.
+          </span>
           <div className="min-w-0">
             <span className={`${PRACTICE_WORD_CLASS} transition-colors hover:text-[#4ECDC4]`}>
               {word.word}
@@ -555,8 +562,8 @@ export default function PreTrainingCheck() {
           />
         ) : (
           <div className="space-y-2.5 mb-6">
-            {words.map((word) => (
-              <div key={word.id}>{renderWordItem(word)}</div>
+            {words.map((word, i) => (
+              <div key={`${String(word.id)}-${i}`}>{renderWordItem(word, i + 1)}</div>
             ))}
 
             {hasMore && (
