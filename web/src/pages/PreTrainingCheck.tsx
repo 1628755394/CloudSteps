@@ -313,13 +313,13 @@ export default function PreTrainingCheck() {
     });
   }, []);
 
-  const handleSelect5 = useCallback(() => {
+  const handleSelect5 = useCallback((status: "correct" | "wrong") => {
     setWords((prev) => {
       const unselected = prev.filter((word) => word.status === null);
       const toSelect = unselected.slice(0, 5);
       return prev.map((word) => {
         if (toSelect.find((w) => w.id === word.id)) {
-          return { ...word, status: "wrong" as WordItem["status"] };
+          return { ...word, status };
         }
         return word;
       });
@@ -689,12 +689,20 @@ export default function PreTrainingCheck() {
               {t("practice.select_all")}
             </CloudButton>
             <CloudButton
+              variant="outline"
+              size="pill"
+              className="shrink-0 max-sm:px-2 max-sm:text-xs"
+              onClick={() => handleSelect5("correct")}
+            >
+              {t("practice.mark_correct_5")}
+            </CloudButton>
+            <CloudButton
               variant="brandOutline"
               size="pill"
               className="shrink-0 max-sm:px-2 max-sm:text-xs"
-              onClick={handleSelect5}
+              onClick={() => handleSelect5("wrong")}
             >
-              {t("practice.select_five")}
+              {t("practice.mark_wrong_5")}
             </CloudButton>
           </div>
           <CloudButton
