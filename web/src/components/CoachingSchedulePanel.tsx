@@ -215,7 +215,6 @@ function layoutDayEvents(
 }> {
   const span = Math.max(1, axisEnd - axisStart);
   const STACK_OFFSET_PX = 8;
-  const visualMinMinutes = (EVENT_MIN_H / axisHeightPx) * span;
   const raw = items.map((schedule) => {
     const range = scheduleVisualRange(schedule);
     let s = parseHmToMinutes(range.start);
@@ -223,19 +222,14 @@ function layoutDayEvents(
     if (e <= s) e = s + 30;
     s = Math.max(axisStart, Math.min(s, axisEnd - 5));
     e = Math.max(s + 15, Math.min(e, axisEnd));
-    return {
-      schedule,
-      start: s,
-      end: e,
-      overlapEnd: Math.max(e, s + visualMinMinutes),
-    };
+    return { schedule, start: s, end: e };
   });
   const sorted = [...raw].sort((a, b) => a.start - b.start || b.end - a.end);
   const groups: Array<typeof sorted> = [];
 
   for (const event of sorted) {
     const matching = groups.filter((group) =>
-      group.some((other) => other.overlapEnd >= event.start && other.start <= event.overlapEnd),
+      group.some((other) => other.end > event.start && other.start < event.end),
     );
     if (matching.length === 0) {
       groups.push([event]);
