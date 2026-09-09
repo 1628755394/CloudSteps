@@ -340,9 +340,9 @@ export default function WordPractice() {
           <div className="flex w-full flex-col gap-3">
             <div
               className={`relative flex w-full flex-col overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition-colors ${
-                !manualReadMode && words.findIndex((w) => w.id === cardWord.id) === selectedIndex
-                  ? "border-[#4ECDC4] bg-[#4ECDC4]/10"
-                  : "border-[#E2E8F0]"
+                words.findIndex((w) => w.id === cardWord.id) === selectedIndex
+                  ? "border-primary bg-primary-soft"
+                  : "border-border"
               }`}
               style={{ minHeight: "min(62vh, calc(100dvh - 13.5rem))" }}
             >
@@ -426,8 +426,8 @@ export default function WordPractice() {
               <div key={word.id} className="shrink-0">
                 <div
                   className={`relative bg-white rounded-xl p-4 pl-5 shadow-sm transition-all border-2 ${
-                    !manualReadMode && index === selectedIndex
-                      ? "bg-[#4ECDC4]/10 border-[#4ECDC4]"
+                    index === selectedIndex
+                      ? "bg-primary-soft border-primary"
                       : "border-transparent"
                   }`}
                 >
