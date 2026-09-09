@@ -343,7 +343,8 @@ export default function WordPractice() {
                 words.findIndex((w) => w.id === cardWord.id) === selectedIndex
                   ? "border-primary bg-primary-soft"
                   : "border-border"
-              }`}
+              } ${manualReadMode ? "cursor-pointer" : ""}`}
+              onClick={manualReadMode ? () => handleWordTap(cardWord) : undefined}
               style={{ minHeight: "min(62vh, calc(100dvh - 13.5rem))" }}
             >
               <p className="pointer-events-none absolute left-0 right-0 top-4 z-10 text-center text-xs text-[#718096]">
@@ -355,7 +356,10 @@ export default function WordPractice() {
                   variant="ghost"
                   size="iconRound"
                   disabled={cardIndex <= 0}
-                  onClick={() => setCardIndex((i) => Math.max(0, i - 1))}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setCardIndex((i) => Math.max(0, i - 1));
+                  }}
                   className="absolute left-2 top-1/2 z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
                 >
                   <ChevronLeft size={24} />
@@ -363,7 +367,10 @@ export default function WordPractice() {
                 <button
                   type="button"
                   className="mx-auto flex w-full max-w-[calc(100%-6.5rem)] cursor-pointer flex-col items-center justify-center px-2 py-10 text-center"
-                  onClick={() => handleWordTap(cardWord)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleWordTap(cardWord);
+                  }}
                 >
                   <div className={PRACTICE_CARD_WORD_CLASS}>{cardWord.word}</div>
                   {renderReveal(cardWord)}
@@ -373,7 +380,10 @@ export default function WordPractice() {
                   variant="ghost"
                   size="iconRound"
                   disabled={cardIndex >= words.length - 1}
-                  onClick={() => setCardIndex((i) => Math.min(words.length - 1, i + 1))}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setCardIndex((i) => Math.min(words.length - 1, i + 1));
+                  }}
                   className="fixed sm:absolute right-2 top-1/2 z-50 sm:z-10 size-11 -translate-y-1/2 bg-muted/90 shadow-sm disabled:opacity-35"
                 >
                   <ChevronRight size={24} />
@@ -429,14 +439,18 @@ export default function WordPractice() {
                     index === selectedIndex
                       ? "bg-primary-soft border-primary"
                       : "border-transparent"
-                  }`}
+                  } ${manualReadMode ? "cursor-pointer" : ""}`}
+                  onClick={manualReadMode ? () => handleWordTap(word) : undefined}
                 >
                   <SequenceNextMark
                     show={!manualReadMode && nextGuideIndex >= 0 && index === nextGuideIndex}
                   />
                   <div className="flex flex-row items-center justify-between gap-2">
                     <div
-                      onClick={() => handleWordTap(word)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleWordTap(word);
+                      }}
                       className="min-w-0 flex-1 cursor-pointer"
                     >
                       <div className="min-w-0">
