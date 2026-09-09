@@ -14,6 +14,7 @@ import (
 	"github.com/LingByte/ling-base/captcha"
 	"github.com/LingByte/ling-base/common"
 	lbconstants "github.com/LingByte/ling-base/common/constants"
+	"github.com/LingByte/ling-base/common/geoip"
 	"github.com/LingByte/ling-base/common/logger"
 	response "github.com/LingByte/ling-base/common/response/gin"
 	"github.com/gin-contrib/sessions"
@@ -72,7 +73,6 @@ type RegisterUserForm struct {
 	DisplayName string `json:"displayName"`
 	FirstName   string `json:"firstName"`
 	LastName    string `json:"lastName"`
-	Locale      string `json:"locale"`
 	Timezone    string `json:"timezone"`
 	Source      string `json:"source"`
 	InviteCode  string `json:"inviteCode,omitempty"`
@@ -103,10 +103,7 @@ type UpdateUserRequest struct {
 	FirstName   string `form:"firstName" json:"firstName"`
 	LastName    string `form:"lastName" json:"lastName"`
 	DisplayName string `form:"displayName" json:"displayName"`
-	Locale      string `form:"locale" json:"locale"`
 	Gender      string `form:"gender" json:"gender"`
-	City        string `form:"city" json:"city"`
-	Region      string `form:"region" json:"region"`
 	Extra       string `form:"extra" json:"extra"`
 	Avatar      string `form:"avatar" json:"avatar"`
 }
@@ -123,12 +120,11 @@ type User struct {
 	LastLogin             *time.Time `json:"lastLogin,omitempty"`
 	LastLoginIP           string     `json:"-" gorm:"size:128"`
 	Source                string     `json:"-" gorm:"size:64;index"`
-	Locale                string     `json:"locale,omitempty" gorm:"size:20"`
 	AuthToken             string     `json:"token,omitempty" gorm:"-"`
 	Avatar                string     `json:"avatar,omitempty"`
 	Gender                string     `json:"gender,omitempty"`
-	City                  string     `json:"city,omitempty"`
-	Region                string     `json:"region,omitempty"`
+	City                  string     `json:"city,omitempty"`   // 由登录 IP 自动更新
+	Region                string     `json:"region,omitempty"` // 由登录 IP 自动更新（geoip location）
 	PhoneVerified         bool       `json:"phoneVerified" gorm:"default:false"`              // 手机已验证
 	LoginCount            int        `json:"loginCount" gorm:"default:0"`                     // 登录次数
 	LastPasswordChange    *time.Time `json:"lastPasswordChange,omitempty"`                    // 最后密码修改时间
@@ -439,14 +435,59 @@ func UpdateUserFields(db *gorm.DB, user *User, vals map[string]any) error {
 
 func SetLastLogin(db *gorm.DB, user *User, lastIp string) error {
 	now := time.Now().Truncate(1 * time.Second)
+	ip := normalizeLoginIP(lastIp)
 	vals := map[string]any{
-		"LastLoginIP": lastIp,
+		"LastLoginIP": ip,
 		"LastLogin":   &now,
 	}
 	user.LastLogin = &now
-	user.LastLoginIP = lastIp
+	user.LastLoginIP = ip
 
-	return db.Model(user).Updates(vals).Error
+	applyLoginLocation(user, vals, ip)
+
+	// 显式 Select，确保内网时能把 city 清空（GORM Updates 默认跳过零值）
+	return db.Model(user).Select("LastLoginIP", "LastLogin", "Region", "City").Updates(vals).Error
+}
+
+func normalizeLoginIP(ip string) string {
+	ip = strings.TrimSpace(ip)
+	ip = strings.TrimPrefix(ip, "[")
+	ip = strings.TrimSuffix(ip, "]")
+	if i := strings.IndexByte(ip, '%'); i >= 0 {
+		ip = ip[:i]
+	}
+	return ip
+}
+
+func isLoopbackOrInternalLoginIP(ip string) bool {
+	if ip == "" || ip == "localhost" || ip == "127.0.0.1" || ip == "::1" || ip == "0:0:0:0:0:0:0:1" {
+		return true
+	}
+	return geoip.IsInternalIP(ip)
+}
+
+func applyLoginLocation(user *User, vals map[string]any, ip string) {
+	const internalRegion = "内网"
+	if isLoopbackOrInternalLoginIP(ip) {
+		vals["Region"] = internalRegion
+		vals["City"] = ""
+		user.Region = internalRegion
+		user.City = ""
+		return
+	}
+
+	_, city, location, err := geoip.GetIPLocation(ip)
+	if err != nil {
+		return
+	}
+	if location != "" && location != geoip.UNKNOWN && location != geoip.LocalNetwork {
+		vals["Region"] = location
+		user.Region = location
+	}
+	if city != "" && city != geoip.UNKNOWN && city != "Local" {
+		vals["City"] = city
+		user.City = city
+	}
 }
 
 func EncodeHashToken(user *User, timestamp int64, useLastlogin bool) (hash string) {
@@ -647,29 +688,11 @@ func UpdateNotificationSettings(db *gorm.DB, user *User, settings map[string]boo
 	return errors.New("notification settings functionality has been disabled")
 }
 
-// UpdatePreferences 更新用户偏好设置
-// 只处理实际使用的字段：locale
+// UpdatePreferences 更新用户偏好设置（保留接口兼容；语言由客户端 localStorage 管理）
 func UpdatePreferences(db *gorm.DB, user *User, preferences map[string]string) error {
-	vals := make(map[string]any)
-
-	if locale, ok := preferences["locale"]; ok {
-		vals["locale"] = locale
-	}
-
-	if len(vals) == 0 {
-		return nil
-	}
-
-	err := UpdateUserFields(db, user, vals)
-	if err != nil {
-		return err
-	}
-
-	// 更新用户对象
-	if locale, ok := preferences["locale"]; ok {
-		user.Locale = locale
-	}
-
+	_ = db
+	_ = user
+	_ = preferences
 	return nil
 }
 
@@ -684,9 +707,7 @@ func CalculateProfileComplete(user *User) int {
 		strings.TrimSpace(user.Phone) != "",
 		strings.TrimSpace(user.Email) != "",
 		strings.TrimSpace(user.Gender) != "",
-		strings.TrimSpace(user.City) != "",
-		strings.TrimSpace(user.Region) != "",
-		strings.TrimSpace(user.Locale) != "",
+		strings.TrimSpace(user.City) != "" || strings.TrimSpace(user.Region) != "",
 	}
 	complete := 0
 	for _, ok := range checks {

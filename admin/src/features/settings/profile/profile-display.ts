@@ -25,11 +25,11 @@ export type ProfileInfo = {
   role?: string
   firstName?: string
   lastName?: string
-  locale?: string
   gender?: string
   city?: string
   region?: string
   lastLogin?: string | null
+  lastLoginIP?: string
   loginCount?: number
   lastStudyDate?: string | null
   createdAt?: string | null
@@ -52,10 +52,24 @@ function filled(value?: string | number | null) {
 }
 
 function location(info: ProfileInfo) {
-  return [info.region, info.city]
-    .map((p) => p?.trim())
-    .filter(Boolean)
-    .join(' · ')
+  const ip = info.lastLoginIP?.trim().toLowerCase() ?? ''
+  if (
+    ip === '::1' ||
+    ip === '127.0.0.1' ||
+    ip === 'localhost' ||
+    ip === '0:0:0:0:0:0:0:1'
+  ) {
+    return '内网'
+  }
+  const region = info.region?.trim()
+  const city = info.city?.trim()
+  if (region === 'Local Network' || region === 'Local' || region === '内网IP') {
+    return '内网'
+  }
+  if (region && city && !region.includes(city)) {
+    return `${region} · ${city}`
+  }
+  return region || city || ''
 }
 
 function fullName(info: ProfileInfo) {
@@ -80,7 +94,6 @@ export function profileFields(info: ProfileInfo | null): ProfileField[] {
     filled(genderLabel[gender] || info.gender)
       ? { label: '性别', value: genderLabel[gender] || info.gender!.trim() }
       : null,
-    filled(info.locale) ? { label: '语言', value: info.locale!.trim() } : null,
     filled(location(info)) ? { label: '地区', value: location(info) } : null,
     { label: '上次登录', value: formatDateTime(info.lastLogin) },
     { label: '登录次数', value: String(info.loginCount ?? 0) },

@@ -43,7 +43,6 @@ describe('profileFields', () => {
       role: 'admin',
       firstName: 'Ce',
       lastName: 'Tide',
-      locale: 'zh-CN',
       gender: 'male',
       city: '杭州',
       region: '浙江',
@@ -55,7 +54,6 @@ describe('profileFields', () => {
     expect(byLabel['邮箱']).toBe('cetide@example.com')
     expect(byLabel['姓名']).toBe('Ce Tide')
     expect(byLabel['性别']).toBe('男')
-    expect(byLabel['语言']).toBe('zh-CN')
     expect(byLabel['地区']).toBe('浙江 · 杭州')
   })
 
