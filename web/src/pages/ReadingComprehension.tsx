@@ -10,7 +10,6 @@ import {
   Typography,
 } from "@arco-design/web-react";
 import { IconLeft, IconPlus } from "@arco-design/web-react/icon";
-import { ReadingAnalysisPanel } from "../components/reading/ReadingAnalysisPanel";
 import {
   ReadingAnswerSheet,
   type QuestionFeedback,
@@ -34,6 +33,8 @@ import {
   ReadingWordsPanel,
   type ReadingWordPreview,
 } from "../components/reading/ReadingWordsPanel";
+import { AnnotationLayer, AnnotationToggleButton } from "../components/AnnotationLayer";
+import { PracticeFlowToolbar } from "../components/PracticeFlowToolbar";
 import {
   checkCustomReadingAnswer,
   getCustomReadingAnalysis,
@@ -92,24 +93,17 @@ const LEVELS: LevelFilter[] = ["", "初阶", "中阶", "高阶"];
 
 type PassageItem = ReadingPassageListItem & { isCustom?: boolean };
 
-function formatElapsed(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
 function phaseToStage(phase: Phase): ReadingStageId {
   switch (phase) {
     case "practice":
       return "answer";
     case "words":
       return "words";
-    case "reanswer":
-      return "reanswer";
-    case "analysis":
-      return "analysis";
     case "study":
       return "study";
+    case "reanswer":
+    case "analysis": // merged into reanswer
+      return "reanswer";
     case "knowledge":
       return "knowledge";
     default:
@@ -148,18 +142,17 @@ export default function ReadingComprehension() {
   const [firstResult, setFirstResult] = useState<ReadingSubmitResult | null>(null);
   const [secondResult, setSecondResult] = useState<ReadingSubmitResult | null>(null);
   const startedAtRef = useRef<number>(Date.now());
-  const listenStartedAtRef = useRef<number>(Date.now());
 
   const [activePara, setActivePara] = useState<number | null>(null);
   const [playingPara, setPlayingPara] = useState<number | null>(null);
   const [loadingPara, setLoadingPara] = useState<number | null>(null);
   const audioCacheRef = useRef<Record<string, string>>({});
-  const [elapsedSec, setElapsedSec] = useState(0);
   const abortPlayRef = useRef<(() => void) | null>(null);
 
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [maxStageIdx, setMaxStageIdx] = useState(0);
+  const [annotationOpen, setAnnotationOpen] = useState(false);
 
   const [preview, setPreview] = useState<ReadingWordPreview | null>(null);
   const [pickedWords, setPickedWords] = useState<ReadingWordPreview[]>([]);
@@ -203,9 +196,8 @@ export default function ReadingComprehension() {
         { id: "listen" as const, label: t("reading.stage_listen") },
         { id: "answer" as const, label: t("reading.stage_answer") },
         { id: "words" as const, label: t("reading.stage_words") },
-        { id: "reanswer" as const, label: t("reading.stage_reanswer") },
-        { id: "analysis" as const, label: t("reading.stage_analysis") },
         { id: "study" as const, label: t("reading.stage_study") },
+        { id: "reanswer" as const, label: t("reading.stage_reanswer") },
         { id: "knowledge" as const, label: t("reading.stage_knowledge") },
         { id: "done" as const, label: t("reading.stage_done") },
       ] satisfies { id: ReadingStageId; label: string }[],
@@ -283,8 +275,11 @@ export default function ReadingComprehension() {
       setMaxStageIdx(snap.maxStageIdx || 0);
       setPickedWords(snap.pickedWords || []);
       startedAtRef.current = snap.startedAt || Date.now();
-      const nextPhase = (snap.phase as Phase) || "words";
-      setPhase(nextPhase === "list" ? "words" : nextPhase);
+      let nextPhase = (snap.phase as Phase) || "words";
+      if (nextPhase === "list") nextPhase = "words";
+      // 旧会话里的「解析」已并入「再答」
+      if (nextPhase === "analysis") nextPhase = "reanswer";
+      setPhase(nextPhase);
       setPreview(null);
       clearReadingSessionSnapshot();
     }
@@ -295,15 +290,6 @@ export default function ReadingComprehension() {
     if (!sessionReady) return;
     if (phase === "list") void loadList();
   }, [sessionReady, phase, loadList]);
-
-  useEffect(() => {
-    if (phase !== "listen") return;
-    setElapsedSec(0);
-    const timer = window.setInterval(() => {
-      setElapsedSec(Math.max(0, Math.floor((Date.now() - listenStartedAtRef.current) / 1000)));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [phase, passage?.id]);
 
   useEffect(() => {
     return () => {
@@ -404,7 +390,6 @@ export default function ReadingComprehension() {
       setStudyItems([]);
       setMaxStageIdx(0);
       startedAtRef.current = Date.now();
-      listenStartedAtRef.current = Date.now();
       setPhase("listen");
       advanceMaxStage("listen");
       advanceMaxStage("answer");
@@ -451,13 +436,6 @@ export default function ReadingComprehension() {
     }
     setPhase("reanswer");
     advanceMaxStage("reanswer");
-  };
-
-  const goToAnalysis = () => {
-    setQuestionIndex(0);
-    setPanelCollapsed(false);
-    setPhase("analysis");
-    advanceMaxStage("analysis");
   };
 
   const buildStudy = async () => {
@@ -637,7 +615,7 @@ export default function ReadingComprehension() {
       const submitted = await submitAnswers("second");
       if (!submitted) return;
     }
-    goToAnalysis();
+    goToKnowledge();
   };
 
   const backToList = () => {
@@ -672,27 +650,22 @@ export default function ReadingComprehension() {
     }
     if (phase === "practice") {
       setPhase("listen");
-      listenStartedAtRef.current = Date.now();
       return;
     }
     if (phase === "words") {
       setPhase("practice");
       return;
     }
-    if (phase === "reanswer") {
+    if (phase === "study") {
       setPhase("words");
       return;
     }
-    if (phase === "analysis") {
-      setPhase("reanswer");
-      return;
-    }
-    if (phase === "study") {
-      setPhase("analysis");
+    if (phase === "reanswer" || phase === "analysis") {
+      setPhase("study");
       return;
     }
     if (phase === "knowledge") {
-      setPhase("study");
+      setPhase("reanswer");
       return;
     }
     backToList();
@@ -705,7 +678,6 @@ export default function ReadingComprehension() {
     }
     if (id === "listen") {
       setPhase("listen");
-      listenStartedAtRef.current = Date.now();
       return;
     }
     if (id === "answer") {
@@ -716,16 +688,12 @@ export default function ReadingComprehension() {
       goToWords();
       return;
     }
+    if (id === "study" && firstResult) {
+      goToStudy();
+      return;
+    }
     if (id === "reanswer" && firstResult) {
       goToReanswer();
-      return;
-    }
-    if (id === "analysis" && secondResult) {
-      goToAnalysis();
-      return;
-    }
-    if (id === "study" && secondResult) {
-      goToStudy();
       return;
     }
     if (id === "knowledge" && secondResult) {
@@ -865,17 +833,14 @@ export default function ReadingComprehension() {
               ? t("reading.answer_sheet_hint")
               : phase === "words"
                 ? t("reading.words_hint")
-                : phase === "analysis"
-                  ? t("reading.analysis_hint")
-                  : phase === "study"
-                    ? t("reading.study_hint")
-                    : phase === "knowledge"
-                      ? t("reading.knowledge_hint")
-                      : t("reading.listen_hint")}
+                : phase === "study"
+                  ? t("reading.study_hint")
+                  : phase === "knowledge"
+                    ? t("reading.knowledge_hint")
+                    : t("reading.listen_hint")}
           </Typography.Text>
         </div>
         <div className="shrink-0 rounded-full bg-[#FFF7ED] border border-[#FED7AA] px-2.5 py-1 text-[11px] font-medium text-[#EA580C]">
-          {phase === "listen" ? `${formatElapsed(elapsedSec)} · ` : null}
           {t("reading.paragraph_count", { count: paragraphs.length })}
         </div>
       </div>
@@ -948,6 +913,15 @@ export default function ReadingComprehension() {
               {answeredCount}/{totalQuestions}
             </Typography.Text>
           )}
+          {inSession && (
+            <div className="flex items-center shrink-0 gap-0.5">
+              <AnnotationToggleButton
+                active={annotationOpen}
+                onClick={() => setAnnotationOpen((v) => !v)}
+              />
+              <PracticeFlowToolbar />
+            </div>
+          )}
         </div>
         {inSession && (
           <ReadingStageRail
@@ -978,6 +952,14 @@ export default function ReadingComprehension() {
           </div>
         )}
       </header>
+
+      {inSession && (
+        <AnnotationLayer
+          storageKey={`reading:${isCustomPassage ? "c" : "s"}:${passage?.id ?? 0}`}
+          open={annotationOpen}
+          onOpenChange={setAnnotationOpen}
+        />
+      )}
 
       {err && (
         <div className="mx-3 mt-3 shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
@@ -1079,19 +1061,17 @@ export default function ReadingComprehension() {
                 ? t("reading.reanswer_sheet_title")
                 : phase === "words"
                   ? t("reading.stage_words")
-                  : phase === "analysis"
-                    ? t("reading.analysis_title", { count: totalQuestions })
-                    : phase === "study"
-                      ? t("reading.study_title")
-                      : t("reading.knowledge_title", { count: knowledgeItems.length })
+                  : phase === "study"
+                    ? t("reading.study_title")
+                    : t("reading.knowledge_title", { count: knowledgeItems.length })
           }
           subtitle={
-            phase === "practice" || phase === "reanswer"
+            phase === "practice"
               ? t("reading.answer_sheet_hint")
-              : phase === "words"
-                ? t("reading.words_hint")
-                : phase === "analysis"
-                  ? t("reading.analysis_sub")
+              : phase === "reanswer"
+                ? t("reading.reanswer_sheet_hint")
+                : phase === "words"
+                  ? t("reading.words_hint")
                   : phase === "study"
                     ? t("reading.study_sub", { count: studyItems.length })
                     : t("reading.knowledge_sub", { count: knowledgeItems.length })
@@ -1154,10 +1134,7 @@ export default function ReadingComprehension() {
                         explanation: res.data.explanation,
                       },
                     }));
-                    const idx = passage.questions.findIndex((q) => q.id === qid);
-                    if (idx >= 0 && idx < passage.questions.length - 1) {
-                      scheduleAdvanceToQuestion(idx + 1, 1400);
-                    }
+                    // 再答+解析：作答后停留当前题，不自动跳转
                   } catch (e: unknown) {
                     const apiMsg =
                       e && typeof e === "object" && "msg" in e
@@ -1170,9 +1147,8 @@ export default function ReadingComprehension() {
               onPrevStep={() => {
                 if (phase === "practice") {
                   setPhase("listen");
-                  listenStartedAtRef.current = Date.now();
                 } else {
-                  setPhase("words");
+                  setPhase("study");
                 }
               }}
               onNextStep={() =>
@@ -1186,6 +1162,7 @@ export default function ReadingComprehension() {
               correctTag={t("reading.correct_tag")}
               yourAnswerLabel={t("reading.your_answer_short")}
               rightAnswerLabel={t("reading.right_answer_short")}
+              ideaTitle={phase === "reanswer" ? t("reading.idea_title") : undefined}
               nextDisabled={!allAnswered}
               nextLoading={submitting}
             />
@@ -1206,7 +1183,7 @@ export default function ReadingComprehension() {
               onSpeak={() => void speakPreview()}
               onCopy={() => void copyPreview()}
               onPrevStep={() => setPhase("practice")}
-              onNextStep={goToReanswer}
+              onNextStep={goToStudy}
               prevLabel={t("reading.prev_step")}
               nextLabel={t("reading.next_step")}
               copyLabel={t("reading.copy_word")}
@@ -1218,40 +1195,12 @@ export default function ReadingComprehension() {
             />
           )}
 
-          {phase === "analysis" && firstResult && secondResult && (
-            <ReadingAnalysisPanel
-              questions={passage.questions}
-              firstDetails={firstResult.details || []}
-              secondDetails={secondResult.details || []}
-              firstScore={firstResult.score}
-              firstCorrect={firstResult.correctCount}
-              secondScore={secondResult.score}
-              secondCorrect={secondResult.correctCount}
-              currentIndex={questionIndex}
-              onSelectIndex={setQuestionIndex}
-              onPrevStep={() => setPhase("reanswer")}
-              onNextStep={goToStudy}
-              prevStepLabel={t("reading.prev_step")}
-              prevQuestionLabel={t("reading.prev_question")}
-              nextQuestionLabel={t("reading.next_question")}
-              nextStepLabel={t("reading.next_step")}
-              initialLabel={t("reading.score_initial")}
-              retryLabel={t("reading.score_retry")}
-              correctLabel={t("reading.correct_tag")}
-              yourFirstLabel={t("reading.your_first_answer")}
-              yourRetryLabel={t("reading.your_retry_answer")}
-              ideaTitle={t("reading.idea_title")}
-              ideaHint={t("reading.idea_hint")}
-              copyLabel={t("reading.copy_word")}
-            />
-          )}
-
           {phase === "study" && (
             <ReadingStudyPanel
               items={studyItems}
               loading={studyLoading}
-              onPrevStep={() => setPhase("analysis")}
-              onNextStep={goToKnowledge}
+              onPrevStep={() => setPhase("words")}
+              onNextStep={goToReanswer}
               prevLabel={t("reading.prev_step")}
               nextLabel={t("reading.next_step")}
               emptyLabel={t("reading.study_empty")}
@@ -1267,7 +1216,7 @@ export default function ReadingComprehension() {
             <ReadingKnowledgePanel
               items={knowledgeItems}
               loading={knowledgeLoading}
-              onPrevStep={() => setPhase("study")}
+              onPrevStep={() => setPhase("reanswer")}
               onFinish={finishSession}
               prevLabel={t("reading.prev_step")}
               finishLabel={t("reading.finish_session")}
