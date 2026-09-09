@@ -45,6 +45,8 @@ export default function ListenIdentify() {
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
+  /** 拓展简易模式：默认开，只展示部分标签 */
+  const [simpleDetail, setSimpleDetail] = useState(true);
 
   const mode = useMemo(() => sessionStorage.getItem("lb_mode") || "study", []);
   const wordBookId = useMemo(() => normalizeSnowflakeId(sessionStorage.getItem("lb_wordbook_id")), []);
@@ -224,6 +226,7 @@ export default function ListenIdentify() {
               wordId={w.id}
               wordText={w.word}
               variant="inline"
+              simpleMode={simpleDetail}
               onClose={() => {}}
             />
           </div>
@@ -373,6 +376,7 @@ export default function ListenIdentify() {
                   wordId={cardWord.id}
                   wordText={cardWord.word}
                   variant="inline"
+                  simpleMode={simpleDetail}
                   onClose={() => {}}
                 />
               </div>
@@ -406,6 +410,17 @@ export default function ListenIdentify() {
                 <BookOpen size={15} />
                 <span className="hidden sm:inline">{t("practice.expand")}</span>
               </CloudButton>
+              {detailMode && (
+                <CloudButton
+                  variant={simpleDetail ? "brand" : "outline"}
+                  size="pill"
+                  onClick={() => setSimpleDetail((v) => !v)}
+                  title={simpleDetail ? t("practice.simple_tip_on") : t("practice.simple_tip_off")}
+                  className="max-sm:px-2 max-sm:text-xs"
+                >
+                  {t("practice.simple")}
+                </CloudButton>
+              )}
               <CloudButton
                 type="button"
                 variant={note.open ? "brand" : "outline"}

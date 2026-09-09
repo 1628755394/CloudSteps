@@ -60,6 +60,8 @@ export default function ReviewWordList() {
   const [viewMode, setViewMode] = useState<WordViewMode>("list");
   const [cardIndex, setCardIndex] = useState(0);
   const [detailMode, setDetailMode] = useState(false);
+  /** 拓展简易模式：默认开，只展示部分标签 */
+  const [simpleDetail, setSimpleDetail] = useState(true);
   const [detailWord, setDetailWord] = useState<{ id: number; word: string } | null>(null);
   const {
     open: globalNoteOpen,
@@ -382,6 +384,7 @@ export default function ReviewWordList() {
               hideStatus={viewOnly}
               amplifyDetail={detailMode}
               onDetailClose={() => setDetailWord(null)}
+              simpleMode={simpleDetail}
               noteStorageKey={(word) => `study-note:word:${wordBookId}:${word.id}`}
             />
           </div>
@@ -471,6 +474,7 @@ export default function ReviewWordList() {
                         wordId={item.id}
                         wordText={item.word}
                         variant="inline"
+                        simpleMode={simpleDetail}
                         onClose={() => setDetailWord(null)}
                       />
                     </div>
@@ -572,6 +576,17 @@ export default function ReviewWordList() {
               <BookOpen size={15} />
               <span className="hidden sm:inline">{t("practice.expand")}</span>
             </CloudButton>
+            {detailMode && (
+              <CloudButton
+                variant={simpleDetail ? "brand" : "outline"}
+                size="pill"
+                onClick={() => setSimpleDetail((v) => !v)}
+                title={simpleDetail ? t("practice.simple_tip_on") : t("practice.simple_tip_off")}
+                className="max-sm:px-2 max-sm:text-xs"
+              >
+                {t("practice.simple")}
+              </CloudButton>
+            )}
           </div>
           {!viewOnly && (
             <>
