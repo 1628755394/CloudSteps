@@ -207,6 +207,12 @@ func buildStudySessionReport(db *gorm.DB, sessions ...*models.StudySession) stud
 		coachName, coachAvatar = studentName, studentAvatar
 	}
 
+	// 词状态挂在学员账号上；陪练课 UserID=老师、StudentID=学员。
+	learnerID := studentUserID
+	if learnerID == 0 {
+		learnerID = session.UserID
+	}
+
 	screenedKnown := 0
 	screenedUnknown := 0
 	wordCount := 0
@@ -261,11 +267,11 @@ func buildStudySessionReport(db *gorm.DB, sessions ...*models.StudySession) stud
 		}
 	}
 
-	// 已学进度：与灯塔一致，只计 learned/mastered（不含 learning 中）
+	// 已学进度：与灯塔一致，只计学员的 learned/mastered（不含 learning 中）
 	var learnedCount int64
 	_ = db.Model(&models.UserWordState{}).
 		Where("user_id = ? AND word_book_id = ? AND learn_status IN ?",
-			session.UserID, session.WordBookID, []string{"learned", "mastered"}).
+			learnerID, session.WordBookID, []string{"learned", "mastered"}).
 		Count(&learnedCount).Error
 
 	// 剩余待学 = 词库总量 − 已学/已掌握（未入状态表的词也算待学）

@@ -86,3 +86,59 @@ func TestBuildStudySessionReport_aggregatesMultipleRounds(t *testing.T) {
 		t.Fatalf("duration=%d want ~40", report.DurationMinutes)
 	}
 }
+
+func TestBuildStudySessionReport_learnedCountUsesStudentNotTeacher(t *testing.T) {
+	db := setupStudyReportDB(t)
+	teacher := &models.User{Username: "t-prog", Role: models.RoleTeacher}
+	student := &models.User{Username: "andy", DisplayName: "Andy", Role: models.RoleStudent}
+	if err := db.Create(teacher).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Create(student).Error; err != nil {
+		t.Fatal(err)
+	}
+	wb := &models.WordBook{Name: "四级必备词汇", WordCount: 4509}
+	if err := db.Create(wb).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now().UTC()
+	for i := 0; i < 10; i++ {
+		st := models.UserWordState{
+			UserID: student.ID, WordBookID: wb.ID, WordID: uint(1000 + i),
+			LearnStatus: "learned", ScreenResult: "unknown",
+		}
+		st.ID = uint(2000 + i)
+		if err := db.Create(&st).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Teacher has no learned words in this book — bug used to count teacher → 0.
+
+	start := now.Add(-2 * time.Minute)
+	end := now
+	session := &models.StudySession{
+		UserID: teacher.ID, StudentID: student.ID, WordBookID: wb.ID,
+		SessionType: "learn", Status: "completed",
+		StartedAt: start, CompletedAt: &end,
+		WordCount: 10, CorrectCount: 10,
+		ScreenedKnownCount: 0, ScreenedUnknownCount: 10,
+	}
+	if err := db.Create(session).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	report := buildStudySessionReport(db, session)
+	if report.StudentName != "Andy" {
+		t.Fatalf("studentName=%q want Andy", report.StudentName)
+	}
+	if report.WordBookWordCount != 4509 {
+		t.Fatalf("wordBookWordCount=%d want 4509", report.WordBookWordCount)
+	}
+	if report.LearnedCount != 10 {
+		t.Fatalf("learnedCount=%d want 10 (must use student word states, not teacher)", report.LearnedCount)
+	}
+	if report.RemainPending != 4509-10 {
+		t.Fatalf("remainPending=%d want %d", report.RemainPending, 4509-10)
+	}
+}
