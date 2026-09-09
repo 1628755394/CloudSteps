@@ -1,7 +1,15 @@
-import { useEffect, useState } from 'react'
-import { Eye, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  BookMarked,
+  Eye,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  Wand2,
+} from 'lucide-react'
 import { toast } from 'sonner'
-import { del, get } from '@/lib/api'
+import { del, get, post } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -23,9 +31,10 @@ import { AdminPage } from '@/components/admin-page'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ReadingPassageDetailSheet } from './detail-sheet'
 import { ReadingPassageFormSheet } from './form-sheet'
-import type { ReadingPassageRow } from './types'
+import type { GenerateAnalysisResult, ReadingPassageRow } from './types'
 
 const LEVELS = ['初阶', '中阶', '高阶'] as const
+const ANALYSIS_TIMEOUT_MS = 180_000
 
 export function ReadingPassagesPage() {
   const [list, setList] = useState<ReadingPassageRow[]>([])
@@ -41,6 +50,10 @@ export function ReadingPassagesPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ReadingPassageRow | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [pageBatching, setPageBatching] = useState(false)
+  const [batchProgress, setBatchProgress] = useState('')
+  const [generatingId, setGeneratingId] = useState<number | null>(null)
+  const abortBatchRef = useRef(false)
   const pageSize = 20
 
   const load = async (nextPage = page) => {
@@ -87,15 +100,122 @@ export function ReadingPassagesPage() {
     }
   }
 
+  const generateOne = async (
+    row: ReadingPassageRow,
+    force = false
+  ): Promise<GenerateAnalysisResult> => {
+    const qs = force ? '?force=1' : ''
+    const res = await post<GenerateAnalysisResult>(
+      `/reading/admin/passages/${row.id}/analysis${qs}`,
+      undefined,
+      { timeout: ANALYSIS_TIMEOUT_MS }
+    )
+    return res.data
+  }
+
+  const markReady = (id: number) => {
+    setList((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, analysisReady: true } : item))
+    )
+  }
+
+  const handleGenerateOne = async (row: ReadingPassageRow, force = false) => {
+    if (generatingId != null || pageBatching) return
+    setGeneratingId(row.id)
+    try {
+      const result = await generateOne(row, force)
+      markReady(row.id)
+      if (result.skipped) {
+        toast.success(`「${row.title}」细学已就绪（跳过）`)
+      } else {
+        toast.success(
+          `「${row.title}」细学已生成（${result.sentenceCount ?? 0} 句）`
+        )
+      }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : '生成细学失败')
+      await load(page)
+    } finally {
+      setGeneratingId(null)
+    }
+  }
+
+  const startPageBatchAnalysis = async () => {
+    if (pageBatching || loading || list.length === 0) return
+    const targets = list.filter((row) => !row.analysisReady)
+    if (targets.length === 0) {
+      toast.message('当前页文章细学均已就绪')
+      return
+    }
+    abortBatchRef.current = false
+    setPageBatching(true)
+    let ok = 0
+    let fail = 0
+    let skipped = 0
+    try {
+      for (let i = 0; i < targets.length; i += 1) {
+        if (abortBatchRef.current) break
+        const row = targets[i]
+        setBatchProgress(`${i + 1}/${targets.length} · ${row.title}`)
+        setGeneratingId(row.id)
+        try {
+          const result = await generateOne(row, false)
+          markReady(row.id)
+          if (result.skipped) skipped += 1
+          else ok += 1
+        } catch {
+          fail += 1
+        }
+      }
+      if (abortBatchRef.current) {
+        toast.message(`已停止：成功 ${ok}，跳过 ${skipped}，失败 ${fail}`)
+      } else {
+        toast.success(`批量完成：成功 ${ok}，跳过 ${skipped}，失败 ${fail}`)
+      }
+      await load(page)
+    } finally {
+      setPageBatching(false)
+      setBatchProgress('')
+      setGeneratingId(null)
+    }
+  }
+
   return (
     <AdminPage
       title='系统阅读理解'
       description={`共 ${total} 篇系统文章。管理官方阅读理解题库。`}
       extra={
-        <Button onClick={() => { setEditing(null); setFormOpen(true) }}>
-          <Plus />
-          新增文章
-        </Button>
+        <div className='flex flex-wrap items-center gap-2'>
+          {pageBatching ? (
+            <Button
+              variant='outline'
+              onClick={() => {
+                abortBatchRef.current = true
+              }}
+            >
+              停止批量
+            </Button>
+          ) : null}
+          <Button
+            variant='outline'
+            disabled={pageBatching || loading || list.length === 0}
+            onClick={() => void startPageBatchAnalysis()}
+          >
+            {pageBatching ? <Loader2 className='animate-spin' /> : <Wand2 />}
+            {pageBatching
+              ? batchProgress || '批量生成细学中…'
+              : '批量生成当前页细学'}
+          </Button>
+          <Button
+            onClick={() => {
+              setEditing(null)
+              setFormOpen(true)
+            }}
+          >
+            <Plus />
+            新增文章
+          </Button>
+        </div>
       }
     >
       <form
@@ -119,7 +239,9 @@ export function ReadingPassagesPage() {
           <SelectContent>
             <SelectItem value='all'>全部等级</SelectItem>
             {LEVELS.map((lv) => (
-              <SelectItem key={lv} value={lv}>{lv}</SelectItem>
+              <SelectItem key={lv} value={lv}>
+                {lv}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -133,7 +255,9 @@ export function ReadingPassagesPage() {
             <SelectItem value='draft'>草稿</SelectItem>
           </SelectContent>
         </Select>
-        <Button type='submit' variant='secondary'>搜索</Button>
+        <Button type='submit' variant='secondary'>
+          搜索
+        </Button>
       </form>
 
       <div className='rounded-md border'>
@@ -145,19 +269,23 @@ export function ReadingPassagesPage() {
               <TableHead>等级</TableHead>
               <TableHead>状态</TableHead>
               <TableHead>词数</TableHead>
+              <TableHead>细学</TableHead>
               <TableHead className='text-right'>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className='h-24 text-center'>
+                <TableCell colSpan={7} className='h-24 text-center'>
                   <Loader2 className='mx-auto size-5 animate-spin' />
                 </TableCell>
               </TableRow>
             ) : list.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className='h-24 text-center text-muted-foreground'>
+                <TableCell
+                  colSpan={7}
+                  className='h-24 text-center text-muted-foreground'
+                >
                   暂无数据
                 </TableCell>
               </TableRow>
@@ -165,18 +293,65 @@ export function ReadingPassagesPage() {
               list.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>{row.id}</TableCell>
-                  <TableCell className='max-w-[240px] truncate font-medium'>{row.title}</TableCell>
+                  <TableCell className='max-w-[240px] truncate font-medium'>
+                    {row.title}
+                  </TableCell>
                   <TableCell>{row.level}</TableCell>
                   <TableCell>{row.status}</TableCell>
                   <TableCell>{row.wordCount ?? 0}</TableCell>
+                  <TableCell>
+                    <span
+                      className={
+                        row.analysisReady
+                          ? 'text-emerald-600'
+                          : 'text-muted-foreground'
+                      }
+                    >
+                      {row.analysisReady ? '已生成' : '未生成'}
+                    </span>
+                  </TableCell>
                   <TableCell className='text-right'>
-                    <Button variant='ghost' size='icon' onClick={() => setDetail(row)}>
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      title={row.analysisReady ? '重新生成细学' : '生成细学'}
+                      disabled={pageBatching || generatingId != null}
+                      onClick={() =>
+                        void handleGenerateOne(row, Boolean(row.analysisReady))
+                      }
+                    >
+                      {generatingId === row.id ? (
+                        <Loader2 className='animate-spin' />
+                      ) : (
+                        <BookMarked />
+                      )}
+                      细学
+                    </Button>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      onClick={() => setDetail(row)}
+                    >
                       <Eye />
                     </Button>
-                    <Button variant='ghost' size='icon' onClick={() => { setEditing(row); setFormOpen(true) }}>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      onClick={() => {
+                        setEditing(row)
+                        setFormOpen(true)
+                      }}
+                    >
                       <Pencil />
                     </Button>
-                    <Button variant='ghost' size='icon' onClick={() => { setDeleteTarget(row); setDeleteOpen(true) }}>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      onClick={() => {
+                        setDeleteTarget(row)
+                        setDeleteOpen(true)
+                      }}
+                    >
                       <Trash2 />
                     </Button>
                   </TableCell>
@@ -188,10 +363,26 @@ export function ReadingPassagesPage() {
       </div>
 
       <div className='mt-4 flex items-center justify-between text-sm text-muted-foreground'>
-        <span>第 {page} 页 · 共 {total} 条</span>
+        <span>
+          第 {page} 页 · 共 {total} 条
+        </span>
         <div className='flex gap-2'>
-          <Button variant='outline' size='sm' disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>上一页</Button>
-          <Button variant='outline' size='sm' disabled={page * pageSize >= total} onClick={() => setPage((p) => p + 1)}>下一页</Button>
+          <Button
+            variant='outline'
+            size='sm'
+            disabled={page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            上一页
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            disabled={page * pageSize >= total}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            下一页
+          </Button>
         </div>
       </div>
 
