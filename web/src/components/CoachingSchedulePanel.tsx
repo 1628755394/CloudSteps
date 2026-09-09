@@ -214,6 +214,7 @@ function layoutDayEvents(
   zIndex: number;
 }> {
   const span = Math.max(1, axisEnd - axisStart);
+  const STACK_OFFSET_PX = 8;
   const raw = items.map((schedule) => {
     const range = scheduleVisualRange(schedule);
     let s = parseHmToMinutes(range.start);
@@ -259,21 +260,14 @@ function layoutDayEvents(
     const group = groupById.get(ev.schedule.id) || { key: String(ev.schedule.id), index: 0, count: 1 };
     const expanded = group.count > 1 && group.key === expandedGroupKey;
     const collapsedHeightPx = Math.max(EVENT_MIN_H, Math.min(normalHeightPx, 72));
-    const heightPx = group.count === 1
-      ? normalHeightPx
-      : expanded
-        ? Math.max(52, Math.min(normalHeightPx, 88))
-        : collapsedHeightPx;
-    const offsetPx = group.count === 1
-      ? 0
-      : expanded
-        ? group.index * Math.min(48, Math.max(32, heightPx * 0.55))
-        : group.index * 8;
+    // 重叠课程始终从同一时间点按固定间距堆叠，避免展开后又按各自时间错开。
+    const heightPx = group.count === 1 ? normalHeightPx : collapsedHeightPx;
+    const offsetPx = group.count === 1 ? 0 : group.index * STACK_OFFSET_PX;
     const collapsedTopPx = ((groupStartByKey.get(group.key) ?? ev.start) - axisStart) / span * axisHeightPx;
 
     return {
       schedule: ev.schedule,
-      topPx: (!expanded && group.count > 1 ? collapsedTopPx : topPx) + offsetPx,
+      topPx: (group.count > 1 ? collapsedTopPx : topPx) + offsetPx,
       heightPx,
       showDetail: group.count === 1 ? normalHeightPx >= 40 : expanded || group.index === 0,
       col: 0,
