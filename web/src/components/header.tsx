@@ -1,4 +1,4 @@
-import { Bell, Menu, X } from "lucide-react";
+import { Bell, BookOpen, Menu, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -102,20 +102,31 @@ export function Header({
           </button>
         </div>
 
-        <CloudButton
-          variant="ghost"
-          size="icon"
-          className="relative size-9 shrink-0 text-muted-foreground hover:text-primary"
-          onClick={() => navigate(NOTIFICATION_PATH)}
-          aria-label={unread > 0 ? t("nav.notifications_unread", { count: unread }) : t("nav.notifications")}
-        >
-          <Bell size={18} />
-          {badgeLabel ? (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-red-500 text-[10px] leading-[1.1rem] text-white font-semibold text-center tabular-nums">
-              {badgeLabel}
-            </span>
-          ) : null}
-        </CloudButton>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <CloudButton
+            variant="ghost"
+            size="icon"
+            className="size-9 text-muted-foreground hover:text-primary"
+            onClick={() => navigate("/guides")}
+            aria-label={t("guides.title")}
+          >
+            <BookOpen size={18} />
+          </CloudButton>
+          <CloudButton
+            variant="ghost"
+            size="icon"
+            className="relative size-9 text-muted-foreground hover:text-primary"
+            onClick={() => navigate(NOTIFICATION_PATH)}
+            aria-label={unread > 0 ? t("nav.notifications_unread", { count: unread }) : t("nav.notifications")}
+          >
+            <Bell size={18} />
+            {badgeLabel ? (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-red-500 text-[10px] leading-[1.1rem] text-white font-semibold text-center tabular-nums">
+                {badgeLabel}
+              </span>
+            ) : null}
+          </CloudButton>
+        </div>
       </div>
     </header>
   );

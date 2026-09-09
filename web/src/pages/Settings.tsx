@@ -79,6 +79,7 @@ const settingOptions = [
 ];
 
 const otherLinks = [
+  { labelKey: "settings.guides", path: "/guides" },
   { labelKey: "settings.about", path: "/about" },
   { labelKey: "settings.terms", path: "/terms" },
   { labelKey: "settings.privacy", path: "/privacy" },

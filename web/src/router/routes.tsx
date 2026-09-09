@@ -42,6 +42,7 @@ import Recharge from "../pages/Recharge";
 import About from "../pages/About";
 import Terms from "../pages/Terms";
 import Privacy from "../pages/Privacy";
+import Guides from "../pages/Guides";
 import { RouteErrorBoundary } from "../components/RouteErrorBoundary";
 import { PublicOnly, RequireAuth, RequireRole } from "../components/AuthGuard";
 import MyStudents from "../pages/MyStudents";
@@ -213,6 +214,14 @@ export const router = createBrowserRouter(
   {
     path: "/about",
     element: <About />,
+  },
+  {
+    path: "/guides",
+    element: (
+      <RequireAuth>
+        <Guides />
+      </RequireAuth>
+    ),
   },
   {
     path: "/terms",
