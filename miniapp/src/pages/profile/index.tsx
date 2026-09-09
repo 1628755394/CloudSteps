@@ -112,9 +112,8 @@ export default function Profile() {
       Boolean(user?.displayName),
       Boolean(user?.avatar),
       Boolean(user?.phone),
-      Boolean(user?.city),
-      Boolean(user?.region),
-      Boolean(user?.locale),
+      Boolean(user?.email),
+      Boolean(user?.city || user?.region),
     ]
     return Math.round((checks.filter(Boolean).length / checks.length) * 100)
   })()

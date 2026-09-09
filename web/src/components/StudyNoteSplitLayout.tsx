@@ -33,24 +33,25 @@ export function StudyNoteSplitLayout({
   return (
     <>
       <div
-        className={`box-border mt-6 min-h-[calc(100dvh-11rem)] w-full ${
+        className={`box-border w-full ${
           split
-            ? "pb-4 lg:flex lg:gap-2 lg:max-w-none lg:px-2"
-            : "pb-20 max-w-2xl lg:max-w-5xl mx-auto px-4"
+            ? "min-h-0 flex-1 lg:flex lg:items-start lg:gap-2 lg:max-w-none lg:px-2 lg:py-2"
+            : "mt-6 pb-20 min-h-[calc(100dvh-11rem)] max-w-2xl lg:max-w-5xl mx-auto px-4"
         }`}
-        style={split ? { height: "calc(100dvh - 3.5rem - 7.5rem)" } : undefined}
       >
         <div
-          className={`${split ? "lg:flex lg:flex-1 lg:min-w-0 lg:flex-col lg:overflow-hidden" : ""} ${
-            split && side === "left" ? "lg:order-2" : ""
-          }`}
+          className={`${
+            split
+              ? "lg:flex-1 lg:min-w-0 lg:max-h-full lg:overflow-y-auto lg:overscroll-contain lg:px-2"
+              : ""
+          } ${split && side === "left" ? "lg:order-2" : ""}`}
         >
           {children}
         </div>
         {split && (
           <>
             <div
-              className={`group hidden lg:flex lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none lg:select-none ${
+              className={`group hidden lg:flex lg:self-stretch lg:items-center lg:justify-center lg:cursor-ew-resize lg:touch-none lg:select-none ${
                 side === "right" ? "lg:order-2" : "lg:order-1"
               }`}
               style={{ width: "10px", flexShrink: 0 }}
@@ -61,7 +62,9 @@ export function StudyNoteSplitLayout({
               <span className="h-16 w-1 rounded-full bg-[#A0AEC0]/30 transition-all group-hover:w-1.5 group-hover:bg-[#4ECDC4]/60" />
             </div>
             <div
-              className={`lg:flex lg:flex-col ${side === "right" ? "lg:order-3" : "lg:order-1"}`}
+              className={`lg:flex lg:flex-col lg:self-stretch lg:min-h-0 lg:h-full ${
+                side === "right" ? "lg:order-3" : "lg:order-1"
+              }`}
               style={{ width: `${width}px`, flexShrink: 0 }}
             >
               <StudyNotePanel

@@ -37,8 +37,11 @@ const LOCKED_PREFIXES = [
   "/review-check",
 ];
 
-/** 上课定时仅在这些路由展示；离开至区外且计时中 → 确认后结束定时 */
-export const TIMER_ZONE_PREFIXES = LOCKED_PREFIXES;
+/** 上课定时展示区：练习锁页 + 阅读理解等 */
+export const TIMER_ZONE_PREFIXES = [
+  ...LOCKED_PREFIXES,
+  "/reading-comprehension",
+];
 
 export function isPracticeLockedPath(pathname: string): boolean {
   return LOCKED_PREFIXES.some(
@@ -47,7 +50,9 @@ export function isPracticeLockedPath(pathname: string): boolean {
 }
 
 export function isTimerZonePath(pathname: string): boolean {
-  return isPracticeLockedPath(pathname);
+  return TIMER_ZONE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
 }
 
 export function allowPracticeLeaveOnce() {

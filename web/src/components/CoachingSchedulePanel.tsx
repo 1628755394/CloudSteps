@@ -116,6 +116,33 @@ const PAST_SOFT = {
   bar: "bg-primary/40",
 };
 
+/** ISO → 本地 HH:mm；无效则 null */
+function hmFromIso(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/**
+ * 课表展示时段：已完课优先用 session 实际起止；进行中练习用实际开始+计划结束；否则用排课计划。
+ */
+function scheduleVisualRange(schedule: CoachingWeekSchedule): { start: string; end: string } {
+  const plannedStart = schedule.startTime?.slice(0, 5) || "";
+  const plannedEnd = schedule.endTime?.slice(0, 5) || "";
+  const sess = schedule.session;
+  const actualStart = hmFromIso(sess?.startedAt);
+  const actualEnd = hmFromIso(sess?.endedAt);
+
+  if (schedule.status === "completed" && actualStart) {
+    return { start: actualStart, end: actualEnd || plannedEnd || actualStart };
+  }
+  if (schedule.status === "in_progress" && actualStart) {
+    return { start: actualStart, end: plannedEnd || actualStart };
+  }
+  return { start: plannedStart, end: plannedEnd };
+}
+
 /** 计划时段已结束（不含进行中） */
 function isSchedulePast(schedule: CoachingWeekSchedule, nowTs: number): boolean {
   if (schedule.status === "in_progress") return false;
@@ -188,8 +215,9 @@ function layoutDayEvents(
 }> {
   const span = Math.max(1, axisEnd - axisStart);
   const raw = items.map((schedule) => {
-    let s = parseHmToMinutes(schedule.startTime);
-    let e = parseEndMinutes(schedule.endTime);
+    const range = scheduleVisualRange(schedule);
+    let s = parseHmToMinutes(range.start);
+    let e = parseEndMinutes(range.end);
     if (e <= s) e = s + 30;
     s = Math.max(axisStart, Math.min(s, axisEnd - 5));
     e = Math.max(s + 15, Math.min(e, axisEnd));
@@ -294,8 +322,9 @@ function TimetableBlock({
     : STATUS_SOFT[schedule.status] || STATUS_SOFT.scheduled;
   const { title, subtitle } = lessonDisplay(t, schedule);
   const studentName = subtitle || (schedule.students?.[0]?.trim() ?? "");
-  const start = schedule.startTime?.slice(0, 5) || "";
-  const end = schedule.endTime?.slice(0, 5) || "";
+  const range = scheduleVisualRange(schedule);
+  const start = range.start;
+  const end = range.end;
   const widthPct = 100 / colCount;
   const leftPct = col * widthPct;
 
@@ -1072,7 +1101,14 @@ export function CoachingSchedulePanel({ nowTs, mode = "coach" }: Props) {
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
                       {selected.scheduledDate?.slice?.(0, 10) || selected.scheduledDate} ·{" "}
-                      {selected.startTime}–{selected.endTime}
+                      {(() => {
+                        const r = scheduleVisualRange(selected);
+                        return `${r.start}–${r.end}`;
+                      })()}
+                      {selected.source === "practice" ||
+                      selected.notes?.toLowerCase() === "practice"
+                        ? ` · ${t("coach_sessions.source_practice")}`
+                        : ""}
                     </p>
                   </div>
                   <button

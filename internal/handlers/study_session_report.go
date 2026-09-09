@@ -64,17 +64,104 @@ func (h *Handlers) loadStudySessionForReport(c *gin.Context) (*gorm.DB, *models.
 		response.FailI18n(c, "coaching.session_not_found", err)
 		return nil, nil, nil, false
 	}
-	if session.UserID != user.ID {
-		tid := coachingCoachingTeacherID(c)
-		if tid == 0 || coachingTeacherHasStudentPair(db, tid, session.UserID) != nil {
-			response.FailI18n(c, "coaching.no_session_access", nil)
-			return nil, nil, nil, false
-		}
+	if !studySessionReportAccessible(db, c, user, &session) {
+		response.FailI18n(c, "coaching.no_session_access", nil)
+		return nil, nil, nil, false
 	}
 	return db, user, &session, true
 }
 
-func buildStudySessionReport(db *gorm.DB, session *models.StudySession) studySessionReportDTO {
+func studySessionReportAccessible(db *gorm.DB, c *gin.Context, user *models.User, session *models.StudySession) bool {
+	if session == nil || user == nil {
+		return false
+	}
+	if session.UserID == user.ID {
+		return true
+	}
+	tid := coachingCoachingTeacherID(c)
+	if tid == 0 {
+		return false
+	}
+	return coachingTeacherHasStudentPair(db, tid, session.UserID) == nil
+}
+
+// parseReportSessionIDs 解析 ?sessionIds=a,b 多轮会话 id，始终包含 path 主键。
+func parseReportSessionIDs(c *gin.Context, primaryID uint) []uint {
+	seen := map[uint]struct{}{primaryID: {}}
+	ids := []uint{primaryID}
+	raw := strings.TrimSpace(c.Query("sessionIds"))
+	if raw == "" {
+		raw = strings.TrimSpace(c.Query("ids"))
+	}
+	if raw == "" {
+		return ids
+	}
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		v, err := strconv.ParseUint(part, 10, 64)
+		if err != nil || v == 0 {
+			continue
+		}
+		id := uint(v)
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func (h *Handlers) loadStudySessionsForReport(c *gin.Context) (*gorm.DB, *models.User, []*models.StudySession, bool) {
+	db, user, primary, ok := h.loadStudySessionForReport(c)
+	if !ok {
+		return nil, nil, nil, false
+	}
+	wantIDs := parseReportSessionIDs(c, primary.ID)
+	if len(wantIDs) == 1 {
+		return db, user, []*models.StudySession{primary}, true
+	}
+	var rows []models.StudySession
+	if err := db.Where("id IN ?", wantIDs).Find(&rows).Error; err != nil {
+		response.FailI18n(c, "coaching.session_not_found", err)
+		return nil, nil, nil, false
+	}
+	byID := make(map[uint]*models.StudySession, len(rows))
+	for i := range rows {
+		byID[rows[i].ID] = &rows[i]
+	}
+	out := make([]*models.StudySession, 0, len(wantIDs))
+	for _, id := range wantIDs {
+		s := byID[id]
+		if s == nil {
+			response.FailI18n(c, "coaching.session_not_found", nil)
+			return nil, nil, nil, false
+		}
+		if !studySessionReportAccessible(db, c, user, s) {
+			response.FailI18n(c, "coaching.no_session_access", nil)
+			return nil, nil, nil, false
+		}
+		// 仅聚合同词库、同学员（或同自练）的轮次，避免误拼无关会话
+		if s.WordBookID != primary.WordBookID || s.StudentID != primary.StudentID || s.UserID != primary.UserID {
+			continue
+		}
+		out = append(out, s)
+	}
+	if len(out) == 0 {
+		out = []*models.StudySession{primary}
+	}
+	return db, user, out, true
+}
+
+func buildStudySessionReport(db *gorm.DB, sessions ...*models.StudySession) studySessionReportDTO {
+	if len(sessions) == 0 || sessions[0] == nil {
+		return studySessionReportDTO{}
+	}
+	session := sessions[0]
+
 	wbName := ""
 	var wordBookWordCount int64
 	var wb models.WordBook
@@ -120,24 +207,55 @@ func buildStudySessionReport(db *gorm.DB, session *models.StudySession) studySes
 		coachName, coachAvatar = studentName, studentAvatar
 	}
 
+	// 词状态挂在学员账号上；陪练课 UserID=老师、StudentID=学员。
+	learnerID := studentUserID
+	if learnerID == 0 {
+		learnerID = session.UserID
+	}
+
+	screenedKnown := 0
+	screenedUnknown := 0
+	wordCount := 0
+	correctCount := 0
+	startedAt := session.StartedAt.UTC()
+	var completedAtPtr *time.Time
+	for _, s := range sessions {
+		if s == nil {
+			continue
+		}
+		screenedKnown += s.ScreenedKnownCount
+		screenedUnknown += s.ScreenedUnknownCount
+		wordCount += s.WordCount
+		correctCount += s.CorrectCount
+		if s.StartedAt.UTC().Before(startedAt) {
+			startedAt = s.StartedAt.UTC()
+		}
+		if s.CompletedAt != nil {
+			ct := s.CompletedAt.UTC()
+			if completedAtPtr == nil || ct.After(*completedAtPtr) {
+				completedAtPtr = &ct
+			}
+		}
+	}
+
 	end := time.Now().UTC()
 	completedAt := ""
-	if session.CompletedAt != nil {
-		end = session.CompletedAt.UTC()
-		completedAt = session.CompletedAt.UTC().Format(time.RFC3339)
+	if completedAtPtr != nil {
+		end = *completedAtPtr
+		completedAt = completedAtPtr.Format(time.RFC3339)
 	}
-	durMin := int(end.Sub(session.StartedAt.UTC()).Minutes() + 0.5)
+	durMin := int(end.Sub(startedAt).Minutes() + 0.5)
 	if durMin < 0 {
 		durMin = 0
 	}
 
-	forgot := session.WordCount - session.CorrectCount
+	forgot := wordCount - correctCount
 	if forgot < 0 {
 		forgot = 0
 	}
 	acc := 0.0
-	if session.WordCount > 0 {
-		acc = float64(session.CorrectCount) * 100 / float64(session.WordCount)
+	if wordCount > 0 {
+		acc = float64(correctCount) * 100 / float64(wordCount)
 	}
 
 	var remain int64
@@ -149,11 +267,11 @@ func buildStudySessionReport(db *gorm.DB, session *models.StudySession) studySes
 		}
 	}
 
-	// 已学进度：与灯塔一致，只计 learned/mastered（不含 learning 中）
+	// 已学进度：与灯塔一致，只计学员的 learned/mastered（不含 learning 中）
 	var learnedCount int64
 	_ = db.Model(&models.UserWordState{}).
 		Where("user_id = ? AND word_book_id = ? AND learn_status IN ?",
-			session.UserID, session.WordBookID, []string{"learned", "mastered"}).
+			learnerID, session.WordBookID, []string{"learned", "mastered"}).
 		Count(&learnedCount).Error
 
 	// 剩余待学 = 词库总量 − 已学/已掌握（未入状态表的词也算待学）
@@ -177,8 +295,13 @@ func buildStudySessionReport(db *gorm.DB, session *models.StudySession) studySes
 		}
 	}
 
-	studiedWords := loadSessionWordLabels(db, session, sessionWordFilterAll, 0)
-	forgotWords := loadSessionWordLabels(db, session, sessionWordFilterForgot, 0)
+	studiedWords := loadSessionWordLabelsMulti(db, sessions, sessionWordFilterAll, 0)
+	forgotWords := loadSessionWordLabelsMulti(db, sessions, sessionWordFilterForgot, 0)
+
+	reportSummary := ""
+	if len(sessions) == 1 {
+		reportSummary = strings.TrimSpace(session.ReportSummary)
+	}
 
 	return studySessionReportDTO{
 		SessionID:            fmt.Sprintf("%d", session.ID),
@@ -189,13 +312,13 @@ func buildStudySessionReport(db *gorm.DB, session *models.StudySession) studySes
 		CoachName:            coachName,
 		CoachAvatar:          coachAvatar,
 		Status:               session.Status,
-		StartedAt:            session.StartedAt.UTC().Format(time.RFC3339),
+		StartedAt:            startedAt.Format(time.RFC3339),
 		CompletedAt:          completedAt,
 		DurationMinutes:      durMin,
-		ScreenedKnownCount:   session.ScreenedKnownCount,
-		ScreenedUnknownCount: session.ScreenedUnknownCount,
-		WordCount:            session.WordCount,
-		CorrectCount:         session.CorrectCount,
+		ScreenedKnownCount:   screenedKnown,
+		ScreenedUnknownCount: screenedUnknown,
+		WordCount:            wordCount,
+		CorrectCount:         correctCount,
 		ForgotCount:          forgot,
 		AccuracyPercent:      acc,
 		RemainPending:        remain,
@@ -205,7 +328,7 @@ func buildStudySessionReport(db *gorm.DB, session *models.StudySession) studySes
 		RemainingLessons:     remainingLessons,
 		ForgotWords:          forgotWords,
 		StudiedWords:         studiedWords,
-		ReportSummary:        strings.TrimSpace(session.ReportSummary),
+		ReportSummary:        reportSummary,
 		AIAvailable:          llm.FromGlobal().Enabled(),
 	}
 }
@@ -223,7 +346,23 @@ func loadSessionForgotWordLabels(db *gorm.DB, session *models.StudySession) []st
 }
 
 func loadSessionWordLabels(db *gorm.DB, session *models.StudySession, filter sessionWordFilter, limit int) []string {
-	q := db.Where("session_id = ?", session.ID)
+	return loadSessionWordLabelsMulti(db, []*models.StudySession{session}, filter, limit)
+}
+
+func loadSessionWordLabelsMulti(db *gorm.DB, sessions []*models.StudySession, filter sessionWordFilter, limit int) []string {
+	if len(sessions) == 0 || sessions[0] == nil {
+		return nil
+	}
+	sessionIDs := make([]uint, 0, len(sessions))
+	for _, s := range sessions {
+		if s != nil && s.ID > 0 {
+			sessionIDs = append(sessionIDs, s.ID)
+		}
+	}
+	if len(sessionIDs) == 0 {
+		return nil
+	}
+	q := db.Where("session_id IN ?", sessionIDs)
 	switch filter {
 	case sessionWordFilterForgot:
 		q = q.Where("remembered = ?", false)
@@ -236,12 +375,17 @@ func loadSessionWordLabels(db *gorm.DB, session *models.StudySession, filter ses
 		return nil
 	}
 	ids := make([]uint, 0, len(sessionWords))
+	seenWord := map[uint]struct{}{}
 	for _, sw := range sessionWords {
+		if _, ok := seenWord[sw.WordID]; ok {
+			continue
+		}
+		seenWord[sw.WordID] = struct{}{}
 		ids = append(ids, sw.WordID)
 	}
 	var words []models.WordLite
 	_ = db.Where("id IN ?", ids).Find(&words).Error
-	models.OverlayWordLites(db, session.UserID, words)
+	models.OverlayWordLites(db, sessions[0].UserID, words)
 	byID := make(map[uint]models.WordLite, len(words))
 	for _, w := range words {
 		byID[w.ID] = w
@@ -253,6 +397,7 @@ func loadSessionWordLabels(db *gorm.DB, session *models.StudySession, filter ses
 		}
 	}
 	out := make([]string, 0, len(sessionWords))
+	seenLabel := map[string]struct{}{}
 	for _, sw := range sessionWords {
 		w, ok := byID[sw.WordID]
 		if !ok || strings.TrimSpace(w.Word) == "" {
@@ -262,16 +407,22 @@ func loadSessionWordLabels(db *gorm.DB, session *models.StudySession, filter ses
 		if gloss == "" {
 			gloss = models.FormatTranslationShort(w.Translation)
 		}
+		var label string
 		if gloss != "" {
 			pos := abbreviatePartOfSpeech(w.PartOfSpeech)
 			if pos != "" && !strings.HasPrefix(strings.ToLower(gloss), strings.ToLower(pos)) {
-				out = append(out, fmt.Sprintf("%s  %s %s", w.Word, pos, gloss))
+				label = fmt.Sprintf("%s  %s %s", w.Word, pos, gloss)
 			} else {
-				out = append(out, fmt.Sprintf("%s  %s", w.Word, gloss))
+				label = fmt.Sprintf("%s  %s", w.Word, gloss)
 			}
 		} else {
-			out = append(out, w.Word)
+			label = w.Word
 		}
+		if _, ok := seenLabel[label]; ok {
+			continue
+		}
+		seenLabel[label] = struct{}{}
+		out = append(out, label)
 		if len(out) >= limit {
 			break
 		}
@@ -390,11 +541,11 @@ func isCurrentSessionReportFormat(text string) bool {
 
 // handleStudySessionReport GET /study/session/:id/report
 func (h *Handlers) handleStudySessionReport(c *gin.Context) {
-	db, _, session, ok := h.loadStudySessionForReport(c)
+	db, _, sessions, ok := h.loadStudySessionsForReport(c)
 	if !ok {
 		return
 	}
-	report := buildStudySessionReport(db, session)
+	report := buildStudySessionReport(db, sessions...)
 	if report.ReportSummary != "" && !isCurrentSessionReportFormat(report.ReportSummary) {
 		report.ReportSummary = ""
 	}
@@ -404,11 +555,12 @@ func (h *Handlers) handleStudySessionReport(c *gin.Context) {
 // handleStudySessionReportStream GET /study/session/:id/report/stream
 // SSE: data JSON lines {"type":"delta"|"done"|"error"|"cached","text":"..."}
 func (h *Handlers) handleStudySessionReportStream(c *gin.Context) {
-	db, _, session, ok := h.loadStudySessionForReport(c)
+	db, _, sessions, ok := h.loadStudySessionsForReport(c)
 	if !ok {
 		return
 	}
-	report := buildStudySessionReport(db, session)
+	primary := sessions[0]
+	report := buildStudySessionReport(db, sessions...)
 
 	flusher, canFlush := c.Writer.(http.Flusher)
 	c.Header("Content-Type", "text/event-stream")
@@ -459,6 +611,6 @@ func (h *Handlers) handleStudySessionReportStream(c *gin.Context) {
 		return
 	}
 
-	_ = db.Model(session).Update("report_summary", full).Error
+	_ = db.Model(primary).Update("report_summary", full).Error
 	writeSSE(map[string]string{"type": "done", "text": full})
 }

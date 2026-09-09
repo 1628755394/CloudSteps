@@ -23,8 +23,6 @@ export default function ProfileEdit() {
   const [displayName, setDisplayName] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState("");
-  const [region, setRegion] = useState("");
-  const [city, setCity] = useState("");
   const [timezone, setTimezone] = useState("");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
@@ -34,6 +32,13 @@ export default function ProfileEdit() {
 
   const avatarUrl = teacherAvatarSrc(avatarPreview || user?.avatar);
 
+  const locationText = useMemo(() => {
+    const region = user?.region?.trim();
+    const city = user?.city?.trim();
+    if (region && city && !region.includes(city)) return `${region} · ${city}`;
+    return region || city || "";
+  }, [user?.region, user?.city]);
+
   const profileComplete = useMemo(() => {
     if (typeof user?.profileComplete === "number") return user.profileComplete;
     // 本地兜底（刷新前）：与后端计分项一致
@@ -41,14 +46,13 @@ export default function ProfileEdit() {
       Boolean(displayName.trim() || user?.displayName),
       Boolean(avatarPreview || user?.avatar),
       Boolean(phone.trim() || user?.phone),
+      Boolean(user?.email),
       Boolean(gender.trim() || user?.gender),
-      Boolean(city.trim() || user?.city),
-      Boolean(region.trim() || user?.region),
-      Boolean(user?.locale),
+      Boolean(locationText),
     ];
     const n = checks.filter(Boolean).length;
     return Math.round((n / checks.length) * 100);
-  }, [user, displayName, avatarPreview, phone, gender, city, region]);
+  }, [user, displayName, avatarPreview, phone, gender, locationText]);
 
   const stats = useMemo(() => {
     return [
@@ -65,8 +69,6 @@ export default function ProfileEdit() {
     setDisplayName(user?.displayName ?? "");
     setPhone(user?.phone ?? "");
     setGender(user?.gender ?? "");
-    setRegion(user?.region ?? "");
-    setCity(user?.city ?? "");
     setTimezone(user?.timezone ?? "");
   }, [user]);
 
@@ -156,8 +158,6 @@ export default function ProfileEdit() {
         displayName: displayName.trim(),
         phone: phone.trim(),
         gender: gender.trim(),
-        region: region.trim(),
-        city: city.trim(),
         timezone: timezone.trim(),
       });
 
@@ -299,24 +299,12 @@ export default function ProfileEdit() {
             sheetTitle={t("profile_edit.select_timezone_title")}
           />
 
-          <div>
+          <div className="sm:col-span-2">
             <label className="text-xs font-medium text-charcoal mb-1 block">{t("profile_edit.region")}</label>
-            <input
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              placeholder={t("profile_edit.region_placeholder")}
-              className={fieldClass}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-charcoal mb-1 block">{t("profile_edit.city")}</label>
-            <input
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder={t("profile_edit.city_placeholder")}
-              className={fieldClass}
-            />
+            <div className={`${fieldClass} bg-muted/40 text-muted-foreground cursor-default`}>
+              {locationText || t("profile_edit.region_from_ip")}
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">{t("profile_edit.region_from_ip_hint")}</p>
           </div>
         </div>
 

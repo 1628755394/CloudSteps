@@ -34,6 +34,7 @@ type Props = {
   correctTag: string;
   yourAnswerLabel: string;
   rightAnswerLabel: string;
+  ideaTitle?: string;
   nextDisabled?: boolean;
   nextLoading?: boolean;
 };
@@ -77,6 +78,7 @@ export function ReadingAnswerSheet({
   correctTag,
   yourAnswerLabel,
   rightAnswerLabel,
+  ideaTitle,
   nextDisabled,
   nextLoading,
 }: Props) {
@@ -188,7 +190,12 @@ export function ReadingAnswerSheet({
                 </p>
               ) : null}
               {revealAnswer && fb.explanation ? (
-                <p className="mt-1.5 text-[#475569] whitespace-pre-line">{fb.explanation}</p>
+                <div className="mt-2 rounded-lg border border-[var(--primary)]/20 bg-white/70 px-2.5 py-2">
+                  <p className="text-[11px] font-semibold text-[var(--primary-deep)]">
+                    {ideaTitle || "解题思路"}
+                  </p>
+                  <p className="mt-1 text-[#475569] whitespace-pre-line">{fb.explanation}</p>
+                </div>
               ) : null}
             </div>
           ) : null}

@@ -16,7 +16,6 @@ export interface RegisterUserForm extends CaptchaFields {
   displayName?: string
   firstName?: string
   lastName?: string
-  locale?: string
   timezone?: string
   source?: string
   inviteCode?: string
@@ -32,7 +31,6 @@ export interface EmailRegisterForm extends CaptchaFields {
   username?: string
   firstName?: string
   lastName?: string
-  locale?: string
   timezone?: string
   source?: string
   inviteCode?: string
@@ -152,7 +150,6 @@ export interface User {
   city?: string
   region?: string
   extra?: string
-  locale?: string
   timezone: string
   avatar?: string
   role?: 'user' | 'admin'
@@ -218,11 +215,8 @@ export interface UpdateUserRequest {
   firstName?: string
   lastName?: string
   displayName?: string
-  locale?: string
   timezone?: string
   gender?: string
-  city?: string
-  region?: string
   extra?: string
   avatar?: string
 }

@@ -3,10 +3,10 @@ import { cn } from "../../utils/cn";
 import {
   Check,
   CheckCircle2,
-  Eye,
   Headphones,
   Lightbulb,
   ListChecks,
+  BookMarked,
   RefreshCw,
   Search,
 } from "lucide-react";
@@ -15,18 +15,20 @@ export type ReadingStageId =
   | "listen"
   | "answer"
   | "words"
+  | "study"
   | "reanswer"
-  | "analysis"
   | "knowledge"
-  | "done";
+  | "done"
+  /** @deprecated kept for session restore mapping */
+  | "analysis";
 
-/** Active stages (细学 removed). */
+/** Active stages: 细学 before 再答; 解析 merged into 再答. */
 export const READING_ACTIVE_STAGES: ReadingStageId[] = [
   "listen",
   "answer",
   "words",
+  "study",
   "reanswer",
-  "analysis",
   "knowledge",
   "done",
 ];
@@ -37,10 +39,11 @@ const STAGE_ICONS: Record<ReadingStageId, ReactNode> = {
   listen: <Headphones size={14} />,
   answer: <ListChecks size={14} />,
   words: <Search size={14} />,
+  study: <BookMarked size={14} />,
   reanswer: <RefreshCw size={14} />,
-  analysis: <Eye size={14} />,
   knowledge: <Lightbulb size={14} />,
   done: <CheckCircle2 size={14} />,
+  analysis: <RefreshCw size={14} />,
 };
 
 type Props = {
@@ -62,6 +65,7 @@ export function ReadingStageRail({
 }: Props) {
   const unlockedSet = new Set(unlocked);
   const completedSet = new Set(completed);
+  const visible = stages.filter((s) => s.id !== "analysis");
 
   return (
     <nav
@@ -71,7 +75,7 @@ export function ReadingStageRail({
       )}
       aria-label="reading stages"
     >
-      {stages.map((stage, idx) => {
+      {visible.map((stage, idx) => {
         const isCurrent = stage.id === current;
         const isUnlocked = unlockedSet.has(stage.id);
         const isDone = completedSet.has(stage.id) && !isCurrent;
@@ -82,7 +86,7 @@ export function ReadingStageRail({
               <div
                 className={cn(
                   "h-px w-4 sm:w-6 mx-0.5",
-                  isDone || isCurrent || unlockedSet.has(stages[idx - 1]?.id)
+                  isDone || isCurrent || unlockedSet.has(visible[idx - 1]?.id)
                     ? "bg-[var(--primary)]/40"
                     : "bg-[#E2E8F0]"
                 )}

@@ -242,6 +242,8 @@
   "reading.no_questions": "该文章暂无题目",
   "reading.knowledge_llm_unavailable": "知识点生成服务未配置，请稍后重试",
   "reading.knowledge_generate_failed": "知识点生成失败，请稍后重试",
+  "reading.analysis_llm_unavailable": "逐句解析服务未配置，请稍后重试",
+  "reading.analysis_generate_failed": "逐句解析生成失败，请稍后重试",
   "reading.import_too_many": "单次最多导入 20 篇",
   "reading.import_parse_failed": "文本格式解析失败，请检查模板",
   "reading.save_question_failed": "保存题目失败",

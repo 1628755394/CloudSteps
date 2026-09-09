@@ -1,7 +1,7 @@
 import { Copy, Download, Loader2 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { CloudButton, CloudImageWithFallback } from "../components/cloudsteps";
 import {
@@ -111,6 +111,16 @@ export default function SessionReport() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { sessionId = "" } = useParams<{ sessionId: string }>();
+  const [searchParams] = useSearchParams();
+  const roundSessionIds = useMemo(() => {
+    const raw = searchParams.get("sessionIds") || searchParams.get("ids") || "";
+    const parts = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sessionId && !parts.includes(sessionId)) parts.unshift(sessionId);
+    return parts;
+  }, [searchParams, sessionId]);
   const [report, setReport] = useState<StudySessionReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [noteTarget, setNoteTarget] = useState("");
@@ -136,7 +146,9 @@ export default function SessionReport() {
     (async () => {
       setLoading(true);
       try {
-        const res = await getStudySessionReport(sessionId);
+        const res = await getStudySessionReport(sessionId, {
+          sessionIds: roundSessionIds,
+        });
         if (cancelled) return;
         if (res.code !== 200 || !res.data) {
           throw new Error(formatApiMessage(res.msg, "session_report.load_failed"));
@@ -162,7 +174,7 @@ export default function SessionReport() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, t]);
+  }, [sessionId, roundSessionIds, t]);
 
   useEffect(() => {
     if (!report || !sessionId) return;
@@ -195,7 +207,8 @@ export default function SessionReport() {
           setNoteTarget((prev) => prev.trim() || buildCoachFallback(report, t));
         },
       },
-      ac.signal
+      ac.signal,
+      { sessionIds: roundSessionIds }
     ).catch(() => {
       if (!ac.signal.aborted) {
         setAiError("ai_generate_failed");
@@ -208,7 +221,7 @@ export default function SessionReport() {
       ac.abort();
       abortRef.current = null;
     };
-  }, [report, sessionId, t]);
+  }, [report, sessionId, roundSessionIds, t]);
 
   useEffect(() => {
     const targetChars = Array.from(noteTarget);

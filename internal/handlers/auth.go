@@ -533,7 +533,6 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 		"DisplayName",
 		"FirstName",
 		"LastName",
-		"Locale",
 		"Source"})
 
 	n := time.Now().Truncate(1 * time.Second)
@@ -543,7 +542,6 @@ func (h *Handlers) handleUserSignup(c *gin.Context) {
 	user.DisplayName = form.DisplayName
 	user.FirstName = form.FirstName
 	user.LastName = form.LastName
-	user.Locale = form.Locale
 	user.Source = "ADMIN"
 	user.LastLogin = &n
 	user.LastLoginIP = c.ClientIP()
@@ -680,7 +678,6 @@ func (h *Handlers) handleUserSignupByEmail(c *gin.Context) {
 		"DisplayName",
 		"FirstName",
 		"LastName",
-		"Locale",
 		"Source"})
 	user.Source = strings.TrimSpace(form.Source)
 	if user.Source == "" {
@@ -729,9 +726,6 @@ func (h *Handlers) handleUserUpdate(c *gin.Context) {
 	if req.DisplayName != "" {
 		vals["display_name"] = req.DisplayName
 	}
-	if req.Locale != "" {
-		vals["locale"] = req.Locale
-	}
 	if req.Gender != "" {
 		vals["gender"] = req.Gender
 	}
@@ -740,12 +734,6 @@ func (h *Handlers) handleUserUpdate(c *gin.Context) {
 	}
 	if req.Avatar != "" {
 		vals["avatar"] = req.Avatar
-	}
-	if req.City != "" {
-		vals["city"] = req.City
-	}
-	if req.Region != "" {
-		vals["region"] = req.Region
 	}
 
 	err := models.UpdateUser(h.db, user, vals)
@@ -1471,7 +1459,7 @@ func (h *Handlers) registerAdminUserRoutes(r *humax.Group) {
 	}
 }
 
-// GET /users?page=1&pageSize=20&search=&role=&enabled=
+// GET /users?page=1&pageSize=20&search=&role=&sortBy=lastLogin|loginCount|createdAt&sortOrder=asc|desc
 func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 
@@ -1480,6 +1468,8 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 	search := c.Query("search")
 	role := c.Query("role")
 	includeDeleted := c.Query("includeDeleted") == "1" || c.Query("includeDeleted") == "true"
+	sortBy := strings.TrimSpace(c.DefaultQuery("sortBy", "createdAt"))
+	sortOrder := strings.ToLower(strings.TrimSpace(c.DefaultQuery("sortOrder", "desc")))
 
 	if page < 1 {
 		page = 1
@@ -1487,28 +1477,52 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
-
-	query := db.Model(&models.User{})
-	if includeDeleted {
-		// 管理员需要查看软删用户时，使用 Unscoped 绕过 GORM 的 deleted_at 自动过滤
-		query = query.Unscoped()
+	if sortOrder != "asc" {
+		sortOrder = "desc"
 	}
 
+	base := db.Model(&models.User{})
+	if includeDeleted {
+		// 管理员需要查看软删用户时，使用 Unscoped 绕过 GORM 的 deleted_at 自动过滤
+		base = base.Unscoped()
+	}
 	if search != "" {
 		like := "%" + search + "%"
-		query = query.Where("username LIKE ? OR display_name LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR email LIKE ?",
+		base = base.Where("username LIKE ? OR display_name LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR email LIKE ?",
 			like, like, like, like, like)
 	}
 	if role != "" {
-		query = query.Where("role = ?", role)
+		base = base.Where("role = ?", role)
 	}
 
 	var total int64
-	query.Count(&total)
+	if err := base.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		response.FailI18n(c, "common.query_failed", err)
+		return
+	}
+
+	// 全库排序后再分页，禁止只排当前页
+	var orderExpr string
+	switch sortBy {
+	case "lastLogin":
+		// NULL 排在后面，避免未登录用户干扰
+		orderExpr = "last_login IS NULL ASC, last_login " + sortOrder + ", id " + sortOrder
+	case "loginCount":
+		orderExpr = "login_count " + sortOrder + ", id " + sortOrder
+	case "createdAt":
+		orderExpr = "created_at " + sortOrder + ", id " + sortOrder
+	default:
+		sortBy = "createdAt"
+		orderExpr = "created_at " + sortOrder + ", id " + sortOrder
+	}
 
 	var users []models.User
 	offset := (page - 1) * pageSize
-	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
+	if err := base.Session(&gorm.Session{}).
+		Order(orderExpr).
+		Offset(offset).
+		Limit(pageSize).
+		Find(&users).Error; err != nil {
 		response.FailI18n(c, "common.query_failed", err)
 		return
 	}
@@ -1519,10 +1533,12 @@ func (h *Handlers) handleAdminListUsers(c *gin.Context) {
 	}
 
 	response.SuccessI18n(c, "common.ok", gin.H{
-		"users":    items,
-		"total":    total,
-		"page":     page,
-		"pageSize": pageSize,
+		"users":     items,
+		"total":     total,
+		"page":      page,
+		"pageSize":  pageSize,
+		"sortBy":    sortBy,
+		"sortOrder": sortOrder,
 	})
 }
 
@@ -1789,7 +1805,6 @@ func serializeUser(u *models.User) gin.H {
 		"lastName":          u.LastName,
 		"role":              u.Role,
 		"phone":             u.Phone,
-		"locale":            u.Locale,
 		"enabled":           !u.DeletedAt.Valid,
 		"isDeleted":         u.DeletedAt.Valid,
 		"isStaff":           u.Role == "admin",

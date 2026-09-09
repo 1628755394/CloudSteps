@@ -91,6 +91,11 @@ func TestGetDefaultEndpointTimeouts(t *testing.T) {
 	assert.Contains(t, timeouts, "/api/auth/login/password")
 	assert.Contains(t, timeouts, "/api/upload")
 	assert.Contains(t, timeouts, "/api/wordbooks/batch-audio/jobs")
+	assert.Contains(t, timeouts, "/api/reading/passages/")
+	assert.Contains(t, timeouts, "/api/reading/custom/passages/")
+	assert.Contains(t, timeouts, "/api/reading/admin/")
+	assert.Equal(t, 2*time.Minute, timeouts["/api/reading/passages/"])
+	assert.Equal(t, 3*time.Minute, timeouts["/api/reading/admin/"])
 	for path, d := range timeouts {
 		assert.Greater(t, d, time.Duration(0), "path %s should have timeout > 0", path)
 	}

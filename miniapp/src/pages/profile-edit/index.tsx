@@ -37,8 +37,6 @@ export default function ProfileEdit() {
 
   const [displayName, setDisplayName] = useState('')
   const [phone, setPhone] = useState('')
-  const [region, setRegion] = useState('')
-  const [city, setCity] = useState('')
   const [timezone, setTimezone] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -49,11 +47,16 @@ export default function ProfileEdit() {
   useEffect(() => {
     setDisplayName(user?.displayName ?? '')
     setPhone(user?.phone ?? '')
-    setRegion(user?.region ?? '')
-    setCity(user?.city ?? '')
     setTimezone(user?.timezone ?? '')
     setAvatarUrl(resolveMediaUrl(user?.avatar))
   }, [user])
+
+  const locationText = useMemo(() => {
+    const region = user?.region?.trim()
+    const city = user?.city?.trim()
+    if (region && city && !region.includes(city)) return `${region} · ${city}`
+    return region || city || ''
+  }, [user?.region, user?.city])
 
   // 资料完整度
   const profileComplete = useMemo(() => {
@@ -62,12 +65,12 @@ export default function ProfileEdit() {
       Boolean(displayName.trim() || user?.displayName),
       Boolean(avatarUrl || user?.avatar),
       Boolean(phone.trim() || user?.phone),
-      Boolean(city.trim() || user?.city),
-      Boolean(region.trim() || user?.region),
+      Boolean(user?.email),
+      Boolean(locationText),
       Boolean(timezone.trim() || user?.timezone),
     ]
     return Math.round((checks.filter(Boolean).length / checks.length) * 100)
-  }, [user, displayName, avatarUrl, phone, city, region, timezone])
+  }, [user, displayName, avatarUrl, phone, locationText, timezone])
 
   const onPickAvatar = async () => {
     if (uploading) return
@@ -116,8 +119,6 @@ export default function ProfileEdit() {
       const res = await updateCurrentUser({
         displayName: displayName.trim(),
         phone: phone.trim(),
-        region: region.trim(),
-        city: city.trim(),
         timezone: timezone.trim(),
       })
       if (res.code !== 200) {
@@ -233,24 +234,9 @@ export default function ProfileEdit() {
             <View className="edit__divider" />
             <View className="edit__field">
               <Text className="edit__label">地区</Text>
-              <Input
-                className="edit__input"
-                value={region}
-                onInput={(e) => setRegion(e.detail.value)}
-                placeholder="例如:中国"
-                placeholderClass="edit__placeholder"
-              />
-            </View>
-            <View className="edit__divider" />
-            <View className="edit__field">
-              <Text className="edit__label">城市</Text>
-              <Input
-                className="edit__input"
-                value={city}
-                onInput={(e) => setCity(e.detail.value)}
-                placeholder="例如:深圳"
-                placeholderClass="edit__placeholder"
-              />
+              <Text className={locationText ? 'edit__picker-value' : 'edit__placeholder'}>
+                {locationText || '登录后根据 IP 自动识别'}
+              </Text>
             </View>
           </View>
         </View>

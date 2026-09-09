@@ -28,6 +28,10 @@ import { playFirstWordAudio, playWordAudio } from "../utils/audioPlayer";
 import { formatTranslation, pickPhoneticDisplay } from "../utils/wordFormat";
 import { nextWordTapState, syncDetailWordWithTap } from "../utils/wordReveal";
 import { stampLessonPracticeWindow, finishPracticeBilling, consumeScheduledStudentLesson } from "../utils/practiceBilling";
+import {
+  clearStudyRoundSessionIds,
+  takeStudyRoundSessionIdsForReport,
+} from "../utils/studyRoundSessions";
 import { allowPracticeLeaveOnce, requestPracticePauseMenu } from "../utils/practiceFlowLock";
 import { normalizeSnowflakeId } from "../utils/json-snowflake";
 import {
@@ -334,7 +338,7 @@ export default function PostTrainingCheck() {
     navigate("/word-practice", { replace: true });
   };
 
-  const clearStudySessionLocalState = () => {
+  const clearStudySessionLocalState = (opts?: { clearRounds?: boolean }) => {
     sessionStorage.removeItem("lb_study_batch_idx");
     sessionStorage.removeItem("lb_study_batch_results");
     sessionStorage.removeItem("lb_study_total_batches");
@@ -342,6 +346,7 @@ export default function PostTrainingCheck() {
     sessionStorage.removeItem("lb_study_session_id");
     sessionStorage.removeItem("lb_study_words");
     clearStudyRecheck();
+    if (opts?.clearRounds) clearStudyRoundSessionIds();
   };
 
   /** 训后检测全部完成：先弹窗，再决定继续筛词或结束出报告 */
@@ -363,6 +368,7 @@ export default function PostTrainingCheck() {
   const finishTrainingAndCreateReview = () => {
     if (finishingTraining) return;
     const reportSessionId = finishedSessionId || sessionId;
+    const roundIds = takeStudyRoundSessionIdsForReport(reportSessionId);
     setFinishingTraining(true);
     // 整段识记练完 → 结算额度 → 课堂报告；保持弹窗 loading，避免连点
     stampLessonPracticeWindow();
@@ -372,11 +378,15 @@ export default function PostTrainingCheck() {
         // toast 已在 finishPracticeBilling 内处理
       })
       .finally(() => {
-        clearStudySessionLocalState();
+        clearStudySessionLocalState({ clearRounds: true });
         setFinishChoiceOpen(false);
         setFinishingTraining(false);
         if (reportSessionId) {
-          navigate(`/session-report/${reportSessionId}`, { replace: true });
+          const qs =
+            roundIds.length > 1
+              ? `?sessionIds=${roundIds.map(encodeURIComponent).join(",")}`
+              : "";
+          navigate(`/session-report/${reportSessionId}${qs}`, { replace: true });
           return;
         }
         navigate("/create-anti-forgetting", { replace: true });

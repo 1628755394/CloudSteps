@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard, CloudDatePicker, CloudEmpty, CloudSpin } from "../components/cloudsteps/arco";
@@ -80,7 +80,12 @@ function parseYMDLocal(ymd: string): Date {
 
 export default function AntiForgetting() {
   const { t } = useTranslation();
-  const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()));
+  const [searchParams] = useSearchParams();
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const q = (searchParams.get("date") || "").trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(q)) return q;
+    return toDateInputValue(new Date());
+  });
   const navigate = useNavigate();
 
   const [bookStats, setBookStats] = useState<ReviewBookStatRow[]>([]);

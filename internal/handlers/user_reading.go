@@ -28,6 +28,7 @@ func (h *Handlers) registerUserReadingRoutes(rg *humax.Group) {
 		custom.POST("/passages/import-text", h.handleUserReadingImportText)
 		custom.GET("/passages/:id", h.handleUserReadingGetPassage)
 		custom.GET("/passages/:id/knowledge", h.handleUserReadingGetKnowledge)
+		custom.GET("/passages/:id/analysis", h.handleUserReadingGetAnalysis)
 		custom.POST("/passages/:id/check", h.handleUserReadingCheckAnswer)
 		custom.PUT("/passages/:id", h.handleUserReadingUpdatePassage)
 		custom.DELETE("/passages/:id", h.handleUserReadingDeletePassage)
@@ -483,6 +484,49 @@ func (h *Handlers) handleUserReadingGetKnowledge(c *gin.Context) {
 	response.SuccessI18n(c, "common.success", gin.H{"items": points})
 }
 
+// GET /reading/custom/passages/:id/analysis — AI 逐句解析（无则生成入库，有则直接返回）。
+func (h *Handlers) handleUserReadingGetAnalysis(c *gin.Context) {
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	user := auth.CurrentUser(c)
+	if user == nil {
+		response.FailI18n(c, "common.login_required", nil)
+		return
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		response.FailI18n(c, "reading.invalid_id", nil)
+		return
+	}
+	var passage models.UserReadingPassage
+	if err := db.Where("id = ? AND user_id = ? AND status = ?", id, user.ID, models.UserReadingStatusActive).
+		First(&passage).Error; err != nil {
+		response.FailI18n(c, "reading.not_found", nil)
+		return
+	}
+
+	cfg := llm.FromGlobal()
+	chat := models.AnalysisChatFunc(nil)
+	if cfg.Enabled() {
+		chat = cfg.Chat
+	} else if !models.AnalysisJSONReady(passage.AnalysisJSON) {
+		response.FailI18n(c, "reading.analysis_llm_unavailable", nil)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 110*time.Second)
+	defer cancel()
+	items, err := models.EnsureUserReadingPassageAnalysis(ctx, db, passage.ID, user.ID, chat)
+	if err != nil {
+		if errors.Is(err, llm.ErrNotConfigured) || errors.Is(err, models.ErrAnalysisChatRequired) {
+			response.FailI18n(c, "reading.analysis_llm_unavailable", nil)
+			return
+		}
+		response.FailI18n(c, "reading.analysis_generate_failed", err.Error())
+		return
+	}
+	response.SuccessI18n(c, "common.success", gin.H{"items": items})
+}
+
 // POST /reading/custom/passages/:id/check
 func (h *Handlers) handleUserReadingCheckAnswer(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
@@ -571,6 +615,7 @@ func (h *Handlers) handleUserReadingUpdatePassage(c *gin.Context) {
 		passage.Content = *body.Content
 		passage.WordCount = countEnglishWords(*body.Content)
 		passage.KnowledgeJSON = ""
+		passage.AnalysisJSON = ""
 	}
 	if body.Summary != nil {
 		passage.Summary = *body.Summary

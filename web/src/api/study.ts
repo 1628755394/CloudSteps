@@ -260,10 +260,16 @@ export interface StudySessionReport {
 }
 
 export const getStudySessionReport = async (
-  sessionId: string | number
+  sessionId: string | number,
+  opts?: { sessionIds?: Array<string | number> }
 ): Promise<ApiResponse<StudySessionReport>> => {
   const id = String(sessionId).trim()
-  return get<StudySessionReport>(`/study/session/${id}/report`)
+  const extras = (opts?.sessionIds || [])
+    .map((x) => String(x).trim())
+    .filter(Boolean)
+  const params =
+    extras.length > 0 ? { sessionIds: extras.join(',') } : undefined
+  return get<StudySessionReport>(`/study/session/${id}/report`, { params })
 }
 
 type ReportStreamEvent = {
@@ -279,12 +285,20 @@ export async function streamStudySessionReport(
     onDone?: (full: string) => void
     onError?: (code: string) => void
   },
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  opts?: { sessionIds?: Array<string | number> }
 ): Promise<void> {
   const id = String(sessionId).trim()
+  const extras = (opts?.sessionIds || [])
+    .map((x) => String(x).trim())
+    .filter(Boolean)
+  const qs =
+    extras.length > 0
+      ? `?sessionIds=${extras.map(encodeURIComponent).join(',')}`
+      : ''
   const token =
     (typeof localStorage !== 'undefined' && localStorage.getItem('auth_token')) || ''
-  const res = await fetch(`${getApiBaseURL()}/study/session/${id}/report/stream`, {
+  const res = await fetch(`${getApiBaseURL()}/study/session/${id}/report/stream${qs}`, {
     method: 'GET',
     headers: {
       Accept: 'text/event-stream',
@@ -341,9 +355,11 @@ export async function streamStudySessionReport(
 }
 
 export type UpdatePracticeTimeRequest = {
-  date: string
+  /** 可选：有 sessionIds 时可由课次推导 */
+  date?: string
   startTime: string
-  endTime: string
+  /** 可选：仅改开始时间时可不传，保留原完成时间 */
+  endTime?: string
   studentId?: string
   sessionIds?: Array<string | number>
 }

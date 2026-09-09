@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// 抗遗忘排期：开课当日 = 第 1 天（与打印 PDF 工具一致，非 Day0 模型）。
+// 抗遗忘排期：开课当日 = 第 1 天（日历锚点），首次复习从第 2 天起（不下当天）。
 // 数组每一项为「第 N 天」的 N，即相对开课日 0 点起的日历日序号。
 
 type ReviewCurvePreset string
@@ -18,10 +18,10 @@ const (
 )
 
 var reviewScheduleByPreset = map[ReviewCurvePreset][]int{
-	ReviewCurveTimes3:  {1, 2, 4},
-	ReviewCurveTimes5:  {1, 2, 4, 7, 11},
-	ReviewCurveTimes7:  {1, 2, 4, 7, 11, 15, 20},
-	ReviewCurveTimes10: {1, 2, 3, 5, 7, 9, 12, 14, 17, 21},
+	ReviewCurveTimes3:  {2, 3, 5},
+	ReviewCurveTimes5:  {2, 3, 5, 8, 12},
+	ReviewCurveTimes7:  {2, 3, 5, 8, 12, 16, 21},
+	ReviewCurveTimes10: {2, 3, 4, 6, 8, 10, 13, 15, 18, 22},
 }
 
 func NormalizeReviewCurvePreset(p string) ReviewCurvePreset {
@@ -103,9 +103,9 @@ func LearnDayStart(t time.Time, loc *time.Location) time.Time {
 	return time.Date(lt.Year(), lt.Month(), lt.Day(), 0, 0, 0, 0, loc)
 }
 
-// FirstReviewDueAt 学完后的首次复习：开课当日（第 1 天）本地 0 点。
+// FirstReviewDueAt 学完后的首次复习：次日（第 2 天）本地 0 点。
 func FirstReviewDueAt(loc *time.Location) time.Time {
-	return LearnDayStart(time.Now(), loc).UTC()
+	return LearnDayStart(time.Now(), loc).AddDate(0, 0, 1).UTC()
 }
 
 func UserReviewLocation(user *User) *time.Location {
@@ -180,4 +180,3 @@ func ReviewRemainingDueFallsOnDay(
 	}
 	return false
 }
-

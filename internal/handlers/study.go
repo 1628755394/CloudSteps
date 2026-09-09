@@ -476,7 +476,7 @@ func (h *Handlers) handleStudySessionComplete(c *gin.Context) {
 			Updates(map[string]any{"remembered": &f, "answered_at": &now}).Error
 	}
 
-	// remembered -> learned + enqueue stage=0 due=开课日（第1天）本地 0 点
+	// remembered -> learned + enqueue stage=0 due=次日（第2天）本地 0 点
 	if len(rememberedIDs) > 0 {
 		loc := models.UserReviewLocation(learnerUser)
 		firstDue := models.FirstReviewDueAt(loc)
@@ -1139,7 +1139,8 @@ func parseLocalDateTime(dateYMD, hm string, loc *time.Location) (time.Time, erro
 }
 
 // handleStudySessionsPracticeTime PUT /study/sessions/practice-time
-// body: { date, startTime, endTime, studentId?, sessionIds? }
+// body: { startTime, date?, endTime?, studentId?, sessionIds? }
+// 仅开始时间必填；有 sessionIds 时可省略 date（从课次推导）。endTime 省略则只改 started_at。
 func (h *Handlers) handleStudySessionsPracticeTime(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	user := auth.CurrentUser(c)
@@ -1149,9 +1150,9 @@ func (h *Handlers) handleStudySessionsPracticeTime(c *gin.Context) {
 	}
 
 	var body struct {
-		Date       string           `json:"date" binding:"required"`
+		Date       string           `json:"date"`
 		StartTime  string           `json:"startTime" binding:"required"`
-		EndTime    string           `json:"endTime" binding:"required"`
+		EndTime    string           `json:"endTime"`
 		StudentID  string           `json:"studentId"`
 		SessionIDs []utils.JSONUint `json:"sessionIds"`
 	}
@@ -1161,22 +1162,6 @@ func (h *Handlers) handleStudySessionsPracticeTime(c *gin.Context) {
 	}
 
 	loc := models.UserReviewLocation(user)
-	startLocal, err := parseLocalDateTime(body.Date, body.StartTime, loc)
-	if err != nil {
-		response.FailI18n(c, "common.invalid_params", nil)
-		return
-	}
-	endLocal, err := parseLocalDateTime(body.Date, body.EndTime, loc)
-	if err != nil {
-		response.FailI18n(c, "common.invalid_params", nil)
-		return
-	}
-	if !endLocal.After(startLocal) {
-		response.FailI18n(c, "common.invalid_params", nil)
-		return
-	}
-	startUTC := startLocal.UTC()
-	endUTC := endLocal.UTC()
 
 	q := db.Model(&models.StudySession{}).
 		Where("user_id = ? AND session_type = ? AND status = ?", user.ID, "learn", "completed")
@@ -1190,7 +1175,12 @@ func (h *Handlers) handleStudySessionsPracticeTime(c *gin.Context) {
 		}
 		q = q.Where("id IN ?", ids)
 	} else {
-		dayStart, err := time.ParseInLocation("2006-01-02", strings.TrimSpace(body.Date), loc)
+		dateStr := strings.TrimSpace(body.Date)
+		if dateStr == "" {
+			response.FailI18n(c, "common.invalid_params", nil)
+			return
+		}
+		dayStart, err := time.ParseInLocation("2006-01-02", dateStr, loc)
 		if err != nil {
 			response.FailI18n(c, "common.invalid_params", nil)
 			return
@@ -1226,23 +1216,50 @@ func (h *Handlers) handleStudySessionsPracticeTime(c *gin.Context) {
 		return
 	}
 
+	dateStr := strings.TrimSpace(body.Date)
+	if dateStr == "" {
+		dateStr = sessions[0].StartedAt.In(loc).Format("2006-01-02")
+	}
+	startLocal, err := parseLocalDateTime(dateStr, body.StartTime, loc)
+	if err != nil {
+		response.FailI18n(c, "common.invalid_params", nil)
+		return
+	}
+	startUTC := startLocal.UTC()
+
+	updates := map[string]any{
+		"started_at": startUTC,
+	}
+	if endHm := strings.TrimSpace(body.EndTime); endHm != "" {
+		endLocal, err := parseLocalDateTime(dateStr, endHm, loc)
+		if err != nil {
+			response.FailI18n(c, "common.invalid_params", nil)
+			return
+		}
+		if !endLocal.After(startLocal) {
+			response.FailI18n(c, "common.invalid_params", nil)
+			return
+		}
+		updates["completed_at"] = endLocal.UTC()
+	}
+
 	ids := make([]uint, 0, len(sessions))
 	for _, s := range sessions {
 		ids = append(ids, s.ID)
 	}
 	res := db.Model(&models.StudySession{}).
 		Where("id IN ?", ids).
-		Updates(map[string]any{
-			"started_at":   startUTC,
-			"completed_at": endUTC,
-		})
+		Updates(updates)
 	if res.Error != nil {
-		response.FailI18n(c, "common.operation_failed", res.Error.Error())
+		response.FailI18n(c, "common.update_failed", res.Error.Error())
 		return
 	}
-
+	outIDs := make([]string, 0, len(ids))
+	for _, id := range ids {
+		outIDs = append(outIDs, strconv.FormatUint(uint64(id), 10))
+	}
 	response.SuccessI18n(c, "common.success", gin.H{
-		"updated": res.RowsAffected,
-		"sessionIds": ids,
+		"updated":    res.RowsAffected,
+		"sessionIds": outIDs,
 	})
 }

@@ -26,6 +26,8 @@ export default defineConfig({
         target: 'http://localhost:7080',
         changeOrigin: true,
         ws: true,
+        timeout: 180_000,
+        proxyTimeout: 180_000,
       },
       '/uploads': {
         target: 'http://localhost:7080',

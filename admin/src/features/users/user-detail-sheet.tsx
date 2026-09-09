@@ -126,7 +126,6 @@ export function UserDetailSheet({
               <DetailField label='姓' value={user.lastName} />
               <DetailField label='名' value={user.firstName} />
               <DetailField label='性别' value={genderLabel(user.gender)} />
-              <DetailField label='语言' value={user.locale} />
               <DetailField label='地区' value={formatLocation(user)} />
               <DetailField label='来源' value={sourceLabel(user.source)} />
               <DetailField

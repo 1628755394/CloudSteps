@@ -31,7 +31,6 @@ export interface User {
   gender?: string
   city?: string
   region?: string
-  locale?: string
   timezone: string
   avatar?: string
   role?: 'user' | 'admin'

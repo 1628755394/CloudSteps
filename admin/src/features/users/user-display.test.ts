@@ -71,10 +71,22 @@ describe('genderLabel', () => {
 })
 
 describe('formatLocation', () => {
-  it('joins region and city', () => {
+  it('joins region and city when city is not already in region', () => {
     expect(formatLocation({ id: 1, region: '浙江', city: '杭州' })).toBe(
       '浙江 · 杭州'
     )
+    expect(formatLocation({ id: 1, region: '浙江 杭州', city: '杭州' })).toBe(
+      '浙江 杭州'
+    )
     expect(formatLocation({ id: 1 })).toBe('—')
+  })
+
+  it('shows 内网 for loopback login IP', () => {
+    expect(
+      formatLocation({ id: 1, lastLoginIP: '::1', region: '浙江', city: '杭州' })
+    ).toBe('内网')
+    expect(
+      formatLocation({ id: 1, lastLoginIP: '127.0.0.1', region: 'Local Network' })
+    ).toBe('内网')
   })
 })

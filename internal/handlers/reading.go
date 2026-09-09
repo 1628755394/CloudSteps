@@ -41,6 +41,7 @@ func (h *Handlers) registerReadingRoutes(r *humax.Group) {
 		user.GET("/passages", h.handleReadingListPassages)
 		user.GET("/passages/:id", h.handleReadingGetPassage)
 		user.GET("/passages/:id/knowledge", h.handleReadingGetKnowledge)
+		user.GET("/passages/:id/analysis", h.handleReadingGetAnalysis)
 		user.POST("/passages/:id/check", h.handleReadingCheckAnswer)
 		user.POST("/passages/:id/submit", h.handleReadingSubmit)
 		user.GET("/records", h.handleReadingListRecords)
@@ -52,6 +53,7 @@ func (h *Handlers) registerReadingRoutes(r *humax.Group) {
 		admin.PUT("/passages/:id", h.handleAdminUpdatePassage)
 		admin.DELETE("/passages/:id", h.handleAdminDeletePassage)
 		admin.POST("/passages/:id/questions", h.handleAdminUpsertQuestions)
+		admin.POST("/passages/:id/analysis", h.handleAdminGenerateAnalysis)
 		admin.GET("/passages", h.handleAdminListPassages)
 		admin.GET("/passages/:id", h.handleAdminGetPassage)
 	}
@@ -259,6 +261,44 @@ func (h *Handlers) handleReadingGetKnowledge(c *gin.Context) {
 		return
 	}
 	response.SuccessI18n(c, "common.success", gin.H{"items": points})
+}
+
+// GET /reading/passages/:id/analysis — AI 逐句解析（无则生成入库，有则直接返回；空数组表示无可分析句子）。
+func (h *Handlers) handleReadingGetAnalysis(c *gin.Context) {
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		response.FailI18n(c, "reading.invalid_id", nil)
+		return
+	}
+	var passage models.ReadingPassage
+	if err := db.Where("id = ? AND status = ?", id, models.ReadingStatusPublished).
+		First(&passage).Error; err != nil {
+		response.FailI18n(c, "reading.not_found_or_unpublished", nil)
+		return
+	}
+
+	cfg := llm.FromGlobal()
+	chat := models.AnalysisChatFunc(nil)
+	if cfg.Enabled() {
+		chat = cfg.Chat
+	} else if !models.AnalysisJSONReady(passage.AnalysisJSON) {
+		response.FailI18n(c, "reading.analysis_llm_unavailable", nil)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 110*time.Second)
+	defer cancel()
+	items, err := models.EnsureReadingPassageAnalysis(ctx, db, passage.ID, chat)
+	if err != nil {
+		if errors.Is(err, llm.ErrNotConfigured) || errors.Is(err, models.ErrAnalysisChatRequired) {
+			response.FailI18n(c, "reading.analysis_llm_unavailable", nil)
+			return
+		}
+		response.FailI18n(c, "reading.analysis_generate_failed", err.Error())
+		return
+	}
+	response.SuccessI18n(c, "common.success", gin.H{"items": items})
 }
 
 // POST /reading/passages/:id/check — reveal correctness for one question after the user answers.
@@ -540,6 +580,37 @@ func (h *Handlers) handleReadingGetRecord(c *gin.Context) {
 
 // ---------- admin ----------
 
+func readingPassageAdminListItem(p models.ReadingPassage) gin.H {
+	sentences := models.SplitReadingSentences(p.Content)
+	analysisReady := false
+	if models.AnalysisJSONReady(p.AnalysisJSON) {
+		items, err := models.ParseReadingAnalysisJSON(p.AnalysisJSON)
+		if err == nil {
+			analysisReady = models.AnalysisCoversSentences(items, sentences)
+		}
+	}
+	return gin.H{
+		"id":               p.ID,
+		"title":            p.Title,
+		"level":            p.Level,
+		"summary":          p.Summary,
+		"status":           p.Status,
+		"wordCount":        p.WordCount,
+		"estimatedMinutes": p.EstimatedMinutes,
+		"sortOrder":        p.SortOrder,
+		"createdAt":        p.CreatedAt,
+		"updatedAt":        p.UpdatedAt,
+		"analysisReady":    analysisReady,
+		"knowledgeReady":   models.KnowledgeJSONReady(p.KnowledgeJSON),
+	}
+}
+
+func readingPassageAdminDetail(p models.ReadingPassage) gin.H {
+	item := readingPassageAdminListItem(p)
+	item["content"] = p.Content
+	return item
+}
+
 func (h *Handlers) handleAdminListPassages(c *gin.Context) {
 	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -568,7 +639,84 @@ func (h *Handlers) handleAdminListPassages(c *gin.Context) {
 	var list []models.ReadingPassage
 	q.Order("sort_order ASC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&list)
 
-	response.SuccessI18n(c, "common.success", gin.H{"list": list, "total": total, "page": page, "pageSize": pageSize})
+	items := make([]gin.H, 0, len(list))
+	for _, p := range list {
+		items = append(items, readingPassageAdminListItem(p))
+	}
+	response.SuccessI18n(c, "common.success", gin.H{"list": items, "total": total, "page": page, "pageSize": pageSize})
+}
+
+// POST /reading/admin/passages/:id/analysis — 预生成 / 强制重生细学（逐句解析）。
+func (h *Handlers) handleAdminGenerateAnalysis(c *gin.Context) {
+	db := c.MustGet(lbconstants.DbField).(*gorm.DB)
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		response.FailI18n(c, "reading.invalid_id", nil)
+		return
+	}
+	var passage models.ReadingPassage
+	if err := db.Where("id = ?", id).First(&passage).Error; err != nil {
+		response.FailI18n(c, "reading.not_found", nil)
+		return
+	}
+
+	force := strings.EqualFold(c.Query("force"), "1") ||
+		strings.EqualFold(c.Query("force"), "true")
+	if force {
+		if err := models.ClearReadingPassageAnalysis(db, passage.ID); err != nil {
+			response.FailI18n(c, "common.operation_failed", err)
+			return
+		}
+		passage.AnalysisJSON = ""
+	} else if models.AnalysisJSONReady(passage.AnalysisJSON) {
+		items, err := models.ParseReadingAnalysisJSON(passage.AnalysisJSON)
+		if err != nil {
+			response.FailI18n(c, "reading.analysis_generate_failed", err.Error())
+			return
+		}
+		sentences := models.SplitReadingSentences(passage.Content)
+		if models.AnalysisCoversSentences(items, sentences) {
+			if items == nil {
+				items = []models.ReadingSentenceAnalysis{}
+			}
+			response.SuccessI18n(c, "common.success", gin.H{
+				"id":            passage.ID,
+				"skipped":       true,
+				"analysisReady": true,
+				"sentenceCount": len(items),
+				"items":         items,
+			})
+			return
+		}
+	}
+
+	cfg := llm.FromGlobal()
+	chat := models.AnalysisChatFunc(nil)
+	if cfg.Enabled() {
+		chat = cfg.Chat
+	} else {
+		response.FailI18n(c, "reading.analysis_llm_unavailable", nil)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 160*time.Second)
+	defer cancel()
+	items, err := models.EnsureReadingPassageAnalysis(ctx, db, passage.ID, chat)
+	if err != nil {
+		if errors.Is(err, llm.ErrNotConfigured) || errors.Is(err, models.ErrAnalysisChatRequired) {
+			response.FailI18n(c, "reading.analysis_llm_unavailable", nil)
+			return
+		}
+		response.FailI18n(c, "reading.analysis_generate_failed", err.Error())
+		return
+	}
+	response.SuccessI18n(c, "common.success", gin.H{
+		"id":            passage.ID,
+		"skipped":       false,
+		"analysisReady": true,
+		"sentenceCount": len(items),
+		"items":         items,
+	})
 }
 
 func (h *Handlers) handleAdminGetPassage(c *gin.Context) {
@@ -594,7 +742,22 @@ func (h *Handlers) handleAdminGetPassage(c *gin.Context) {
 			"sortOrder":   q.SortOrder,
 		})
 	}
-	response.SuccessI18n(c, "common.success", gin.H{"passage": passage, "questions": qs})
+
+	var analysisItems []models.ReadingSentenceAnalysis
+	if models.AnalysisJSONReady(passage.AnalysisJSON) {
+		if items, err := models.ParseReadingAnalysisJSON(passage.AnalysisJSON); err == nil && items != nil {
+			analysisItems = items
+		}
+	}
+	if analysisItems == nil {
+		analysisItems = []models.ReadingSentenceAnalysis{}
+	}
+
+	response.SuccessI18n(c, "common.success", gin.H{
+		"passage":   readingPassageAdminDetail(passage),
+		"questions": qs,
+		"analysis":  analysisItems,
+	})
 }
 
 func (h *Handlers) handleAdminCreatePassage(c *gin.Context) {
@@ -719,6 +882,7 @@ func (h *Handlers) handleAdminUpdatePassage(c *gin.Context) {
 		passage.Content = *body.Content
 		passage.WordCount = countEnglishWords(*body.Content)
 		passage.KnowledgeJSON = ""
+		passage.AnalysisJSON = ""
 	}
 	if body.Summary != nil {
 		passage.Summary = *body.Summary

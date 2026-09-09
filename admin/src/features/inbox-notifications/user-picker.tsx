@@ -19,7 +19,7 @@ import {
 import {
   userDisplayName,
   type CloudUser,
-} from '@/features/cloud-users/user-display'
+} from '@/features/users/user-display'
 
 type UserPickerProps = {
   value: string

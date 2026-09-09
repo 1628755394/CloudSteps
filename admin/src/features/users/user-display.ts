@@ -8,7 +8,6 @@ export type CloudUser = {
   lastName?: string
   role?: string
   phone?: string
-  locale?: string
   enabled?: boolean
   isDeleted?: boolean
   isStaff?: boolean
@@ -93,10 +92,40 @@ export function genderLabel(gender?: string): string {
 export { formatDateTime } from '@/lib/datetime'
 
 export function formatLocation(user: CloudUser): string {
-  return (
-    [user.region, user.city]
-      .map((part) => part?.trim())
-      .filter(Boolean)
-      .join(' · ') || '—'
-  )
+  if (isInternalLoginIP(user.lastLoginIP)) {
+    return '内网'
+  }
+  const region = user.region?.trim()
+  const city = user.city?.trim()
+  if (region === 'Local Network' || region === 'Local' || region === '内网IP') {
+    return '内网'
+  }
+  if (region && city && !region.includes(city)) {
+    return `${region} · ${city}`
+  }
+  return region || city || '—'
+}
+
+/** 本机 / 私网登录 IP，地区统一展示为内网 */
+export function isInternalLoginIP(ip?: string | null): boolean {
+  const raw = ip?.trim().toLowerCase() ?? ''
+  if (!raw) return false
+  const v = raw.replace(/^\[|\]$/g, '').split('%')[0]
+  if (
+    v === '::1' ||
+    v === '0:0:0:0:0:0:0:1' ||
+    v === '127.0.0.1' ||
+    v === 'localhost'
+  ) {
+    return true
+  }
+  if (v.startsWith('10.') || v.startsWith('192.168.') || v.startsWith('169.254.')) {
+    return true
+  }
+  const m = /^172\.(\d+)\./.exec(v)
+  if (m) {
+    const n = Number(m[1])
+    return n >= 16 && n <= 31
+  }
+  return false
 }

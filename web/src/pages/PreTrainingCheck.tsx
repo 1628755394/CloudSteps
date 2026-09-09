@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 
 import { getStudyWords, startStudySession } from "../api/study";
+import { appendStudyRoundSessionId } from "../utils/studyRoundSessions";
 import { getTrainingStudent } from "../utils/trainingStudent";
 import { AnnotationLayer } from "../components/AnnotationLayer";
 import { PRACTICE_TRANS_CLASS, PRACTICE_WORD_CLASS } from "../components/PracticeFontSettings";
@@ -357,6 +358,7 @@ export default function PreTrainingCheck() {
       }
       if (sessionId) {
         sessionStorage.setItem("lb_study_session_id", String(sessionId));
+        appendStudyRoundSessionId(sessionId);
       }
       if (Array.isArray(sessionWords)) {
         sessionStorage.setItem("lb_study_words", JSON.stringify(sessionWords));
@@ -390,7 +392,7 @@ export default function PreTrainingCheck() {
     }
   };
 
-  const renderWordItem = (word: WordItem) => (
+  const renderWordItem = (word: WordItem, seq: number) => (
     <div
       className={`rounded-xl p-3.5 sm:p-4 shadow-sm transition-all cursor-pointer ${markWordCardClass(
         word.status,
@@ -400,7 +402,14 @@ export default function PreTrainingCheck() {
       onClick={() => handleWordClick(word)}
     >
       <div className="flex flex-row items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span
+            className="w-10 shrink-0 text-right text-2xl font-light leading-none tracking-tight text-[#94A3B8]"
+            style={{ fontFamily: 'Georgia, "Times New Roman", "Songti SC", "Noto Serif SC", serif' }}
+            aria-hidden
+          >
+            {seq}.
+          </span>
           <div className="min-w-0">
             <span className={`${PRACTICE_WORD_CLASS} transition-colors hover:text-[#4ECDC4]`}>
               {word.word}
@@ -487,20 +496,30 @@ export default function PreTrainingCheck() {
     </div>
   );
 
+  const noteSplit = note.open && note.isDesktop;
+
   return (
-    <FlowPageShell className="min-h-screen bg-gray-50 pb-20 sm:pb-24">
-      <TopBar
-        title={t("pre_training_check.title")}
-        onBack={handleBack}
-        rightSlot={
-          <PracticeFlowToolbar
-            annotationOpen={annotationOpen}
-            onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
-            wordCount={wrongCount}
-            onWordPatched={(view) => setWords((prev) => applyUserWordView(prev, view))}
-          />
-        }
-      />
+    <FlowPageShell
+      className={
+        noteSplit
+          ? "h-dvh flex flex-col overflow-hidden bg-gray-50"
+          : "min-h-screen bg-gray-50 pb-20 sm:pb-24"
+      }
+    >
+      <div className={noteSplit ? "shrink-0" : undefined}>
+        <TopBar
+          title={t("pre_training_check.title")}
+          onBack={handleBack}
+          rightSlot={
+            <PracticeFlowToolbar
+              annotationOpen={annotationOpen}
+              onToggleAnnotation={() => setAnnotationOpen((v) => !v)}
+              wordCount={wrongCount}
+              onWordPatched={(view) => setWords((prev) => applyUserWordView(prev, view))}
+            />
+          }
+        />
+      </div>
 
       <AnnotationLayer
         storageKey={`pre-training:${wordBookId}`}
@@ -543,8 +562,8 @@ export default function PreTrainingCheck() {
           />
         ) : (
           <div className="space-y-2.5 mb-6">
-            {words.map((word) => (
-              <div key={word.id}>{renderWordItem(word)}</div>
+            {words.map((word, i) => (
+              <div key={`${String(word.id)}-${i}`}>{renderWordItem(word, i + 1)}</div>
             ))}
 
             {hasMore && (
@@ -574,7 +593,13 @@ export default function PreTrainingCheck() {
         )}
       </NoteSplitLayout>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg">
+      <div
+        className={
+          noteSplit
+            ? "shrink-0 border-t border-[#E2E8F0] bg-white px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg"
+            : "fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-[#E2E8F0] px-3 sm:px-4 py-1.5 sm:py-2 shadow-lg"
+        }
+      >
         <div className="max-w-2xl lg:max-w-5xl mx-auto w-full flex items-center gap-1.5 sm:gap-2">
           <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-hide">
             <CloudButton

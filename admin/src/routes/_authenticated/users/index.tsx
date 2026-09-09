@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { CloudUsersPage } from '@/features/cloud-users'
+import { UsersPage } from '@/features/users'
 
 export const Route = createFileRoute('/_authenticated/users/')({
-  component: CloudUsersPage,
+  component: UsersPage,
 })

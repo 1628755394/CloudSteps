@@ -242,6 +242,8 @@
   "reading.no_questions": "No questions for this article",
   "reading.knowledge_llm_unavailable": "Knowledge generation is not configured",
   "reading.knowledge_generate_failed": "Failed to generate knowledge points",
+  "reading.analysis_llm_unavailable": "Sentence analysis is not configured",
+  "reading.analysis_generate_failed": "Failed to generate sentence analysis",
   "reading.import_too_many": "Maximum 20 passages per import",
   "reading.import_parse_failed": "Failed to parse import text. Check the template.",
   "reading.save_question_failed": "Failed to save question",
