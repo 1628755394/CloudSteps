@@ -219,10 +219,14 @@ export default function WordPractice() {
   const activeIndex = sequence.length > 0 ? sequence[Math.min(frameIdx, sequence.length - 1)] : -1;
   const nextGuideIndex = activeIndex;
 
-  /** 连续点击同一个词时，第一次发音、第二次显示音标和释义。 */
+  /** 人工带读只记录当前朗读词；普通模式才执行连续点击练习流程。 */
   const handleWordTap = (word: PracticeWord) => {
     const idx = words.findIndex((w) => w.id === word.id);
     if (idx < 0) return;
+    if (manualReadMode) {
+      setSelectedIndex(idx);
+      return;
+    }
     const followsGuide = sequence.length > 0 && idx === activeIndex;
     const isContinuation = lastTappedIndexRef.current === idx;
     const next = getPracticeTapState(idx, lastTappedIndexRef.current, word);
@@ -558,7 +562,9 @@ export default function WordPractice() {
                 variant={manualReadMode ? "brand" : "outline"}
                 size="pill"
                 onClick={() => {
-                  setManualReadMode(!manualReadMode);
+                  setManualReadMode((enabled) => !enabled);
+                  setSelectedIndex(null);
+                  lastTappedIndexRef.current = null;
                   setWords((prev) =>
                     prev.map((w) => ({ ...w, showTranslation: false, heard: false }))
                   );
