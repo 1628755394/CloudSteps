@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronRight, Crown, LockKeyhole, CheckCircle2, Clock, Sparkles } from "lucide-react";
+import { Check, Crown, LockKeyhole, CheckCircle2, Clock, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { CloudButton } from "../components/cloudsteps";
 import { CloudCard } from "../components/cloudsteps/arco";
 import { PageBackHeader } from "../components/PageBackHeader";
-import { showToast } from "../utils/toast";
+import { WechatIcon } from "../components/WechatIcon";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
 import { getTeacherTeachingPoolWithSubscription, type UserSubscription } from "../api/coaching";
 
 type Plan = {
@@ -36,19 +37,13 @@ const comparison = [
   ["推广返佣", "—", "20%", "20%", "20%", "20%"],
 ];
 
-const paymentMethods = [
-  { id: "wechat", label: "微信支付", icon: "icon-weixinzhifu", color: "text-success" },
-  { id: "alipay", label: "支付宝", icon: "icon-zhifubaozhifu", color: "text-secondary-brand" },
-  { id: "bank", label: "信用卡银行卡", icon: "icon-xinyongkayinhangka", color: "text-primary" },
-];
-
 const money = (value: number) => `¥${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}`;
 
 export default function Recharge() {
   const [selectedId, setSelectedId] = useState("yearly");
-  const [method, setMethod] = useState("微信支付");
   const [currentSub, setCurrentSub] = useState<UserSubscription | null | undefined>(undefined);
   const [showFirstMonthDeal, setShowFirstMonthDeal] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const selected = useMemo(() => plans.find((plan) => plan.id === selectedId) ?? plans[2], [selectedId]);
   const isNewUser = !currentSub;
   const isFirstMonth = selectedId === "monthly" && isNewUser && showFirstMonthDeal;
@@ -73,8 +68,7 @@ export default function Recharge() {
   }, []);
 
   const submit = () => {
-    if (!window.confirm(`确认开通${selected.name}？一次性购买，不会自动续费。`)) return;
-    showToast.success(`${selected.name}开通成功：${money(finalPrice)}（mock）`);
+    setContactOpen(true);
   };
 
   return (
@@ -204,12 +198,6 @@ export default function Recharge() {
                 <CloudButton onClick={submit} className="mt-4 h-11 w-full bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90 active:scale-[0.99]">立即开通</CloudButton>
                 <p className="mt-2 text-center text-xs text-muted-foreground">支付即代表同意会员服务条款</p>
               </CloudCard>
-
-              <CloudCard className="mt-3 p-4">
-                <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Crown size={16} className="text-primary" />支付方式</div>
-                <div className="grid grid-cols-3 gap-2">{paymentMethods.map((item) => <button key={item.id} type="button" onClick={() => setMethod(item.label)} aria-pressed={method === item.label} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-md border px-1 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${method === item.label ? "border-primary bg-primary-soft font-medium text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}><i className={`payment-iconfont ${item.icon} ${item.color} text-lg leading-none`} aria-hidden="true" />{item.label}</button>)}</div>
-                <p className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">已选择：{method}<ChevronRight size={13} /></p>
-              </CloudCard>
             </aside>
           </div>
 
@@ -219,6 +207,28 @@ export default function Recharge() {
           </CloudCard>
         </div>
       </main>
+
+      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
+        <DialogContent className="sm:max-w-sm rounded-2xl p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-border text-left">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <WechatIcon className="size-5 text-[#07C160]" />
+              联系客服开通
+            </DialogTitle>
+            <DialogDescription>请扫码添加客服微信，由客服为您手动开通会员</DialogDescription>
+          </DialogHeader>
+          <div className="px-5 py-5 flex flex-col items-center gap-3">
+            <img
+              src={`${import.meta.env.BASE_URL}wechat-biz-qr.png`}
+              alt="客服微信二维码"
+              className="w-48 h-48 rounded-xl border border-border bg-white object-contain"
+            />
+            <p className="text-[12px] text-muted-foreground text-center">
+              微信扫码添加客服，发送「开通会员」即可处理
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
